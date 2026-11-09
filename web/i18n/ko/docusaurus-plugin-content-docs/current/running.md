@@ -102,7 +102,11 @@ export ANTHROPIC_API_KEY=...                 # 이 셸에서만. 파일에는 �
 mulder가 문서로 안내하는, 조사에 질문을 주는 방법입니다. 그다음 이미지 기본
 entrypoint와 `--privileged`로 `mulder investigate`를 실행하고, 결과를 `run-1`로
 가져옵니다. 가져오기는 보고서, 감사 로그, 모델 사용량, 로그를 남기고(사건 DB 제외),
-보고서를 케이스 질문으로 채점하고, 감사 로그로 실행 기록을 만듭니다. 손으로 돌린
+보고서를 케이스 질문으로 채점하고, 감사 로그로 실행 기록을 만듭니다. mulder 보고서에는 자체 고정 질문(Q1~Q8)이 있습니다.
+`harness_options`에 `answer_section: true`를 두면 브리핑이 케이스 질문을 `Case Q<n>`으로
+표시하고, 보고서에 질문마다 한 줄씩 답하는 "Case Questions" 절을 요청합니다. `review`는
+그 줄을 질문별 답으로 보여 줍니다. 실제로 넣은 브리핑은 실행 결과(`mulder/MULDER.md`)에
+남습니다. 손으로 돌린
 실행은 `./bench.sh import <검증> <라벨> <mulder cases 폴더> <case id>`로 가져옵니다.
 
 실행마다 비용이 듭니다. EXP-002은 출력 134.5K 토큰을 썼습니다 (mulder 집계 기준 정가로

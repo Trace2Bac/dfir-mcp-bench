@@ -15,6 +15,7 @@ from typing import Any
 import yaml
 
 from .case import Case, load_case, split_answers
+from .investigate import CASE_PREFIX
 
 VERDICTS = {"p": "pass", "a": "partial", "f": "fail"}
 
@@ -54,7 +55,15 @@ def _review_run(case: Case, run_dir: Path, reviewer: str) -> bool:
     """Review one run interactively; False when the reviewer quits."""
     score = json.loads((run_dir / "score.json").read_text())
     auto = {q["id"]: q for q in score["questions"]}
-    answers = split_answers(case, (run_dir / "answer.md").read_text())
+    info = json.loads((run_dir / "run.json").read_text())
+    investigate = (info.get("harness") or {}).get("name") == "mulder-investigate"
+    if investigate:
+        # mulder's report has its own Q1-Q8; read only the "Case Q<n>:" lines.
+        answers = split_answers(case, (run_dir / "answer.md").read_text(), prefix=CASE_PREFIX, fallback=False)
+        missing_note = f"(no '{CASE_PREFIX}{{id}}:' line in the report; read {run_dir / 'answer.md'})"
+    else:
+        answers = split_answers(case, (run_dir / "answer.md").read_text())
+        missing_note = "(no answer)"
     label, model = run_dir.parent.parent.name, run_dir.parent.name
     print(f"\n=== {run_dir.parent.parent.parent.parent.name} / {label} / {model} / {run_dir.name}")
     print(f"    transcript: {run_dir / 'transcript.jsonl'}")
@@ -66,7 +75,7 @@ def _review_run(case: Case, run_dir: Path, reviewer: str) -> bool:
             f"  expected : {', '.join(q.expect_all) or '-'}"
             + (f"  any of {', '.join(q.expect_any)}" if q.expect_any else "")
         )
-        print(f"  answer   : {answers.get(q.id, '').strip() or '(no answer)'}")
+        print(f"  answer   : {answers.get(q.id, '').strip() or missing_note.format(id=q.id)}")
         auto_text = "pass" if a.get("passed") else f"fail (missing {', '.join(a.get('missing', [])) or '-'})"
         if a.get("required_tools_not_called"):
             auto_text += f", tools not called: {', '.join(a['required_tools_not_called'])}"

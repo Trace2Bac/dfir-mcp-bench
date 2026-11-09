@@ -27,7 +27,7 @@ model and number replaces its folder.
 | `links` | issues, pull requests, dataset pages |
 | `case` | the test in `cases/`; the case names its dataset |
 | `harness` | what ran it: `bench-runner` (`runner/` with a local model or scripted calls, `./bench.sh run`) or `mulder-investigate` (mulder's orchestrator, `./bench.sh investigate`) |
-| `harness_options` | for `mulder-investigate`: `models` per role, `effort`, and how it authenticated |
+| `harness_options` | for `mulder-investigate`: `models` per role, `effort`, how it authenticated, and `answer_section` (ask the report for a "Case Questions" section with `Case Q<n>:` lines, which `review` reads; scoring still reads the whole report) |
 | `variants` | label to server variant (`servers/mulder/variants/<name>.env`) |
 | `scripted_expect` | scripted scores per label; `./bench.sh check` fails when they change |
 | `conclusion` | what the results show, and their limits |

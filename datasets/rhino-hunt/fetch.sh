@@ -28,6 +28,8 @@ cd21eaf4acfb50f71ffff857d7968341 rhino2.log
 SUMS
 
 # The .log names hide the format; mulder picks tools by extension.
-for n in rhino rhino2 rhino3; do cp "$RAW/$n.log" "$EVD/$n.pcap"; done
-cp "$RAW/RHINOUSB.dd" "$EVD/RHINOUSB.dd"
+# Copy only what is missing, so that preparing again never rewrites evidence
+# a running investigation may be reading.
+for n in rhino rhino2 rhino3; do [ -f "$EVD/$n.pcap" ] || cp "$RAW/$n.log" "$EVD/$n.pcap"; done
+[ -f "$EVD/RHINOUSB.dd" ] || cp "$RAW/RHINOUSB.dd" "$EVD/RHINOUSB.dd"
 echo "evidence ready in $EVD"

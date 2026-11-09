@@ -111,7 +111,11 @@ to give an investigation its questions, runs `mulder investigate` with the
 image's own entrypoint and `--privileged`, and imports the result as
 `run-1`. The import keeps the report, audit log, model usage and logs (not the
 case database), scores the report against the case questions, and builds the
-run list from the audit log. A run made by hand can be imported with
+run list from the audit log. mulder's report has its own fixed questions
+(Q1 to Q8); with `answer_section: true` in `harness_options` the briefing
+labels the case questions `Case Q<n>` and asks for a "Case Questions" section
+with one answer line each, which `review` then shows per question. The
+briefing used is kept with the run (`mulder/MULDER.md`). A run made by hand can be imported with
 `./bench.sh import <experiment> <label> <mulder cases folder> <case id>`.
 
 Each run costs money: EXP-002 used 134.5K output tokens (about $3 at list

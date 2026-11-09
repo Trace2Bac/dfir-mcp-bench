@@ -25,6 +25,8 @@ from .score import score_case
 
 # Copied as is; the case database is left out (it holds indexed evidence).
 KEEP = ("report.md", "report.html", "audit.jsonl", "model_usage.json", "mulder.log")
+# Written by `bench.sh investigate` next to mulder's files: the briefing it was given.
+BRIEFING = "MULDER.md"
 
 _LOG_TIME = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}),(\d{3})")
 _QUERY = re.compile(r"Query complete \(model=([^)]+)\): turns=(\d+)")
@@ -63,6 +65,8 @@ def import_investigation(
     log = mulder_cases / "orchestrator.log"
     if log.exists():
         shutil.copy2(log, out / "mulder" / "orchestrator.log")
+    if (mulder_cases / BRIEFING).exists():
+        shutil.copy2(mulder_cases / BRIEFING, out / "mulder" / BRIEFING)
 
     report = (mulder_cases / f"{case_id}.report.md").read_text()
     (out / "answer.md").write_text(report)
@@ -120,23 +124,50 @@ def import_investigation(
     return run_info
 
 
-def write_briefing(case_yaml: Path, evidence_dir: Path, evidence_in_container: str) -> Path:
+# Label for the case questions when the report is asked to answer them in their
+# own section; it keeps them apart from the Q1-Q8 of mulder's report template.
+CASE_PREFIX = "Case "
+
+
+def write_briefing(case_yaml: Path, evidence_dir: Path, evidence_in_container: str, answer_section: bool) -> Path:
     """Write MULDER.md into *evidence_dir*: the case briefing and questions, no answers.
 
     mulder prepends MULDER.md in the evidence root to its planner and analyst
     prompts; this is its documented way to give an investigation questions.
+    With *answer_section*, the questions are labelled "Case Q<n>" and the
+    report is asked to answer each on its own line in a "Case Questions"
+    section, so the answers can be read per question.
     """
     case = load_case(case_yaml)
     briefing = case.briefing.replace("${EVIDENCE}", evidence_in_container)
-    questions = "\n".join(f"- {q.id}: {q.text}" for q in case.questions)
+    label = CASE_PREFIX if answer_section else ""
+    questions = "\n".join(f"- {label}{q.id}: {q.text}" for q in case.questions)
     text = (
         "# Case Briefing\n\n## Background\n\n"
         f"{briefing}\n\n## What We're Looking For\n\n"
         f"Answer each of these questions in the report, citing the evidence:\n\n{questions}\n"
     )
+    if answer_section:
+        example = "\n".join(f"{CASE_PREFIX}{q.id}: <answer>" for q in case.questions[:2])
+        text += (
+            "\n## How to Answer\n\n"
+            'In the final report, add a section titled "Case Questions". Answer every question '
+            f"above on its own line, starting with its label ({CASE_PREFIX}Q1, {CASE_PREFIX}Q2, ...), "
+            "and state the answer itself, not only where it can be found. If the evidence does "
+            "not answer a question, say so on its line. These are separate from the report's own "
+            f"numbered questions.\n\n{example}\n...\n"
+        )
     out = evidence_dir / "MULDER.md"
     out.write_text(text)
     return out
+
+
+def answer_section(experiment_yaml: Path) -> bool:
+    """Whether the experiment asks mulder's report for a "Case Questions" section."""
+    import yaml
+
+    options = yaml.safe_load(experiment_yaml.read_text()).get("harness_options") or {}
+    return bool(options.get("answer_section", False))
 
 
 def investigate_args(experiment_yaml: Path) -> str:

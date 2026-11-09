@@ -223,12 +223,23 @@ investigate)
         [ -n "$v" ] || { echo "no label '$label' in $yaml" >&2; exit 1; }
         build "$v" -q >/dev/null
         work="data/investigate/$e/$label"
+        # One investigation per experiment and label at a time: a second one
+        # would delete the working copy the first is reading.
+        mkdir -p "data/investigate/$e"
+        if ! mkdir "$work.lock" 2>/dev/null; then
+            echo "$e $label is already running (remove $work.lock if it is not)" >&2; exit 1
+        fi
+        trap 'rmdir "$work.lock" 2>/dev/null' EXIT
         rm -rf "$work"; mkdir -p "$work/evidence" "$work/cases"
         cp -R "data/evidence/$folder" "$work/evidence/$folder"
         in_tools env PYTHONPATH=runner python3 -m bench briefing "cases/$c/case.yaml" \
-            "$work/evidence/$folder" "/evidence/$folder" >/dev/null
+            "$work/evidence/$folder" "/evidence/$folder" --experiment "$yaml" >/dev/null
+        cp "$work/evidence/$folder/MULDER.md" "$work/cases/MULDER.md"   # kept with the run
         echo "== $e $label [$v]: mulder investigate /evidence/$folder $c $opts"
-        if [ "$dry" = 1 ]; then echo "   dry run: prepared $work (MULDER.md written); nothing started"; continue; fi
+        if [ "$dry" = 1 ]; then
+            echo "   dry run: prepared $work (MULDER.md written); nothing started"
+            rmdir "$work.lock"; trap - EXIT; continue
+        fi
         # The image's own entrypoint and --privileged, as mulder documents; the
         # key is passed by name from this shell, not on the command line.
         # shellcheck disable=SC2086
@@ -242,6 +253,7 @@ investigate)
         else
             echo "no report in $work/cases; nothing imported (see $work/cases/orchestrator.log)" >&2
         fi
+        rmdir "$work.lock"; trap - EXIT
     done
     ;;
 import)

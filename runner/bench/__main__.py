@@ -10,7 +10,7 @@ from pathlib import Path
 
 from .case import load_case
 from .check import check_experiment
-from .investigate import import_from_experiment, investigate_args, write_briefing
+from .investigate import answer_section, import_from_experiment, investigate_args, write_briefing
 from .model import Model, ModelConfig
 from .review import review_case
 from .run import RunOptions, run_case
@@ -74,6 +74,7 @@ def _parser() -> argparse.ArgumentParser:
     brief.add_argument("case", type=Path, help="path to cases/<id>/case.yaml")
     brief.add_argument("evidence_dir", type=Path, help="the evidence folder mulder will read")
     brief.add_argument("container_path", help="that folder's path inside the container")
+    brief.add_argument("--experiment", type=Path, help="experiment.yaml; its harness_options.answer_section applies")
     args_ = sub.add_parser("investigate-args", help="print mulder investigate flags from an experiment")
     args_.add_argument("experiment", type=Path, help="path to experiments/<id>/experiment.yaml")
     return parser
@@ -138,7 +139,8 @@ def main() -> None:
     elif args.command == "investigate-args":
         print(investigate_args(args.experiment))
     elif args.command == "briefing":
-        print(write_briefing(args.case, args.evidence_dir, args.container_path))
+        section = answer_section(args.experiment) if args.experiment else False
+        print(write_briefing(args.case, args.evidence_dir, args.container_path, section))
     elif args.command == "import-investigate":
         out = import_from_experiment(args.experiment, args.label, args.mulder_cases, args.case_id, args.image_id)
         score = json.loads((out / "score.json").read_text())
