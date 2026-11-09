@@ -1,0 +1,99 @@
+id: rhino-hunt
+title: Rhino Hunt (DFRWS 2005 Rodeo), full answer key
+dataset: rhino-hunt
+evidence: rhino-hunt
+purpose: >
+  Every question of the published answer key, over all four evidence files
+  (USB key image and three network traces). Each question expects every fact
+  the key gives for it. Some facts cannot be reached with mulder's tools
+  (carved files are deleted after carving, so stego and zip contents stay
+  hidden); a scripted run shows which, and is the ceiling for a model run.
+answers_source: https://cfreds-archive.nist.gov/dfrws/DFRWS2005-answers.pdf (pp. 2-4)
+
+variants:
+  release: mulder-1.5.10
+
+setup:
+  - tool: scan_evidence
+    args: {evidence_path: "${EVIDENCE}", case_id: "${CASE_ID}"}
+
+# Network, disk carving, stego and text tools, plus the two readers.
+tools:
+  - run_pcap_analysis
+  - run_tcpflow
+  - run_tcpxtract
+  - run_fls
+  - run_foremost
+  - run_strings
+  - detect_steganography
+  - extract_steganography
+  - read_evidence_file
+  - search
+  - get_raw_output
+
+scripted:
+  # The strings runs come first so their window IDs are fixed: the diary text
+  # in the USB key's unallocated space is window 28523, and the file name
+  # inside contraband.zip in rhino.pcap is window 497 of that source.
+  - tool: run_strings
+    args: {target_path: "${EVIDENCE}/RHINOUSB.dd", min_length: 6}
+  - tool: get_raw_output
+    args: {source_name: strings.output, after_id: 28522, limit: 1}
+  - tool: run_strings
+    args: {target_path: "${EVIDENCE}/rhino.pcap", min_length: 6}
+  - tool: get_raw_output
+    args: {source_name: strings.output, evidence_path: "${EVIDENCE}/rhino.pcap", after_id: 36390, limit: 1}
+  # Network traces: FTP session and HTTP downloads.
+  - tool: run_pcap_analysis
+    args: {pcap_path: "${EVIDENCE}/rhino.pcap", mode: custom, display_filter: ftp}
+  - tool: get_raw_output
+    args: {source_name: pcap.filtered}
+  - tool: run_pcap_analysis
+    args: {pcap_path: "${EVIDENCE}/rhino2.pcap", mode: http}
+  - tool: get_raw_output
+    args: {source_name: pcap.http, evidence_path: "${EVIDENCE}/rhino2.pcap"}
+  - tool: run_pcap_analysis
+    args: {pcap_path: "${EVIDENCE}/rhino3.pcap", mode: http}
+  - tool: get_raw_output
+    args: {source_name: pcap.http, evidence_path: "${EVIDENCE}/rhino3.pcap"}
+  # USB key: allocated files and carving.
+  - tool: run_fls
+    args: {image_path: "${EVIDENCE}/RHINOUSB.dd"}
+  - tool: get_raw_output
+    args: {source_name: tsk.filelist}
+  - tool: run_foremost
+    args: {image_path: "${EVIDENCE}/RHINOUSB.dd"}
+  - tool: get_raw_output
+    args: {source_name: foremost.audit}
+
+questions:
+  - id: Q1
+    text: Who gave the accused a telnet/ftp account?
+    expect: {all: [Jeremy]}
+    requires_any_tool: [run_strings, run_foremost, read_evidence_file]
+  - id: Q2
+    text: What's the username/password for the account?
+    expect: {all: [gnome, gnome123]}
+    requires_any_tool: [run_pcap_analysis, run_tcpflow, run_strings]
+  - id: Q3
+    text: What relevant file transfers appear in the network traces?
+    expect: {all: [rhino1.jpg, rhino3.jpg, contraband.zip, rhino2.jpg, monkey, rhino4.jpg, rhino5.gif, rhino.exe]}
+    requires_any_tool: [run_pcap_analysis, run_tcpflow, run_tcpxtract, run_strings]
+  - id: Q4
+    text: What happened to the hard drive in the computer? Where is it now?
+    expect: {all: [Mississippi]}
+    requires_any_tool: [run_strings, run_foremost, read_evidence_file]
+  - id: Q5
+    text: What happened to the USB key?
+    expect: {all: [reformat]}
+    requires_any_tool: [run_strings, run_foremost, run_fls, read_evidence_file]
+  - id: Q6
+    text: What is recoverable from the dd image of the USB key?
+    expect: {all: [gumbo, diary, rhino2.jpg, rhino6, rhino7, rhino8.gif, rhino9.gif, rhino10]}
+    requires_any_tool: [run_fls, run_foremost, run_strings]
+  - id: Q7
+    text: Is there any evidence that connects the USB key and the network traces? If so, what?
+    expect: {all: [rhino2.jpg]}
+    requires_any_tool: [run_foremost, run_strings]
+
+limits: {max_turns: 30, max_tool_chars: 12000}

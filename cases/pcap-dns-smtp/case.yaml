@@ -1,0 +1,50 @@
+id: pcap-dns-smtp
+title: DNS and SMTP in a small packet capture
+dataset: synthetic-dns-smtp
+evidence: synthetic-dns-smtp          # folder under the evidence root
+purpose: >
+  Before and after calebevans/mulder#274. Before the fix the dns and smtp
+  modes of run_pcap_analysis ask tshark for fields that do not exist, so both
+  modes fail while the response still says success. before is the parent
+  commit of the fix and after is the fix commit, so the two differ only by
+  the fix.
+
+# Server variants to run, by label (servers/mulder/variants/<name>.env).
+# Results go to results/<case>/<label>/<model>/.
+variants:
+  before: mulder-1040615          # v1.5.4, parent of the fix
+  after: mulder-e74ae6d           # the fix commit
+
+setup:                                # run by the runner, not by the model
+  - tool: scan_evidence
+    args: {evidence_path: "${EVIDENCE}", case_id: "${CASE_ID}"}
+
+# The tools the model sees. run_pcap_analysis indexes its output and returns
+# only a preview; get_raw_output and search read the indexed text back.
+tools: [run_pcap_analysis, get_raw_output, search]
+
+scripted:                             # --scripted: fixed calls, no model
+  - tool: run_pcap_analysis
+    args: {pcap_path: "${EVIDENCE}/sample.pcap", mode: dns}
+  - tool: run_pcap_analysis
+    args: {pcap_path: "${EVIDENCE}/sample.pcap", mode: smtp}
+  - tool: get_raw_output
+    args: {source_name: pcap.dns}
+  - tool: get_raw_output
+    args: {source_name: pcap.smtp}
+
+questions:
+  - id: Q1
+    text: To which IPv4 address did example.com resolve?
+    expect: {all: ["93.184.216.34"]}
+    requires_tools: [run_pcap_analysis]
+  - id: Q2
+    text: Which sender and recipient email addresses appear in the SMTP session?
+    expect: {all: ["jean@m57.biz", "alison@example.com"]}
+    requires_tools: [run_pcap_analysis]
+  - id: Q3
+    text: What host name does the mail server give in its replies?
+    expect: {all: ["mail.example.com"]}
+    requires_tools: [run_pcap_analysis]
+
+limits: {max_turns: 12, max_tool_chars: 8000}
