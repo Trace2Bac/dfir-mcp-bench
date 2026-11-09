@@ -1,5 +1,6 @@
 ---
 title: Adding a case
+sidebar_position: 2
 ---
 
 # Adding a case
@@ -46,7 +47,9 @@ title: Adding a case
    calls should reach every expected fact on `after`. In an investigation
    case some facts may be out of reach of the tools; the scripted score is
    then the ceiling for a model run, and the case's `purpose` should say
-   which facts are out of reach and why.
+   which facts are out of reach and why. Record the scripted scores under
+   `scripted_expect` (for example `after: {questions: 3/3, facts: 4/4}`) so
+   that `./bench.sh check` notices when they change.
 
 ## Adding a variant
 

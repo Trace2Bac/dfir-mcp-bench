@@ -2,6 +2,8 @@
 
 Repeatable tests of DFIR MCP servers, run with a local model.
 
+**Results site:** https://trace2bac.github.io/dfir-mcp-bench/ ([한국어](https://trace2bac.github.io/dfir-mcp-bench/ko/))
+
 Each test (a *case*) gives a model questions about public or generated
 evidence and a list of server tools, records every tool call, and scores the
 answer against an answer key. A case runs on several *variants* of a server,
@@ -108,13 +110,21 @@ web/                        results site (Docusaurus), built from results/
 
 ## Results site
 
-`web/` is a Docusaurus site that shows `results/` as before/after
+https://trace2bac.github.io/dfir-mcp-bench/ is built from `web/`, a Docusaurus site that shows `results/` as before/after
 comparisons: conditions, metrics per label, per-question results, the
 scripted tool output side by side, and each run turn by turn.
 
 ```
-cd web && npm install && npm start    # http://localhost:3000
+cd web && npm install && npm start    # http://localhost:3000, English
+npm start -- --locale ko              # Korean
 ```
+
+The site is in English (default) and Korean (`/ko/`). Interface text is in
+`web/i18n/ko/code.json` and the Korean docs in
+`web/i18n/ko/docusaurus-plugin-content-docs/current/`; after adding interface
+text, run `npm run write-translations -- --locale ko` and fill in the new keys.
+Case data (titles, purposes, questions) comes from `cases/` and is shown in
+English in both languages.
 
 ## CI
 

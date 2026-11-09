@@ -1,5 +1,6 @@
 import Link from '@docusaurus/Link';
 import Layout from '@theme/Layout';
+import Translate, {translate} from '@docusaurus/Translate';
 import {usePluginData} from '@docusaurus/useGlobalData';
 import type {CaseSummary} from '../../plugins/bench-data';
 import styles from './index.module.css';
@@ -8,13 +9,27 @@ import styles from './index.module.css';
 export default function Home() {
   const {cases} = usePluginData('bench-data') as {cases: CaseSummary[]};
   return (
-    <Layout title="Results" description="Before/after evidence for DFIR MCP server changes">
+    <Layout
+      title={translate({id: 'home.title', message: 'Results'})}
+      description={translate({id: 'home.description', message: 'Before/after evidence for DFIR MCP server changes'})}>
       <main className={styles.main}>
-        <h1>Results</h1>
+        <h1>
+          <Translate id="home.title">Results</Translate>
+        </h1>
         <p className={styles.lead}>
-          Each case runs the same questions and tools on several versions of a server. A difference between the
-          columns comes from the change between those versions. See the <Link to="/docs/method">method</Link> for
-          what each kind of comparison proves.
+          <Translate
+            id="home.lead"
+            values={{
+              method: (
+                <Link to="/docs/method">
+                  <Translate id="home.lead.method">method</Translate>
+                </Link>
+              ),
+            }}>
+            {
+              'Each case runs the same questions and tools on several versions of a server. A difference between the columns comes from the change between those versions. See the {method} for what each kind of comparison proves.'
+            }
+          </Translate>
         </p>
         <div className={styles.cards}>
           {cases.map(c => {
@@ -28,7 +43,9 @@ export default function Home() {
                 <table className={styles.table}>
                   <thead>
                     <tr>
-                      <th>model</th>
+                      <th>
+                        <Translate id="home.model">model</Translate>
+                      </th>
                       {c.labels.map((l, i) => (
                         <th key={l} className={i === 0 ? styles.sideA : styles.sideB}>
                           {l}
@@ -49,14 +66,25 @@ export default function Home() {
                                   <strong>
                                     {g.runsPassed}/{g.runs}
                                   </strong>{' '}
-                                  runs passed
+                                  <Translate id="home.runsPassed">runs passed</Translate>
                                   <div className={styles.sub}>
-                                    facts {g.facts}
-                                    {g.turns !== null && <> · {g.turns.toFixed(1)} turns</>}
+                                    <Translate id="home.facts" values={{facts: g.facts}}>
+                                      {'facts {facts}'}
+                                    </Translate>
+                                    {g.turns !== null && (
+                                      <>
+                                        {' · '}
+                                        <Translate id="home.turns" values={{turns: g.turns.toFixed(1)}}>
+                                          {'{turns} turns'}
+                                        </Translate>
+                                      </>
+                                    )}
                                   </div>
                                 </>
                               ) : (
-                                <span className={styles.sub}>not run</span>
+                                <span className={styles.sub}>
+                                  <Translate id="common.notRun">not run</Translate>
+                                </span>
                               )}
                             </td>
                           );

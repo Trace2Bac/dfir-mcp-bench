@@ -21,7 +21,13 @@ const config: Config = {
   onBrokenLinks: 'throw',
   // Run pages link each run to its files in the repository.
   customFields: {repoTree: 'https://github.com/Trace2Bac/dfir-mcp-bench/tree/main'},
-  i18n: {defaultLocale: 'en', locales: ['en']},
+  // English is the default; Korean is served under /ko/. Case data (titles,
+  // purposes, questions) comes from cases/ and stays in English.
+  i18n: {
+    defaultLocale: 'en',
+    locales: ['en', 'ko'],
+    localeConfigs: {en: {label: 'English'}, ko: {label: '한국어'}},
+  },
 
   presets: [
     [
@@ -48,6 +54,7 @@ const config: Config = {
         {to: '/', label: 'Results', position: 'left', activeBaseRegex: '^/(cases/.*)?$'},
         {to: '/docs/method', label: 'Method', position: 'left'},
         {to: '/docs/adding-a-case', label: 'Adding a case', position: 'left'},
+        {type: 'localeDropdown', position: 'right'},
         {href: 'https://github.com/Trace2Bac/dfir-mcp-bench', label: 'GitHub', position: 'right'},
       ],
     },

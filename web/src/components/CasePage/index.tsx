@@ -2,6 +2,7 @@ import {useState, type ReactNode} from 'react';
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import Layout from '@theme/Layout';
+import Translate, {translate} from '@docusaurus/Translate';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import type {CaseData, Event, Group, Run} from '../../../plugins/bench-data';
 import styles from './styles.module.css';
@@ -33,15 +34,27 @@ function Section({title, children, note}: {title: string; children: ReactNode; n
 function Conditions({data}: {data: CaseData}) {
   const settings = [...new Map(data.groups.filter(g => g.model !== 'scripted').map(g => [g.model, g.runs[0].info.model])).entries()];
   return (
-    <Section title="Conditions" note="Everything below is the same for every label except the server version.">
+    <Section
+      title={translate({id: 'case.conditions', message: 'Conditions'})}
+      note={translate({id: 'case.conditions.note', message: 'Everything below is the same for every label except the server version.'})}>
       <table className={styles.table}>
         <thead>
           <tr>
-            <th>label</th>
-            <th>server commit</th>
-            <th>base image</th>
-            <th>patches</th>
-            <th>note</th>
+            <th>
+              <Translate id="case.col.label">label</Translate>
+            </th>
+            <th>
+              <Translate id="case.col.commit">server commit</Translate>
+            </th>
+            <th>
+              <Translate id="case.col.image">base image</Translate>
+            </th>
+            <th>
+              <Translate id="case.col.patches">patches</Translate>
+            </th>
+            <th>
+              <Translate id="case.col.note">note</Translate>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -66,17 +79,31 @@ function Conditions({data}: {data: CaseData}) {
       </table>
       <div className={styles.facts}>
         <div>
-          <span>Tools shown to the model</span> {data.tools.map(t => <code key={t}>{t}</code>)}
+          <span>
+            <Translate id="case.tools">Tools shown to the model</Translate>
+          </span>{' '}
+          {data.tools.map(t => <code key={t}>{t}</code>)}
         </div>
         {settings.map(([model, s]) => (
           <div key={model}>
-            <span>{model}</span> temperature {s?.temperature} · max tokens {s?.max_tokens || 'server default'} · reasoning{' '}
-            {s?.reasoning_effort || 'model default'}
+            <span>{model}</span>{' '}
+            <Translate
+              id="case.settings"
+              values={{
+                temperature: s?.temperature,
+                maxTokens: s?.max_tokens || translate({id: 'case.settings.serverDefault', message: 'server default'}),
+                reasoning: s?.reasoning_effort || translate({id: 'case.settings.modelDefault', message: 'model default'}),
+              }}>
+              {'temperature {temperature} · max tokens {maxTokens} · reasoning {reasoning}'}
+            </Translate>
           </div>
         ))}
         {data.answersSource && (
           <div>
-            <span>Answer key</span> {data.answersSource}
+            <span>
+              <Translate id="case.answerKey">Answer key</Translate>
+            </span>{' '}
+            {data.answersSource}
           </div>
         )}
       </div>
@@ -84,36 +111,58 @@ function Conditions({data}: {data: CaseData}) {
   );
 }
 
-type Metric = {name: string; value: (g: Group) => number; show: (g: Group) => string; better: 'high' | 'low'; max?: (g: Group) => number};
+type Metric = {key: string; value: (g: Group) => number; show: (g: Group) => string; better: 'high' | 'low'; max?: (g: Group) => number};
 
 const METRICS: Metric[] = [
   {
-    name: 'Runs passed',
+    key: 'runsPassed',
     value: g => g.runs.filter(r => r.score.passed === r.score.total).length / g.runs.length,
     show: g => `${g.runs.filter(r => r.score.passed === r.score.total).length}/${g.runs.length}`,
     better: 'high',
     max: () => 1,
   },
   {
-    name: 'Questions passed',
+    key: 'questions',
     value: g => mean(g.runs.map(r => r.score.passed)),
     show: g => `${fmt(mean(g.runs.map(r => r.score.passed)))}/${g.runs[0].score.total}`,
     better: 'high',
     max: g => g.runs[0].score.total,
   },
   {
-    name: 'Facts found',
+    key: 'facts',
     value: g => mean(g.runs.map(r => r.score.facts_found ?? 0)),
     show: g => `${fmt(mean(g.runs.map(r => r.score.facts_found ?? 0)))}/${g.runs[0].score.facts_total}`,
     better: 'high',
     max: g => g.runs[0].score.facts_total,
   },
-  {name: 'Wrong claims', value: g => mean(g.runs.map(r => r.info.wrong_claims ?? 0)), show: g => fmt(mean(g.runs.map(r => r.info.wrong_claims ?? 0))), better: 'low'},
-  {name: 'Turns', value: g => mean(g.runs.map(r => r.info.turns ?? 0)), show: g => fmt(mean(g.runs.map(r => r.info.turns ?? 0))), better: 'low'},
-  {name: 'Tool calls', value: g => mean(g.runs.map(r => r.info.tool_calls ?? 0)), show: g => fmt(mean(g.runs.map(r => r.info.tool_calls ?? 0))), better: 'low'},
-  {name: 'Tool errors', value: g => mean(g.runs.map(r => r.info.tool_errors ?? 0)), show: g => fmt(mean(g.runs.map(r => r.info.tool_errors ?? 0))), better: 'low'},
-  {name: 'Seconds', value: g => mean(g.runs.map(r => r.info.seconds ?? 0)), show: g => fmt(mean(g.runs.map(r => r.info.seconds ?? 0)), 0), better: 'low'},
+  {key: 'wrongClaims', value: g => mean(g.runs.map(r => r.info.wrong_claims ?? 0)), show: g => fmt(mean(g.runs.map(r => r.info.wrong_claims ?? 0))), better: 'low'},
+  {key: 'turns', value: g => mean(g.runs.map(r => r.info.turns ?? 0)), show: g => fmt(mean(g.runs.map(r => r.info.turns ?? 0))), better: 'low'},
+  {key: 'toolCalls', value: g => mean(g.runs.map(r => r.info.tool_calls ?? 0)), show: g => fmt(mean(g.runs.map(r => r.info.tool_calls ?? 0))), better: 'low'},
+  {key: 'toolErrors', value: g => mean(g.runs.map(r => r.info.tool_errors ?? 0)), show: g => fmt(mean(g.runs.map(r => r.info.tool_errors ?? 0))), better: 'low'},
+  {key: 'seconds', value: g => mean(g.runs.map(r => r.info.seconds ?? 0)), show: g => fmt(mean(g.runs.map(r => r.info.seconds ?? 0)), 0), better: 'low'},
 ];
+
+// Literal translate() calls so that `write-translations` can find them.
+function metricName(key: string): string {
+  switch (key) {
+    case 'runsPassed':
+      return translate({id: 'metric.runsPassed', message: 'Runs passed'});
+    case 'questions':
+      return translate({id: 'metric.questions', message: 'Questions passed'});
+    case 'facts':
+      return translate({id: 'metric.facts', message: 'Facts found'});
+    case 'wrongClaims':
+      return translate({id: 'metric.wrongClaims', message: 'Wrong claims'});
+    case 'turns':
+      return translate({id: 'metric.turns', message: 'Turns'});
+    case 'toolCalls':
+      return translate({id: 'metric.toolCalls', message: 'Tool calls'});
+    case 'toolErrors':
+      return translate({id: 'metric.toolErrors', message: 'Tool errors'});
+    default:
+      return translate({id: 'metric.seconds', message: 'Seconds'});
+  }
+}
 
 function endReasons(g: Group): string {
   const counts = new Map<string, number>();
@@ -126,17 +175,26 @@ function Comparison({data}: {data: CaseData}) {
   const labels = data.variants.map(v => v.label);
   return (
     <Section
-      title="Comparison"
-      note="Means per run. scripted makes fixed tool calls without a model, so it shows what the tools return; model rows show what an agent makes of it.">
+      title={translate({id: 'case.comparison', message: 'Comparison'})}
+      note={translate({
+        id: 'case.comparison.note',
+        message: 'Means per run. scripted makes fixed tool calls without a model, so it shows what the tools return; model rows show what an agent makes of it.',
+      })}>
       {models.map(model => {
         const groups = labels.map(l => data.groups.find(g => g.label === l && g.model === model));
         const scripted = model === 'scripted';
-        const metrics = scripted ? METRICS.filter(m => ['Questions passed', 'Facts found', 'Tool errors'].includes(m.name)) : METRICS;
+        const metrics = scripted ? METRICS.filter(m => ['questions', 'facts', 'toolErrors'].includes(m.key)) : METRICS;
         return (
           <div key={model} className={styles.compareBlock}>
             <h3>
               <code>{model}</code>
-              <span className={styles.small}> {groups.filter(Boolean).map(g => `${g!.runs.length} run${g!.runs.length > 1 ? 's' : ''}`).join(' / ')}</span>
+              <span className={styles.small}>
+                {' '}
+                {groups
+                  .filter(Boolean)
+                  .map(g => translate({id: 'case.runCount', message: 'runs: {count}'}, {count: g!.runs.length}))
+                  .join(' / ')}
+              </span>
             </h3>
             <table className={clsx(styles.table, styles.compare)}>
               <thead>
@@ -151,10 +209,15 @@ function Comparison({data}: {data: CaseData}) {
               </thead>
               <tbody>
                 {metrics.map(m => (
-                  <tr key={m.name}>
-                    <th>{m.name}</th>
+                  <tr key={m.key}>
+                    <th>{metricName(m.key)}</th>
                     {groups.map((g, i) => {
-                      if (!g) return <td key={i} className={styles.small}>not run</td>;
+                      if (!g)
+                        return (
+                          <td key={i} className={styles.small}>
+                            <Translate id="common.notRun">not run</Translate>
+                          </td>
+                        );
                       const peak = Math.max(...groups.filter(Boolean).map(x => (m.max ? m.max(x!) : m.value(x!))), 1e-9);
                       const width = Math.max(2, (m.value(g) / peak) * 100);
                       return (
@@ -172,7 +235,9 @@ function Comparison({data}: {data: CaseData}) {
                 ))}
                 {!scripted && (
                   <tr>
-                    <th>End reasons</th>
+                    <th>
+                      <Translate id="metric.endReasons">End reasons</Translate>
+                    </th>
                     {groups.map((g, i) => (
                       <td key={i} className={styles.small}>
                         {g ? endReasons(g) : ''}
@@ -192,12 +257,21 @@ function Comparison({data}: {data: CaseData}) {
 function Questions({data}: {data: CaseData}) {
   const labels = data.variants.map(v => v.label);
   return (
-    <Section title="Questions" note="Runs that passed each question. A question passes when the answer has every expected fact and the required tools were called.">
+    <Section
+      title={translate({id: 'case.questions', message: 'Questions'})}
+      note={translate({
+        id: 'case.questions.note',
+        message: 'Runs that passed each question. A question passes when the answer has every expected fact and the required tools were called.',
+      })}>
       <table className={styles.table}>
         <thead>
           <tr>
-            <th>question</th>
-            <th>expected facts</th>
+            <th>
+              <Translate id="case.col.question">question</Translate>
+            </th>
+            <th>
+              <Translate id="case.col.expected">expected facts</Translate>
+            </th>
             {data.groups.map(g => (
               <th key={g.label + g.model} className={sideClass(labels.indexOf(g.label))}>
                 {g.label}
@@ -216,7 +290,12 @@ function Questions({data}: {data: CaseData}) {
                 {(q.expect.all ?? []).map(f => (
                   <code key={f}>{f}</code>
                 ))}
-                {q.expect.any && <> any of {q.expect.any.map(f => <code key={f}>{f}</code>)}</>}
+                {q.expect.any && (
+                  <>
+                    {' '}
+                    <Translate id="case.anyOf">any of</Translate> {q.expect.any.map(f => <code key={f}>{f}</code>)}
+                  </>
+                )}
               </td>
               {data.groups.map(g => {
                 const passed = g.runs.filter(r => r.score.questions.find((x: any) => x.id === q.id)?.passed).length;
@@ -246,7 +325,12 @@ function ScriptedSideBySide({data}: {data: CaseData}) {
   const calls = runs.map(r => (r ? r.events.filter(e => e.kind === 'tool_call') : []));
   const rows = Math.max(...calls.map(c => c.length));
   return (
-    <Section title="Same calls, side by side" note="The scripted calls are identical for every label, so any difference in what they return comes from the server version.">
+    <Section
+      title={translate({id: 'case.sideBySide', message: 'Same calls, side by side'})}
+      note={translate({
+        id: 'case.sideBySide.note',
+        message: 'The scripted calls are identical for every label, so any difference in what they return comes from the server version.',
+      })}>
       {Array.from({length: rows}, (_, i) => {
         const first = calls.find(c => c[i])?.[i];
         return (
@@ -275,7 +359,10 @@ function EventView({e}: {e: Event}) {
     return (
       <details className={styles.event}>
         <summary>
-          <span className={styles.kind}>prompt</span> system and user messages
+          <span className={styles.kind}>
+            <Translate id="event.prompt">prompt</Translate>
+          </span>{' '}
+          <Translate id="event.prompt.summary">system and user messages</Translate>
         </summary>
         {msgs.map((m, i) => (
           <div key={i}>
@@ -290,9 +377,17 @@ function EventView({e}: {e: Event}) {
     return (
       <details className={clsx(styles.event, e.is_error ? styles.eventError : undefined)}>
         <summary>
-          <span className={styles.kind}>{e.kind === 'setup' ? 'setup' : `turn ${e.turn ?? ''} tool`}</span>{' '}
+          <span className={styles.kind}>
+            {e.kind === 'setup'
+              ? translate({id: 'event.setup', message: 'setup'})
+              : translate({id: 'event.tool', message: 'turn {turn} tool'}, {turn: String(e.turn ?? '')})}
+          </span>{' '}
           <code>{String(e.tool)}</code> <span className={styles.small}>{argsText(e.args)}</span>
-          {e.is_error ? <span className={styles.errorTag}>error</span> : null}
+          {e.is_error ? (
+            <span className={styles.errorTag}>
+              <Translate id="event.error">error</Translate>
+            </span>
+          ) : null}
         </summary>
         <pre className={styles.pre}>{String(e.result ?? '')}</pre>
       </details>
@@ -303,7 +398,12 @@ function EventView({e}: {e: Event}) {
     const content = String(e.content ?? '').trim();
     return (
       <div className={styles.event}>
-        <span className={styles.kind}>turn {String(e.turn)} model</span> <span className={styles.small}>{String(e.seconds)} s</span>
+        <span className={styles.kind}>
+          <Translate id="event.model" values={{turn: String(e.turn)}}>
+            {'turn {turn} model'}
+          </Translate>
+        </span>{' '}
+        <span className={styles.small}>{String(e.seconds)} s</span>
         {content && <pre className={clsx(styles.pre, styles.modelText)}>{content}</pre>}
         {calls.map((c, i) => (
           <div key={i} className={styles.small}>
@@ -316,7 +416,12 @@ function EventView({e}: {e: Event}) {
   if (e.kind === 'model_error') {
     return (
       <div className={clsx(styles.event, styles.eventError)}>
-        <span className={styles.kind}>turn {String(e.turn)} model error</span> {String(e.error)}
+        <span className={styles.kind}>
+          <Translate id="event.modelError" values={{turn: String(e.turn)}}>
+            {'turn {turn} model error'}
+          </Translate>
+        </span>{' '}
+        {String(e.error)}
       </div>
     );
   }
@@ -346,7 +451,7 @@ function RunPanel({data, side, repoTree}: {data: CaseData; side: number; repoTre
         <select value={run?.run} onChange={e => setRunNo(Number(e.target.value))}>
           {group?.runs.map(r => (
             <option key={r.run} value={r.run}>
-              run {r.run} · {r.score.passed}/{r.score.total} · {r.info.end_reason}
+              {translate({id: 'run.option', message: 'run {run}'}, {run: r.run})} · {r.score.passed}/{r.score.total} · {r.info.end_reason}
             </option>
           ))}
         </select>
@@ -354,20 +459,39 @@ function RunPanel({data, side, repoTree}: {data: CaseData; side: number; repoTre
       {run ? (
         <>
           <div className={styles.runMeta}>
-            {run.score.passed}/{run.score.total} questions · {run.score.facts_found}/{run.score.facts_total} facts · {run.info.turns} turns ·{' '}
-            {run.info.seconds} s · {run.info.end_reason}{' '}
-            {repoTree && <a href={`${repoTree}/${run.path}`}>files</a>}
+            <Translate
+              id="run.meta"
+              values={{
+                questions: `${run.score.passed}/${run.score.total}`,
+                facts: `${run.score.facts_found}/${run.score.facts_total}`,
+                turns: run.info.turns,
+                seconds: run.info.seconds,
+                end: run.info.end_reason,
+              }}>
+              {'{questions} questions · {facts} facts · {turns} turns · {seconds} s · {end}'}
+            </Translate>{' '}
+            {repoTree && (
+              <a href={`${repoTree}/${run.path}`}>
+                <Translate id="run.files">files</Translate>
+              </a>
+            )}
           </div>
           {run.events.map((e, i) => (
             <EventView key={i} e={e} />
           ))}
           <div className={styles.event}>
-            <span className={styles.kind}>final answer</span>
-            <pre className={clsx(styles.pre, styles.modelText)}>{run.answer.trim() || '(none)'}</pre>
+            <span className={styles.kind}>
+              <Translate id="run.finalAnswer">final answer</Translate>
+            </span>
+            <pre className={clsx(styles.pre, styles.modelText)}>
+              {run.answer.trim() || translate({id: 'run.none', message: '(none)'})}
+            </pre>
           </div>
         </>
       ) : (
-        <p className={styles.small}>No runs.</p>
+        <p className={styles.small}>
+          <Translate id="run.noRuns">No runs.</Translate>
+        </p>
       )}
     </div>
   );
@@ -376,7 +500,12 @@ function RunPanel({data, side, repoTree}: {data: CaseData; side: number; repoTre
 function RunExplorer({data}: {data: CaseData}) {
   const repoTree = useRepoTree();
   return (
-    <Section title="Runs" note="Pick a run on each side to compare what the model did, turn by turn. Tool output opens on click.">
+    <Section
+      title={translate({id: 'case.runs', message: 'Runs'})}
+      note={translate({
+        id: 'case.runs.note',
+        message: 'Pick a run on each side to compare what the model did, turn by turn. Tool output opens on click.',
+      })}>
       <div className={styles.columns}>
         {data.variants.map((_, i) => (
           <RunPanel key={i} data={data} side={i} repoTree={repoTree} />
@@ -391,7 +520,10 @@ export default function CasePage({data}: {data: CaseData}) {
     <Layout title={data.id} description={data.title}>
       <main className={styles.main}>
         <div className={styles.crumb}>
-          <Link to="/">Results</Link> / <code>{data.id}</code>
+          <Link to="/">
+            <Translate id="home.title">Results</Translate>
+          </Link>{' '}
+          / <code>{data.id}</code>
         </div>
         <h1>{data.title}</h1>
         <p className={styles.purpose}>{data.purpose}</p>
