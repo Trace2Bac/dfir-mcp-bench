@@ -36,8 +36,10 @@ def summarize(case_results: Path, label_order: list[str] | None = None) -> str:
         "",
         "Means are per run. A run passes when every question passes.",
         "",
-        "| label | model | variant | runs | runs passed | questions | facts | wrong claims |"
-        " turns | tool calls | tool errors | seconds | end reasons |",
+        (
+            "| label | model | variant | runs | runs passed | questions | facts | wrong claims |"
+            " turns | tool calls | tool errors | seconds | end reasons |"
+        ),
         "|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     question_rows = []

@@ -15,6 +15,12 @@ variants:
   before: mulder-1040615          # v1.5.4, parent of the fix
   after: mulder-e74ae6d           # the fix commit
 
+# Scores the scripted run must reach on each label. `./bench.sh check` and CI
+# fail when a run differs, e.g. after a change to the runner or a variant.
+scripted_expect:
+  before: {questions: 0/3, facts: 0/4}
+  after: {questions: 3/3, facts: 4/4}
+
 setup:                                # run by the runner, not by the model
   - tool: scan_evidence
     args: {evidence_path: "${EVIDENCE}", case_id: "${CASE_ID}"}

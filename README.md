@@ -93,7 +93,7 @@ behind the answer. See [docs/method.md](docs/method.md#scoring).
 ## Layout
 
 ```
-bench.sh                    prepare / build / run / summary, all in Docker
+bench.sh                    prepare / build / run / summary / check, all in Docker
 cases/<id>/                 case.yaml (variants, tools, setup, scripted calls, questions) + briefing.md
 datasets/<id>/              where the evidence comes from and how to fetch or build it
 servers/mulder/
@@ -115,6 +115,17 @@ scripted tool output side by side, and each run turn by turn.
 ```
 cd web && npm install && npm start    # http://localhost:3000
 ```
+
+## CI
+
+- `ci.yml`: shellcheck and ruff, and a typecheck and build of the site.
+- `pages.yml`: builds the site and publishes it on GitHub Pages when `results/`,
+  `cases/`, `docs/` or `web/` change on `main`.
+
+Runs are not repeated in CI. The maintainers run them locally and commit the
+results; the repository is the record. Before committing, `./bench.sh check`
+reruns every case without a model (into `.check/`, not `results/`) and fails
+if a score differs from the case's `scripted_expect`.
 
 ## Data
 

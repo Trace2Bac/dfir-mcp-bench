@@ -1,0 +1,40 @@
+# Checks on every push and pull request: shellcheck and ruff, and a typecheck
+# and build of the results site. Runs themselves are not repeated here; the
+# maintainers run them locally and commit the results.
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: shellcheck bench.sh datasets/*/*.sh
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: ruff
+        run: pipx run ruff==0.17.4 check runner datasets
+
+  site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - run: npm run typecheck
+        working-directory: web
+      - run: npm run build
+        working-directory: web

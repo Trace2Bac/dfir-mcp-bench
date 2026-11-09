@@ -58,7 +58,7 @@ class Server:
             return ToolResult(f"Tool '{name}' is not available in this test.", True)
         try:
             return _result_text(await self.session.call_tool(name, args))
-        except Exception as exc:  # protocol or transport error, reported to the model as a tool error
+        except Exception as exc:  # noqa: BLE001 - protocol or transport error, reported to the model as a tool error
             return ToolResult(f"{type(exc).__name__}: {exc}", True)
 
 
@@ -66,14 +66,13 @@ class Server:
 async def start_server(command: str, allowed: list[str]) -> AsyncIterator[Server]:
     argv = shlex.split(command)
     params = StdioServerParameters(command=argv[0], args=argv[1:])
-    async with stdio_client(params) as (read, write):
-        async with ClientSession(read, write) as session:
-            init = await session.initialize()
-            server_info = getattr(init, "server_info", None) or getattr(init, "serverInfo", None)
-            info = {
-                "name": getattr(server_info, "name", ""),
-                "version": getattr(server_info, "version", ""),
-            }
-            server = Server(session, allowed, info)
-            await server.load_tools()
-            yield server
+    async with stdio_client(params) as (read, write), ClientSession(read, write) as session:
+        init = await session.initialize()
+        server_info = getattr(init, "server_info", None) or getattr(init, "serverInfo", None)
+        info = {
+            "name": getattr(server_info, "name", ""),
+            "version": getattr(server_info, "version", ""),
+        }
+        server = Server(session, allowed, info)
+        await server.load_tools()
+        yield server

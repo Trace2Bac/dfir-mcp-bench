@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 
 from .case import load_case
+from .check import check_case
 from .model import Model, ModelConfig
 from .run import RunOptions, run_case
 from .summary import summarize
@@ -40,7 +41,19 @@ def main() -> None:
     summ = sub.add_parser("summary", help="compare labels and models over all runs of a case")
     summ.add_argument("case_results", type=Path, help="path to results/<case>")
     summ.add_argument("--labels", nargs="*", help="label order for the table, e.g. before after")
+    chk = sub.add_parser("check", help="compare scripted results with the case's scripted_expect")
+    chk.add_argument("case", type=Path, help="path to cases/<id>/case.yaml")
+    chk.add_argument("case_results", type=Path, help="path to results/<case>")
     args = parser.parse_args()
+
+    if args.command == "check":
+        problems = check_case(args.case, args.case_results)
+        for line in problems:
+            print(f"FAIL {args.case.parent.name} {line}")
+        if problems:
+            raise SystemExit(1)
+        print(f"ok   {args.case.parent.name}")
+        return
 
     if args.command == "summary":
         text = summarize(args.case_results, args.labels)
