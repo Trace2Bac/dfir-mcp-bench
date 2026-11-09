@@ -1,0 +1,56 @@
+# EXP-002: one verification. The folder name is its permanent identifier;
+# the title may change.
+title: "Baseline: mulder investigate on the full Rhino Hunt answer key"
+title_ko: "기준선: Rhino Hunt 정답지 전체에 대한 mulder investigate"
+server: mulder
+kind: baseline                   # bug-fix | feature | ablation | baseline
+status: done                     # planned | in-progress | done
+change: >
+  None. Unmodified mulder 1.5.10 runs its own five-phase investigation
+  (mulder investigate) on the Rhino Hunt evidence, to see which answers it
+  reaches and which it cannot because a tool is missing.
+change_ko: >
+  변경 없음. 수정하지 않은 mulder 1.5.10이 Rhino Hunt 증거에 대해 자체 다섯 단계
+  조사(mulder investigate)를 돌린다. 어떤 답에 닿고, 어떤 답이 도구가 없어서 막히는지
+  본다.
+links:
+  - https://cfreds-archive.nist.gov/dfrws/Rhino_Hunt.html
+  - https://cfreds-archive.nist.gov/dfrws/DFRWS2005-answers.pdf
+
+case: rhino-hunt
+# mulder's own orchestrator (Claude Agent SDK). The case briefing and question
+# texts were written to MULDER.md in the evidence folder, mulder's documented
+# way to give an investigation its questions; no answers were given.
+harness: mulder-investigate
+harness_options:
+  models: {planner: claude-opus-4-6, executor: claude-haiku-4-5, analyst: claude-opus-4-6}
+  effort: max
+  auth: Anthropic API key
+  command: mulder investigate /evidence/rhino-hunt rhino-hunt   # release image, --privileged
+
+variants:
+  before: mulder-1.5.10          # upstream release
+
+scripted_expect:
+  before: {questions: 5/7, facts: 15/22}
+
+conclusion: >
+  35 minutes, 383 tool calls, 14 findings. Automatic score 4/7 questions,
+  12/22 facts against the full answer key; the scripted ceiling with mulder's
+  tools is 5/7, 15/22. Of the 10 facts missed, 9 need features mulder lacks:
+  carving tools delete their output (so no stego, no look at carved images,
+  no hash match between the USB image and the zip from the FTP stream) and
+  there is no way to open the encrypted zip. One reachable fact was missed
+  (rhino2.jpg, the name inside contraband.zip, visible with strings).
+  run_photorec failed on every call because of its command line. mulder
+  reported 34.7K uncached input and 134.5K output tokens (about $3.0 at list
+  prices); cache reads and writes are not in that count.
+conclusion_ko: >
+  35분, 도구 호출 383번, 발견 사항 14건. 정답지 전체 기준 자동 점수는 질문 4/7,
+  사실 12/22이고, mulder 도구로 낼 수 있는 상한(scripted)은 5/7, 15/22이다. 놓친 사실
+  10개 중 9개는 mulder에 없는 기능이 필요하다. 카빙 도구가 결과를 지워서 스테고 분석,
+  카빙한 그림 확인, USB 이미지와 FTP로 보낸 zip의 해시 비교를 할 수 없고, 암호화된
+  zip을 열 방법이 없다. 닿을 수 있었는데 놓친 사실은 하나다 (contraband.zip 안의
+  파일 이름 rhino2.jpg, strings로 보임). run_photorec은 명령 형식 때문에 매번
+  실패했다. mulder가 보고한 토큰은 캐시 제외 입력 34.7K, 출력 134.5K로 정가 기준
+  약 $3.0이며, 캐시 읽기·쓰기는 빠져 있다.

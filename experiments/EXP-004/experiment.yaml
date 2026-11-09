@@ -1,0 +1,40 @@
+# EXP-004: one verification. The folder name is its permanent identifier;
+# the title may change.
+title: "Baseline: mulder investigate on a NIST CFTT test image (DFR-01, FAT)"
+title_ko: "기준선: NIST CFTT 테스트 이미지에 대한 mulder investigate (DFR-01, FAT)"
+server: mulder
+kind: baseline                   # bug-fix | feature | ablation | baseline
+status: planned                  # planned | in-progress | done
+change: >
+  None. Unmodified mulder 1.5.10 runs its own five-phase investigation on the
+  small NIST deleted-file-recovery image of EXP-003, to see whether the
+  orchestrator finds every partition's deleted file without the workarounds
+  the scripted run needed.
+change_ko: >
+  변경 없음. 수정하지 않은 mulder 1.5.10이 EXP-003과 같은 NIST 삭제 파일 복구
+  이미지에 자체 다섯 단계 조사를 돌린다. scripted 실행에 필요했던 우회 없이
+  오케스트레이터가 모든 파티션의 삭제 파일을 찾는지 본다.
+links:
+  - https://cfreds-archive.nist.gov/dfr-test-images.html
+  - https://cfreds-archive.nist.gov/dfr-images/setup-july-10-2012.pdf
+
+case: nist-dfr-01-fat
+# mulder's own orchestrator, started by `./bench.sh investigate EXP-004`. The
+# case briefing and questions go into MULDER.md in an evidence copy; no answers.
+# Same models and effort as EXP-002, so the two runs compare.
+harness: mulder-investigate
+harness_options:
+  models: {planner: claude-opus-4-6, executor: claude-haiku-4-5, analyst: claude-opus-4-6}
+  effort: max
+  auth: Anthropic API key (ANTHROPIC_API_KEY in the shell)
+
+variants:
+  before: mulder-1.5.10          # upstream release
+
+scripted_expect:
+  before: {questions: 5/5, facts: 14/14}
+
+conclusion: >
+  Not run yet.
+conclusion_ko: >
+  아직 실행하지 않았다.

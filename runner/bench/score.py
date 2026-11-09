@@ -20,12 +20,7 @@ def score_question(q: Question, text: str, tools_called: set[str]) -> dict[str, 
     tools_missing = [t for t in q.requires_tools if t not in tools_called]
     if q.requires_any_tool and not tools_called.intersection(q.requires_any_tool):
         tools_missing.append(" or ".join(q.requires_any_tool))
-    passed = (
-        not missing
-        and (not q.expect_any or bool(any_hit))
-        and not forbidden
-        and not tools_missing
-    )
+    passed = not missing and (not q.expect_any or bool(any_hit)) and not forbidden and not tools_missing
     return {
         "id": q.id,
         "passed": passed,

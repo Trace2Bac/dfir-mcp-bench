@@ -1,25 +1,15 @@
 id: pcap-dns-smtp
 title: DNS and SMTP in a small packet capture
+title_ko: 작은 패킷 캡처 안의 DNS와 SMTP
 dataset: synthetic-dns-smtp
 evidence: synthetic-dns-smtp          # folder under the evidence root
 purpose: >
-  Before and after calebevans/mulder#274. Before the fix the dns and smtp
-  modes of run_pcap_analysis ask tshark for fields that do not exist, so both
-  modes fail while the response still says success. before is the parent
-  commit of the fix and after is the fix commit, so the two differ only by
-  the fix.
-
-# Server variants to run, by label (servers/mulder/variants/<name>.env).
-# Results go to results/<case>/<label>/<model>/.
-variants:
-  before: mulder-1040615          # v1.5.4, parent of the fix
-  after: mulder-e74ae6d           # the fix commit
-
-# Scores the scripted run must reach on each label. `./bench.sh check` and CI
-# fail when a run differs, e.g. after a change to the runner or a variant.
-scripted_expect:
-  before: {questions: 0/3, facts: 0/4}
-  after: {questions: 3/3, facts: 4/4}
+  The dns and smtp modes of run_pcap_analysis on a capture that holds one DNS
+  answer and one SMTP session. Every fact is reachable with these modes when
+  they work; written for calebevans/mulder#273.
+purpose_ko: >
+  DNS 응답 하나와 SMTP 세션 하나가 든 캡처에서 run_pcap_analysis의 dns, smtp 모드를
+  본다. 두 모드가 정상이면 모든 사실에 닿는다. calebevans/mulder#273을 위해 만들었다.
 
 setup:                                # run by the runner, not by the model
   - tool: scan_evidence
@@ -42,14 +32,17 @@ scripted:                             # --scripted: fixed calls, no model
 questions:
   - id: Q1
     text: To which IPv4 address did example.com resolve?
+    text_ko: "example.com은 어떤 IPv4 주소로 해석됐나?"
     expect: {all: ["93.184.216.34"]}
     requires_tools: [run_pcap_analysis]
   - id: Q2
     text: Which sender and recipient email addresses appear in the SMTP session?
+    text_ko: "SMTP 세션에 나오는 보낸 사람과 받는 사람 이메일 주소는?"
     expect: {all: ["jean@m57.biz", "alison@example.com"]}
     requires_tools: [run_pcap_analysis]
   - id: Q3
     text: What host name does the mail server give in its replies?
+    text_ko: "메일 서버가 응답에서 밝히는 호스트 이름은?"
     expect: {all: ["mail.example.com"]}
     requires_tools: [run_pcap_analysis]
 

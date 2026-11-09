@@ -22,9 +22,15 @@ still passes; they show the cost in turns and time rather than in the answer.
 State the scope: one dataset and one model unless more were run.
 
 Two kinds of case support this. A *fix case* asks only what one fix changes
-(`pcap-dns-smtp`). An *investigation case* asks the whole answer key of a
-public dataset and gives the tools for every evidence type in it
-(`rhino-hunt`: 11 tools, about 3.5K tokens of definitions).
+(`pcap-dns-smtp`, used by EXP-001). An *investigation case*
+asks the whole answer key of a public dataset and gives the tools for every
+evidence type in it (`rhino-hunt`).
+
+The harness matters as much as the model. A 9B local model through the
+bench-runner handled a fix case well (EXP-001) but found none of the Rhino
+Hunt answers in an exploratory run that is not kept as an experiment, while
+`mulder investigate` with Claude reached 4/7 (EXP-002, scripted ceiling 5/7).
+Investigation cases need a stronger model or another harness. Whatever runs, it must be the same on every label.
 
 ## Scoring
 

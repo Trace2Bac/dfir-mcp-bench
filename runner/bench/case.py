@@ -30,8 +30,6 @@ class Question:
 @dataclass
 class Case:
     id: str
-    title: str
-    path: Path
     evidence: str
     tools: list[str]
     setup: list[Call]
@@ -40,6 +38,8 @@ class Case:
     briefing: str
     max_turns: int
     max_tool_chars: int
+    keep_tool_results: int  # newest tool results sent in full; older ones become a one-line stub
+    context_budget_tokens: int  # estimated prompt size above which more results become stubs
 
 
 def _calls(items: list[dict[str, Any]] | None) -> list[Call]:
@@ -57,17 +57,16 @@ def load_case(path: Path) -> Case:
             Question(
                 id=q["id"],
                 text=q["text"].strip(),
-                expect_all=expect.get("all") or [],
-                expect_any=expect.get("any") or [],
-                expect_none=expect.get("none") or [],
+                # str(): YAML reads unquoted dates and numbers as other types.
+                expect_all=[str(v) for v in expect.get("all") or []],
+                expect_any=[str(v) for v in expect.get("any") or []],
+                expect_none=[str(v) for v in expect.get("none") or []],
                 requires_tools=q.get("requires_tools") or [],
                 requires_any_tool=q.get("requires_any_tool") or [],
             )
         )
     return Case(
         id=data["id"],
-        title=data.get("title", data["id"]),
-        path=path,
         evidence=data["evidence"],
         tools=data["tools"],
         setup=_calls(data.get("setup")),
@@ -76,7 +75,25 @@ def load_case(path: Path) -> Case:
         briefing=briefing_file.read_text().strip() if briefing_file.exists() else "",
         max_turns=int(limits.get("max_turns", 30)),
         max_tool_chars=int(limits.get("max_tool_chars", 12000)),
+        keep_tool_results=int(limits.get("keep_tool_results", 4)),
+        context_budget_tokens=int(limits.get("context_budget_tokens", 24000)),
     )
+
+
+def split_answers(case: Case, text: str) -> dict[str, str]:
+    """Take the 'Q1: ...' lines of a final answer; fall back to the whole text."""
+    answers: dict[str, str] = {}
+    ids = [q.id for q in case.questions]
+    pattern = re.compile(rf"^\W*({'|'.join(map(re.escape, ids))})\W*[:.)-]\s*(.*)$", re.IGNORECASE)
+    current = None
+    for line in text.splitlines():
+        m = pattern.match(line)
+        if m:
+            current = next(i for i in ids if i.lower() == m.group(1).lower())
+            answers[current] = m.group(2)
+        elif current:
+            answers[current] += "\n" + line
+    return answers or {q.id: text for q in case.questions}
 
 
 _PLACEHOLDER = re.compile(r"\$\{(\w+)\}")

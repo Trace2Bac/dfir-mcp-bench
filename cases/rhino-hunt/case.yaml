@@ -1,5 +1,6 @@
 id: rhino-hunt
 title: Rhino Hunt (DFRWS 2005 Rodeo), full answer key
+title_ko: Rhino Hunt (DFRWS 2005 Rodeo), 정답지 전체
 dataset: rhino-hunt
 evidence: rhino-hunt
 purpose: >
@@ -8,22 +9,22 @@ purpose: >
   the key gives for it. Some facts cannot be reached with mulder's tools
   (carved files are deleted after carving, so stego and zip contents stay
   hidden); a scripted run shows which, and is the ceiling for a model run.
+purpose_ko: >
+  공개 정답지의 모든 질문을 증거 파일 4개(USB 이미지, 네트워크 트레이스 3개) 전체에
+  대해 묻는다. 각 질문은 정답지가 그 질문에 준 사실을 모두 기대한다. 일부 사실은
+  mulder 도구로 닿지 않는다 (카빙한 파일이 지워져 스테고와 zip 내용이 보이지 않음).
+  scripted 실행이 어떤 사실인지 보여 주고, 모델 실행의 상한이 된다.
 answers_source: https://cfreds-archive.nist.gov/dfrws/DFRWS2005-answers.pdf (pp. 2-4)
-
-variants:
-  release: mulder-1.5.10
-
-# Scores the scripted run must reach (the ceiling with mulder's tools).
-# `./bench.sh check` and CI fail when a run differs.
-scripted_expect:
-  release: {questions: 5/7, facts: 15/22}
 
 setup:
   - tool: scan_evidence
     args: {evidence_path: "${EVIDENCE}", case_id: "${CASE_ID}"}
 
-# Network, disk carving, stego and text tools, plus the two readers.
+# Network, disk carving, stego and text tools, the readers, and mulder's own
+# guides to its tools and indexed sources.
 tools:
+  - get_tool_guide
+  - list_sources
   - run_pcap_analysis
   - run_tcpflow
   - run_tcpxtract
@@ -74,31 +75,41 @@ scripted:
 questions:
   - id: Q1
     text: Who gave the accused a telnet/ftp account?
+    text_ko: "피의자에게 telnet/ftp 계정을 준 사람은?"
     expect: {all: [Jeremy]}
     requires_any_tool: [run_strings, run_foremost, read_evidence_file]
   - id: Q2
     text: What's the username/password for the account?
+    text_ko: "그 계정의 사용자 이름과 비밀번호는?"
     expect: {all: [gnome, gnome123]}
     requires_any_tool: [run_pcap_analysis, run_tcpflow, run_strings]
   - id: Q3
     text: What relevant file transfers appear in the network traces?
+    text_ko: "네트워크 트레이스에 나오는 관련 파일 전송은?"
     expect: {all: [rhino1.jpg, rhino3.jpg, contraband.zip, rhino2.jpg, monkey, rhino4.jpg, rhino5.gif, rhino.exe]}
     requires_any_tool: [run_pcap_analysis, run_tcpflow, run_tcpxtract, run_strings]
   - id: Q4
     text: What happened to the hard drive in the computer? Where is it now?
+    text_ko: "컴퓨터의 하드디스크는 어떻게 됐나? 지금 어디에 있나?"
     expect: {all: [Mississippi]}
     requires_any_tool: [run_strings, run_foremost, read_evidence_file]
   - id: Q5
     text: What happened to the USB key?
+    text_ko: "USB 키는 어떻게 됐나?"
     expect: {all: [reformat]}
     requires_any_tool: [run_strings, run_foremost, run_fls, read_evidence_file]
   - id: Q6
     text: What is recoverable from the dd image of the USB key?
+    text_ko: "USB 키의 dd 이미지에서 복구할 수 있는 것은?"
     expect: {all: [gumbo, diary, rhino2.jpg, rhino6, rhino7, rhino8.gif, rhino9.gif, rhino10]}
     requires_any_tool: [run_fls, run_foremost, run_strings]
   - id: Q7
     text: Is there any evidence that connects the USB key and the network traces? If so, what?
+    text_ko: "USB 키와 네트워크 트레이스를 잇는 증거가 있나? 있다면 무엇인가?"
     expect: {all: [rhino2.jpg]}
     requires_any_tool: [run_foremost, run_strings]
 
-limits: {max_turns: 30, max_tool_chars: 12000}
+# Tool output is indexed by mulder, so a short preview per call is enough; the
+# model can read more with get_raw_output. Older results are sent as one-line
+# stubs (see the runner) so that the conversation fits a 32K context.
+limits: {max_turns: 30, max_tool_chars: 4000, keep_tool_results: 4, context_budget_tokens: 24000}

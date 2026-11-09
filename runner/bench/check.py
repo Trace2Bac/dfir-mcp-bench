@@ -1,4 +1,4 @@
-"""Compare scripted results with the scores a case expects (scripted_expect)."""
+"""Compare scripted results with the scores an experiment expects (scripted_expect)."""
 
 from __future__ import annotations
 
@@ -8,14 +8,14 @@ from pathlib import Path
 import yaml
 
 
-def check_case(case_yaml: Path, case_results: Path) -> list[str]:
+def check_experiment(experiment_yaml: Path, results: Path) -> list[str]:
     """Return one line per mismatch; an empty list means every label matched."""
-    expected = yaml.safe_load(case_yaml.read_text()).get("scripted_expect") or {}
+    expected = yaml.safe_load(experiment_yaml.read_text()).get("scripted_expect") or {}
     if not expected:
-        return [f"{case_yaml}: no scripted_expect"]
+        return [f"{experiment_yaml}: no scripted_expect"]
     problems = []
     for label, want in expected.items():
-        score_file = case_results / label / "scripted" / "run-1" / "score.json"
+        score_file = results / label / "scripted" / "run-1" / "score.json"
         if not score_file.exists():
             problems.append(f"{label}: no scripted run ({score_file})")
             continue

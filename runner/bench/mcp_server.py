@@ -7,7 +7,7 @@ import shlex
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, TextIO
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -47,10 +47,7 @@ class Server:
             self.schemas[name] = {"description": tool.description or "", "parameters": schema}
 
     def openai_tools(self) -> list[dict[str, Any]]:
-        return [
-            {"type": "function", "function": {"name": name, **spec}}
-            for name, spec in self.schemas.items()
-        ]
+        return [{"type": "function", "function": {"name": name, **spec}} for name, spec in self.schemas.items()]
 
     async def call(self, name: str, args: dict[str, Any], *, allow_hidden: bool = False) -> ToolResult:
         # Setup steps may call tools the model does not see (allow_hidden).
@@ -63,10 +60,11 @@ class Server:
 
 
 @asynccontextmanager
-async def start_server(command: str, allowed: list[str]) -> AsyncIterator[Server]:
+async def start_server(command: str, allowed: list[str], errlog: TextIO) -> AsyncIterator[Server]:
+    """Start the server; its console output goes to *errlog*, not the terminal."""
     argv = shlex.split(command)
     params = StdioServerParameters(command=argv[0], args=argv[1:])
-    async with stdio_client(params) as (read, write), ClientSession(read, write) as session:
+    async with stdio_client(params, errlog=errlog) as (read, write), ClientSession(read, write) as session:
         init = await session.initialize()
         server_info = getattr(init, "server_info", None) or getattr(init, "serverInfo", None)
         info = {

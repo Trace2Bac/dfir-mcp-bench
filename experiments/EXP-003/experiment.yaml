@@ -1,0 +1,41 @@
+# EXP-003: one verification. The folder name is its permanent identifier;
+# the title may change.
+title: "Baseline: deleted file recovery on a NIST CFTT test image (DFR-01, FAT)"
+title_ko: "기준선: NIST CFTT 테스트 이미지의 삭제 파일 복구 (DFR-01, FAT)"
+server: mulder
+kind: baseline                   # bug-fix | feature | ablation | baseline
+status: in-progress              # planned | in-progress | done
+change: >
+  None. Unmodified mulder 1.5.10 on a small NIST tool-testing image whose
+  ground truth is known by construction: three FAT partitions, one deleted
+  file in each. A light, authoritative reference for the disk tools.
+change_ko: >
+  변경 없음. NIST가 정답을 알고 만든 작은 도구 검증용 이미지(FAT 파티션 3개, 각각
+  삭제 파일 1개)에 수정하지 않은 mulder 1.5.10을 쓴다. 디스크 도구를 보는 가볍고
+  공신력 있는 기준이다.
+links:
+  - https://cfreds-archive.nist.gov/dfr-test-images.html
+  - https://cfreds-archive.nist.gov/dfr-images/setup-july-10-2012.pdf
+
+case: nist-dfr-01-fat
+harness: bench-runner
+
+variants:
+  before: mulder-1.5.10          # upstream release
+
+scripted_expect:
+  before: {questions: 5/5, facts: 14/14}
+
+conclusion: >
+  Scripted 5/5 questions, 14/14 facts: every fact is reachable with mulder's
+  disk tools, but only with workarounds. run_fls skips the second and third
+  partition of the same image as "already indexed" unless force is set;
+  get_file_metadata and extract_file_by_inode take no partition and read the
+  FAT32 partition only; get_deleted_files reports 8 deleted entries where
+  there is 1. Model runs are pending.
+conclusion_ko: >
+  scripted 5/5 질문, 14/14 사실. 모든 사실에 mulder 디스크 도구로 닿지만, 우회가
+  필요하다. run_fls는 force 없이는 같은 이미지의 두 번째·세 번째 파티션을 "이미
+  색인됨"으로 건너뛴다. get_file_metadata와 extract_file_by_inode는 파티션 인자가
+  없어 FAT32 파티션만 읽는다. get_deleted_files는 삭제 파일이 1개인데 8개라고 한다.
+  모델 실행은 아직 하지 않았다.

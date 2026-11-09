@@ -1,9 +1,12 @@
 ---
-title: 케이스 추가
-sidebar_position: 2
+title: 케이스와 검증 추가
+sidebar_position: 3
 ---
 
-# 케이스 추가
+# 케이스와 검증 추가
+
+*케이스*는 시험(질문, 도구, 데이터셋)입니다. *검증*은 케이스를 서버 variant들에서 실행하고
+결과를 기록합니다. 바꾼 내용에 맞는 케이스가 이미 있으면 새로 만들지 않습니다.
 
 1. **증거.** `datasets/<id>/`에 `dataset.yaml`(출처, 정답지, 파일 해시)과, 파일을
    `data/evidence/<폴더>/`로 내려받거나 만드는 스크립트를 넣습니다. 이 데이터셋을
@@ -15,9 +18,6 @@ sidebar_position: 2
    ```yaml
    id: my-case
    evidence: my-folder               # data/evidence 아래 폴더
-   variants:                         # 라벨: servers/mulder/variants/<이름>
-     before: mulder-<부모 sha>       # 수정 전 커밋
-     after: mulder-<수정 sha>        # 수정 커밋
    setup:                            # 모델이 시작하기 전에 runner가 실행
      - tool: scan_evidence
        args: {evidence_path: "${EVIDENCE}", case_id: "${CASE_ID}"}
@@ -44,9 +44,41 @@ sidebar_position: 2
 4. **확인.** 먼저 `--scripted`로 돌립니다. 수정 케이스라면 `after`에서 고정 호출이
    기대한 사실에 모두 닿아야 합니다. 조사 케이스라면 도구로 닿지 않는 사실이 있을 수
    있습니다. 그때 scripted 점수가 모델 실행의 상한이 되고, 케이스의 `purpose`에 어떤
-   사실이 왜 닿지 않는지 적습니다. scripted 점수는 `scripted_expect`에 적어 둡니다
-   (예: `after: {questions: 3/3, facts: 4/4}`). 그러면 `./bench.sh check`가 점수가
-   바뀐 것을 알아챕니다.
+   사실이 왜 닿지 않는지 적습니다. scripted 점수는 검증의 `scripted_expect`에 적어
+   둡니다. 그러면 `./bench.sh check`가 점수가 바뀐 것을 알아챕니다.
+
+## 검증 추가
+
+`experiments/EXP-<nnn>/experiment.yaml`을 만듭니다. `EXP-<nnn>`은 다음 번호이고 영구 식별자입니다.
+인용에 쓰이므로 이름을 바꾸거나 번호를 다시 쓰지 않습니다. 제목은 바뀌어도 됩니다.
+
+```yaml
+title: "Fix verification: pcap dns and smtp field names (calebevans/mulder#274)"
+server: mulder
+kind: bug-fix                    # bug-fix | feature | ablation | baseline
+status: in-progress              # planned | in-progress | done
+change: >
+  라벨 사이에 무엇이 다른지, 또는 기준선이 무엇을 위한 것인지.
+links: [https://github.com/calebevans/mulder/pull/274]
+case: pcap-dns-smtp              # cases/<id>. 데이터셋은 케이스에 적혀 있음
+harness: bench-runner            # 또는 다른 실행 방식. 결과는 직접 넣음
+variants:                        # 라벨: servers/mulder/variants/<이름>
+  before: mulder-1040615         # 수정 전 커밋
+  after: mulder-e74ae6d          # 수정 커밋
+scripted_expect:                 # 선택. ./bench.sh check가 확인
+  before: {questions: 0/3, facts: 0/4}
+  after: {questions: 3/3, facts: 4/4}
+conclusion: >
+  결과가 보여 주는 것과 그 한계.
+```
+
+사이트 한글 페이지용 문장은 `title_ko`, `change_ko`, `conclusion_ko`에 씁니다 (케이스는
+`title_ko`, `purpose_ko`, 질문의 `text_ko`). 기본 칸은 영어로 둡니다. 기본값이고, 채점과
+모델에게 주는 질문은 이 영어 원문을 씁니다.
+
+기존 기능의 가치를 볼 때는 한 커밋에 variant 두 개를 씁니다. 하나는 패치 없이, 하나는
+그 기능을 빼는 패치를 넣어서 만들고, 라벨은 예를 들어 `full`과 `without-<기능>`으로
+붙입니다.
 
 ## variant 추가
 

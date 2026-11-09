@@ -2,12 +2,13 @@ import Link from '@docusaurus/Link';
 import Layout from '@theme/Layout';
 import Translate, {translate} from '@docusaurus/Translate';
 import {usePluginData} from '@docusaurus/useGlobalData';
-import type {CaseSummary} from '../../plugins/bench-data';
+import type {ExperimentSummary} from '../../plugins/bench-data';
+import {StatusBadge, kindLabel} from '../components/ExperimentPage';
 import styles from './index.module.css';
 
-// Home: one card per case, each comparing its labels per model.
+// Home: one card per experiment, each comparing its labels per model.
 export default function Home() {
-  const {cases} = usePluginData('bench-data') as {cases: CaseSummary[]};
+  const {experiments} = usePluginData('bench-data') as {experiments: ExperimentSummary[]};
   return (
     <Layout
       title={translate({id: 'home.title', message: 'Results'})}
@@ -27,18 +28,25 @@ export default function Home() {
               ),
             }}>
             {
-              'Each case runs the same questions and tools on several versions of a server. A difference between the columns comes from the change between those versions. See the {method} for what each kind of comparison proves.'
+              'Each experiment runs the same test on several versions of a server, for example before and after a change. A difference between the columns comes from that change. See the {method} for what each kind of comparison proves.'
             }
           </Translate>
         </p>
         <div className={styles.cards}>
-          {cases.map(c => {
+          {experiments.map(c => {
             const models = [...new Set(c.groups.map(g => g.model))];
             return (
-              <Link key={c.id} to={`/cases/${c.id}`} className={styles.card}>
+              <Link key={c.id} to={`/experiments/${c.id}`} className={styles.card}>
                 <div className={styles.cardHead}>
-                  <code>{c.id}</code>
+                  <code>{c.code}</code>
                   <span>{c.title}</span>
+                  <StatusBadge status={c.status} />
+                </div>
+                <div className={styles.cardMeta}>
+                  {c.kind && <>{kindLabel(c.kind)} · </>}
+                  <Translate id="home.caseLine" values={{case: c.caseId, dataset: c.dataset ?? '-'}}>
+                    {'case {case}, dataset {dataset}'}
+                  </Translate>
                 </div>
                 <table className={styles.table}>
                   <thead>

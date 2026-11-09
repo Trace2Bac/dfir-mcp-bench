@@ -1,0 +1,84 @@
+id: nist-dfr-01-fat
+title: NIST CFTT DFR-01 on FAT (dfr-01-fat)
+title_ko: FAT에서의 NIST CFTT DFR-01 (dfr-01-fat)
+dataset: nist-cftt-dfr
+evidence: nist-cftt-dfr
+purpose: >
+  Deleted file recovery on a small NIST tool-testing image with three
+  partitions (FAT12, FAT16, FAT32) and one deleted file in each. The ground
+  truth comes from NIST's image layout document (fat-01, pages 92-94). On FAT
+  the first character of a deleted short name is lost, so XBEID.TXT shows as
+  _BEID.TXT and is matched on BEID.TXT.
+purpose_ko: >
+  파티션 3개(FAT12, FAT16, FAT32)에 삭제 파일이 하나씩 있는 작은 NIST 도구 검증용
+  이미지에서 삭제 파일을 복구한다. 정답은 NIST 이미지 배치 문서(fat-01, 92~94쪽)에서
+  왔다. FAT에서는 삭제된 짧은 이름의 첫 글자가 사라져 XBEID.TXT가 _BEID.TXT로 보이므로
+  BEID.TXT로 맞춘다.
+answers_source: https://cfreds-archive.nist.gov/dfr-images/setup-july-10-2012.pdf (fat-01, pp. 92-94)
+
+setup:
+  - tool: scan_evidence
+    args: {evidence_path: "${EVIDENCE}", case_id: "${CASE_ID}"}
+
+tools:
+  - list_sources
+  - run_mmls
+  - run_fsstat
+  - run_fls
+  - list_files
+  - get_deleted_files
+  - get_file_metadata
+  - extract_file_by_inode
+  - search
+  - get_raw_output
+
+scripted:
+  - tool: run_mmls
+    args: {image_path: "${EVIDENCE}/dfr-01-fat.dd"}
+  - tool: get_raw_output
+    args: {source_name: tsk.partitions}
+  # One fls per partition. The second and third need force: without it mulder
+  # skips them as "already indexed" (same image, different partition).
+  - tool: run_fls
+    args: {image_path: "${EVIDENCE}/dfr-01-fat.dd", partition_offset: 128}
+  - tool: run_fls
+    args: {image_path: "${EVIDENCE}/dfr-01-fat.dd", partition_offset: 16512, force: true}
+  - tool: run_fls
+    args: {image_path: "${EVIDENCE}/dfr-01-fat.dd", partition_offset: 82048, force: true}
+  - tool: get_raw_output
+    args: {source_name: tsk.filelist}
+  # get_file_metadata has no partition argument and reads the FAT32 partition,
+  # where inode 7 is the deleted Bellatrix.txt.
+  - tool: get_file_metadata
+    args: {inode: 7, image_path: "${EVIDENCE}/dfr-01-fat.dd"}
+  - tool: get_raw_output
+    args: {source_name: tsk.metadata.7}
+
+questions:
+  - id: Q1
+    text: What partitions does the disk image contain, and what file system is in each?
+    text_ko: "디스크 이미지에는 어떤 파티션이 있고, 각각 어떤 파일 시스템인가?"
+    expect: {all: [FAT12, FAT16, FAT32]}
+    requires_any_tool: [run_mmls, run_fsstat, run_fls]
+  - id: Q2
+    text: Which files were deleted, and in which partition was each?
+    text_ko: "어떤 파일이 삭제됐고, 각각 어느 파티션에 있었나?"
+    expect: {all: [BEID.TXT, Betelgeuse.txt, Bellatrix.txt]}
+    requires_any_tool: [run_fls, list_files, get_deleted_files]
+  - id: Q3
+    text: Which files are still allocated (not deleted)?
+    text_ko: "아직 할당된(삭제되지 않은) 파일은?"
+    expect: {all: [XALTIR.TXT, XCAPH.TXT, Alcor.TXT, Capella.txt, Algol.txt, Canopus.txt]}
+    requires_any_tool: [run_fls, list_files]
+  - id: Q4
+    text: What was the size in bytes of each deleted file?
+    text_ko: "삭제된 파일의 크기는 각각 몇 바이트였나?"
+    expect: {all: ["712"]}
+    requires_any_tool: [get_file_metadata, extract_file_by_inode, run_fls]
+  - id: Q5
+    text: On what date were the deleted files last modified?
+    text_ko: "삭제된 파일이 마지막으로 수정된 날짜는?"
+    expect: {all: ["2000-02-29"]}
+    requires_any_tool: [get_file_metadata, run_fls]
+
+limits: {max_turns: 20, max_tool_chars: 4000, keep_tool_results: 4, context_budget_tokens: 24000}

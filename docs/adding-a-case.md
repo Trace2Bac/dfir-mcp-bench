@@ -1,9 +1,13 @@
 ---
-title: Adding a case
-sidebar_position: 2
+title: Adding a case or an experiment
+sidebar_position: 3
 ---
 
-# Adding a case
+# Adding a case or an experiment
+
+A *case* is a test (questions, tools, dataset). An *experiment* runs a case on
+server variants and records the result. Add a case only when no existing one
+asks what your change affects.
 
 1. **Evidence.** Add `datasets/<id>/` with a `dataset.yaml` (source, answer
    key, file hashes) and a script that downloads or generates the files into
@@ -16,9 +20,6 @@ sidebar_position: 2
    ```yaml
    id: my-case
    evidence: my-folder               # under data/evidence
-   variants:                         # label: servers/mulder/variants/<name>
-     before: mulder-<parent sha>     # the commit before the fix
-     after: mulder-<fix sha>         # the fix commit
    setup:                            # run by the runner before the model starts
      - tool: scan_evidence
        args: {evidence_path: "${EVIDENCE}", case_id: "${CASE_ID}"}
@@ -47,9 +48,43 @@ sidebar_position: 2
    calls should reach every expected fact on `after`. In an investigation
    case some facts may be out of reach of the tools; the scripted score is
    then the ceiling for a model run, and the case's `purpose` should say
-   which facts are out of reach and why. Record the scripted scores under
-   `scripted_expect` (for example `after: {questions: 3/3, facts: 4/4}`) so
-   that `./bench.sh check` notices when they change.
+   which facts are out of reach and why. Record the scripted scores in the
+   experiment's `scripted_expect` so that `./bench.sh check` notices when
+   they change.
+
+## Adding an experiment
+
+Add `experiments/EXP-<nnn>/experiment.yaml` with the next number. The
+folder name is the permanent identifier that citations use: never rename it
+or reuse a number. The title may change.
+
+```yaml
+title: "Fix verification: pcap dns and smtp field names (calebevans/mulder#274)"
+server: mulder
+kind: bug-fix                    # bug-fix | feature | ablation | baseline
+status: in-progress              # planned | in-progress | done
+change: >
+  What differs between the labels, or what the baseline is for.
+links: [https://github.com/calebevans/mulder/pull/274]
+case: pcap-dns-smtp              # cases/<id>; the case names its dataset
+harness: bench-runner            # or another harness, with results added by hand
+variants:                        # label: servers/mulder/variants/<name>
+  before: mulder-1040615         # the commit before the fix
+  after: mulder-e74ae6d          # the fix commit
+scripted_expect:                 # optional; checked by ./bench.sh check
+  before: {questions: 0/3, facts: 0/4}
+  after: {questions: 3/3, facts: 4/4}
+conclusion: >
+  What the results show, and their limits.
+```
+
+Korean text for the site goes in `title_ko`, `change_ko` and `conclusion_ko`
+(and `title_ko`, `purpose_ko` and question `text_ko` in a case). The plain
+fields stay English: they are the default and what scoring and models use.
+
+For the value of an existing feature, use one commit and two variants: one
+without patches and one with a patch that removes the feature, labelled for
+example `full` and `without-<feature>`.
 
 ## Adding a variant
 
