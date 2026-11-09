@@ -7,16 +7,17 @@ sidebar_position: 2
 
 ## 처음 실행하기 전에
 
-1. Docker와 LM Studio를 설치합니다.
-2. LM Studio에서 모델을 로드하고, 컨텍스트 길이를 32768 이상으로 설정한 뒤 서버를
-   켭니다 (Developer 탭, 포트 1234).
-3. `cp .env.example .env`를 하고, `MODEL_NAME`에 로드한 모델을 적습니다. 예:
-   `qwen/qwen3.5-9b`
-4. 증거를 한 번 준비합니다.
+1. Docker를 설치합니다. scripted 실행과 `mulder investigate`는 이것만 있으면 됩니다.
+   Claude로 `mulder investigate`를 돌릴 때는 `ANTHROPIC_API_KEY`도 필요합니다.
+2. 증거를 한 번 준비합니다.
    ```
    ./bench.sh prepare synthetic-dns-smtp
    ./bench.sh prepare rhino-hunt
+   ./bench.sh prepare nist-cftt-dfr
    ```
+3. 로컬 모델 실행에만 필요: LM Studio를 설치하고, 모델을 컨텍스트 길이 32768 이상으로
+   로드한 뒤 서버를 켭니다 (Developer 탭, 포트 1234). 그다음 `cp .env.example .env`로
+   `MODEL_NAME`을 설정합니다 (예: `qwen/qwen3.5-9b`).
 
 ## 실행
 
@@ -24,9 +25,13 @@ sidebar_position: 2
 적혀 있습니다.
 
 ```
-./bench.sh run EXP-001 after                                             # 라벨 하나, 한 번
+./bench.sh run EXP-001 --scripted                               # 모든 라벨, 모델 없음
+./bench.sh run EXP-001 after                                    # 라벨 하나, 모델 실행 한 번
 MODEL_REASONING_EFFORT=none ./bench.sh run EXP-001 --repeat 5   # 생각 끔, 라벨마다 5번
 ```
+
+모델 실행에는 LM Studio가 필요합니다 (위 3번). `--scripted`는 모델이 필요 없습니다.
+`mulder investigate`로 돌리는 검증은 아래를 보세요.
 
 터미널에 진행 과정이 바로 나옵니다. 모델의 턴, 호출한 도구, 도구가 돌려준 내용의
 앞부분이 보입니다. mulder 자체 로그는 실행 폴더의 `server-db/console.log`에 남습니다.
@@ -53,26 +58,30 @@ MODEL_REASONING_EFFORT=none ./bench.sh run EXP-001 --repeat 5   # 생각 끔, �
 
 WSL 2를 씁니다. `bench.sh`는 bash 스크립트이고 컨테이너는 Linux입니다.
 
+| 실행 | 필요한 것 |
+|---|---|
+| `./bench.sh check`, `run --scripted` (모델 없음) | Docker |
+| `./bench.sh investigate` (Claude로 `mulder investigate`) | Docker와 `ANTHROPIC_API_KEY`. Claude는 mulder 이미지 안의 Claude Agent SDK로 돕니다 |
+| `./bench.sh run` 로컬 모델 | Docker와 LM Studio |
+
 1. Docker Desktop(WSL 2 백엔드)과 WSL 배포판(예: Ubuntu)을 설치합니다. Docker
    Desktop의 *Settings → Resources → WSL integration*에서 그 배포판을 켭니다.
 2. 레포는 `/mnt/c`가 아니라 WSL 파일 시스템 안(예: `~/dfir-mcp-bench`)에 받습니다.
    증거 이미지가 커서 경계를 넘는 파일 접근은 느립니다. `.gitattributes`가 줄바꿈을
    LF로 유지하므로, Windows git이 파일을 바꿔도 스크립트가 실행됩니다.
-3. LM Studio는 Windows에서 실행합니다 (GPU를 씁니다). 서버를 켜면 컨테이너가
-   `host.docker.internal:1234`로 접속합니다. 연결이 안 되면 LM Studio 서버 설정에서
-   *Serve on Local Network*를 켭니다.
-4. WSL 셸에서 Linux와 똑같이 실행합니다.
+3. WSL 셸에서 실행합니다.
    ```
-   cp .env.example .env            # MODEL_NAME 설정
-   ./bench.sh prepare synthetic-dns-smtp
    ./bench.sh prepare nist-cftt-dfr
-   ./bench.sh check                # 모델 실행 전에 scripted 점수가 맞는지 확인
+   ./bench.sh check                # scripted 점수 확인, 모델 없음
    export ANTHROPIC_API_KEY=...    # Claude로 mulder investigate를 돌릴 때
    ./bench.sh investigate EXP-004 --dry-run
    ./bench.sh investigate EXP-004
    ```
-5. GPU가 크면 더 큰 모델을 쓸 수 있습니다. 결과는 모델 폴더별로 쌓이므로, 다른
-   모델로 돌린 결과는 기존 결과 옆에 따로 남습니다.
+4. 로컬 모델 실행에만 필요: LM Studio를 Windows에서 실행하고(GPU 사용) 서버를 켭니다.
+   컨테이너는 `host.docker.internal:1234`로 접속합니다. 연결이 안 되면 *Serve on Local
+   Network*를 켭니다. 그다음 `cp .env.example .env`로 `MODEL_NAME`을 설정하고
+   `MODEL_REASONING_EFFORT=none ./bench.sh run EXP-003 --repeat 3`을 실행합니다. GPU가
+   크면 더 큰 모델을 쓸 수 있고, 결과는 모델 폴더별로 쌓입니다.
 
 ## `mulder investigate` 실행
 

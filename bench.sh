@@ -140,10 +140,10 @@ run)
         shift
     done
     # Scripted calls run here for any experiment; model runs only for bench-runner
-    # (other harnesses are recorded with `import`).
+    # (mulder-investigate experiments use `investigate`).
     case " ${flags[*]-} " in
     *" --scripted "*) ;;
-    *) [ "$harness" = bench-runner ] || { echo "$yaml: harness '$harness' is not run by bench.sh; use import" >&2; exit 1; } ;;
+    *) [ "$harness" = bench-runner ] || { echo "$yaml: harness '$harness' is run with ./bench.sh investigate" >&2; exit 1; } ;;
     esac
     pairs=$(experiment_variants "$yaml")
     [ -n "$pairs" ] || { echo "$yaml lists no variants" >&2; exit 1; }
@@ -235,8 +235,12 @@ investigate)
             -v "$ROOT/$work/evidence:/evidence:ro" \
             -v "$ROOT/$work/cases:/home/mulder/.mulder/cases" \
             "dfir-mcp-bench/mulder:$v" \
-            mulder investigate "/evidence/$folder" "$c" $opts || echo "mulder investigate on $label failed (exit $?)" >&2
-        "$0" import "$e" "$label" "$work/cases" "$c"
+            mulder investigate "/evidence/$folder" "$c" $opts || echo "mulder investigate on $label exited with $?" >&2
+        if [ -f "$work/cases/$c.report.md" ]; then
+            "$0" import "$e" "$label" "$work/cases" "$c"
+        else
+            echo "no report in $work/cases; nothing imported (see $work/cases/orchestrator.log)" >&2
+        fi
     done
     ;;
 import)

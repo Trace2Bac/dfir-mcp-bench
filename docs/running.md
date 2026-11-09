@@ -7,16 +7,17 @@ sidebar_position: 2
 
 ## Before the first run
 
-1. Install Docker and LM Studio.
-2. In LM Studio, load the model, set the context length to 32768 or more, and
-   start the server (Developer tab, port 1234).
-3. `cp .env.example .env` and set `MODEL_NAME` to the loaded model, for
-   example `qwen/qwen3.5-9b`.
-4. Prepare the evidence once:
+1. Install Docker. That is all scripted runs and `mulder investigate` need;
+   `mulder investigate` with Claude also needs `ANTHROPIC_API_KEY`.
+2. Prepare the evidence once:
    ```
    ./bench.sh prepare synthetic-dns-smtp
    ./bench.sh prepare rhino-hunt
+   ./bench.sh prepare nist-cftt-dfr
    ```
+3. Only for local-model runs: install LM Studio, load the model with a context
+   length of 32768 or more, start the server (Developer tab, port 1234), then
+   `cp .env.example .env` and set `MODEL_NAME` (for example `qwen/qwen3.5-9b`).
 
 ## Run
 
@@ -24,9 +25,13 @@ You run an *experiment* (`experiments/EXP-<nnn>/`); it names the case and the
 server variant for each label.
 
 ```
-./bench.sh run EXP-001 after                                             # one run of one label
+./bench.sh run EXP-001 --scripted                               # every label, no model
+./bench.sh run EXP-001 after                                    # one model run of one label
 MODEL_REASONING_EFFORT=none ./bench.sh run EXP-001 --repeat 5   # thinking off, five runs per label
 ```
+
+Model runs use LM Studio (step 3 above); `--scripted` needs no model. For
+experiments run by `mulder investigate`, see below.
 
 The terminal shows each step as it happens: the model's turn, the tools it
 calls, and the start of what each tool returns. mulder's own log goes to
@@ -56,6 +61,12 @@ the summary and on the site.
 
 Use WSL 2; `bench.sh` is a bash script and the containers are Linux.
 
+| Run | Needs |
+|---|---|
+| `./bench.sh check`, `run --scripted` (no model) | Docker |
+| `./bench.sh investigate` (`mulder investigate` with Claude) | Docker and `ANTHROPIC_API_KEY`; Claude runs through the Claude Agent SDK inside mulder's image |
+| `./bench.sh run` with a local model | Docker and LM Studio |
+
 1. Install Docker Desktop with the WSL 2 backend, and a WSL distribution
    (for example Ubuntu). In Docker Desktop, turn on *Settings → Resources →
    WSL integration* for that distribution.
@@ -63,21 +74,20 @@ Use WSL 2; `bench.sh` is a bash script and the containers are Linux.
    `~/dfir-mcp-bench`), not under `/mnt/c`: the evidence images are large and
    file access across the boundary is slow. `.gitattributes` keeps LF line
    endings, so the scripts run even if Windows git converts files.
-3. Run LM Studio on Windows (it uses the GPU there) and start its server. The
-   containers reach it at `host.docker.internal:1234`. If they cannot connect,
-   turn on *Serve on Local Network* in LM Studio's server settings.
-4. From the WSL shell, run everything as on Linux:
+3. From the WSL shell:
    ```
-   cp .env.example .env            # set MODEL_NAME
-   ./bench.sh prepare synthetic-dns-smtp
    ./bench.sh prepare nist-cftt-dfr
-   ./bench.sh check                # scripted scores must match before any model run
+   ./bench.sh check                # scripted scores, no model
    export ANTHROPIC_API_KEY=...    # for mulder investigate with Claude
    ./bench.sh investigate EXP-004 --dry-run
    ./bench.sh investigate EXP-004
    ```
-5. A larger GPU allows a larger model. Results are kept per model folder, so
-   runs with a different model sit next to the existing ones.
+4. Only for local-model runs: run LM Studio on Windows (it uses the GPU
+   there) and start its server; the containers reach it at
+   `host.docker.internal:1234`. If they cannot connect, turn on *Serve on Local
+   Network*. Then `cp .env.example .env`, set `MODEL_NAME`, and run
+   `MODEL_REASONING_EFFORT=none ./bench.sh run EXP-003 --repeat 3`. A larger
+   GPU allows a larger model; results are kept per model folder.
 
 ## Running `mulder investigate`
 

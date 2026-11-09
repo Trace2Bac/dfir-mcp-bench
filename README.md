@@ -64,22 +64,27 @@ feature, needs repeated model runs and a person's review. See
 
 ## Quick start
 
-1. Load a model in LM Studio (context length 32K or more) and start its server
-   (Developer tab, port 1234).
-2. `cp .env.example .env` and set `MODEL_NAME`.
-3. Prepare the evidence the experiments use:
-   `./bench.sh prepare synthetic-dns-smtp`, `./bench.sh prepare rhino-hunt` and
-   `./bench.sh prepare nist-cftt-dfr`.
-4. Run an experiment; the terminal shows each turn and tool call as it happens:
+1. Install Docker. It is all that scripted runs need; `mulder investigate`
+   with Claude also needs `ANTHROPIC_API_KEY`, and local-model runs need LM
+   Studio (step 5).
+2. Prepare the evidence: `./bench.sh prepare synthetic-dns-smtp`,
+   `./bench.sh prepare rhino-hunt` and `./bench.sh prepare nist-cftt-dfr`.
+3. Run without a model (no cost); the terminal shows each step as it happens:
    ```
-   ./bench.sh run EXP-001 --scripted     # every label, no model
-   MODEL_REASONING_EFFORT=none ./bench.sh run EXP-001 --repeat 5
-   ./bench.sh run EXP-001 after          # one label
+   ./bench.sh check                      # every experiment's scripted calls against scripted_expect
+   ./bench.sh run EXP-001 --scripted     # one experiment, every label
    ```
-5. Review the answers: `./bench.sh review EXP-001`. A review
-   counts over the automatic score.
-6. Before committing, `./bench.sh check` reruns every experiment's scripted
-   calls into `.check/` and fails if a score differs from `scripted_expect`.
+4. Run `mulder investigate` with Claude (costs money on every run):
+   ```
+   export ANTHROPIC_API_KEY=...          # this shell only, never in a file
+   ./bench.sh investigate EXP-004 --dry-run
+   ./bench.sh investigate EXP-004
+   ```
+5. Run with a local model: load it in LM Studio (context 32K or more), start
+   its server (port 1234), `cp .env.example .env` and set `MODEL_NAME`, then
+   `MODEL_REASONING_EFFORT=none ./bench.sh run EXP-001 --repeat 5`.
+6. Review the answers (`./bench.sh review EXP-001`); a review counts over the
+   automatic score. Before committing, run `./bench.sh check` again.
 
 See [docs/running.md](docs/running.md) for the full procedure (including Windows and `mulder investigate`), and
 [docs/adding-a-case.md](docs/adding-a-case.md) to add a case, a variant or an
@@ -88,35 +93,41 @@ experiment.
 ## Running on Windows
 
 Run everything inside WSL 2: `bench.sh` is a bash script and the containers
-are Linux. LM Studio runs on Windows itself, where it can use the GPU.
+are Linux. What else you need depends on what you run:
+
+| Run | Needs |
+|---|---|
+| `./bench.sh check`, `run --scripted` (no model) | Docker |
+| `./bench.sh investigate` (`mulder investigate` with Claude) | Docker and an Anthropic API key. mulder runs Claude through the Claude Agent SDK inside its image; nothing else is installed on Windows |
+| `./bench.sh run` with a local model | Docker and LM Studio |
 
 1. Install Docker Desktop (WSL 2 backend) and a WSL distribution such as
    Ubuntu, and turn on *Settings → Resources → WSL integration* for it.
 2. In the WSL shell, clone the repository into the WSL file system (for
    example `~/dfir-mcp-bench`), not under `/mnt/c`, which is slow for the
    evidence images. `.gitattributes` keeps the scripts' LF line endings.
-3. Start LM Studio's server on Windows (port 1234, context length 32K or
-   more). Containers reach it at `host.docker.internal:1234`; if they cannot,
-   turn on *Serve on Local Network* in LM Studio.
-4. Then, in the WSL shell:
+3. Prepare the evidence and check the scripted scores (no model, no cost):
    ```
-   cp .env.example .env                       # set MODEL_NAME
-   ./bench.sh prepare synthetic-dns-smtp
    ./bench.sh prepare nist-cftt-dfr
-   ./bench.sh check                           # scripted scores, no model, no cost
-
-   MODEL_REASONING_EFFORT=none ./bench.sh run EXP-003 --repeat 3   # local model
-
-   export ANTHROPIC_API_KEY=...               # Claude; this shell only, never in a file
-   ./bench.sh investigate EXP-004 --dry-run   # prepares and prints the command, starts nothing
-   ./bench.sh investigate EXP-004             # runs mulder investigate and imports the result
+   ./bench.sh check
    ```
-5. Review the answers (`./bench.sh review EXP-003`), update the experiment's
+4. `mulder investigate` with Claude:
+   ```
+   export ANTHROPIC_API_KEY=...               # this shell only, never in a file
+   ./bench.sh investigate EXP-004 --dry-run   # prepares and prints the command, starts nothing
+   ./bench.sh investigate EXP-004             # runs it and imports the result
+   ```
+   Every run costs money (EXP-002 reported 134.5K output tokens, about $3 at
+   list prices before cache tokens).
+5. Only for local-model runs: start LM Studio's server on Windows (port 1234,
+   context 32K or more), `cp .env.example .env` and set `MODEL_NAME`, then
+   `MODEL_REASONING_EFFORT=none ./bench.sh run EXP-003 --repeat 3`. Containers
+   reach LM Studio at `host.docker.internal:1234`; if they cannot, turn on
+   *Serve on Local Network* in LM Studio.
+6. Review the answers (`./bench.sh review EXP-004`), update the experiment's
    `status` and `conclusion`, and commit `experiments/`.
 
-`mulder investigate` with Claude costs money on every run (EXP-002 reported
-134.5K output tokens, about $3 at list prices before cache tokens). Details
-are in [docs/running.md](docs/running.md#running-on-windows).
+Details are in [docs/running.md](docs/running.md#running-on-windows).
 
 ## Results site
 
