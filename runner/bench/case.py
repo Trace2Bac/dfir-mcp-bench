@@ -25,6 +25,8 @@ class Question:
     expect_none: list[str] = field(default_factory=list)
     requires_tools: list[str] = field(default_factory=list)
     requires_any_tool: list[str] = field(default_factory=list)
+    any_min: int = 1  # how many expect_any strings must appear ("list 5 of these")
+    review_only: bool = False  # left to a person: no automatic score (e.g. yes/no answers)
 
 
 @dataclass
@@ -63,6 +65,8 @@ def load_case(path: Path) -> Case:
                 expect_none=[str(v) for v in expect.get("none") or []],
                 requires_tools=q.get("requires_tools") or [],
                 requires_any_tool=q.get("requires_any_tool") or [],
+                any_min=int(expect.get("min", 1)),
+                review_only=bool(q.get("review_only", False)),
             )
         )
     return Case(

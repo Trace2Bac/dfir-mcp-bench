@@ -1,0 +1,208 @@
+id: nist-hacking-case
+title: NIST CFReDS Hacking Case, full answer key
+title_ko: NIST CFReDS Hacking Case, 정답지 전체
+dataset: nist-hacking-case
+evidence: nist-hacking-case
+purpose: >
+  All 31 questions on NIST's Hacking Case page, asked over the EnCase image of
+  an abandoned Windows XP notebook. Expected facts come from NIST's answer key
+  (TestAnswers.pdf). Questions 29 and 31 are yes/no and left to a reviewer.
+  Counts (Q9, Q28, Q30) are matched as single digits and dates in several
+  common formats, so a reviewer should confirm those too.
+purpose_ko: >
+  NIST Hacking Case 페이지의 질문 31개 전부를, 버려진 Windows XP 노트북의 EnCase
+  이미지에 대해 묻는다. 기대 사실은 NIST 정답지(TestAnswers.pdf)에서 가져왔다. 29번과
+  31번은 예/아니요 답이라 검토자가 판정한다. 개수(Q9, Q28, Q30)는 숫자 하나로, 날짜는
+  흔한 표기 몇 가지로 맞추므로 검토자가 함께 확인해야 한다.
+answers_source: https://cfreds-archive.nist.gov/images/TestAnswers.pdf
+
+setup:
+  - tool: scan_evidence
+    args: {evidence_path: "${EVIDENCE}", case_id: "${CASE_ID}"}
+
+# For bench-runner runs. mulder investigate picks from all of mulder's tools.
+tools:
+  - get_tool_guide
+  - list_sources
+  - run_mmls
+  - run_fls
+  - list_files
+  - get_deleted_files
+  - get_file_metadata
+  - extract_file_by_inode
+  - run_regripper
+  - query_registry_value
+  - run_strings
+  - parse_browser_history
+  - run_clamav
+  - search
+  - get_raw_output
+
+# No scripted calls yet: the scripted ceiling for this case has not been measured.
+scripted: []
+
+# Any tool that reads the evidence: an answer with no tool call behind it
+# (the answer key is public) does not pass.
+x-reads-evidence: &reads_evidence
+  [run_fls, list_files, get_deleted_files, get_file_metadata, extract_file_by_inode, run_regripper,
+   run_registry_parser, query_registry_value, run_strings, search, get_raw_output, read_evidence_file,
+   parse_browser_history, run_clamav, run_mft_parser, parse_mft, run_plaso, start_extraction_batch]
+
+questions:
+  - id: Q1
+    text: "What is the image hash? Does the acquisition and verification hash match?"
+    text_ko: "이미지 해시는 무엇인가? 획득 해시와 검증 해시가 일치하는가?"
+    expect: {all: ["AEE4FCD9301C03B3B054623CA261959A"]}
+    requires_any_tool: *reads_evidence
+  - id: Q2
+    text: "What operating system was used on the computer?"
+    text_ko: "컴퓨터에서 쓰인 운영체제는?"
+    expect: {all: ["Windows XP"]}
+    requires_any_tool: *reads_evidence
+  - id: Q3
+    text: "When was the install date?"
+    text_ko: "설치 날짜는 언제인가?"
+    expect: {any: ["08/19/04", "8/19/2004", "08/19/2004", "2004-08-19", "August 19, 2004", "19 Aug"]}
+    requires_any_tool: *reads_evidence
+  - id: Q4
+    text: "What is the timezone settings?"
+    text_ko: "시간대 설정은?"
+    expect: {any: ["Central Daylight", "Central Standard", "Central Time"]}
+    requires_any_tool: *reads_evidence
+  - id: Q5
+    text: "Who is the registered owner?"
+    text_ko: "등록된 소유자는?"
+    expect: {all: ["Schardt"]}
+    requires_any_tool: *reads_evidence
+  - id: Q6
+    text: "What is the computer account name?"
+    text_ko: "컴퓨터 계정 이름은?"
+    expect: {all: ["N-1A9ODN6ZXK4LQ"]}
+    requires_any_tool: *reads_evidence
+  - id: Q7
+    text: "What is the primary domain name?"
+    text_ko: "주 도메인 이름은?"
+    expect: {all: ["Evil"]}
+    requires_any_tool: *reads_evidence
+  - id: Q8
+    text: "When was the last recorded computer shutdown date/time?"
+    text_ko: "마지막으로 기록된 컴퓨터 종료 날짜·시각은?"
+    expect: {any: ["08/27/04", "8/27/2004", "08/27/2004", "2004-08-27", "August 27, 2004", "27 Aug"]}
+    requires_any_tool: *reads_evidence
+  - id: Q9
+    text: "How many accounts are recorded (total number)?"
+    text_ko: "기록된 계정은 모두 몇 개인가?"
+    expect: {all: ["5"]}
+    requires_any_tool: *reads_evidence
+  - id: Q10
+    text: "What is the account name of the user who mostly uses the computer?"
+    text_ko: "컴퓨터를 주로 쓰는 사용자의 계정 이름은?"
+    expect: {all: ["Mr. Evil"]}
+    requires_any_tool: *reads_evidence
+  - id: Q11
+    text: "Who was the last user to logon to the computer?"
+    text_ko: "컴퓨터에 마지막으로 로그온한 사용자는?"
+    expect: {all: ["Mr. Evil"]}
+    requires_any_tool: *reads_evidence
+  - id: Q12
+    text: "A search for the name of \"G=r=e=g S=c=h=a=r=d=t\" (The equal signs are just to prevent web crawlers from indexing this name; there are no equal signs in the image files.) reveals multiple hits. One of these proves that G=r=e=g S=c=h=a=r=d=t is Mr. Evil and is also the administrator of this computer. What file is it? What software program does this file relate to?"
+    text_ko: "\"G=r=e=g S=c=h=a=r=d=t\" 이름을 검색하면 여러 결과가 나온다 (등호는 검색 엔진 색인을 막기 위한 것이고 이미지에는 없다). 그중 하나가 이 사람이 Mr. Evil이며 이 컴퓨터의 관리자임을 증명한다. 어떤 파일인가? 어떤 프로그램과 관련된 파일인가?"
+    expect: {all: ["irunin.ini", "Look@LAN"]}
+    requires_any_tool: *reads_evidence
+  - id: Q13
+    text: "List the network cards used by this computer"
+    text_ko: "이 컴퓨터가 쓴 네트워크 카드를 나열하라"
+    expect: {all: ["Xircom", "WL110"]}
+    requires_any_tool: *reads_evidence
+  - id: Q14
+    text: "This same file reports the IP address and MAC address of the computer. What are they?"
+    text_ko: "같은 파일에 컴퓨터의 IP 주소와 MAC 주소가 기록돼 있다. 무엇인가?"
+    expect: {all: ["192.168.1.111"], any: ["0010a4933e09", "00:10:a4:93:3e:09", "00-10-a4-93-3e-09"]}
+    requires_any_tool: *reads_evidence
+  - id: Q15
+    text: "An internet search for vendor name/model of NIC cards by MAC address can be used to find out which network interface was used. In the above answer, the first 3 hex characters of the MAC address report the vendor of the card. Which NIC card was used during the installation and set-up for LOOK@LAN?"
+    text_ko: "MAC 주소로 NIC 제조사와 모델을 찾으면 어떤 네트워크 인터페이스가 쓰였는지 알 수 있다. 위 답의 MAC 주소 앞 3바이트가 카드 제조사를 나타낸다. LOOK@LAN 설치와 설정에 쓰인 NIC는 무엇인가?"
+    expect: {all: ["Xircom"]}
+    requires_any_tool: *reads_evidence
+  - id: Q16
+    text: "Find 6 installed programs that may be used for hacking."
+    text_ko: "해킹에 쓰일 수 있는 설치된 프로그램 6개를 찾아라."
+    expect: {any: ["Cain", "Ethereal", "123 Write All Stored Passwords", "Anonymizer", "CuteFTP", "Look@LAN", "NetStumbler"], min: 6}
+    requires_any_tool: *reads_evidence
+  - id: Q17
+    text: "What is the SMTP email address for Mr. Evil?"
+    text_ko: "Mr. Evil의 SMTP 이메일 주소는?"
+    expect: {all: ["whoknowsme@sbcglobal.net"]}
+    requires_any_tool: *reads_evidence
+  - id: Q18
+    text: "What are the NNTP (news server) settings for Mr. Evil?"
+    text_ko: "Mr. Evil의 NNTP(뉴스 서버) 설정은?"
+    expect: {all: ["news.dallas.sbcglobal.net"]}
+    requires_any_tool: *reads_evidence
+  - id: Q19
+    text: "What two installed programs show this information?"
+    text_ko: "이 정보를 보여 주는 설치된 프로그램 두 개는?"
+    expect: {all: ["Outlook Express", "Agent"]}
+    requires_any_tool: *reads_evidence
+  - id: Q20
+    text: "List 5 newsgroups that Mr. Evil has subscribed to?"
+    text_ko: "Mr. Evil이 구독한 뉴스그룹 5개를 나열하라."
+    expect: {any: ["alt.2600.phreakz", "alt.2600.cardz", "alt.2600codez", "alt.2600.crackz", "alt.2600.moderated", "alt.binaries.hacking.utilities", "alt.stupidity.hackers.malicious", "free.binaries.hackers.malicious", "free.binaries.hacking.talentless", "alt.nl.binaries.hack", "free.binaries.hacking.beginner", "free.binaries.hacking.computers", "free.binaries.hacking.utilities", "free.binaries.hacking.websites", "alt.binaries.hacking.computers", "alt.binaries.hacking.websites", "alt.dss.hack", "alt.binaries.hacking.beginner", "alt.hacking", "alt.2600.programz", "alt.2600.hackerz"], min: 5}
+    requires_any_tool: *reads_evidence
+  - id: Q21
+    text: "A popular IRC (Internet Relay Chat) program called MIRC was installed. What are the user settings that was shown when the user was online and in a chat channel?"
+    text_ko: "인기 IRC 프로그램인 mIRC가 설치돼 있었다. 사용자가 접속해 채널에 있을 때 보이던 사용자 설정은?"
+    expect: {all: ["Mini Me", "none@of.ya", "mrevilrulez"]}
+    requires_any_tool: *reads_evidence
+  - id: Q22
+    text: "This IRC program has the capability to log chat sessions. List 3 IRC channels that the user of this computer accessed."
+    text_ko: "이 IRC 프로그램은 대화를 기록할 수 있다. 이 컴퓨터 사용자가 접속한 IRC 채널 3개를 나열하라."
+    expect: {any: ["Ushells", "Elite.hackers", "Mp3xserv", "Chataholics", "Cybercaf", "M5tar", "Thedarktower", "Funny.undernet", "Luxshell", "Evilfork", "Iso-warez", "Houston"], min: 3}
+    requires_any_tool: *reads_evidence
+  - id: Q23
+    text: "Ethereal, a popular \"sniffing\" program that can be used to intercept wired and wireless internet packets was also found to be installed. When TCP packets are collected and re-assembled, the default save directory is that users \\My Documents directory. What is the name of the file that contains the intercepted data?"
+    text_ko: "유무선 패킷을 가로챌 수 있는 스니핑 프로그램 Ethereal도 설치돼 있었다. TCP 패킷을 모아 재조립하면 기본 저장 위치는 사용자의 \\My Documents이다. 가로챈 데이터가 든 파일 이름은?"
+    expect: {all: ["Interception"]}
+    requires_any_tool: *reads_evidence
+  - id: Q24
+    text: "Viewing the file in a text format reveals much information about who and what was intercepted. What type of wireless computer was the victim (person who had his internet surfing recorded) using?"
+    text_ko: "이 파일을 텍스트로 보면 누구의 무엇이 가로채졌는지 알 수 있다. 피해자(인터넷 사용이 기록된 사람)가 쓴 무선 기기의 종류는?"
+    expect: {any: ["Windows CE", "Pocket PC"]}
+    requires_any_tool: *reads_evidence
+  - id: Q25
+    text: "What websites was the victim accessing?"
+    text_ko: "피해자가 접속한 웹사이트는?"
+    expect: {all: ["mobile.msn.com", "Hotmail"]}
+    requires_any_tool: *reads_evidence
+  - id: Q26
+    text: "Search for the main users web based email address. What is it?"
+    text_ko: "주 사용자의 웹 메일 주소를 찾아라. 무엇인가?"
+    expect: {all: ["mrevilrulez@yahoo.com"]}
+    requires_any_tool: *reads_evidence
+  - id: Q27
+    text: "Yahoo mail, a popular web based email service, saves copies of the email under what file name?"
+    text_ko: "웹 메일 서비스 Yahoo Mail은 메일 사본을 어떤 파일 이름으로 저장하는가?"
+    expect: {all: ["Showletter"]}
+    requires_any_tool: *reads_evidence
+  - id: Q28
+    text: "How many executable files are in the recycle bin?"
+    text_ko: "휴지통에 실행 파일은 몇 개 있는가?"
+    expect: {all: ["4"]}
+    requires_any_tool: *reads_evidence
+  - id: Q29
+    text: "Are these files really deleted?"
+    text_ko: "이 파일들은 정말 삭제됐는가?"
+    review_only: true            # yes/no answer; a reviewer decides. Answer key: No
+    requires_any_tool: *reads_evidence
+  - id: Q30
+    text: "How many files are actually reported to be deleted by the file system?"
+    text_ko: "파일 시스템이 실제로 삭제됐다고 보고하는 파일은 몇 개인가?"
+    expect: {all: ["3"]}
+    requires_any_tool: *reads_evidence
+  - id: Q31
+    text: "Perform a Anti-Virus check. Are there any viruses on the computer?"
+    text_ko: "백신 검사를 하라. 컴퓨터에 바이러스가 있는가?"
+    review_only: true            # yes/no answer; a reviewer decides. Answer key: Yes
+    requires_any_tool: *reads_evidence
+
+limits: {max_turns: 40, max_tool_chars: 4000, keep_tool_results: 4, context_budget_tokens: 24000}

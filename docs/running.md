@@ -14,6 +14,7 @@ sidebar_position: 2
    ./bench.sh prepare synthetic-dns-smtp
    ./bench.sh prepare rhino-hunt
    ./bench.sh prepare nist-cftt-dfr
+   ./bench.sh prepare nist-hacking-case      # about 1 GB
    ```
 3. Only for local-model runs: install LM Studio, load the model with a context
    length of 32768 or more, start the server (Developer tab, port 1234), then
@@ -77,10 +78,12 @@ Use WSL 2; `bench.sh` is a bash script and the containers are Linux.
 3. From the WSL shell:
    ```
    ./bench.sh prepare nist-cftt-dfr
+   ./bench.sh prepare nist-hacking-case
    ./bench.sh check                # scripted scores, no model
    export ANTHROPIC_API_KEY=...    # for mulder investigate with Claude
    ./bench.sh investigate EXP-004 --dry-run
    ./bench.sh investigate EXP-004
+   ./bench.sh investigate EXP-005   # NIST Hacking Case
    ```
 4. Only for local-model runs: run LM Studio on Windows (it uses the GPU
    there) and start its server; the containers reach it at

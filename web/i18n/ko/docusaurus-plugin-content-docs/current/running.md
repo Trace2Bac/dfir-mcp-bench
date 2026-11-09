@@ -14,6 +14,7 @@ sidebar_position: 2
    ./bench.sh prepare synthetic-dns-smtp
    ./bench.sh prepare rhino-hunt
    ./bench.sh prepare nist-cftt-dfr
+   ./bench.sh prepare nist-hacking-case      # 약 1GB
    ```
 3. 로컬 모델 실행에만 필요: LM Studio를 설치하고, 모델을 컨텍스트 길이 32768 이상으로
    로드한 뒤 서버를 켭니다 (Developer 탭, 포트 1234). 그다음 `cp .env.example .env`로
@@ -72,10 +73,12 @@ WSL 2를 씁니다. `bench.sh`는 bash 스크립트이고 컨테이너는 Linux�
 3. WSL 셸에서 실행합니다.
    ```
    ./bench.sh prepare nist-cftt-dfr
+   ./bench.sh prepare nist-hacking-case
    ./bench.sh check                # scripted 점수 확인, 모델 없음
    export ANTHROPIC_API_KEY=...    # Claude로 mulder investigate를 돌릴 때
    ./bench.sh investigate EXP-004 --dry-run
    ./bench.sh investigate EXP-004
+   ./bench.sh investigate EXP-005   # NIST Hacking Case
    ```
 4. 로컬 모델 실행에만 필요: LM Studio를 Windows에서 실행하고(GPU 사용) 서버를 켭니다.
    컨테이너는 `host.docker.internal:1234`로 접속합니다. 연결이 안 되면 *Serve on Local

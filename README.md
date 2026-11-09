@@ -20,6 +20,7 @@ cite them.
 | [EXP-002](experiments/EXP-002/experiment.yaml) | done | baseline: `mulder investigate` (Claude Opus 4.6 / Haiku 4.5) on the full Rhino Hunt answer key | 4/7 questions, 12/22 facts (scripted ceiling 5/7); 9 of 10 missed facts need missing tool features |
 | [EXP-003](experiments/EXP-003/experiment.yaml) | in progress | baseline: deleted file recovery on a NIST CFTT test image (three FAT partitions) | scripted 5/5, only with workarounds for three disk-tool problems; model runs pending |
 | [EXP-004](experiments/EXP-004/experiment.yaml) | planned | baseline: `mulder investigate` (Claude) on the same NIST image | set up; run with `./bench.sh investigate EXP-004` |
+| [EXP-005](experiments/EXP-005/experiment.yaml) | planned | baseline: `mulder investigate` (Claude) on the NIST Hacking Case, scored on all 31 questions of NIST's answer key | set up; run with `./bench.sh investigate EXP-005` |
 
 Each experiment's `conclusion` states what the results show and their limits;
 `results/summary.md` has the numbers.
@@ -68,7 +69,8 @@ feature, needs repeated model runs and a person's review. See
    with Claude also needs `ANTHROPIC_API_KEY`, and local-model runs need LM
    Studio (step 5).
 2. Prepare the evidence: `./bench.sh prepare synthetic-dns-smtp`,
-   `./bench.sh prepare rhino-hunt` and `./bench.sh prepare nist-cftt-dfr`.
+   `./bench.sh prepare rhino-hunt`, `./bench.sh prepare nist-cftt-dfr` and
+   `./bench.sh prepare nist-hacking-case` (about 1 GB).
 3. Run without a model (no cost); the terminal shows each step as it happens:
    ```
    ./bench.sh check                      # every experiment's scripted calls against scripted_expect
@@ -109,6 +111,7 @@ are Linux. What else you need depends on what you run:
 3. Prepare the evidence and check the scripted scores (no model, no cost):
    ```
    ./bench.sh prepare nist-cftt-dfr
+   ./bench.sh prepare nist-hacking-case       # about 1 GB
    ./bench.sh check
    ```
 4. `mulder investigate` with Claude:
@@ -116,6 +119,7 @@ are Linux. What else you need depends on what you run:
    export ANTHROPIC_API_KEY=...               # this shell only, never in a file
    ./bench.sh investigate EXP-004 --dry-run   # prepares and prints the command, starts nothing
    ./bench.sh investigate EXP-004             # runs it and imports the result
+   ./bench.sh investigate EXP-005             # NIST Hacking Case, 31 questions
    ```
    Every run costs money (EXP-002 reported 134.5K output tokens, about $3 at
    list prices before cache tokens).
@@ -157,7 +161,8 @@ results, and the repository is the record.
 
 Evidence is not redistributed. Each dataset folder links its source and
 checks hashes: the published ones where they exist (Rhino Hunt), otherwise
-SHA-256 values recorded at the first download (NIST CFTT DFR). Answer keys are cited by URL.
+SHA-256 values recorded at the first download (NIST CFTT DFR, NIST Hacking
+Case, whose image MD5 is also checked against NIST's answer key). Answer keys are cited by URL.
 Published transcripts contain tool output, which includes excerpts of the
 evidence.
 

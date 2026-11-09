@@ -41,6 +41,9 @@ check matters for public datasets whose answers may be in a model's training
 data: a correct answer with no tool call behind it does not pass. Each
 expected string also counts as one fact, which gives partial credit on long
 answers. Each forbidden string found (`expect.none`) counts as a wrong claim.
+`expect.min` asks for at least that many of the `any` strings ("list five
+newsgroups"), and counts that many facts. A question marked `review_only`
+(a yes/no answer, say) gets no automatic score and is left to the reviewer.
 
 ## Fixed conditions
 

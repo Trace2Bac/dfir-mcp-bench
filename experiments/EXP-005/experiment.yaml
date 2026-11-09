@@ -1,0 +1,35 @@
+# EXP-005: one verification. The folder name is its permanent identifier;
+# the title may change.
+title: "Baseline: mulder investigate on the NIST Hacking Case answer key"
+title_ko: "기준선: NIST Hacking Case 정답지에 대한 mulder investigate"
+server: mulder
+kind: baseline                   # bug-fix | feature | ablation | baseline
+status: planned                  # planned | in-progress | done
+change: >
+  None. Unmodified mulder 1.5.10 runs its own five-phase investigation on the
+  NIST CFReDS Hacking Case (a Windows XP notebook, about 1 GB as EnCase
+  segments) and is scored against all 31 questions of NIST's answer key. The
+  reference for later ablations on an expert-authored key.
+change_ko: >
+  변경 없음. 수정하지 않은 mulder 1.5.10이 NIST CFReDS Hacking Case(Windows XP 노트북,
+  EnCase 조각 약 1GB)에 자체 다섯 단계 조사를 돌리고, NIST 정답지의 31개 질문 전부로
+  채점한다. 전문가가 만든 정답지에서 이후 기능 제거 실험의 기준이 된다.
+links:
+  - https://cfreds-archive.nist.gov/Hacking_Case.html
+  - https://cfreds-archive.nist.gov/images/TestAnswers.pdf
+
+case: nist-hacking-case
+# Same models and effort as EXP-002 and EXP-004, so the runs compare.
+harness: mulder-investigate
+harness_options:
+  models: {planner: claude-opus-4-6, executor: claude-haiku-4-5, analyst: claude-opus-4-6}
+  effort: max
+  auth: Anthropic API key (ANTHROPIC_API_KEY in the shell)
+
+variants:
+  before: mulder-1.5.10          # upstream release
+
+conclusion: >
+  Not run yet. The scripted ceiling has not been measured either.
+conclusion_ko: >
+  아직 실행하지 않았다. scripted 상한도 아직 측정하지 않았다.

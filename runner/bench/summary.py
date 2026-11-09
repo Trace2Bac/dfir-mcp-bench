@@ -84,8 +84,10 @@ def summarize(case_results: Path, label_order: list[str] | None = None) -> str:
             + " |"
         )
         per_q = Counter(q["id"] for s in scores for q in s["questions"] if q["passed"])
+        review_only = {q["id"] for q in scores[0]["questions"] if q.get("review_only")}
         ids = [q["id"] for q in scores[0]["questions"]]
-        question_rows.append(f"| {label} | {model} | " + " | ".join(f"{per_q[i]}/{len(runs)}" for i in ids) + " |")
+        cells = ["review" if i in review_only else f"{per_q[i]}/{len(runs)}" for i in ids]
+        question_rows.append(f"| {label} | {model} | " + " | ".join(cells) + " |")
     ids = [q["id"] for q in next(iter(groups.values()))[0]["_score"]["questions"]]
     lines += [
         "",

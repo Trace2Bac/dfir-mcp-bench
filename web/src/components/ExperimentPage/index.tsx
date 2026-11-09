@@ -310,20 +310,30 @@ function Questions({data}: {data: ExperimentData}) {
                 {q.expect.any && (
                   <>
                     {' '}
-                    <Translate id="case.anyOf">any of</Translate> {q.expect.any.map(f => <code key={f}>{f}</code>)}
+                    <Translate id="case.anyOf" values={{n: (q.expect as any).min ?? 1}}>
+                      {'at least {n} of'}
+                    </Translate>{' '}
+                    {q.expect.any.map(f => <code key={f}>{f}</code>)}
                   </>
                 )}
               </td>
               {data.groups.map(g => {
+                const reviewOnly = g.runs[0]?.score.questions.find((x: any) => x.id === q.id)?.review_only;
                 const passed = g.runs.filter(r => r.score.questions.find((x: any) => x.id === q.id)?.passed).length;
                 const reviewed = g.runs.filter(r => r.review);
                 const reviewPassed = reviewed.filter(r => r.review!.questions[q.id]?.verdict === 'pass').length;
                 const reviewPartial = reviewed.filter(r => r.review!.questions[q.id]?.verdict === 'partial').length;
                 return (
                   <td key={g.label + g.model}>
-                    <span className={passed === g.runs.length ? styles.pass : passed === 0 ? styles.fail : undefined}>
-                      {passed}/{g.runs.length}
-                    </span>
+                    {reviewOnly ? (
+                      <span className={styles.small}>
+                        <Translate id="case.reviewOnly">review only</Translate>
+                      </span>
+                    ) : (
+                      <span className={passed === g.runs.length ? styles.pass : passed === 0 ? styles.fail : undefined}>
+                        {passed}/{g.runs.length}
+                      </span>
+                    )}
                     {reviewed.length > 0 && (
                       <div className={styles.small}>
                         <Translate
