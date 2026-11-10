@@ -120,6 +120,11 @@ question; a question without such a line is scored on the whole report. The
 briefing used is kept with the run (`mulder/MULDER.md`). A run made by hand can be imported with
 `./bench.sh import <experiment> <label> <mulder cases folder> <case id>`.
 
+With `login: true` in `harness_options` (EXP-009) the run signs in with
+`./bench.sh login` instead of `ANTHROPIC_API_KEY`. Anthropic's terms reserve
+subscription sign-in for Claude Code and claude.ai, so such runs are marked
+in their experiment.
+
 Each run costs money: EXP-002 used 134.5K output tokens (about $3 at list
 prices for what mulder reports). mulder's counts leave out cache reads and
 writes, so check the provider's usage page for the real cost.

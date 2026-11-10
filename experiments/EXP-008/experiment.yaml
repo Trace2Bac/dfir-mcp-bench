@@ -4,7 +4,7 @@ title: "Baseline: Claude Code with mulder's MCP tools on the NIST Hacking Case, 
 title_ko: "기준선: mulder MCP 도구를 쓰는 Claude Code(Haiku)로 NIST Hacking Case 조사"
 server: mulder
 kind: baseline                   # bug-fix | feature | ablation | baseline
-status: planned                  # planned | in-progress | done
+status: done                     # planned | in-progress | done
 change: >
   None. EXP-007 with Haiku 4.5, the cheapest Claude model, in place of Opus
   4.6. It shows whether Haiku gets far enough into the investigation to be
@@ -30,8 +30,25 @@ variants:
   before: mulder-1.5.10          # upstream release
 
 conclusion: >
-  Not run yet. Compare with EXP-005 (mulder investigate, Opus 4.6: 22/29
-  questions, 39/47 facts) and EXP-007 (Claude Code, Opus 4.6).
+  Under three minutes, 59 turns, 58 tool calls, no tool errors. The final
+  message answered all 31 questions on "Case Q<n>" lines: 7/29 questions,
+  13/47 facts (EXP-005, mulder investigate with Opus: 22/29). Haiku stopped
+  early: after the registry, a few searches and bulk_extractor it wrote the
+  report, and several answers say what would typically be there instead of
+  looking (Q23 "would typically be named with .pcap", Q27). It never read
+  the Outlook Express, mIRC or Look@LAN settings (Q12, Q17-Q21), never
+  looked for the capture file (Q23-Q25), and counted every deleted entry
+  (Q28, Q30: 7,038). Q31 again rests on run_clamav run on the E01 segments,
+  and Q1 gives no hash. Usage: 11.5K output tokens and 2.1M cache-read
+  tokens, $0.45 at API prices. Haiku in Claude Code is too shallow for
+  before/after runs: it does not reach the tools the candidate fixes change.
 conclusion_ko: >
-  아직 실행하지 않음. EXP-005(mulder investigate, Opus 4.6: 질문 22/29, 사실 39/47)와
-  EXP-007(Claude Code, Opus 4.6)과 비교한다.
+  3분 미만, 59턴, 도구 호출 58번, 도구 오류 없음. 마지막 메시지가 질문 31개 모두에
+  "Case Q<n>" 줄로 답했다. 질문 7/29, 사실 13/47(EXP-005의 mulder investigate + Opus는
+  22/29). Haiku가 일찍 멈췄다. 레지스트리, 검색 몇 번, bulk_extractor 뒤에 바로 보고서를
+  썼고, 여러 답이 직접 찾지 않고 "보통은 이렇다"고 적었다(Q23 ".pcap로 이름 붙었을
+  것", Q27). Outlook Express, mIRC, Look@LAN 설정을 읽지 않았고(Q12, Q17~Q21), 캡처
+  파일을 찾지 않았으며(Q23~Q25), 삭제 항목을 모두 세었다(Q28, Q30: 7,038). Q31은 이번에도
+  E01 조각에 돌린 run_clamav 결과이고, Q1에는 해시가 없다. 사용량: 출력 11.5K, 캐시 읽기
+  2.1M 토큰, API 가격으로 $0.45. Claude Code에서 Haiku는 before/after 실행에 쓰기에 너무
+  얕다. 기여 후보가 고치는 도구까지 가지 않는다.

@@ -23,7 +23,8 @@ cite them.
 | [EXP-005](experiments/EXP-005/experiment.yaml) | done | baseline: `mulder investigate` (Claude) on the NIST Hacking Case, all 31 questions of NIST's answer key | 22/29 questions, 39/47 facts; misses include the E01 media hash, an AV scan of the compressed segments and the capture file inside the image |
 | [EXP-006](experiments/EXP-006/experiment.yaml) | planned | baseline: EXP-005 with Sonnet 4.6 as planner and analyst | first run stopped before the report (API credit ran out) |
 | [EXP-007](experiments/EXP-007/experiment.yaml) | planned | baseline: Claude Code (Opus 4.6) with only `mulder serve` as tools, same case and questions as EXP-005 | not run yet |
-| [EXP-008](experiments/EXP-008/experiment.yaml) | planned | baseline: EXP-007 with Haiku 4.5, to see whether the cheapest model is enough for repeated runs | not run yet |
+| [EXP-008](experiments/EXP-008/experiment.yaml) | done | baseline: EXP-007 with Haiku 4.5, to see whether the cheapest model is enough for repeated runs | 7/29 questions, 13/47 facts in under 3 minutes ($0.45 at API prices): too shallow for before/after runs |
+| [EXP-009](experiments/EXP-009/experiment.yaml) | planned | baseline: `mulder investigate` with Haiku 4.5 in every role, signed in with a Claude subscription | not run yet |
 
 Each experiment's `conclusion` states what the results show and their limits;
 `results/summary.md` has the numbers.

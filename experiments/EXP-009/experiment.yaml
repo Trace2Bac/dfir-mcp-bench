@@ -1,0 +1,43 @@
+# EXP-009: one verification. The folder name is its permanent identifier;
+# the title may change.
+title: "Baseline: mulder investigate on the NIST Hacking Case, Haiku in every role"
+title_ko: "기준선: 모든 역할을 Haiku로 돌린 NIST Hacking Case mulder investigate"
+server: mulder
+kind: baseline                   # bug-fix | feature | ablation | baseline
+status: planned                  # planned | in-progress | done
+change: >
+  None. EXP-005 (unmodified mulder 1.5.10, the NIST Hacking Case, all 31
+  questions) with Haiku 4.5 as planner, executor and analyst. It shows
+  whether mulder's orchestrator carries the cheapest Claude model far enough
+  to use it for repeated before/after runs, and, against EXP-008 (Claude Code
+  with the same model and tools), what the orchestrator adds.
+change_ko: >
+  변경 없음. EXP-005(수정하지 않은 mulder 1.5.10, NIST Hacking Case, 31문항 전부)에서
+  planner, executor, analyst를 모두 Haiku 4.5로 바꾼다. mulder 오케스트레이터가 가장 싼
+  Claude 모델을 before/after 반복 실행에 쓸 만큼 이끌어 주는지 보고, EXP-008(같은 모델과
+  도구를 쓰는 Claude Code)과 비교해 오케스트레이터의 효과를 본다.
+links:
+  - https://cfreds-archive.nist.gov/Hacking_Case.html
+  - https://cfreds-archive.nist.gov/images/TestAnswers.pdf
+
+case: nist-hacking-case
+harness: mulder-investigate
+harness_options:
+  models: {planner: claude-haiku-4-5, executor: claude-haiku-4-5, analyst: claude-haiku-4-5}
+  # No effort: the effort setting is for Opus and Sonnet models.
+  # Signed in with `./bench.sh login` (a Claude subscription) instead of an
+  # API key. Anthropic's terms reserve subscription sign-in for Claude Code
+  # and claude.ai, so decide before publishing these results.
+  login: true
+  auth: Claude subscription (`./bench.sh login`)
+  answer_section: true
+
+variants:
+  before: mulder-1.5.10          # upstream release
+
+conclusion: >
+  Not run yet. Compare with EXP-005 (Opus 4.6 and Haiku 4.5: 22/29 questions,
+  39/47 facts) and EXP-008 (Claude Code, Haiku 4.5).
+conclusion_ko: >
+  아직 실행하지 않음. EXP-005(Opus 4.6과 Haiku 4.5: 질문 22/29, 사실 39/47)와
+  EXP-008(Claude Code, Haiku 4.5)과 비교한다.

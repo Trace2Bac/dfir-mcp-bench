@@ -19,7 +19,7 @@ sidebar_position: 0
 | [EXP-005](../experiments/EXP-005) | NIST Hacking Case, 31문항 | `mulder investigate`, Opus 4.6 | 질문 22/29, 사실 39/47 (검토 문항 2개 중 1개 맞음) | - |
 | [EXP-006](../experiments/EXP-006) | NIST Hacking Case, 31문항 | `mulder investigate`, Sonnet 4.6 | 첫 실행이 보고서 직전에 멈춤 (API 크레딧 부족) | - |
 | [EXP-007](../experiments/EXP-007) | NIST Hacking Case, 31문항 | `mulder serve`를 쓰는 Claude Code, Opus 4.6 | 예정 | - |
-| [EXP-008](../experiments/EXP-008) | NIST Hacking Case, 31문항 | `mulder serve`를 쓰는 Claude Code, Haiku 4.5 | 예정 | - |
+| [EXP-008](../experiments/EXP-008) | NIST Hacking Case, 31문항 | `mulder serve`를 쓰는 Claude Code, Haiku 4.5 | 질문 7/29, 사실 13/47 (3분 만에 멈춤) | - |
 
 `mulder investigate` 실행 비용은 mulder가 보고한 토큰 기준 정가로 회당 약 $1.5~3입니다
 (캐시 읽기·쓰기는 빠져 있음). 실행 시간은 25~36분이었습니다.

@@ -20,7 +20,7 @@ answer key.
 | [EXP-005](../experiments/EXP-005) | NIST Hacking Case, 31 questions | `mulder investigate`, Opus 4.6 | 22/29 questions, 39/47 facts (+1 of 2 on review) | - |
 | [EXP-006](../experiments/EXP-006) | NIST Hacking Case, 31 questions | `mulder investigate`, Sonnet 4.6 | first run stopped before the report (API credit ran out) | - |
 | [EXP-007](../experiments/EXP-007) | NIST Hacking Case, 31 questions | Claude Code with `mulder serve`, Opus 4.6 | planned | - |
-| [EXP-008](../experiments/EXP-008) | NIST Hacking Case, 31 questions | Claude Code with `mulder serve`, Haiku 4.5 | planned | - |
+| [EXP-008](../experiments/EXP-008) | NIST Hacking Case, 31 questions | Claude Code with `mulder serve`, Haiku 4.5 | 7/29 questions, 13/47 facts (stopped after 3 minutes) | - |
 
 The `mulder investigate` runs cost about $1.5 to $3 each at list prices,
 counting the tokens mulder reports (cache reads and writes are not

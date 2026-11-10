@@ -115,6 +115,10 @@ entrypoint와 `--privileged`로 `mulder investigate`를 실행하고, 결과를 
 약 $3). mulder 집계에는 캐시 읽기·쓰기가 빠져 있으니, 실제 비용은 제공자의 사용량
 화면에서 확인합니다.
 
+`harness_options`에 `login: true`가 있으면(EXP-009) `ANTHROPIC_API_KEY` 대신 `./bench.sh login`의
+로그인을 씁니다. Anthropic 약관은 구독 로그인을 Claude Code와 claude.ai용으로 정하고 있어서, 이런 실행은
+검증 파일에 표시해 둡니다.
+
 ## mulder 도구로 Claude Code 실행
 
 `harness: claude-code`인 검증(EXP-007)도 같은 명령으로 실행합니다. mulder 이미지에 들어 있는
