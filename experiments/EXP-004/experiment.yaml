@@ -4,7 +4,7 @@ title: "Baseline: mulder investigate on a NIST CFTT test image (DFR-01, FAT)"
 title_ko: "기준선: NIST CFTT 테스트 이미지에 대한 mulder investigate (DFR-01, FAT)"
 server: mulder
 kind: baseline                   # bug-fix | feature | ablation | baseline
-status: planned                  # planned | in-progress | done
+status: done                     # planned | in-progress | done
 change: >
   None. Unmodified mulder 1.5.10 runs its own five-phase investigation on the
   small NIST deleted-file-recovery image of EXP-003, to see whether the
@@ -35,6 +35,27 @@ scripted_expect:
   before: {questions: 5/5, facts: 14/14}
 
 conclusion: >
-  Not run yet.
+  25 minutes, 207 tool calls, 7 findings. Automatic score 3/5 questions, 8/14
+  facts; the scripted ceiling is 5/5, 14/14. mulder called run_fls once
+  without an offset and indexed only the FAT32 partition, so it found one of
+  the three deleted files (Bellatrix.txt) and two of the eight allocated ones;
+  Q4 and Q5 passed on that one file only. The cause is in run_fls: the
+  partitions it lists besides the primary one must be at least 204,800
+  sectors and of an NTFS, FAT32 or Linux type, which drops the 8 MB FAT12 and
+  32 MB FAT16 partitions. The alternative-narrative phase noticed the gap and
+  planned fls on offsets 128 and 16512, but that phase's executor may not
+  call run_fls (EXTRACT_EXECUTOR only), so the report states the two
+  partitions were not analysed. mulder reported 13.8K uncached input and
+  56.2K output tokens for Opus and 14.5K output for Haiku, about $1.55 at
+  list prices before cache tokens.
 conclusion_ko: >
-  아직 실행하지 않았다.
+  25분, 도구 호출 207번, 발견 사항 7건. 자동 점수는 질문 3/5, 사실 8/14이고 scripted
+  상한은 5/5, 14/14다. mulder가 run_fls를 오프셋 없이 한 번 불러 FAT32 파티션만
+  색인했다. 그래서 삭제 파일 3개 중 1개(Bellatrix.txt), 남은 파일 8개 중 2개만
+  찾았고, Q4·Q5는 그 한 파일로만 통과했다. 원인은 run_fls에 있다. 주 파티션 말고
+  나머지 파티션은 204,800섹터 이상이면서 NTFS·FAT32·Linux 유형이어야 색인하는데,
+  8MB FAT12와 32MB FAT16이 여기서 빠진다. 검토 단계가 빈틈을 알아채고 오프셋 128,
+  16512에 fls를 돌리는 계획을 세웠지만, 그 단계 실행자는 run_fls를 쓸 수 없어
+  (EXTRACT_EXECUTOR 전용) 보고서는 두 파티션을 분석하지 않았다고 적었다. mulder가
+  보고한 토큰은 Opus 캐시 제외 입력 13.8K·출력 56.2K, Haiku 출력 14.5K로 정가 기준
+  약 $1.55이며, 캐시 토큰은 빠져 있다.

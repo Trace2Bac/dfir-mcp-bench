@@ -84,6 +84,7 @@ Use WSL 2; `bench.sh` is a bash script and the containers are Linux.
    ./bench.sh investigate EXP-004 --dry-run
    ./bench.sh investigate EXP-004
    ./bench.sh investigate EXP-005   # NIST Hacking Case
+   ./bench.sh investigate EXP-006   # same case, Sonnet 4.6
    ```
 4. Only for local-model runs: run LM Studio on Windows (it uses the GPU
    there) and start its server; the containers reach it at
@@ -114,7 +115,8 @@ case database), scores the report against the case questions, and builds the
 run list from the audit log. mulder's report has its own fixed questions
 (Q1 to Q8); with `answer_section: true` in `harness_options` the briefing
 labels the case questions `Case Q<n>` and asks for a "Case Questions" section
-with one answer line each, which `review` then shows per question. The
+with one answer line each, which `review` shows and scoring uses per
+question; a question without such a line is scored on the whole report. The
 briefing used is kept with the run (`mulder/MULDER.md`). A run made by hand can be imported with
 `./bench.sh import <experiment> <label> <mulder cases folder> <case id>`.
 

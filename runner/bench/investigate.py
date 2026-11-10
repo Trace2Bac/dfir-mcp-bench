@@ -20,7 +20,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from .case import load_case
+from .case import load_case, split_answers
 from .score import score_case
 
 # Copied as is; the case database is left out (it holds indexed evidence).
@@ -88,8 +88,11 @@ def import_investigation(
             f.write(json.dumps(event, ensure_ascii=False) + "\n")
 
     called = {e["tool_name"] for e in calls}
-    # The report answers every question; each is scored against the whole report.
-    score = score_case(case.questions, {q.id: report for q in case.questions}, called)
+    # A question is scored on its "Case Q<n>:" line when the report has one
+    # (answer_section); otherwise on the whole report, as for runs without it.
+    lines = split_answers(case, report, prefix=CASE_PREFIX, fallback=False)
+    answers = {q.id: lines.get(q.id) or report for q in case.questions}
+    score = score_case(case.questions, answers, called)
     (out / "score.json").write_text(json.dumps(score, indent=2) + "\n")
 
     started, finished = _log_span(log) if log.exists() else (None, None)
@@ -108,6 +111,7 @@ def import_investigation(
         "finished": finished.isoformat() if finished else None,
         "run_id": 1,
         "end_reason": "report",
+        "answers_from": f"{len(lines)} '{CASE_PREFIX}Q<n>' lines, whole report for the rest",
         "turns": turns,
         "seconds": round((finished - started).total_seconds(), 1) if started and finished else 0,
         "tool_calls": len(calls),

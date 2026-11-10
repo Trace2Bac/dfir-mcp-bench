@@ -4,7 +4,7 @@ title: "Baseline: mulder investigate on the NIST Hacking Case answer key"
 title_ko: "기준선: NIST Hacking Case 정답지에 대한 mulder investigate"
 server: mulder
 kind: baseline                   # bug-fix | feature | ablation | baseline
-status: planned                  # planned | in-progress | done
+status: done                     # planned | in-progress | done
 change: >
   None. Unmodified mulder 1.5.10 runs its own five-phase investigation on the
   NIST CFReDS Hacking Case (a Windows XP notebook, about 1 GB as EnCase
@@ -27,13 +27,36 @@ harness_options:
   auth: Anthropic API key (ANTHROPIC_API_KEY in the shell)
   # MULDER.md labels the questions "Case Q<n>" and asks the report for a "Case
   # Questions" section with one answer line each, kept apart from the Q1-Q8 of
-  # mulder's own report template. Scoring still reads the whole report.
+  # mulder's own report template. Each question is scored on its line.
   answer_section: true
 
 variants:
   before: mulder-1.5.10          # upstream release
 
 conclusion: >
-  Not run yet. The scripted ceiling has not been measured either.
+  36 minutes, 270 tool calls, 9 findings. The report answered all 31
+  questions on "Case Q<n>" lines, and each was scored on its line: 22/29
+  questions, 39/47 facts. Q29 is right on review (the files in the recycle bin
+  are not deleted) and Q31 wrong (no viruses reported). Misses against
+  NIST's key: Q1, the image hash, is the MD5 of the E01 file, not the media
+  MD5 stored in it, and the claimed acquisition/verification match was never
+  checked; Q4 gives Central Standard rather than Daylight time; Q7 says the
+  domain is empty (key: Evil); Q16 lists five of the key's programs plus
+  mIRC; Q24 and Q25, the victim's device and sites, were left open because
+  the "interception" capture inside the image was never parsed; Q30 gives
+  about 7,038 deleted entries (key: 3); Q31 rests on run_clamav run against
+  the folder of compressed E01 segments, which cannot see files inside the
+  image. mulder reported 80.9K Opus and 20.0K Haiku output tokens, about $2.1
+  at list prices before cache tokens.
 conclusion_ko: >
-  아직 실행하지 않았다. scripted 상한도 아직 측정하지 않았다.
+  36분, 도구 호출 270번, 발견 사항 9건. 보고서가 질문 31개 모두에 "Case Q<n>" 줄로
+  답했고, 질문마다 그 줄로 채점했다. 질문 22/29, 사실 39/47. 검토 전용 문항 중 Q29는
+  맞고(휴지통 파일은 삭제된 것이 아님) Q31은 틀렸다(바이러스 없다고 함). NIST 정답지와
+  다른 답: Q1 이미지 해시는 E01 파일 자체의 MD5이고 E01 안에 저장된 원본 미디어 MD5가
+  아니며, 획득·검증 해시가 일치한다는 말은 확인 없이 나왔다. Q4는 Daylight가 아니라
+  Standard 시간, Q7은 도메인이 비어 있다고 답함(정답 Evil), Q16은 정답지 프로그램 5개와
+  mIRC를 적음. Q24·Q25(피해자 기기와 사이트)는 이미지 안의 "interception" 캡처를
+  분석하지 않아 답하지 못함. Q30은 삭제 항목 약 7,038개라고 함(정답 3). Q31은
+  run_clamav를 압축된 E01 조각이 든 폴더에 돌린 결과라 이미지 안의 파일을 볼 수 없었다.
+  mulder가 보고한 출력 토큰은 Opus 80.9K, Haiku 20.0K로 정가 기준 약 $2.1이며, 캐시
+  토큰은 빠져 있다.

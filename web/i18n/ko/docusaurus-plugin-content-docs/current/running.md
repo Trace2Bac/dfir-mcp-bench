@@ -79,6 +79,7 @@ WSL 2를 씁니다. `bench.sh`는 bash 스크립트이고 컨테이너는 Linux�
    ./bench.sh investigate EXP-004 --dry-run
    ./bench.sh investigate EXP-004
    ./bench.sh investigate EXP-005   # NIST Hacking Case
+   ./bench.sh investigate EXP-006   # 같은 케이스, Sonnet 4.6
    ```
 4. 로컬 모델 실행에만 필요: LM Studio를 Windows에서 실행하고(GPU 사용) 서버를 켭니다.
    컨테이너는 `host.docker.internal:1234`로 접속합니다. 연결이 안 되면 *Serve on Local
@@ -105,7 +106,8 @@ entrypoint와 `--privileged`로 `mulder investigate`를 실행하고, 결과를 
 보고서를 케이스 질문으로 채점하고, 감사 로그로 실행 기록을 만듭니다. mulder 보고서에는 자체 고정 질문(Q1~Q8)이 있습니다.
 `harness_options`에 `answer_section: true`를 두면 브리핑이 케이스 질문을 `Case Q<n>`으로
 표시하고, 보고서에 질문마다 한 줄씩 답하는 "Case Questions" 절을 요청합니다. `review`는
-그 줄을 질문별 답으로 보여 줍니다. 실제로 넣은 브리핑은 실행 결과(`mulder/MULDER.md`)에
+그 줄을 질문별 답으로 보여 주고, 채점도 그 줄로 합니다. 그런 줄이 없는 질문은 보고서
+전체로 채점합니다. 실제로 넣은 브리핑은 실행 결과(`mulder/MULDER.md`)에
 남습니다. 손으로 돌린
 실행은 `./bench.sh import <검증> <라벨> <mulder cases 폴더> <case id>`로 가져옵니다.
 

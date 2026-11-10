@@ -44,6 +44,9 @@ answers. Each forbidden string found (`expect.none`) counts as a wrong claim.
 `expect.min` asks for at least that many of the `any` strings ("list five
 newsgroups"), and counts that many facts. A question marked `review_only`
 (a yes/no answer, say) gets no automatic score and is left to the reviewer.
+A bare number (a count) must appear as a whole number, not inside a longer
+one. A `mulder investigate` report is scored per question on its
+`Case Q<n>:` line when the experiment asks for one, otherwise as a whole.
 
 ## Fixed conditions
 

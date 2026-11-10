@@ -28,14 +28,18 @@ scripted_expect:
 
 conclusion: >
   Scripted 5/5 questions, 14/14 facts: every fact is reachable with mulder's
-  disk tools, but only with workarounds. run_fls skips the second and third
-  partition of the same image as "already indexed" unless force is set;
+  disk tools, but only with workarounds. Without an offset run_fls indexes
+  only the FAT32 partition (it lists other partitions only when they are at
+  least 204,800 sectors and of an NTFS, FAT32 or Linux type); with an offset
+  it skips the second and third partition as "already indexed" unless force
+  is set;
   get_file_metadata and extract_file_by_inode take no partition and read the
   FAT32 partition only; get_deleted_files reports 8 deleted entries where
   there is 1. Model runs are pending.
 conclusion_ko: >
   scripted 5/5 질문, 14/14 사실. 모든 사실에 mulder 디스크 도구로 닿지만, 우회가
-  필요하다. run_fls는 force 없이는 같은 이미지의 두 번째·세 번째 파티션을 "이미
-  색인됨"으로 건너뛴다. get_file_metadata와 extract_file_by_inode는 파티션 인자가
+  필요하다. run_fls는 오프셋 없이 부르면 FAT32 파티션만 색인하고(다른 파티션은
+  204,800섹터 이상이면서 NTFS·FAT32·Linux 유형일 때만 색인), 오프셋을 주면 force
+  없이는 두 번째·세 번째 파티션을 "이미 색인됨"으로 건너뛴다. get_file_metadata와 extract_file_by_inode는 파티션 인자가
   없어 FAT32 파티션만 읽는다. get_deleted_files는 삭제 파일이 1개인데 8개라고 한다.
   모델 실행은 아직 하지 않았다.

@@ -1,0 +1,40 @@
+# EXP-006: one verification. The folder name is its permanent identifier;
+# the title may change.
+title: "Baseline: mulder investigate on the NIST Hacking Case with Sonnet"
+title_ko: "기준선: Sonnet으로 돌린 NIST Hacking Case mulder investigate"
+server: mulder
+kind: baseline                   # bug-fix | feature | ablation | baseline
+status: planned                  # planned | in-progress | done
+change: >
+  None. The same run as EXP-005 (unmodified mulder 1.5.10, the NIST CFReDS
+  Hacking Case, all 31 questions of NIST's answer key) with Sonnet 4.6 in
+  place of Opus 4.6 as planner and analyst. It shows how much the score
+  depends on the model and whether the cheaper setting is good enough for
+  repeated before/after runs.
+change_ko: >
+  변경 없음. EXP-005와 같은 실행(수정하지 않은 mulder 1.5.10, NIST CFReDS Hacking Case,
+  NIST 정답지 31개 질문 전부)에서 planner와 analyst만 Opus 4.6 대신 Sonnet 4.6으로
+  바꾼다. 점수가 모델에 얼마나 좌우되는지, 그리고 반복 before/after 실행에 더 싼 설정을
+  써도 되는지 본다.
+links:
+  - https://cfreds-archive.nist.gov/Hacking_Case.html
+  - https://cfreds-archive.nist.gov/images/TestAnswers.pdf
+
+case: nist-hacking-case
+# Only the planner and analyst model differ from EXP-005.
+harness: mulder-investigate
+harness_options:
+  models: {planner: claude-sonnet-4-6, executor: claude-haiku-4-5, analyst: claude-sonnet-4-6}
+  effort: max
+  auth: Anthropic API key (ANTHROPIC_API_KEY in the shell)
+  answer_section: true
+
+variants:
+  before: mulder-1.5.10          # upstream release
+
+conclusion: >
+  Not run yet. Compare with EXP-005 (Opus 4.6: 22/29 questions, 39/47 facts,
+  about $2.1 in reported tokens).
+conclusion_ko: >
+  아직 실행하지 않음. EXP-005(Opus 4.6: 질문 22/29, 사실 39/47, 보고 토큰 기준 약 $2.1)와
+  비교한다.

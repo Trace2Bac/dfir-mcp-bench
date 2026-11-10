@@ -19,8 +19,9 @@ cite them.
 | [EXP-001](experiments/EXP-001/experiment.yaml) | done | bug fix, our PR calebevans/mulder#274: pcap dns and smtp modes request valid tshark fields | scripted 0/3 → 3/3; qwen3.5-9b 0/5 → 5/5 runs passed, 12 → 5 turns |
 | [EXP-002](experiments/EXP-002/experiment.yaml) | done | baseline: `mulder investigate` (Claude Opus 4.6 / Haiku 4.5) on the full Rhino Hunt answer key | 4/7 questions, 12/22 facts (scripted ceiling 5/7); 9 of 10 missed facts need missing tool features |
 | [EXP-003](experiments/EXP-003/experiment.yaml) | in progress | baseline: deleted file recovery on a NIST CFTT test image (three FAT partitions) | scripted 5/5, only with workarounds for three disk-tool problems; model runs pending |
-| [EXP-004](experiments/EXP-004/experiment.yaml) | planned | baseline: `mulder investigate` (Claude) on the same NIST image | set up; run with `./bench.sh investigate EXP-004` |
-| [EXP-005](experiments/EXP-005/experiment.yaml) | planned | baseline: `mulder investigate` (Claude) on the NIST Hacking Case, scored on all 31 questions of NIST's answer key | set up; run with `./bench.sh investigate EXP-005` |
+| [EXP-004](experiments/EXP-004/experiment.yaml) | done | baseline: `mulder investigate` (Claude) on the same NIST image | 3/5 questions, 8/14 facts (scripted 5/5): run_fls skipped the small FAT12 and FAT16 partitions, and the later phase that noticed could not re-run it |
+| [EXP-005](experiments/EXP-005/experiment.yaml) | done | baseline: `mulder investigate` (Claude) on the NIST Hacking Case, all 31 questions of NIST's answer key | 22/29 questions, 39/47 facts; misses include the E01 media hash, an AV scan of the compressed segments and the capture file inside the image |
+| [EXP-006](experiments/EXP-006/experiment.yaml) | planned | baseline: EXP-005 with Sonnet 4.6 as planner and analyst | not run yet |
 
 Each experiment's `conclusion` states what the results show and their limits;
 `results/summary.md` has the numbers.
@@ -120,6 +121,7 @@ are Linux. What else you need depends on what you run:
    ./bench.sh investigate EXP-004 --dry-run   # prepares and prints the command, starts nothing
    ./bench.sh investigate EXP-004             # runs it and imports the result
    ./bench.sh investigate EXP-005             # NIST Hacking Case, 31 questions
+   ./bench.sh investigate EXP-006             # same case, Sonnet 4.6 as planner and analyst
    ```
    Every run costs money (EXP-002 reported 134.5K output tokens, about $3 at
    list prices before cache tokens).
