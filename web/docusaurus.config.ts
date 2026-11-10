@@ -53,6 +53,7 @@ const config: Config = {
       items: [
         {to: '/', label: 'Results', position: 'left', activeBaseRegex: '^/(experiments/.*)?$'},
         {to: '/docs/findings', label: 'Findings', position: 'left'},
+        {to: '/docs/notes', label: 'Notes', position: 'left'},
         {to: '/docs/method', label: 'Method', position: 'left'},
         {to: '/docs/running', label: 'Running', position: 'left'},
         {to: '/docs/adding-a-case', label: 'Adding', position: 'left'},

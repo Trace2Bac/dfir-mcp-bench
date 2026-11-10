@@ -84,7 +84,6 @@ Use WSL 2; `bench.sh` is a bash script and the containers are Linux.
    ./bench.sh investigate EXP-004 --dry-run
    ./bench.sh investigate EXP-004
    ./bench.sh investigate EXP-005   # NIST Hacking Case
-   ./bench.sh investigate EXP-006   # same case, Sonnet 4.6
    ```
 4. Only for local-model runs: run LM Studio on Windows (it uses the GPU
    there) and start its server; the containers reach it at
@@ -119,11 +118,6 @@ with one answer line each, which `review` shows and scoring uses per
 question; a question without such a line is scored on the whole report. The
 briefing used is kept with the run (`mulder/MULDER.md`). A run made by hand can be imported with
 `./bench.sh import <experiment> <label> <mulder cases folder> <case id>`.
-
-With `login: true` in `harness_options` (EXP-009) the run signs in with
-`./bench.sh login` instead of `ANTHROPIC_API_KEY`. Anthropic's terms reserve
-subscription sign-in for Claude Code and claude.ai, so such runs are marked
-in their experiment.
 
 Each run costs money: EXP-002 used 134.5K output tokens (about $3 at list
 prices for what mulder reports). mulder's counts leave out cache reads and

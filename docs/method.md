@@ -46,7 +46,8 @@ newsgroups"), and counts that many facts. A question marked `review_only`
 (a yes/no answer, say) gets no automatic score and is left to the reviewer.
 A bare number (a count) must appear as a whole number, not inside a longer
 one. A `mulder investigate` report is scored per question on its
-`Case Q<n>:` line when the experiment asks for one, otherwise as a whole.
+`Case Q<n>:` line when the experiment asks for one (a line for a range, such
+as `Case Q28-Q30:`, answers each question in it), otherwise as a whole.
 
 ## Fixed conditions
 

@@ -181,14 +181,6 @@ def answer_section(experiment_yaml: Path) -> bool:
     return bool(options.get("answer_section", False))
 
 
-def uses_login(experiment_yaml: Path) -> bool:
-    """Whether the run signs in with the Claude login from `bench.sh login` instead of an API key."""
-    import yaml
-
-    options = yaml.safe_load(experiment_yaml.read_text()).get("harness_options") or {}
-    return bool(options.get("login", False))
-
-
 def investigate_args(experiment_yaml: Path) -> str:
     """`mulder investigate` model flags from the experiment's harness_options."""
     import yaml

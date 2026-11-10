@@ -11,7 +11,7 @@ from pathlib import Path
 from . import claude_code
 from .case import load_case
 from .check import check_experiment
-from .investigate import answer_section, import_from_experiment, investigate_args, uses_login, write_briefing
+from .investigate import answer_section, import_from_experiment, investigate_args, write_briefing
 from .model import Model, ModelConfig
 from .review import review_case
 from .run import RunOptions, run_case
@@ -78,8 +78,6 @@ def _parser() -> argparse.ArgumentParser:
     brief.add_argument("--experiment", type=Path, help="experiment.yaml; its harness_options.answer_section applies")
     args_ = sub.add_parser("investigate-args", help="print mulder investigate flags from an experiment")
     args_.add_argument("experiment", type=Path, help="path to experiments/<id>/experiment.yaml")
-    auth = sub.add_parser("investigate-auth", help="print how mulder investigate signs in: api-key or login")
-    auth.add_argument("experiment", type=Path, help="path to experiments/<id>/experiment.yaml")
     cprep = sub.add_parser("claude-prepare", help="write the claude-code prompt and MCP config into a work folder")
     cprep.add_argument("case", type=Path, help="path to cases/<id>/case.yaml")
     cprep.add_argument("experiment", type=Path, help="path to experiments/<id>/experiment.yaml")
@@ -156,8 +154,6 @@ def main() -> None:
         _check(args)
     elif args.command == "investigate-args":
         print(investigate_args(args.experiment))
-    elif args.command == "investigate-auth":
-        print("login" if uses_login(args.experiment) else "api-key")
     elif args.command == "briefing":
         section = answer_section(args.experiment) if args.experiment else False
         print(write_briefing(args.case, args.evidence_dir, args.container_path, section))

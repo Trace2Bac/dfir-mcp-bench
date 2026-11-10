@@ -79,7 +79,6 @@ WSL 2를 씁니다. `bench.sh`는 bash 스크립트이고 컨테이너는 Linux�
    ./bench.sh investigate EXP-004 --dry-run
    ./bench.sh investigate EXP-004
    ./bench.sh investigate EXP-005   # NIST Hacking Case
-   ./bench.sh investigate EXP-006   # 같은 케이스, Sonnet 4.6
    ```
 4. 로컬 모델 실행에만 필요: LM Studio를 Windows에서 실행하고(GPU 사용) 서버를 켭니다.
    컨테이너는 `host.docker.internal:1234`로 접속합니다. 연결이 안 되면 *Serve on Local
@@ -114,10 +113,6 @@ entrypoint와 `--privileged`로 `mulder investigate`를 실행하고, 결과를 
 실행마다 비용이 듭니다. EXP-002은 출력 134.5K 토큰을 썼습니다 (mulder 집계 기준 정가로
 약 $3). mulder 집계에는 캐시 읽기·쓰기가 빠져 있으니, 실제 비용은 제공자의 사용량
 화면에서 확인합니다.
-
-`harness_options`에 `login: true`가 있으면(EXP-009) `ANTHROPIC_API_KEY` 대신 `./bench.sh login`의
-로그인을 씁니다. Anthropic 약관은 구독 로그인을 Claude Code와 claude.ai용으로 정하고 있어서, 이런 실행은
-검증 파일에 표시해 둡니다.
 
 ## mulder 도구로 Claude Code 실행
 

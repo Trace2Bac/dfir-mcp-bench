@@ -277,12 +277,9 @@ investigate)
     else
         # Model flags from harness_options (models: {planner: .., executor: .., analyst: ..}, effort: ..).
         opts=$(in_tools env PYTHONPATH=runner python3 -m bench investigate-args "$yaml")
-        # harness_options.login: sign in with `./bench.sh login` instead of an API key.
-        auth=$(in_tools env PYTHONPATH=runner python3 -m bench investigate-auth "$yaml")
-        if [ "$auth" = login ]; then
-            if [ "$dry" = 0 ] && [ ! -f data/claude/.credentials.json ]; then
-                echo "Claude Code is not signed in; run ./bench.sh login" >&2; exit 1
-            fi
+        auth=api-key
+        if [ -z "${ANTHROPIC_API_KEY:-}" ] && [ -f data/claude/.credentials.json ]; then
+            auth=login
         elif [ "$dry" = 0 ] && [ -z "${ANTHROPIC_API_KEY:-}" ] && echo "$opts" | grep -q claude-; then
             echo "ANTHROPIC_API_KEY is not set; export it in this shell (it is never written to a file)" >&2; exit 1
         fi
@@ -316,8 +313,8 @@ investigate)
             rmdir "$work.lock"; trap - EXIT; continue
         fi
         # The image's own entrypoint and --privileged, as mulder documents; the
-        # key is passed by name from this shell, not on the command line. With
-        # login, the sign-in in data/claude/ is used and no key is passed.
+        # key is passed by name from this shell, not on the command line.
+        # Without a key, Claude's own sign-in in data/claude/ is used.
         if [ "$auth" = login ]; then
             sign_in=(-e CLAUDE_CONFIG_DIR="$CLAUDE_CONFIG" -v "$ROOT/data/claude:$CLAUDE_CONFIG")
         else

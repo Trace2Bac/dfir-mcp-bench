@@ -4,7 +4,7 @@ title: "Baseline: mulder investigate on the NIST Hacking Case, Haiku in every ro
 title_ko: "기준선: 모든 역할을 Haiku로 돌린 NIST Hacking Case mulder investigate"
 server: mulder
 kind: baseline                   # bug-fix | feature | ablation | baseline
-status: planned                  # planned | in-progress | done
+status: done                     # planned | in-progress | done
 change: >
   None. EXP-005 (unmodified mulder 1.5.10, the NIST Hacking Case, all 31
   questions) with Haiku 4.5 as planner, executor and analyst. It shows
@@ -25,19 +25,39 @@ harness: mulder-investigate
 harness_options:
   models: {planner: claude-haiku-4-5, executor: claude-haiku-4-5, analyst: claude-haiku-4-5}
   # No effort: the effort setting is for Opus and Sonnet models.
-  # Signed in with `./bench.sh login` (a Claude subscription) instead of an
-  # API key. Anthropic's terms reserve subscription sign-in for Claude Code
-  # and claude.ai, so decide before publishing these results.
-  login: true
-  auth: Claude subscription (`./bench.sh login`)
   answer_section: true
 
 variants:
   before: mulder-1.5.10          # upstream release
 
 conclusion: >
-  Not run yet. Compare with EXP-005 (Opus 4.6 and Haiku 4.5: 22/29 questions,
-  39/47 facts) and EXP-008 (Claude Code, Haiku 4.5).
+  14 minutes, 188 turns, 214 tool calls, 11 findings; all five phases
+  passed. 7/29 questions, 14/47 facts, about the same as Haiku in Claude
+  Code (EXP-008: 7/29) and far below EXP-005 (Opus as planner and analyst:
+  22/29). The orchestrator made Haiku investigate more (214 calls against
+  58) but not answer more: 15 answers say the evidence did not show it (time
+  zone, owner, network cards and addresses, newsgroups, recycle bin). Two
+  answers were scored per line only after the range line "Case Q28-Q30" was
+  read as covering all three questions; before that fix Q30 passed on the
+  whole report. Q3 passes on a date it names while saying the install date
+  was not found; a reviewer should decide. analyze_disk_pcaps ran on the
+  image, reported "ok, network captures analyzed" and found nothing (the
+  capture file "interception" has no extension), and the counter-analysis
+  phase then concluded there was no evidence Ethereal was used. Q1 is again
+  the MD5 of the E01 file, though this time the report says verification
+  could not be determined; Q31 rests on run_clamav run on the E01 file. mulder
+  reported 6.4K input and 67.6K output tokens. Haiku in every role is not
+  enough for before/after runs on this case.
 conclusion_ko: >
-  아직 실행하지 않음. EXP-005(Opus 4.6과 Haiku 4.5: 질문 22/29, 사실 39/47)와
-  EXP-008(Claude Code, Haiku 4.5)과 비교한다.
+  14분, 188턴, 도구 호출 214번, 발견 사항 11건. 다섯 단계 모두 통과했다. 질문 7/29, 사실
+  14/47로, Claude Code의 Haiku(EXP-008: 7/29)와 비슷하고 EXP-005(planner·analyst가
+  Opus: 22/29)보다 훨씬 낮다. 오케스트레이터 덕분에 Haiku가 더 많이 조사했지만(호출 214번
+  대 58번) 더 많이 답하지는 못했다. 답 15개가 증거에서 찾지 못했다고 했다(시간대, 소유자,
+  네트워크 카드와 주소, 뉴스그룹, 휴지통). "Case Q28-Q30"처럼 범위로 쓴 줄을 세 질문 모두의
+  답으로 읽도록 채점을 고친 뒤 다시 채점했다. 고치기 전에는 Q30이 보고서 전체로 채점돼
+  통과했다. Q3은 설치일을 찾지 못했다면서 적은 날짜로 통과했으니 검토자가 판단해야 한다.
+  analyze_disk_pcaps가 이미지에 실행돼 "ok, network captures analyzed"를 돌려줬지만 아무것도
+  찾지 못했고(캡처 파일 "interception"에 확장자가 없음), 이어서 반대 가설 검토 단계가
+  Ethereal을 쓴 증거가 없다고 결론지었다. Q1은 이번에도 E01 파일의 MD5이지만, 보고서가 검증
+  여부는 알 수 없다고 적었다. Q31은 E01 파일에 돌린 run_clamav 결과다. mulder가 보고한 토큰은
+  입력 6.4K, 출력 67.6K. 모든 역할을 Haiku로 하면 이 케이스에서 before/after 실행에 쓰기 어렵다.

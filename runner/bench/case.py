@@ -89,22 +89,31 @@ def split_answers(case: Case, text: str, prefix: str = "", fallback: bool = True
 
     *prefix* is a label before the id, such as "Case " for the "Case Q1:" lines
     a mulder report gives when asked to (its own report has unrelated Q1-Q8).
+    A line for a range ("Q28-Q30: ...") answers every question in it.
     With *fallback*, every question gets the whole text when no line matches.
     """
     answers: dict[str, str] = {}
     ids = [q.id for q in case.questions]
     label = rf"{re.escape(prefix.strip())}\s*" if prefix.strip() else ""
-    pattern = re.compile(rf"^\W*{label}({'|'.join(map(re.escape, ids))})\W*[:.)-][\s*_]*(.*)$", re.IGNORECASE)
-    current = None
+    one = "|".join(map(re.escape, ids))
+    pattern = re.compile(
+        rf"^\W*{label}({one})(?:\s*[-\u2013]\s*(?:{label})?({one}))?\W*[:.)-][\s*_]*(.*)$", re.IGNORECASE
+    )
+    position = {i.lower(): n for n, i in enumerate(ids)}
+    current: list[str] = []
     for line in text.splitlines():
         m = pattern.match(line)
         if m:
-            current = next(i for i in ids if i.lower() == m.group(1).lower())
-            answers[current] = m.group(2)
+            first = position[m.group(1).lower()]
+            last = position[m.group(2).lower()] if m.group(2) else first
+            current = ids[first : max(first, last) + 1]
+            for i in current:
+                answers[i] = m.group(3)
         elif current and label and (not line.strip() or line.lstrip().startswith("#")):
-            current = None  # in a report, an answer ends at a blank line or a heading
+            current = []  # in a report, an answer ends at a blank line or a heading
         elif current:
-            answers[current] += "\n" + line
+            for i in current:
+                answers[i] += "\n" + line
     return answers or ({q.id: text for q in case.questions} if fallback else {})
 
 

@@ -17,18 +17,19 @@ sidebar_position: 0
 | [EXP-003](../experiments/EXP-003) | NIST CFTT `dfr-01-fat` | 아직 scripted만 | - | 5/5, 14/14 (우회 필요) |
 | [EXP-004](../experiments/EXP-004) | NIST CFTT `dfr-01-fat` | `mulder investigate`, Opus 4.6 | 질문 3/5, 사실 8/14 | 5/5, 14/14 |
 | [EXP-005](../experiments/EXP-005) | NIST Hacking Case, 31문항 | `mulder investigate`, Opus 4.6 | 질문 22/29, 사실 39/47 (검토 문항 2개 중 1개 맞음) | - |
-| [EXP-006](../experiments/EXP-006) | NIST Hacking Case, 31문항 | `mulder investigate`, Sonnet 4.6 | 첫 실행이 보고서 직전에 멈춤 (API 크레딧 부족) | - |
+| [EXP-006](../experiments/EXP-006) | NIST Hacking Case, 31문항 | `mulder investigate`, Sonnet 4.6 | 보고서 없음: 보고서 단계가 검색만 하다 끝내 마무리하지 못함 | - |
 | [EXP-007](../experiments/EXP-007) | NIST Hacking Case, 31문항 | `mulder serve`를 쓰는 Claude Code, Opus 4.6 | 예정 | - |
 | [EXP-008](../experiments/EXP-008) | NIST Hacking Case, 31문항 | `mulder serve`를 쓰는 Claude Code, Haiku 4.5 | 질문 7/29, 사실 13/47 (3분 만에 멈춤) | - |
+| [EXP-009](../experiments/EXP-009) | NIST Hacking Case, 31문항 | `mulder investigate`, 모든 역할 Haiku 4.5 | 질문 7/29, 사실 14/47 | - |
 
-`mulder investigate` 실행 비용은 mulder가 보고한 토큰 기준 정가로 회당 약 $1.5~3입니다
-(캐시 읽기·쓰기는 빠져 있음). 실행 시간은 25~36분이었습니다.
+Opus로 돌린 `mulder investigate` 실행 비용은 mulder가 보고한 토큰 기준 정가로 회당 약 $1.5~3이고
+(캐시 읽기·쓰기는 빠져 있음), 실행 시간은 25~36분이었습니다.
 
 ## 실행에서 드러난 것
 
 - **도구가 있는 영역에서는 Claude가 잘 답합니다.** Hacking Case에서 레지스트리, 계정,
   이메일, IRC, 프로그램 관련 질문은 거의 다 맞혔습니다.
-- **놓친 것의 대부분은 모델이 아니라 도구 때문입니다.** EXP-002에서 놓친 사실 10개 중
+- **Opus가 놓친 것은 대부분 도구 때문입니다.** EXP-002에서 놓친 사실 10개 중
   9개는 mulder에 없는 기능이 필요합니다(카빙한 파일을 목록만 남기고 지움). EXP-004에서는
   `run_fls`가 작은 FAT12·FAT16 파티션을 색인하지 않았습니다. EXP-005에서는 E01 안에 저장된
   미디어 해시를 읽지 않았고, 이미지 안의 캡처 파일은 확장자가 없어 찾지 못했으며,
@@ -38,6 +39,12 @@ sidebar_position: 0
   쓸 수 없습니다.
 - **모델 탓인 실수도 있습니다.** EXP-005에서 증거가 있었는데도 NIST 정답과 다른 답이
   4개(Q4, Q7, Q16, Q30)였고, 확인하지 않은 해시 일치를 보고서에 적었습니다.
+- **Sonnet은 끝내지 못했습니다.** planner와 analyst를 Sonnet으로 하면 보고서 단계가 질문의 답을
+  찾느라 세션 12개 동안 검색만 하고 보고서를 쓰지 않았습니다(EXP-006). 50분 작업이 보고서 없이
+  끝났습니다. 이 케이스의 반복 실행에는 Opus를 씁니다.
+- **Haiku만으로는 부족합니다.** 모든 역할을 Haiku로 하면 mulder 오케스트레이터가 Claude Code보다
+  도구를 네 배 가까이 부르게 했지만(EXP-009 대 EXP-008), 둘 다 7/29였습니다. 답을 제한하는 것은
+  하네스가 아니라 모델입니다.
 - **약한 모델에는 강한 하네스가 필요합니다.** 9B 로컬 모델은 좁은 수정 검증(EXP-001)은
   잘 했지만 전체 조사는 하지 못했습니다.
 
@@ -47,6 +54,9 @@ sidebar_position: 0
 질문이 31개이고, 증거 종류가 다양하며, 실행 비용은 회당 약 $2입니다. 나머지 케이스는 각각
 한 가지 용도로 둡니다. `dfr-01-fat`은 파티션 처리, Rhino Hunt는 카빙, 합성 캡처는 PR #274
 검증입니다.
+
+이 케이스의 반복 실행 모델은 [메모: NIST Hacking Case에 어떤 모델을 쓸까](notes/2026-11-10-model-choice)에서
+정했습니다. planner·analyst는 Opus 4.6, executor는 Haiku 4.5입니다.
 
 ## 한계
 
@@ -59,11 +69,13 @@ sidebar_position: 0
   지금까지의 실행은 외워서 푼 것으로 보이지 않습니다. EXP-005는 도구가 증거에 닿지 못하자
   잘 알려진 답(Q24, Q25)도 놓쳤습니다. 증거 없이 질문만 주는 실행을 하면 모델이 이미 아는
   답을 직접 확인할 수 있습니다.
-- **EXP-005 이후 채점 규칙을 바꿨습니다.** 첫 실행 뒤에 숫자 전체 일치와 질문별 채점을
-  추가했고, 점수가 26/29에서 22/29로 낮아졌습니다. 앞으로는 실행 전에 채점 규칙을
-  고정합니다.
+- **실행 뒤에 채점 규칙을 두 번 바꿨습니다.** EXP-005 실행 뒤에 숫자 전체 일치와 질문별
+  채점을 추가해 점수가 26/29에서 22/29로 낮아졌습니다. EXP-009 실행 뒤에는 범위로 쓴 줄
+  ("Case Q28-Q30")을 범위 안의 모든 질문의 답으로 읽도록 고쳐 8/29에서 7/29로 낮아졌습니다.
+  바꿀 때마다 모든 실행을 다시 채점했고, 오른 점수는 없습니다. 다음 실행부터는 채점 규칙을
+  실행 전에 고정합니다.
 - **문자열 비교입니다.** 자동 점수는 기대 문자열이 있는지만 봅니다. 사람 검토
   (`./bench.sh review`)는 아직 하지 않았습니다.
-- **모델 계열이 하나입니다.** `mulder investigate` 실행은 모두 Claude이고, 더 싼 모델은
-  EXP-006이 처음입니다. EXP-007은 오케스트레이터 없이 Claude Code가 mulder MCP 도구로
-  조사합니다. 하네스가 달라서 EXP-005와의 점수 차이는 오케스트레이터의 효과로만 읽어야 합니다.
+- **모델 계열이 하나입니다.** `mulder investigate` 실행은 모두 Claude(Opus, Sonnet, Haiku)입니다.
+  EXP-007과 EXP-008은 오케스트레이터 없이 Claude Code가 mulder MCP 도구로 조사합니다. 하네스가
+  달라서 `mulder investigate` 실행과의 점수 차이는 오케스트레이터의 효과로만 읽어야 합니다.

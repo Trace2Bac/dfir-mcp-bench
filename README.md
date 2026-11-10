@@ -21,10 +21,10 @@ cite them.
 | [EXP-003](experiments/EXP-003/experiment.yaml) | in progress | baseline: deleted file recovery on a NIST CFTT test image (three FAT partitions) | scripted 5/5, only with workarounds for three disk-tool problems; model runs pending |
 | [EXP-004](experiments/EXP-004/experiment.yaml) | done | baseline: `mulder investigate` (Claude) on the same NIST image | 3/5 questions, 8/14 facts (scripted 5/5): run_fls skipped the small FAT12 and FAT16 partitions, and the later phase that noticed could not re-run it |
 | [EXP-005](experiments/EXP-005/experiment.yaml) | done | baseline: `mulder investigate` (Claude) on the NIST Hacking Case, all 31 questions of NIST's answer key | 22/29 questions, 39/47 facts; misses include the E01 media hash, an AV scan of the compressed segments and the capture file inside the image |
-| [EXP-006](experiments/EXP-006/experiment.yaml) | planned | baseline: EXP-005 with Sonnet 4.6 as planner and analyst | first run stopped before the report (API credit ran out) |
+| [EXP-006](experiments/EXP-006/experiment.yaml) | done | baseline: EXP-005 with Sonnet 4.6 as planner and analyst | no report: the report phase searched for 12 sessions (586 tool calls) and never finalized |
 | [EXP-007](experiments/EXP-007/experiment.yaml) | planned | baseline: Claude Code (Opus 4.6) with only `mulder serve` as tools, same case and questions as EXP-005 | not run yet |
 | [EXP-008](experiments/EXP-008/experiment.yaml) | done | baseline: EXP-007 with Haiku 4.5, to see whether the cheapest model is enough for repeated runs | 7/29 questions, 13/47 facts in under 3 minutes ($0.45 at API prices): too shallow for before/after runs |
-| [EXP-009](experiments/EXP-009/experiment.yaml) | planned | baseline: `mulder investigate` with Haiku 4.5 in every role, signed in with a Claude subscription | not run yet |
+| [EXP-009](experiments/EXP-009/experiment.yaml) | done | baseline: `mulder investigate` with Haiku 4.5 in every role | 7/29 questions, 14/47 facts in 14 minutes: more tool calls than EXP-008 but no better answers |
 
 Each experiment's `conclusion` states what the results show and their limits;
 `results/summary.md` has the numbers.
@@ -40,7 +40,8 @@ servers/mulder/
   patches/                  diffs applied on top of the commit, e.g. to remove a feature
   Dockerfile                release image + source at the commit + patches + runner
 runner/bench/               the bench-runner harness: MCP client, local model client, scoring, review
-docs/                       method, running and reviewing, adding a case or an experiment
+docs/                       findings, method, running and reviewing, adding a case or an experiment
+docs/notes/                 dated notes across experiments (e.g. which model to use for a case)
 web/                        the results site (Docusaurus), built from experiments/
 bench.sh                    prepare / build / run / investigate / import / review / summary / check, all in Docker
 ```
@@ -128,8 +129,7 @@ are Linux. What else you need depends on what you run:
    export ANTHROPIC_API_KEY=...               # this shell only, never in a file
    ./bench.sh investigate EXP-004 --dry-run   # prepares and prints the command, starts nothing
    ./bench.sh investigate EXP-004             # runs it and imports the result
-   ./bench.sh investigate EXP-005             # NIST Hacking Case, 31 questions
-   ./bench.sh investigate EXP-006             # same case, Sonnet 4.6 as planner and analyst
+   ./bench.sh investigate EXP-005             # NIST Hacking Case, 31 questions (the setting for repeated runs)
    ```
    Every run costs money (EXP-002 reported 134.5K output tokens, about $3 at
    list prices before cache tokens).
@@ -137,8 +137,7 @@ are Linux. What else you need depends on what you run:
    Claude Code with a Claude subscription instead (EXP-007):
    ```
    ./bench.sh login                           # once: sign in with a Claude subscription
-   ./bench.sh investigate EXP-008             # Haiku 4.5: try first, uses the least of the limits
-   ./bench.sh investigate EXP-007             # Opus 4.6
+   ./bench.sh investigate EXP-007             # Opus 4.6 (Haiku 4.5, EXP-008, was too shallow)
    ```
    The sign-in is kept in `data/claude/` (never committed). Runs count
    toward the subscription's usage limits; a run stopped by a limit is not
