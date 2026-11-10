@@ -138,6 +138,15 @@ def write_briefing(case_yaml: Path, evidence_dir: Path, evidence_in_container: s
 
     mulder prepends MULDER.md in the evidence root to its planner and analyst
     prompts; this is its documented way to give an investigation questions.
+    """
+    out = evidence_dir / "MULDER.md"
+    out.write_text(briefing_text(case_yaml, evidence_in_container, answer_section))
+    return out
+
+
+def briefing_text(case_yaml: Path, evidence_in_container: str, answer_section: bool) -> str:
+    """The case briefing and questions, no answers.
+
     With *answer_section*, the questions are labelled "Case Q<n>" and the
     report is asked to answer each on its own line in a "Case Questions"
     section, so the answers can be read per question.
@@ -161,9 +170,7 @@ def write_briefing(case_yaml: Path, evidence_dir: Path, evidence_in_container: s
             "not answer a question, say so on its line. These are separate from the report's own "
             f"numbered questions.\n\n{example}\n...\n"
         )
-    out = evidence_dir / "MULDER.md"
-    out.write_text(text)
-    return out
+    return text
 
 
 def answer_section(experiment_yaml: Path) -> bool:

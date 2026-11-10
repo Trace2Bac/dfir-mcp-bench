@@ -115,6 +115,31 @@ entrypoint와 `--privileged`로 `mulder investigate`를 실행하고, 결과를 
 약 $3). mulder 집계에는 캐시 읽기·쓰기가 빠져 있으니, 실제 비용은 제공자의 사용량
 화면에서 확인합니다.
 
+## mulder 도구로 Claude Code 실행
+
+`harness: claude-code`인 검증(EXP-007)도 같은 명령으로 실행합니다. mulder 이미지에 들어 있는
+Claude Code가 대화 없이(`claude -p`) 실행되고, MCP 서버는 `mulder serve` 하나뿐이며 내장 도구는
+꺼져 있습니다. 그래서 증거에는 mulder로만 접근합니다. 프롬프트는 하나입니다. `scan_evidence`로
+사건을 만들라는 지시와, `MULDER.md`와 같은 브리핑과 `Case Q<n>` 질문입니다. 모델과 effort는
+`harness_options`(`model`, `effort`)에서 가져옵니다.
+
+```
+./bench.sh login                             # 처음 한 번: Claude 구독으로 로그인
+./bench.sh investigate EXP-007 --dry-run     # claude/prompt.md와 claude/mcp.json만 만들고 시작하지 않음
+./bench.sh investigate EXP-007
+```
+
+터미널에는 도구 호출마다 한 줄씩 나옵니다. stream-json 원본(`claude/stream.jsonl`)은 프롬프트와
+함께 실행 기록에 남습니다. 가져오기 단계에서 마지막 메시지를 `Case Q<n>:` 줄로 채점하고, mulder
+호출과 결과를 `transcript.jsonl`에 남깁니다. Claude Code의 토큰 수에는 캐시 읽기·쓰기가 포함되고,
+`run.json`의 `api_cost_usd`는 같은 토큰을 API로 썼을 때의 가격입니다. 구독은 실행마다 과금되지
+않지만 사용 한도에 포함됩니다. 오류로 끝난 실행(로그인 만료, 사용 한도)은 가져오지 않습니다.
+
+`./bench.sh login`은 이미지 안에서 Claude Code의 로그인(`claude auth login`)을 실행합니다. 브라우저로 열
+주소를 보여 주고, 거기서 나온 코드를 붙여 넣으라고 합니다. 로그인 정보는 `data/claude/`(`data/` 전체와
+같이 git에서 제외)에 남고 모든 실행이 다시 씁니다. `claude setup-token`으로 받은 토큰을
+`CLAUDE_CODE_OAUTH_TOKEN`에 넣어도 됩니다.
+
 ## 결과 보기와 공개
 
 ```

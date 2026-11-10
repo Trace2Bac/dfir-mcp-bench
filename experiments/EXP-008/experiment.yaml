@@ -1,0 +1,37 @@
+# EXP-008: one verification. The folder name is its permanent identifier;
+# the title may change.
+title: "Baseline: Claude Code with mulder's MCP tools on the NIST Hacking Case, Haiku"
+title_ko: "기준선: mulder MCP 도구를 쓰는 Claude Code(Haiku)로 NIST Hacking Case 조사"
+server: mulder
+kind: baseline                   # bug-fix | feature | ablation | baseline
+status: planned                  # planned | in-progress | done
+change: >
+  None. EXP-007 with Haiku 4.5, the cheapest Claude model, in place of Opus
+  4.6. It shows whether Haiku gets far enough into the investigation to be
+  the model for repeated before/after runs on a Claude subscription: a model
+  that never reaches the changed tool would show no difference either way.
+change_ko: >
+  변경 없음. EXP-007에서 모델만 Opus 4.6 대신 가장 저렴한 Claude 모델인 Haiku 4.5로
+  바꾼다. Claude 구독으로 before/after를 반복 실행할 모델로 Haiku가 충분히 깊이 조사하는지
+  본다. 바뀐 도구까지 가지 못하는 모델은 어느 쪽에서도 차이를 보여 주지 못한다.
+links:
+  - https://cfreds-archive.nist.gov/Hacking_Case.html
+  - https://cfreds-archive.nist.gov/images/TestAnswers.pdf
+
+case: nist-hacking-case
+harness: claude-code
+harness_options:
+  model: claude-haiku-4-5
+  # No effort: the effort setting is for Opus and Sonnet models.
+  auth: Claude subscription (`./bench.sh login`)
+  answer_section: true
+
+variants:
+  before: mulder-1.5.10          # upstream release
+
+conclusion: >
+  Not run yet. Compare with EXP-005 (mulder investigate, Opus 4.6: 22/29
+  questions, 39/47 facts) and EXP-007 (Claude Code, Opus 4.6).
+conclusion_ko: >
+  아직 실행하지 않음. EXP-005(mulder investigate, Opus 4.6: 질문 22/29, 사실 39/47)와
+  EXP-007(Claude Code, Opus 4.6)과 비교한다.

@@ -56,9 +56,9 @@ def _review_run(case: Case, run_dir: Path, reviewer: str) -> bool:
     score = json.loads((run_dir / "score.json").read_text())
     auto = {q["id"]: q for q in score["questions"]}
     info = json.loads((run_dir / "run.json").read_text())
-    investigate = (info.get("harness") or {}).get("name") == "mulder-investigate"
+    investigate = (info.get("harness") or {}).get("name") in ("mulder-investigate", "claude-code")
     if investigate:
-        # mulder's report has its own Q1-Q8; read only the "Case Q<n>:" lines.
+        # A whole-investigation report (mulder's has its own Q1-Q8); read only the "Case Q<n>:" lines.
         answers = split_answers(case, (run_dir / "answer.md").read_text(), prefix=CASE_PREFIX, fallback=False)
         missing_note = f"(no '{CASE_PREFIX}{{id}}:' line in the report; read {run_dir / 'answer.md'})"
     else:

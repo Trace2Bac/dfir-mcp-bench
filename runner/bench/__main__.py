@@ -1,4 +1,4 @@
-"""python -m bench <command>: run, summary, review, check (see bench.sh)."""
+"""python -m bench <command>: run, summary, review, check, ... (see bench.sh)."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 
+from . import claude_code
 from .case import load_case
 from .check import check_experiment
 from .investigate import answer_section, import_from_experiment, investigate_args, write_briefing
@@ -77,6 +78,21 @@ def _parser() -> argparse.ArgumentParser:
     brief.add_argument("--experiment", type=Path, help="experiment.yaml; its harness_options.answer_section applies")
     args_ = sub.add_parser("investigate-args", help="print mulder investigate flags from an experiment")
     args_.add_argument("experiment", type=Path, help="path to experiments/<id>/experiment.yaml")
+    cprep = sub.add_parser("claude-prepare", help="write the claude-code prompt and MCP config into a work folder")
+    cprep.add_argument("case", type=Path, help="path to cases/<id>/case.yaml")
+    cprep.add_argument("experiment", type=Path, help="path to experiments/<id>/experiment.yaml")
+    cprep.add_argument("work", type=Path, help="the run's working folder")
+    cprep.add_argument("container_path", help="the evidence folder's path inside the container")
+    cprep.add_argument("case_id", help="case ID for scan_evidence")
+    cargs = sub.add_parser("claude-args", help="print claude flags from an experiment")
+    cargs.add_argument("experiment", type=Path, help="path to experiments/<id>/experiment.yaml")
+    sub.add_parser("claude-progress", help="print a progress line per stream-json event on stdin")
+    cimp = sub.add_parser("import-claude", help="import a claude-code run into an experiment")
+    cimp.add_argument("experiment", type=Path, help="path to experiments/<id>/experiment.yaml")
+    cimp.add_argument("label", help="label of the variant the run used")
+    cimp.add_argument("work", type=Path, help="the run's working folder")
+    cimp.add_argument("case_id", help="the case ID given to scan_evidence")
+    cimp.add_argument("--image-id", help="ID of the image the run used")
     return parser
 
 
@@ -141,6 +157,18 @@ def main() -> None:
     elif args.command == "briefing":
         section = answer_section(args.experiment) if args.experiment else False
         print(write_briefing(args.case, args.evidence_dir, args.container_path, section))
+    elif args.command == "claude-prepare":
+        claude_code.prepare(args.case, args.experiment, args.work, args.container_path, args.case_id)
+    elif args.command == "claude-args":
+        print(claude_code.claude_args(args.experiment))
+    elif args.command == "claude-progress":
+        claude_code.progress()
+    elif args.command == "import-claude":
+        out, score = claude_code.import_run(args.experiment, args.label, args.work, args.case_id, args.image_id)
+        print(
+            f"{args.label}: {score['passed']}/{score['total']} questions, "
+            f"{score['facts_found']}/{score['facts_total']} facts -> {out}"
+        )
     elif args.command == "import-investigate":
         out = import_from_experiment(args.experiment, args.label, args.mulder_cases, args.case_id, args.image_id)
         score = json.loads((out / "score.json").read_text())

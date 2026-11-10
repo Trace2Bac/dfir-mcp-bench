@@ -1,0 +1,78 @@
+---
+title: Findings so far
+sidebar_position: 0
+---
+
+# Findings so far
+
+What the experiments show as of November 2026, and how far each result can
+be trusted. Every number links to an experiment with its runs, logs and
+answer key.
+
+## Results
+
+| Experiment | Case | Harness | Score | Ceiling (scripted) |
+|---|---|---|---|---|
+| [EXP-001](../experiments/EXP-001) | synthetic DNS/SMTP capture | bench-runner, qwen3.5-9b | 0/5 runs passed before PR #274, 5/5 after | 0/3 before, 3/3 after |
+| [EXP-002](../experiments/EXP-002) | Rhino Hunt (DFRWS 2005) | `mulder investigate`, Opus 4.6 | 4/7 questions, 12/22 facts | 5/7, 15/22 |
+| [EXP-003](../experiments/EXP-003) | NIST CFTT `dfr-01-fat` | scripted only so far | - | 5/5, 14/14 (with workarounds) |
+| [EXP-004](../experiments/EXP-004) | NIST CFTT `dfr-01-fat` | `mulder investigate`, Opus 4.6 | 3/5 questions, 8/14 facts | 5/5, 14/14 |
+| [EXP-005](../experiments/EXP-005) | NIST Hacking Case, 31 questions | `mulder investigate`, Opus 4.6 | 22/29 questions, 39/47 facts (+1 of 2 on review) | - |
+| [EXP-006](../experiments/EXP-006) | NIST Hacking Case, 31 questions | `mulder investigate`, Sonnet 4.6 | first run stopped before the report (API credit ran out) | - |
+| [EXP-007](../experiments/EXP-007) | NIST Hacking Case, 31 questions | Claude Code with `mulder serve`, Opus 4.6 | planned | - |
+| [EXP-008](../experiments/EXP-008) | NIST Hacking Case, 31 questions | Claude Code with `mulder serve`, Haiku 4.5 | planned | - |
+
+The `mulder investigate` runs cost about $1.5 to $3 each at list prices,
+counting the tokens mulder reports (cache reads and writes are not
+included). Each took 25 to 36 minutes.
+
+## What the runs show
+
+- **Where mulder has the tools, Claude answers.** On the Hacking Case it got
+  nearly every registry, account, e-mail, IRC and program question right.
+- **Most misses trace to the tools, not the model.** In EXP-002, 9 of the 10
+  facts missed need features mulder lacks (carved files are deleted after
+  listing). In EXP-004, `run_fls` did not index the small FAT12 and FAT16
+  partitions. In EXP-005, the media hash stored in the E01 was never read,
+  the capture file inside the image was not found because it has no
+  extension, and the antivirus scan ran on the compressed E01 segments.
+- **Some gaps are seen but cannot be closed.** In EXP-004 the
+  alternative-narrative phase noticed the unread partitions, but its
+  executor may not call the extraction tools.
+- **Some misses are the model's.** In EXP-005, four answers differ from
+  NIST's key where the evidence was available (Q4, Q7, Q16, Q30), and the
+  report claimed a hash match it never checked.
+- **A weak model needs a strong harness.** The 9B local model handled a
+  narrow fix case well (EXP-001) but not a full investigation.
+
+## Choosing a case
+
+The NIST Hacking Case (EXP-005) is the default for whole-investigation
+comparisons: NIST wrote the answer key, it has 31 questions, it covers many
+evidence types and a run costs about $2. The other cases are kept for one
+purpose each: `dfr-01-fat` for partition handling, Rhino Hunt for carving,
+the synthetic capture for PR #274.
+
+## Limits
+
+- **Single runs.** Each Claude result is one run. Model runs vary, so a
+  difference between labels counts only when it is larger than the spread
+  of repeated runs (at least three per label). Scripted runs are
+  deterministic and need one.
+- **Public answer keys.** The answers to every trusted public case are on
+  the web and may be in a model's training data. This weighs less on a
+  before/after comparison, since both labels use the same model, and
+  scripted runs use no model at all. The scoring also requires the tools a
+  question depends on. The runs so far do not look memorised: EXP-005
+  missed well-known answers (Q24, Q25) when the tool did not reach the
+  evidence. A run with the questions and no evidence would show directly
+  which answers a model knows already.
+- **Scoring changed after EXP-005.** Whole-number matching and per-question
+  scoring were added after its first run, which lowered its score from
+  26/29 to 22/29. From now on the scoring is fixed before a run.
+- **String matching.** The automatic score checks for expected strings. The
+  answers have not been reviewed by a person yet (`./bench.sh review`).
+- **One model family.** All `mulder investigate` runs use Claude; EXP-006
+  is the first with a cheaper model. EXP-007 runs Claude Code on mulder's MCP
+  tools without the orchestrator; it is a different harness, so its score
+  does not compare directly with EXP-005 except as the orchestrator's effect.

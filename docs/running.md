@@ -124,6 +124,37 @@ Each run costs money: EXP-002 used 134.5K output tokens (about $3 at list
 prices for what mulder reports). mulder's counts leave out cache reads and
 writes, so check the provider's usage page for the real cost.
 
+## Running Claude Code with mulder's tools
+
+Experiments with `harness: claude-code` (EXP-007) run the same command.
+Claude Code, as bundled in mulder's image, runs headless (`claude -p`) with
+`mulder serve` as its only MCP server and its built-in tools turned off, so
+it reaches the evidence only through mulder. It is given one prompt: create
+the case with `scan_evidence`, then the same briefing and `Case Q<n>`
+questions that `MULDER.md` carries. Model and effort come from
+`harness_options` (`model`, `effort`).
+
+```
+./bench.sh login                             # once: sign in with a Claude subscription
+./bench.sh investigate EXP-007 --dry-run     # writes claude/prompt.md and claude/mcp.json; nothing is started
+./bench.sh investigate EXP-007
+```
+
+The terminal shows one line per tool call. The raw stream-json output is kept
+with the run (`claude/stream.jsonl`) next to the prompt; the import scores the
+final message on its `Case Q<n>:` lines and lists every mulder call with its
+result in `transcript.jsonl`. Claude Code's token counts include cache reads
+and writes, and `api_cost_usd` in `run.json` is what they would cost on the
+API; a subscription is not billed per run but counts toward its usage
+limits. A run that ends in an error (a sign-in that expired, a usage limit)
+is not imported.
+
+`./bench.sh login` runs Claude Code's own sign-in (`claude auth login`) in the
+image; it prints a URL to open in a browser and asks for the code shown
+there. The sign-in is kept in `data/claude/` (git-ignored, like all of
+`data/`) and reused by every run. A token from `claude setup-token` in
+`CLAUDE_CODE_OAUTH_TOKEN` works instead.
+
 ## Look at the results and publish
 
 ```

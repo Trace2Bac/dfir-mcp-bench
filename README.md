@@ -21,7 +21,9 @@ cite them.
 | [EXP-003](experiments/EXP-003/experiment.yaml) | in progress | baseline: deleted file recovery on a NIST CFTT test image (three FAT partitions) | scripted 5/5, only with workarounds for three disk-tool problems; model runs pending |
 | [EXP-004](experiments/EXP-004/experiment.yaml) | done | baseline: `mulder investigate` (Claude) on the same NIST image | 3/5 questions, 8/14 facts (scripted 5/5): run_fls skipped the small FAT12 and FAT16 partitions, and the later phase that noticed could not re-run it |
 | [EXP-005](experiments/EXP-005/experiment.yaml) | done | baseline: `mulder investigate` (Claude) on the NIST Hacking Case, all 31 questions of NIST's answer key | 22/29 questions, 39/47 facts; misses include the E01 media hash, an AV scan of the compressed segments and the capture file inside the image |
-| [EXP-006](experiments/EXP-006/experiment.yaml) | planned | baseline: EXP-005 with Sonnet 4.6 as planner and analyst | not run yet |
+| [EXP-006](experiments/EXP-006/experiment.yaml) | planned | baseline: EXP-005 with Sonnet 4.6 as planner and analyst | first run stopped before the report (API credit ran out) |
+| [EXP-007](experiments/EXP-007/experiment.yaml) | planned | baseline: Claude Code (Opus 4.6) with only `mulder serve` as tools, same case and questions as EXP-005 | not run yet |
+| [EXP-008](experiments/EXP-008/experiment.yaml) | planned | baseline: EXP-007 with Haiku 4.5, to see whether the cheapest model is enough for repeated runs | not run yet |
 
 Each experiment's `conclusion` states what the results show and their limits;
 `results/summary.md` has the numbers.
@@ -55,6 +57,10 @@ needs.
   (`mulder investigate`, Claude Agent SDK). `./bench.sh investigate` writes the
   case briefing and questions to `MULDER.md`, runs it and imports the report;
   it needs `ANTHROPIC_API_KEY` for Claude models.
+- `claude-code`: Claude Code runs the investigation itself with `mulder serve`
+  as its only tools (built-in tools off), headless (`claude -p`). The Claude
+  Code version is the one bundled in mulder's image. `./bench.sh investigate`
+  runs it too, signed in to a Claude subscription with `./bench.sh login`.
 
 ## Method
 
@@ -102,6 +108,7 @@ are Linux. What else you need depends on what you run:
 |---|---|
 | `./bench.sh check`, `run --scripted` (no model) | Docker |
 | `./bench.sh investigate` (`mulder investigate` with Claude) | Docker and an Anthropic API key. mulder runs Claude through the Claude Agent SDK inside its image; nothing else is installed on Windows |
+| `./bench.sh investigate` (harness `claude-code`) | Docker and a Claude subscription (`./bench.sh login` once) |
 | `./bench.sh run` with a local model | Docker and LM Studio |
 
 1. Install Docker Desktop (WSL 2 backend) and a WSL distribution such as
@@ -125,6 +132,16 @@ are Linux. What else you need depends on what you run:
    ```
    Every run costs money (EXP-002 reported 134.5K output tokens, about $3 at
    list prices before cache tokens).
+
+   Claude Code with a Claude subscription instead (EXP-007):
+   ```
+   ./bench.sh login                           # once: sign in with a Claude subscription
+   ./bench.sh investigate EXP-008             # Haiku 4.5: try first, uses the least of the limits
+   ./bench.sh investigate EXP-007             # Opus 4.6
+   ```
+   The sign-in is kept in `data/claude/` (never committed). Runs count
+   toward the subscription's usage limits; a run stopped by a limit is not
+   imported.
 5. Only for local-model runs: start LM Studio's server on Windows (port 1234,
    context 32K or more), `cp .env.example .env` and set `MODEL_NAME`, then
    `MODEL_REASONING_EFFORT=none ./bench.sh run EXP-003 --repeat 3`. Containers

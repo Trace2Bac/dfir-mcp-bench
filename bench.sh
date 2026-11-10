@@ -12,9 +12,13 @@
 #   ./bench.sh summary <experiment>                   compare labels and models over all runs
 #   ./bench.sh review  <experiment> [model]           review unreviewed model runs, question by question
 #   ./bench.sh investigate <experiment> [label...] [--dry-run]
-#                                                     run `mulder investigate` (harness mulder-investigate)
-#                                                     on each label and import it; needs ANTHROPIC_API_KEY
-#                                                     in the environment for Claude models
+#                                                     run a whole investigation on each label and import it:
+#                                                     `mulder investigate` (harness mulder-investigate; needs
+#                                                     ANTHROPIC_API_KEY for Claude models) or Claude Code with
+#                                                     `mulder serve` as its tools (harness claude-code; needs
+#                                                     `./bench.sh login` once, or CLAUDE_CODE_OAUTH_TOKEN)
+#   ./bench.sh login                                  sign Claude Code in to a Claude subscription for the
+#                                                     claude-code harness; kept in data/claude/, never committed
 #   ./bench.sh import  <experiment> <label> <mulder-cases-dir> <case-id>
 #                                                     record a `mulder investigate` run (harness
 #                                                     mulder-investigate) as run-1 of that label
@@ -36,7 +40,7 @@ CHECK_DIR=${BENCH_CHECK_DIR:-}
 # generates evidence with the same tools.
 TOOLS_IMAGE=ghcr.io/calebevans/mulder:1.5.10@sha256:b14737ebf9c4cb155e00ebe617d615db25840bdc55a3ca619c99647131550cfb
 
-usage() { sed -n '2,27p' "$0" | sed 's/^# \{0,1\}//'; exit 1; }
+usage() { sed -n '2,/^set /p' "$0" | grep '^#' | sed 's/^# \{0,1\}//'; exit 1; }
 
 # Export .env settings that are not already set, so a one-off override such as
 # `MODEL_REASONING_EFFORT=none ./bench.sh run ...` wins over the file.
@@ -57,9 +61,58 @@ variant_file() {
 
 # Run a command from this repository inside TOOLS_IMAGE, as the host user so
 # that files written under data/ stay owned by that user.
+# Claude Code as bundled with mulder's Claude Agent SDK in the image.
+CLAUDE_BIN=/usr/local/lib/python3.12/dist-packages/claude_agent_sdk/_bundled/claude
+# Its sign-in (`./bench.sh login`) lives in data/claude/ on the host. Mounted
+# under ~/.mulder, which the image's entrypoint hands to the mulder user.
+CLAUDE_CONFIG=/home/mulder/.mulder/claude
+
 in_tools() {
     docker run --rm --entrypoint "" --user "$(id -u):$(id -g)" -e HOME=/tmp \
         -v "$ROOT:/bench" -w /bench "$TOOLS_IMAGE" "$@"
+}
+
+# One claude-code run: Claude Code (bundled in the image, so pinned with it)
+# runs headless with only mulder's tools, and its stream-json output is kept
+# and shown as one line per step. Used by `investigate`.
+claude_investigate() {
+    local e=$1 label=$2 v=$3 yaml=$4 c=$5 folder=$6 work=$7 opts=$8
+    in_tools env PYTHONPATH=runner python3 -m bench claude-prepare "cases/$c/case.yaml" "$yaml" \
+        "$work" "/evidence/$folder" "$c"
+    echo "== $e $label [$v]: claude -p <$work/claude/prompt.md> $opts, tools: mulder serve only"
+    if [ "$dry" = 1 ]; then
+        echo "   dry run: prepared $work (claude/prompt.md written); nothing started"
+        return
+    fi
+    # Built-in tools off (--tools ""), mulder's tools allowed without asking.
+    # The token is passed by name from this shell, not on the command line.
+    # stream-json comes out on stdout: kept as is, and shown one line per step.
+    # shellcheck disable=SC2016
+    docker run --rm --privileged -e CLAUDE_CODE_OAUTH_TOKEN \
+        -e CLAUDE_CONFIG_DIR="$CLAUDE_CONFIG" -v "$ROOT/data/claude:$CLAUDE_CONFIG" \
+        -e CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 -e MCP_TIMEOUT=120000 -e MCP_TOOL_TIMEOUT=7200000 \
+        -e OPTS="$opts" \
+        -v "$ROOT/$work/evidence:/evidence:ro" \
+        -v "$ROOT/$work/cases:/home/mulder/.mulder/cases" \
+        -v "$ROOT/$work/claude:/work:ro" \
+        "dfir-mcp-bench/mulder:$v" bash -c 'cd /tmp && '"$CLAUDE_BIN"' -p "$(cat /work/prompt.md)" $OPTS \
+            --mcp-config /work/mcp.json --strict-mcp-config --tools "" --allowedTools mcp__mulder \
+            --no-session-persistence --output-format stream-json --verbose' \
+        | tee "$work/claude/stream.jsonl" \
+        | docker run --rm -i --entrypoint "" --user "$(id -u):$(id -g)" -e HOME=/tmp \
+            -v "$ROOT:/bench" -w /bench -e PYTHONPATH=runner "$TOOLS_IMAGE" python3 -m bench claude-progress \
+        || echo "claude on $label exited with a failure" >&2
+    # Imported only when Claude Code finished without an error (an API or
+    # usage-limit error also ends with a result event, marked is_error).
+    if grep '"type":"result"' "$work/claude/stream.jsonl" 2>/dev/null | grep -q '"is_error":false'; then
+        local image_id
+        image_id=$(docker image inspect -f '{{.Id}}' "dfir-mcp-bench/mulder:$v" 2>/dev/null || true)
+        in_tools env PYTHONPATH=runner python3 -m bench import-claude "$yaml" "$label" "$work" "$c" \
+            ${image_id:+--image-id "$image_id"}
+        summarize "$e"
+    else
+        echo "no finished result in $work/claude/stream.jsonl; nothing imported" >&2
+    fi
 }
 
 # Folder of an experiment: experiments/EXP-<nnn>. Accepts EXP-001, EXP-1 or 1.
@@ -206,15 +259,27 @@ investigate)
     for a in "$@"; do case "$a" in --dry-run) dry=1 ;; *) labels+=("$a") ;; esac; done
     set -- ${labels[@]+"${labels[@]}"}
     yaml=$(experiment_file "$e")
-    [ "$(yaml_field "$yaml" harness)" = mulder-investigate ] || { echo "$yaml: harness is not mulder-investigate" >&2; exit 1; }
+    harness=$(yaml_field "$yaml" harness)
+    case "$harness" in
+    mulder-investigate | claude-code) ;;
+    *) echo "$yaml: harness '$harness' is not mulder-investigate or claude-code" >&2; exit 1 ;;
+    esac
     c=$(yaml_field "$yaml" case)
     folder=$(yaml_field "cases/$c/case.yaml" evidence)
     [ -d "data/evidence/$folder" ] || { echo "no evidence in data/evidence/$folder; run ./bench.sh prepare first" >&2; exit 1; }
-    # Model flags from harness_options (models: {planner: .., executor: .., analyst: ..}, effort: ..).
-    opts=$(in_tools env PYTHONPATH=runner python3 -m bench investigate-args "$yaml")
     load_env
-    if [ "$dry" = 0 ] && [ -z "${ANTHROPIC_API_KEY:-}" ] && echo "$opts" | grep -q claude-; then
-        echo "ANTHROPIC_API_KEY is not set; export it in this shell (it is never written to a file)" >&2; exit 1
+    if [ "$harness" = claude-code ]; then
+        # Model and effort from harness_options (model: .., effort: ..).
+        opts=$(in_tools env PYTHONPATH=runner python3 -m bench claude-args "$yaml")
+        if [ "$dry" = 0 ] && [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ ! -f data/claude/.credentials.json ]; then
+            echo "Claude Code is not signed in; run ./bench.sh login (or export CLAUDE_CODE_OAUTH_TOKEN)" >&2; exit 1
+        fi
+    else
+        # Model flags from harness_options (models: {planner: .., executor: .., analyst: ..}, effort: ..).
+        opts=$(in_tools env PYTHONPATH=runner python3 -m bench investigate-args "$yaml")
+        if [ "$dry" = 0 ] && [ -z "${ANTHROPIC_API_KEY:-}" ] && echo "$opts" | grep -q claude-; then
+            echo "ANTHROPIC_API_KEY is not set; export it in this shell (it is never written to a file)" >&2; exit 1
+        fi
     fi
     pairs=$(experiment_variants "$yaml")
     [ $# -gt 0 ] || while read -r l _; do set -- "$@" "$l"; done <<< "$pairs"
@@ -232,6 +297,10 @@ investigate)
         trap 'rmdir "$work.lock" 2>/dev/null' EXIT
         rm -rf "$work"; mkdir -p "$work/evidence" "$work/cases"
         cp -R "data/evidence/$folder" "$work/evidence/$folder"
+        if [ "$harness" = claude-code ]; then
+            claude_investigate "$e" "$label" "$v" "$yaml" "$c" "$folder" "$work" "$opts"
+            rmdir "$work.lock"; trap - EXIT; continue
+        fi
         in_tools env PYTHONPATH=runner python3 -m bench briefing "cases/$c/case.yaml" \
             "$work/evidence/$folder" "/evidence/$folder" --experiment "$yaml" >/dev/null
         cp "$work/evidence/$folder/MULDER.md" "$work/cases/MULDER.md"   # kept with the run
@@ -268,6 +337,15 @@ import)
     in_tools env PYTHONPATH=runner python3 -m bench import-investigate "$yaml" "$label" "$src" "$cid" \
         ${image_id:+--image-id "$image_id"}
     summarize "$e"
+    ;;
+login)
+    # Claude Code's own sign-in, in the image that runs it; it prints a URL to
+    # open in a browser and asks for the code shown there.
+    v=mulder-1.5.10
+    build "$v" -q >/dev/null
+    mkdir -p data/claude
+    docker run --rm -it -e CLAUDE_CONFIG_DIR="$CLAUDE_CONFIG" -v "$ROOT/data/claude:$CLAUDE_CONFIG" \
+        "dfir-mcp-bench/mulder:$v" bash -c "$CLAUDE_BIN auth login && $CLAUDE_BIN auth status"
     ;;
 check)
     if [ $# -eq 0 ]; then

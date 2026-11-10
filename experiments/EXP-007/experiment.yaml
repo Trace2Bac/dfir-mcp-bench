@@ -1,0 +1,44 @@
+# EXP-007: one verification. The folder name is its permanent identifier;
+# the title may change.
+title: "Baseline: Claude Code with mulder's MCP tools on the NIST Hacking Case"
+title_ko: "기준선: mulder MCP 도구를 쓰는 Claude Code로 NIST Hacking Case 조사"
+server: mulder
+kind: baseline                   # bug-fix | feature | ablation | baseline
+status: planned                  # planned | in-progress | done
+change: >
+  None. Unmodified mulder 1.5.10 served over MCP (`mulder serve`) to Claude
+  Code, which investigates the NIST CFReDS Hacking Case on its own, without
+  mulder's five-phase orchestrator, and answers all 31 questions of NIST's
+  answer key. Claude Code's built-in tools are off, so mulder is its only way
+  to the evidence. Compared with EXP-005 (same model, mulder investigate), it
+  shows what the orchestrator adds; it is also the harness for repeated
+  before/after runs on a Claude subscription.
+change_ko: >
+  변경 없음. 수정하지 않은 mulder 1.5.10을 MCP(`mulder serve`)로 Claude Code에 연결하고,
+  Claude Code가 mulder의 다섯 단계 오케스트레이터 없이 혼자 NIST CFReDS Hacking Case를
+  조사해 NIST 정답지 31개 질문에 답한다. Claude Code의 내장 도구는 꺼서 증거에는 mulder로만
+  접근한다. EXP-005(같은 모델, mulder investigate)와 비교하면 오케스트레이터의 효과를 볼 수
+  있고, Claude 구독으로 before/after를 반복 실행하는 하네스로도 쓴다.
+links:
+  - https://cfreds-archive.nist.gov/Hacking_Case.html
+  - https://cfreds-archive.nist.gov/images/TestAnswers.pdf
+
+case: nist-hacking-case
+harness: claude-code
+harness_options:
+  model: claude-opus-4-6         # the planner and analyst model of EXP-005
+  effort: max
+  auth: Claude subscription (`./bench.sh login`)
+  # The prompt carries the same briefing and questions as EXP-005's MULDER.md,
+  # with the same "Case Q<n>" answer lines.
+  answer_section: true
+
+variants:
+  before: mulder-1.5.10          # upstream release
+
+conclusion: >
+  Not run yet. Compare with EXP-005 (mulder investigate, Opus 4.6: 22/29
+  questions, 39/47 facts).
+conclusion_ko: >
+  아직 실행하지 않음. EXP-005(mulder investigate, Opus 4.6: 질문 22/29, 사실 39/47)와
+  비교한다.

@@ -80,8 +80,8 @@ function Conditions({data}: {data: ExperimentData}) {
         </tbody>
       </table>
       <div className={styles.facts}>
-        {/* The case's tool list applies to bench-runner; mulder investigate picks from all of mulder's tools. */}
-        {data.harness !== 'mulder-investigate' && (
+        {/* The case's tool list applies to bench-runner; the other harnesses get all of mulder's tools. */}
+        {(data.harness ?? 'bench-runner') === 'bench-runner' && (
           <div>
             <span>
               <Translate id="case.tools">Tools shown to the model</Translate>
@@ -107,11 +107,24 @@ function Conditions({data}: {data: ExperimentData}) {
             <div key={model}>
               <span>{model}</span> <code>{info.harness?.name}</code>{' '}
               {Object.entries<string>(info.harness?.models ?? {}).map(([role, m]) => `${role} ${m}`).join(' · ')}
+              {info.harness?.claude_code_version && `Claude Code ${info.harness.claude_code_version} · ${info.harness.model}`}
               {info.harness?.effort && ` · effort ${info.harness.effort}`}
-              {info.token_usage?.length > 0 && (
+              {info.token_usage?.length > 0 && info.api_cost_usd == null && (
                 <div className={styles.small}>
                   <Translate id="case.tokens">Tokens reported by the harness (cache not included):</Translate>{' '}
                   {info.token_usage.map((u: any) => `${u.model} in ${u.input_tokens} / out ${u.output_tokens}`).join(' · ')}
+                </div>
+              )}
+              {info.api_cost_usd != null && (
+                <div className={styles.small}>
+                  <Translate id="case.tokensCache">Tokens reported by the harness (with cache):</Translate>{' '}
+                  {info.token_usage
+                    .map(
+                      (u: any) =>
+                        `${u.model} in ${u.input_tokens} / out ${u.output_tokens} / cache read ${u.cache_read_tokens} / cache write ${u.cache_write_tokens}`,
+                    )
+                    .join(' · ')}{' '}
+                  · <Translate id="case.apiCost">API price</Translate> ${info.api_cost_usd.toFixed(2)}
                 </div>
               )}
             </div>
