@@ -22,6 +22,46 @@ const median = (xs: number[]) => {
 // Review verdicts on the four-level scale mulder uses for its own runs; pass and
 // fail come from reviews written before it.
 const verdictOf = (v?: string) => (v === 'pass' ? 'found' : v === 'fail' ? 'missed' : (v ?? ''));
+// Literal translate() calls so that `write-translations` can find them.
+function verdictName(v: string): string {
+  switch (v) {
+    case 'found':
+      return translate({id: 'verdict.found', message: 'found'});
+    case 'partial':
+      return translate({id: 'verdict.partial', message: 'partial'});
+    case 'false positive':
+      return translate({id: 'verdict.falsePositive', message: 'false positive'});
+    default:
+      return translate({id: 'verdict.missed', message: 'missed'});
+  }
+}
+
+// One small square per reviewed run, coloured by its verdict.
+function VerdictMarks({verdicts}: {verdicts: string[]}) {
+  return (
+    <span className={styles.marks}>
+      {verdicts.map((v, i) => (
+        <span key={i} className={clsx(styles.mark, markClass(v))} title={verdictName(v)} />
+      ))}
+    </span>
+  );
+}
+
+const markClass = (v: string) =>
+  v === 'found' ? styles.markFound : v === 'partial' ? styles.markPartial : v === 'false positive' ? styles.markFp : styles.markMissed;
+
+function VerdictLegend() {
+  return (
+    <span className={styles.legend}>
+      {['found', 'partial', 'missed', 'false positive'].map(v => (
+        <span key={v}>
+          <span className={clsx(styles.mark, markClass(v))} /> {verdictName(v)}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 const verdictClass = (v: string) => (v === 'found' ? styles.pass : v === 'missed' || v === 'false positive' ? styles.fail : undefined);
 
 // Per reviewed run, the share of questions: found, found or partial, false positives (extra ones included).
@@ -413,8 +453,9 @@ function Questions({data}: {data: ExperimentData}) {
       note={translate({
         id: 'case.questions.note',
         message:
-          "scripted: whether the tool output holds every expected fact. Model runs: the reviewers' verdicts (found, partial, missed, false positive) over the reviewed runs.",
+          "scripted: whether the tool output holds every expected fact. Model runs: one square per reviewed run, coloured by the reviewer's verdict.",
       })}>
+      <VerdictLegend />
       <div className={styles.tableScroll}>
         <table className={clsx(styles.table, styles.questionTable)}>
           <thead>
@@ -469,31 +510,14 @@ function Questions({data}: {data: ExperimentData}) {
                     );
                   }
                   const reviewed = g.runs.filter(r => r.review);
-                  const count = (v: string) => reviewed.filter(r => verdictOf(r.review!.questions[q.id]?.verdict) === v).length;
                   return (
                     <td key={g.label + g.model} className={styles.verdictCol}>
                       {reviewed.length === 0 ? (
                         <span className={styles.small}>
                           <Translate id="case.notReviewed">not reviewed</Translate>
                         </span>
-                      ) : reviewed.length === 1 ? (
-                        <span className={verdictClass(verdictOf(reviewed[0].review!.questions[q.id]?.verdict))}>
-                          {verdictOf(reviewed[0].review!.questions[q.id]?.verdict)}
-                        </span>
                       ) : (
-                        <span className={styles.small}>
-                          <Translate
-                            id="case.reviewCell"
-                            values={{
-                              found: count('found'),
-                              partial: count('partial'),
-                              missed: count('missed'),
-                              fp: count('false positive'),
-                              reviewed: reviewed.length,
-                            }}>
-                            {'found {found}, partial {partial}, missed {missed}, false positive {fp} (of {reviewed})'}
-                          </Translate>
-                        </span>
+                        <VerdictMarks verdicts={reviewed.map(r => verdictOf(r.review!.questions[q.id]?.verdict))} />
                       )}
                     </td>
                   );
@@ -625,12 +649,131 @@ function EventView({e}: {e: Event}) {
   return null;
 }
 
+// Tool calls of a run: one row per tool (in order of first use), one dot per
+// call along the run's time, or along the call order when no times were kept.
+function ToolDiagram({run}: {run: Run}) {
+  const calls = run.events.filter(e => e.kind === 'tool_call' || e.kind === 'setup');
+  if (!calls.length) {
+    return (
+      <p className={styles.small}>
+        <Translate id="run.noToolCalls">No tool calls.</Translate>
+      </p>
+    );
+  }
+  const timed = calls.every(e => typeof e.t === 'number') && calls.some(e => e.t > 0);
+  const pos = calls.map((e, i) => (timed ? Number(e.t) : i));
+  const span = Math.max(...pos, 1);
+  const tools = [...new Set(calls.map(e => String(e.tool ?? e.kind)))];
+  const row = 16;
+  const labelWidth = 190;
+  const width = 640;
+  const plot = width - labelWidth - 40;
+  const height = tools.length * row + 24;
+  const count = (t: string) => calls.filter(e => String(e.tool ?? e.kind) === t).length;
+  return (
+    <div className={styles.diagram}>
+      <div className={styles.small}>
+        {timed
+          ? translate({id: 'run.diagram.time', message: '{calls} calls over {seconds} s, by tool'}, {calls: calls.length, seconds: Math.round(span)})
+          : translate({id: 'run.diagram.order', message: '{calls} calls in order, by tool'}, {calls: calls.length})}
+      </div>
+      <svg viewBox={`0 0 ${width} ${height}`} width="100%" role="img">
+        {tools.map((t, i) => (
+          <g key={t}>
+            {i % 2 === 1 && <rect x={0} y={i * row} width={width} height={row} className={styles.diagramStripe} />}
+            <text x={labelWidth - 6} y={i * row + 11.5} textAnchor="end" className={styles.diagramLabel}>
+              {t.length > 28 ? `${t.slice(0, 27)}…` : t}
+            </text>
+            <text x={width - 4} y={i * row + 11.5} textAnchor="end" className={styles.diagramLabel}>
+              {count(t)}
+            </text>
+          </g>
+        ))}
+        {calls.map((e, i) => (
+          <circle
+            key={i}
+            cx={labelWidth + (pos[i] / span) * plot}
+            cy={tools.indexOf(String(e.tool ?? e.kind)) * row + row / 2}
+            r={3}
+            className={e.is_error ? styles.diagramError : styles.diagramDot}>
+            <title>{`${String(e.tool ?? e.kind)}${timed ? ` · ${Math.round(Number(e.t))} s` : ` · #${i + 1}`}`}</title>
+          </circle>
+        ))}
+        <text x={labelWidth} y={height - 4} className={styles.diagramLabel}>
+          0
+        </text>
+        <text x={labelWidth + plot} y={height - 4} textAnchor="end" className={styles.diagramLabel}>
+          {timed ? `${Math.round(span)} s` : `#${calls.length}`}
+        </text>
+      </svg>
+    </div>
+  );
+}
+
+// The run's answer to each question, with the reviewer's verdict and note, so a
+// run can be read question by question before its turns.
+function RunAnswers({data, run}: {data: ExperimentData; run: Run}) {
+  const split = Object.keys(run.answers).length > 0;
+  return (
+    <div className={styles.answers}>
+      {run.review && (
+        <div className={styles.small}>
+          <Translate id="run.review" values={{reviewer: run.review.reviewer || '?'}}>
+            {'Review by {reviewer}'}
+          </Translate>
+        </div>
+      )}
+      {!split && (
+        <p className={styles.small}>
+          <Translate id="run.notSplit">The answer has no line per question; read it in full below.</Translate>
+        </p>
+      )}
+      {data.questions.map(q => {
+        const v = run.review?.questions[q.id];
+        const verdict = verdictOf(v?.verdict);
+        return (
+          <div key={q.id} className={styles.answerRow}>
+            <div className={styles.answerHead}>
+              <code>{q.id}</code>
+              <span className={styles.questionText}>{q.text}</span>
+              {v && (
+                <span className={styles.verdictTag}>
+                  <span className={clsx(styles.mark, markClass(verdict))} /> {verdictName(verdict)}
+                </span>
+              )}
+            </div>
+            {split && <div className={styles.answerText}>{run.answers[q.id] || '—'}</div>}
+            {v?.note && <div className={styles.answerNote}>{v.note}</div>}
+          </div>
+        );
+      })}
+      {(run.review?.extra_false_positives ?? []).map((claim, i) => (
+        <div key={`x${i}`} className={styles.answerRow}>
+          <div className={styles.answerHead}>
+            <span className={styles.verdictTag}>
+              <span className={clsx(styles.mark, styles.markFp)} />{' '}
+              <Translate id="run.extraFalsePositive">false positive outside the questions</Translate>
+            </span>
+          </div>
+          <div className={styles.answerNote}>{claim}</div>
+        </div>
+      ))}
+      {!run.review && (
+        <p className={styles.small}>
+          <Translate id="run.notReviewed">Not reviewed yet.</Translate>
+        </p>
+      )}
+    </div>
+  );
+}
+
 function RunPanel({data, side, repoTree}: {data: ExperimentData; side: number; repoTree: string}) {
   const label = data.variants[side]?.label;
   const groups = data.groups.filter(g => g.label === label);
   const defaultGroup = groups.find(g => g.model !== 'scripted') ?? groups[0];
   const [model, setModel] = useState(defaultGroup?.model);
   const [runNo, setRunNo] = useState(1);
+  const [tab, setTab] = useState<'answers' | 'turns' | 'tools'>('answers');
   const group = groups.find(g => g.model === model);
   const run: Run | undefined = group?.runs.find(r => r.run === runNo) ?? group?.runs[0];
   if (!label) return null;
@@ -672,42 +815,32 @@ function RunPanel({data, side, repoTree}: {data: ExperimentData; side: number; r
               </a>
             )}
           </div>
-          {run.review ? (
-            <div className={styles.review}>
-              <strong>
-                <Translate id="run.review" values={{reviewer: run.review.reviewer || '?'}}>
-                  {'Review by {reviewer}'}
-                </Translate>
-              </strong>
-              {Object.entries(run.review.questions).map(([id, v]) => (
-                <div key={id}>
-                  <code>{id}</code> <span className={verdictClass(verdictOf(v.verdict))}>{verdictOf(v.verdict)}</span>
-                  {v.note && <span className={styles.small}> {v.note}</span>}
-                </div>
-              ))}
-              {(run.review.extra_false_positives ?? []).map((claim, i) => (
-                <div key={`x${i}`}>
-                  <span className={styles.fail}>
-                    <Translate id="run.extraFalsePositive">false positive outside the questions</Translate>
-                  </span>{' '}
-                  <span className={styles.small}>{claim}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className={clsx(styles.small, styles.review)}>
-              <Translate id="run.notReviewed">Not reviewed yet.</Translate>
-            </div>
-          )}
-          {run.events.map((e, i) => (
-            <EventView key={i} e={e} />
-          ))}
-          <div className={styles.event}>
-            <span className={styles.kind}>
-              <Translate id="run.finalAnswer">final answer</Translate>
-            </span>
-            <pre className={clsx(styles.pre, styles.modelText)}>{run.answer.trim() || translate({id: 'run.none', message: '(none)'})}</pre>
+          <div className={styles.tabs} role="tablist">
+            {(['answers', 'turns', 'tools'] as const).map(t => (
+              <button key={t} type="button" role="tab" aria-selected={tab === t} className={clsx(styles.tab, tab === t && styles.tabActive)} onClick={() => setTab(t)}>
+                {t === 'answers'
+                  ? translate({id: 'run.tab.answers', message: 'Answers'})
+                  : t === 'turns'
+                    ? translate({id: 'run.tab.turns', message: 'Turn by turn'})
+                    : translate({id: 'run.tab.tools', message: 'Tool calls'})}
+              </button>
+            ))}
           </div>
+          {tab === 'answers' && <RunAnswers data={data} run={run} />}
+          {tab === 'turns' && (
+            <>
+              {run.events.map((e, i) => (
+                <EventView key={i} e={e} />
+              ))}
+              <div className={styles.event}>
+                <span className={styles.kind}>
+                  <Translate id="run.finalAnswer">final answer</Translate>
+                </span>
+                <pre className={clsx(styles.pre, styles.modelText)}>{run.answer.trim() || translate({id: 'run.none', message: '(none)'})}</pre>
+              </div>
+            </>
+          )}
+          {tab === 'tools' && <ToolDiagram run={run} />}
         </>
       ) : (
         <p className={styles.small}>

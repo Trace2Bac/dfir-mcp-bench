@@ -150,6 +150,14 @@
 
 .compareBlock {
   margin-bottom: 1.5rem;
+  overflow-x: auto;
+}
+
+/* On a narrow screen the table keeps a readable width and scrolls. */
+@media (max-width: 720px) {
+  .compare {
+    min-width: 34rem;
+  }
 }
 
 .compareBlock h3 {
@@ -158,12 +166,15 @@
 }
 
 .compare th:first-child {
-  width: 160px;
+  /* The metric names keep their width; the labels share the rest. */
+  width: 11rem;
+  min-width: 11rem;
+  white-space: nowrap;
   font-weight: 500;
 }
 
-.compare td {
-  width: 40%;
+.compare {
+  table-layout: fixed;
 }
 
 .metric {
@@ -174,6 +185,7 @@
 
 .metricValue {
   min-width: 4.5rem;
+  white-space: nowrap;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
 }
@@ -354,4 +366,160 @@
 .code {
   color: var(--bench-muted);
   font-weight: 500;
+}
+
+/* Verdict squares: one per reviewed run */
+.marks {
+  display: inline-flex;
+  gap: 3px;
+  vertical-align: middle;
+}
+
+.mark {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  vertical-align: -1px;
+}
+
+.markFound {
+  background: var(--bench-pass);
+}
+
+.markPartial {
+  background: #d4a72c;
+}
+
+.markMissed {
+  background: var(--ifm-color-emphasis-300);
+}
+
+.markFp {
+  background: var(--bench-fail);
+}
+
+.legend {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.4rem;
+  margin-bottom: 0.6rem;
+  color: var(--bench-muted);
+  font-size: 0.8rem;
+}
+
+.legend > span {
+  margin-right: 0.6rem;
+}
+
+/* Run panel: answers first, the turns folded */
+.answers {
+  margin-bottom: 0.75rem;
+}
+
+.answerRow {
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  background: var(--ifm-background-color);
+  margin-bottom: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.answerHead {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.15rem;
+}
+
+.verdictTag {
+  color: var(--bench-muted);
+  font-size: 0.78rem;
+}
+
+.answerText {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.answerNote {
+  margin-top: 0.2rem;
+  color: var(--bench-muted);
+  font-size: 0.78rem;
+}
+
+.turns > summary {
+  cursor: pointer;
+  padding: 0.4rem 0;
+  color: var(--ifm-color-primary);
+  font-size: 0.85rem;
+}
+
+/* Run panel tabs */
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin: 0.25rem 0 0.75rem;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--ifm-background-color);
+  width: fit-content;
+}
+
+.tab {
+  border: none;
+  border-radius: 8px;
+  padding: 0.3rem 0.8rem;
+  background: transparent;
+  color: var(--bench-muted);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.tab:hover {
+  color: var(--ifm-font-color-base);
+}
+
+.tabActive {
+  background: var(--site-subtle);
+  color: var(--ifm-font-color-base);
+  font-weight: 600;
+}
+
+.questionText {
+  color: var(--bench-muted);
+  font-size: 0.8rem;
+}
+
+.answerHead {
+  flex-wrap: wrap;
+}
+
+/* Tool call diagram */
+.diagram {
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+  background: var(--ifm-background-color);
+}
+
+.diagramLabel {
+  fill: var(--bench-muted);
+  font-size: 10px;
+  font-family: var(--ifm-font-family-monospace);
+}
+
+.diagramStripe {
+  fill: var(--site-subtle);
+  opacity: 0.6;
+}
+
+.diagramDot {
+  fill: var(--ifm-color-primary);
+  opacity: 0.75;
+}
+
+.diagramError {
+  fill: var(--bench-fail);
 }

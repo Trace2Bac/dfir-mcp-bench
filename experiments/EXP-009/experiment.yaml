@@ -58,26 +58,28 @@ variants:
 conclusion: >
   Haiku in every role, five runs per label. With get_completed_results
   passing the result's status and message (after), the message reached the
-  executor, but the claim that no capture exists did
-  not go away: it appeared in 2 of 5 runs before and 2 of 5 after.
-  Reading the executor's reports explains it. The analyst sees the
-  executor's summary, not the tool result, and Haiku rewrote it differently
-  each time: "not found by extension" (run 1) and the full note with the
-  extensions (run 2) were followed by no claim of absence; "no files with
-  standard extensions" (run 3) and "No PCAP files found" (run 5) by the
-  claim; in run 4 the tool was not mentioned and no claim was made. So the
-  limit reached the analysis only when the executor kept it. Review,
-  median (range): before full match 19% (16 to 26), false positives 6% (3
-  to 10); after 26% (19 to 35), 3% (0 to 13); the ranges overlap.
-  The capture was not found in any run (it has no extension). after-2 is
-  to be run five times.
+  executor, but the claim that no capture exists did not go away: 2 of 5
+  runs before and 2 of 5 after. The analyst sees the executor's summary, not
+  the tool result, and Haiku kept the limit in some runs and dropped it in
+  others; the claim followed the runs that dropped it. after-2 carries the
+  limit to the analyst as a "note". The claim then appeared in 1 of 5 runs
+  (run 4, although the full note was in its executor report), and the claim
+  that there is no virus in 2 of 5, as before and after; in run 5 the
+  analyst quoted the ClamAV caveat and still concluded "No viruses
+  detected". Review, median (range): before full match 19% (16 to 26),
+  false positives 6% (3 to 10); after 26% (19 to 35), 3% (0 to 13); after-2
+  26% (19 to 32), 6% (0 to 10). The ranges overlap, so the change is not
+  shown to lower false positives with Haiku: delivering the limit is
+  necessary, but Haiku does not always act on it. The capture was not
+  found by name in any run (it has no extension).
 conclusion_ko: >
   모든 역할 Haiku, 라벨당 5회. get_completed_results가 결과의 상태와 메시지를 넘기게 하자(after)
-  메시지가 executor까지는 전달됐지만,
-  "캡처가 없다"는 단정은 줄지 않았다. before 5회 중 2회, after 5회 중 2회. executor 보고를
-  읽어 보면 이유가 보인다. 분석 단계는 도구 결과가 아니라 executor의 요약을 보는데, Haiku가 매번
-  다르게 옮겼다. "확장자로 찾지 못함"(1회차), 확장자 목록까지 담은 주의(2회차) 뒤에는 단정이 없었고,
-  "표준 확장자 파일 없음"(3회차), "PCAP 파일 없음"(5회차) 뒤에는 단정이 나왔다. 4회차는 이 도구를
-  언급하지 않았고 단정도 없었다. 즉 한계는 executor가 그대로 옮겼을 때만 분석까지 닿았다. 검토
-  중앙값(범위): before 완전 일치 19%(16~26), 오탐 6%(3~10); after 26%(19~35), 3%(0~13).
-  범위가 겹친다. 캡처 파일은 어느 실행에서도 찾지 못했다(확장자가 없음). after-2는 5회 돌릴 예정이다.
+  메시지가 executor까지는 전달됐지만, "캡처가 없다"는 단정은 줄지 않았다. before 5회 중 2회, after
+  5회 중 2회. 분석 단계는 도구 결과가 아니라 executor의 요약을 보는데, Haiku가 한계를 어떤 실행에서는
+  옮기고 어떤 실행에서는 뺐고, 단정은 뺀 실행에서 나왔다. after-2는 한계를 "note"로 analyst까지
+  전달한다. 그러자 "캡처가 없다"는 5회 중 1회(4회차, executor 보고에 note 전문이 있었는데도), "바이러스가
+  없다"는 5회 중 2회로 before, after와 같았다. 5회차는 ClamAV 주의 문구를 그대로 인용하고도 "바이러스
+  없음"으로 결론지었다. 검토 중앙값(범위): before 완전 일치 19%(16~26), 오탐 6%(3~10); after
+  26%(19~35), 3%(0~13); after-2 26%(19~32), 6%(0~10). 범위가 겹치므로 Haiku에서는 이 변경이
+  오탐을 줄인다고 보이지 않았다. 한계 전달은 필요조건이지만, Haiku가 그것을 늘 따르지는 않는다. 캡처
+  파일 이름은 어느 실행에서도 찾지 못했다(확장자가 없음).

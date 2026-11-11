@@ -28,6 +28,9 @@ export type Run = {
   info: Record<string, any>;
   score: Record<string, any> | null; // scripted runs only; model runs are judged by review
   answer: string;
+  // The answer to each question, read from the answer's "Q<n>:" lines; empty
+  // when the answer has none (a report without a questions section).
+  answers: Record<string, string>;
   events: Event[];
   review: Review | null; // human review (review.yaml), null when not reviewed
 };
@@ -92,7 +95,59 @@ function readReview(dir: string): Review | null {
   return complete ? (data as Review) : null;
 }
 
-function readRun(root: string, dir: string): Run {
+// The answer per question from "Q<n>:" lines (also "Case Q<n>:", "**Q<n>.**",
+// and ranges such as "Q28-Q30:"). An answer runs on until a blank line or a
+// heading. When the text has a "Case Questions" section, only that section is
+// read, since a mulder report has its own numbered questions earlier on.
+export function splitAnswers(text: string, questions: {id: string; text?: string}[]): Record<string, string> {
+  const ids = questions.map(q => q.id);
+  const lines = text.split('\n');
+  const section = lines.map((l, i) => (/^\W*#*\W*case questions/i.test(l) ? i : -1)).filter(i => i >= 0).pop();
+  const body = section === undefined ? lines : lines.slice(section + 1);
+  const label = /^[\s*_#>-]*(?:case\s*)?(q\d+)(?:\s*[-\u2013]\s*(?:case\s*)?(q\d+))?[\s*_]*[:.)][\s*_]*(.*)$/i;
+  const order = ids.map(i => i.toLowerCase());
+  const answers: Record<string, string> = {};
+  let current: string[] = [];
+  // Set while the answer so far only repeats the question ("Q1: **What ...?**"),
+  // so a blank line before the answer itself does not end it.
+  let echoOnly = false;
+  for (const line of body) {
+    const m = label.exec(line);
+    if (m && order.includes(m[1].toLowerCase())) {
+      const first = order.indexOf(m[1].toLowerCase());
+      const last = m[2] && order.includes(m[2].toLowerCase()) ? order.indexOf(m[2].toLowerCase()) : first;
+      current = ids.slice(first, Math.max(first, last) + 1);
+      for (const id of current) answers[id] = m[3];
+      echoOnly = /\?[\s*_]*$/.test(m[3]);
+    } else if (current.length && echoOnly && !line.trim()) {
+      continue;
+    } else if (current.length && (!line.trim() || /^\s*#/.test(line) || /^---/.test(line))) {
+      current = [];
+    } else if (current.length) {
+      for (const id of current) answers[id] += `\n${line}`;
+      echoOnly = false;
+    }
+  }
+  // Many answers repeat the question first ("Q1: **What is ...?** The hash is ..."); drop it.
+  const flat = (s: string) => s.replace(/\*/g, '').replace(/\s+/g, ' ').trim();
+  for (const q of questions) {
+    if (answers[q.id] === undefined) continue;
+    let a = flat(answers[q.id]);
+    // The text up to its last "?" near the question's length is an echo when it
+    // shares most of the question's first words ("Perform an ..." for "Perform a ...").
+    const end = a.lastIndexOf('?', flat(q.text ?? '').length + 15);
+    if (end > 0) {
+      const words = (s: string) => s.toLowerCase().split(/\W+/).filter(Boolean).slice(0, 6);
+      const asked = words(q.text ?? '');
+      const shared = words(a.slice(0, end)).filter(w => asked.includes(w)).length;
+      if (asked.length && shared >= Math.min(4, asked.length)) a = a.slice(end + 1).trim();
+    }
+    answers[q.id] = a;
+  }
+  return answers;
+}
+
+function readRun(root: string, dir: string, questions: {id: string; text?: string}[]): Run {
   const events = fs
     .readFileSync(path.join(dir, 'transcript.jsonl'), 'utf8')
     .split('\n')
@@ -109,6 +164,12 @@ function readRun(root: string, dir: string): Run {
     info: readJson(path.join(dir, 'run.json')),
     score: fs.existsSync(path.join(dir, 'score.json')) ? readJson(path.join(dir, 'score.json')) : null,
     answer: fs.readFileSync(path.join(dir, 'answer.md'), 'utf8'),
+    // case_answer_lines 0: the report has no "Case Q<n>" lines (its own numbering
+    // may differ), so it is not split.
+    answers:
+      readJson(path.join(dir, 'run.json')).case_answer_lines === 0
+        ? {}
+        : splitAnswers(fs.readFileSync(path.join(dir, 'answer.md'), 'utf8'), questions),
     events,
     review: readReview(dir),
   };
@@ -147,7 +208,7 @@ function readExperiment(root: string, id: string, locale: string): ExperimentDat
       const runs = fs
         .readdirSync(modelDir)
         .filter(d => /^run-\d+$/.test(d) && fs.existsSync(path.join(modelDir, d, 'run.json')))
-        .map(d => readRun(root, path.join(modelDir, d)))
+        .map(d => readRun(root, path.join(modelDir, d), spec.questions ?? []))
         .sort((a, b) => a.run - b.run);
       if (runs.length) groups.push({label: v.label, model, runs});
     }
