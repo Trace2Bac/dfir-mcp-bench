@@ -4,9 +4,9 @@ Model runs. Means are per run.
 
 | label | model | variant | runs | reviewed | turns | tool calls | tool errors | seconds | end reasons |
 |---|---|---|---|---|---|---|---|---|---|
-| before | claude-haiku-4-5 | mulder-1.5.10 | 2 | 2/2 | 181.0 | 201.0 | - | 780.8 | report 2 |
+| before | claude-haiku-4-5 | mulder-1.5.10 | 5 | 2/5 | 175.4 | 191.6 | - | 778.0 | report 5 |
 | after | claude-haiku-4-5 | mulder-1.5.10-pcap-scope | 2 | 2/2 | 219.5 | 227.0 | - | 847.2 | report 2 |
-| after-batch | claude-haiku-4-5 | mulder-1.5.10-pcap-scope-batch | 2 | 0/2 | 193.0 | 212.0 | - | 870.1 | report 2 |
+| after-batch | claude-haiku-4-5 | mulder-1.5.10-pcap-scope-batch | 5 | 0/5 | 179.8 | 202.8 | - | 901.5 | report 5 |
 
 Human review, on the scale mulder uses for its own runs: full match = found, detection = found or partial, false positives = contradicted claims stated as fact (inside or outside the questions), each over the number of questions. Median of the reviewed runs, range in parentheses.
 
