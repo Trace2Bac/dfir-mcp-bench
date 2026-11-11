@@ -24,7 +24,15 @@ change: >
   also receives that note. It also makes run_clamav warn, in its result and
   in the indexed text, when it scans a disk image as one file. Compared:
   claims that no capture exists (Q23) and that there is no virus (Q31), over
-  five runs per label.
+  five runs per label. after-3 adds three tool changes on top of after-2,
+  for work Haiku often left undone: run_hashdeep checks the acquisition hash
+  stored in an EWF image with ewfverify and says that the file hashes are
+  not the media hash (Q1); analyze_disk_pcaps also opens files without an
+  extension and recognizes a capture by its header, and lists the HTTP hosts
+  and user agents in a capture (Q23 to Q25); get_windows_system_profile, a
+  new tool, reads the OS, install date, owner, computer name, time zone,
+  last shutdown, network cards and local accounts in one call (Q2 to Q9,
+  Q13).
 change_ko: >
   analyze_disk_pcaps는 디스크 이미지의 파일 목록에서 확장자로만 캡처 파일을 찾는다. 찾은 것이
   없으면 "No packet capture files found"와 함께 그냥 성공을 돌려주므로, 모델이 "캡처 파일이
@@ -38,7 +46,12 @@ change_ko: >
   결과도 상태, 메시지, 경고를 넘기고, executor는 이를 요약하지 않고 "note"에 그대로 옮기며,
   tool, status, source만 받던 analyst가 그 note도 받는다. 또 run_clamav가 디스크 이미지를 파일
   하나로 검사할 때 결과와 색인 텍스트에 경고를 넣는다. 라벨당 5회로 "캡처가 없다"(Q23),
-  "바이러스가 없다"(Q31)는 단정을 비교한다.
+  "바이러스가 없다"(Q31)는 단정을 비교한다. after-3는 after-2 위에 Haiku가 자주 하지 않은 일을 도구가
+  대신하는 수정 세 가지를 더한다. run_hashdeep이 EWF 이미지에 저장된 획득 해시를 ewfverify로
+  확인하고, 파일 해시는 매체 해시가 아니라고 알린다(Q1). analyze_disk_pcaps가 확장자 없는 파일도
+  열어 헤더로 캡처를 알아보고, 캡처 안의 HTTP 호스트와 User-Agent를 정리한다(Q23~Q25). 새 도구
+  get_windows_system_profile이 OS, 설치일, 소유자, 컴퓨터 이름, 시간대, 마지막 종료, 네트워크 카드,
+  로컬 계정을 한 번에 읽는다(Q2~Q9, Q13).
 links:
   - https://cfreds-archive.nist.gov/Hacking_Case.html
   - https://cfreds-archive.nist.gov/images/TestAnswers.pdf
@@ -54,6 +67,7 @@ variants:
   before: mulder-1.5.10                 # upstream release
   after: mulder-1.5.10-pcap-scope-batch   # the empty-result change, and get_completed_results passing it on
   after-2: mulder-1.5.10-limits-to-analyst   # and the limit carried on to the analyst; run_clamav's caveat
+  after-3: mulder-1.5.10-tool-assists        # and three tools that do work Haiku left undone
 
 conclusion: >
   Haiku in every role, five runs per label. With get_completed_results
