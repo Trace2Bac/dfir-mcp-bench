@@ -12,22 +12,8 @@ commit and patches), the *case* (questions, tools and dataset) and the
 committed so that contributions, SOLVE-IT entries and design guidelines can
 cite them.
 
-## Experiments
-
-| Experiment | Status | Change | Result |
-|---|---|---|---|
-| [EXP-001](experiments/EXP-001/experiment.yaml) | done | bug fix, our PR calebevans/mulder#274: pcap dns and smtp modes request valid tshark fields | scripted 0/3 → 3/3; qwen3.5-9b 0/5 → 5/5 runs passed, 12 → 5 turns |
-| [EXP-002](experiments/EXP-002/experiment.yaml) | done | baseline: `mulder investigate` (Claude Opus 4.6 / Haiku 4.5) on the full Rhino Hunt answer key | 4/7 questions, 12/22 facts (scripted ceiling 5/7); 9 of 10 missed facts need missing tool features |
-| [EXP-003](experiments/EXP-003/experiment.yaml) | in progress | baseline: deleted file recovery on a NIST CFTT test image (three FAT partitions) | scripted 5/5, only with workarounds for three disk-tool problems; model runs pending |
-| [EXP-004](experiments/EXP-004/experiment.yaml) | done | baseline: `mulder investigate` (Claude) on the same NIST image | 3/5 questions, 8/14 facts (scripted 5/5): run_fls skipped the small FAT12 and FAT16 partitions, and the later phase that noticed could not re-run it |
-| [EXP-005](experiments/EXP-005/experiment.yaml) | done | baseline: `mulder investigate` (Claude) on the NIST Hacking Case, all 31 questions of NIST's answer key | 22/29 questions, 39/47 facts; misses include the E01 media hash, an AV scan of the compressed segments and the capture file inside the image |
-| [EXP-006](experiments/EXP-006/experiment.yaml) | done | baseline: EXP-005 with Sonnet 4.6 as planner and analyst | no report: the report phase searched for 12 sessions (586 tool calls) and never finalized |
-| [EXP-007](experiments/EXP-007/experiment.yaml) | done | baseline: Claude Code (Opus 4.6) with only `mulder serve` as tools, same case and questions as EXP-005 | review: full match 71%, detection 81%, false positives 13% in 16 minutes; found the victim device and sites, but reported e-mail accounts no tool returned |
-| [EXP-008](experiments/EXP-008/experiment.yaml) | done | baseline: EXP-007 with Haiku 4.5, to see whether the cheapest model is enough for repeated runs | 7/29 questions, 13/47 facts in under 3 minutes ($0.45 at API prices): too shallow for before/after runs |
-| [EXP-009](experiments/EXP-009/experiment.yaml) | in progress | bug fix: analyze_disk_pcaps says what it searched when it finds nothing (Haiku in every role, before and after) | before run 1: review full match 19%, false positives 10%; it read "no capture files" as no capture |
-
-Each experiment's `conclusion` states what the results show and their limits;
-`results/summary.md` has the numbers.
+Experiments are in `experiments/EXP-<nnn>/`; their results, reviews and
+the dated write-ups across them are on the results site.
 
 ## Layout
 
@@ -40,8 +26,7 @@ servers/mulder/
   patches/                  diffs applied on top of the commit, e.g. to remove a feature
   Dockerfile                release image + source at the commit + patches + runner
 runner/bench/               the bench-runner harness: MCP client, local model client, scripted checks, review
-docs/                       findings, method, running and reviewing, adding a case or an experiment
-docs/notes/                 dated notes across experiments (e.g. which model to use for a case)
+docs/                       dated write-ups across experiments, shown on the site
 web/                        the results site (Docusaurus), built from experiments/
 bench.sh                    prepare / build / run / investigate / import / review / summary / check, all in Docker
 ```
@@ -66,11 +51,24 @@ needs.
 
 ## Method
 
-A comparison counts as evidence only if the change under test is the one
-difference between the two sides. A fix to what a tool returns is proven by
-the scripted run; a fix to what the model reads, or the value of an existing
-feature, needs repeated model runs and a person's review. See
-[docs/method.md](docs/method.md).
+- A comparison counts as evidence only if the change under test is the one
+  difference between the two sides: same base image, tools, prompt, model and
+  settings. `before` is the parent commit (or the release) and `after` the
+  fix or the patch.
+- A fix to what a tool returns is proven by the scripted run (fixed tool
+  calls, no model), checked automatically against the expected facts and
+  `scripted_expect`.
+- A model's answers are not scored by a script. A reviewer judges each
+  question as mulder's own scorecards do: found, partial (related evidence,
+  a detail wrong or missing), missed, or false positive (a claim the answer
+  key or the evidence contradicts, stated as fact; hedged claims do not
+  count). Contradicted claims outside the questions count too. Results are
+  full match, detection (found or partial) and false positives over the
+  questions, as the median of the reviewed runs with the range.
+- Model runs vary, so a fix to what the model reads needs repeated runs
+  (`--repeat N`) on both labels.
+- Answer keys of public cases may be in a model's training data; the review
+  shows which of the tools a question needs were called.
 
 ## Quick start
 
@@ -98,9 +96,13 @@ feature, needs repeated model runs and a person's review. See
    false positive per question; model runs are not scored automatically.
    Before committing, run `./bench.sh check` again.
 
-See [docs/running.md](docs/running.md) for the full procedure (including Windows and `mulder investigate`), and
-[docs/adding-a-case.md](docs/adding-a-case.md) to add a case, a variant or an
-experiment.
+To add one: a dataset in `datasets/<id>/` (source, answer key, hashes and a
+fetch script, added to `bench.sh prepare`), a case in `cases/<id>/case.yaml`
+(questions with `expect` and the tools they need, scripted calls, briefing),
+a variant in `servers/mulder/variants/` (release image, commit, patches) and
+an experiment in `experiments/EXP-<next>/experiment.yaml`
+(see [experiments/README.md](experiments/README.md)). Run it with
+`--scripted` first and record the scripted scores in `scripted_expect`.
 
 ## Running on Windows
 
@@ -151,7 +153,6 @@ are Linux. What else you need depends on what you run:
 6. Review the answers (`./bench.sh review EXP-004`), update the experiment's
    `status` and `conclusion`, and commit `experiments/`.
 
-Details are in [docs/running.md](docs/running.md#running-on-windows).
 
 ## Results site
 
@@ -169,8 +170,8 @@ Interface text is translated in `web/i18n/ko/code.json` and the docs in
 `web/i18n/ko/docusaurus-plugin-content-docs/current/`. Experiment and case text
 comes from the YAML files: the plain fields (`title`, `change`, `conclusion`,
 `purpose`, question `text`) are English and the default, and a `<field>_ko`
-next to one is shown on the Korean site. Scoring and the questions given to
-models always use the English text.
+next to one is shown on the Korean site. The questions given to models always
+use the English text.
 
 ## CI
 

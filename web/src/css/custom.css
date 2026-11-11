@@ -1,7 +1,10 @@
-/* Quiet document style: greys, one blue for links and selection, and two
-   muted colours for the before/after sides of a comparison. */
+/* Same look as the DFIR MCP matrix site (Trace2Bac/dfir-mcp-matrix): greys,
+   one quiet blue for links and selection, thin rules and white space instead
+   of coloured blocks. Two muted colours mark the before/after sides of a
+   comparison, and two more mark found and missed answers. */
 
 :root {
+  /* Accent: links, the current place, selected items */
   --ifm-color-primary: #2e5aac;
   --ifm-color-primary-dark: #29519b;
   --ifm-color-primary-darker: #274c92;
@@ -9,44 +12,156 @@
   --ifm-color-primary-light: #3263bd;
   --ifm-color-primary-lighter: #3568c2;
   --ifm-color-primary-lightest: #4a7acb;
-  --ifm-font-size-base: 15px;
-  --ifm-font-family-base: -apple-system, BlinkMacSystemFont, "Pretendard", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --ifm-code-font-size: 90%;
+
+  /* Text */
+  --ifm-font-size-base: 15.5px;
+  --ifm-font-family-base: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --ifm-font-color-base: #1f2328;
+  --ifm-heading-color: #1f2328;
+  --ifm-heading-font-weight: 600;
+  --ifm-line-height-base: 1.7;
+
+  /* Background and rules */
+  --ifm-background-color: #ffffff;
+  --ifm-background-surface-color: #ffffff;
+  --ifm-navbar-background-color: #ffffff;
   --ifm-navbar-shadow: none;
   --ifm-global-shadow-lw: none;
+  --site-border: #e5e7eb;
+  --site-border-strong: #d0d7de;
+  --site-subtle: #f6f8fa;
+  --ifm-toc-border-color: var(--site-border);
+  --ifm-hr-border-color: var(--site-border);
 
-  --bench-border: #e5e7eb;
+  /* Sidebar */
+  --ifm-menu-color: #4b5563;
+  --ifm-menu-color-active: var(--ifm-color-primary);
+  --ifm-menu-color-background-active: rgba(46, 90, 172, 0.08);
+  --ifm-menu-color-background-hover: var(--site-subtle);
+
+  /* Code */
+  --ifm-code-font-size: 88%;
+  --ifm-code-background: var(--site-subtle);
+  --ifm-code-border-radius: 4px;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.05);
+
+  /* Bench pages (src/components/ExperimentPage, src/pages) */
+  --bench-border: var(--site-border);
   --bench-muted: #6b7280;
-  --bench-surface: #f8fafc;
+  --bench-surface: var(--site-subtle);
   --bench-side-a: #b45309; /* first label, e.g. before */
   --bench-side-a-bg: #fffbeb;
   --bench-side-b: #047857; /* second label, e.g. after */
   --bench-side-b-bg: #ecfdf5;
+  --bench-side-c: #6d28d9; /* a third label */
   --bench-pass: #047857;
   --bench-fail: #b91c1c;
 }
 
 [data-theme='dark'] {
-  --ifm-color-primary: #7aa2e3;
-  --ifm-color-primary-dark: #6393de;
-  --ifm-color-primary-darker: #578bdb;
-  --ifm-color-primary-darkest: #3470d0;
-  --ifm-color-primary-light: #91b1e8;
-  --ifm-color-primary-lighter: #9db9ea;
-  --ifm-color-primary-lightest: #c0d2f1;
-  --ifm-background-color: #0f1115;
+  --ifm-color-primary: #8ab4f8;
+  --ifm-color-primary-dark: #6ea1f6;
+  --ifm-color-primary-darker: #5f98f5;
+  --ifm-color-primary-darkest: #337cf2;
+  --ifm-color-primary-light: #a6c7fa;
+  --ifm-color-primary-lighter: #b5d0fb;
+  --ifm-color-primary-lightest: #e1ecfd;
 
-  --bench-border: #2a2f3a;
-  --bench-muted: #9aa3b2;
-  --bench-surface: #161a21;
+  --ifm-font-color-base: #e6e6e6;
+  --ifm-heading-color: #f0f0f0;
+
+  --ifm-background-color: #18181b;
+  --ifm-background-surface-color: #18181b;
+  --ifm-navbar-background-color: #18181b;
+  --site-border: #2e2e33;
+  --site-border-strong: #3f3f46;
+  --site-subtle: #222226;
+
+  --ifm-menu-color: #a1a1aa;
+  --ifm-menu-color-background-active: rgba(138, 180, 248, 0.1);
+
+  --docusaurus-highlighted-code-line-bg: rgba(255, 255, 255, 0.06);
+
+  --bench-muted: #a1a1aa;
   --bench-side-a: #f59e0b;
   --bench-side-a-bg: #2a1f0b;
   --bench-side-b: #34d399;
   --bench-side-b-bg: #0c2a20;
+  --bench-side-c: #a78bfa;
   --bench-pass: #34d399;
   --bench-fail: #f87171;
 }
 
+/* 1. Navbar and sidebar: thin rules only */
 .navbar {
-  border-bottom: 1px solid var(--bench-border);
+  border-bottom: 1px solid var(--site-border);
+}
+.theme-doc-sidebar-container {
+  border-right: 1px solid var(--site-border) !important;
+}
+.menu__link--active:not(.menu__link--sublist) {
+  font-weight: 500;
+}
+
+/* 2. Body text */
+.markdown h1 { font-size: 2rem; margin-bottom: 1.25rem; }
+.markdown h2 { font-size: 1.4rem; margin-top: 2.5rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--site-border); }
+.markdown h3 { font-size: 1.15rem; margin-top: 2rem; }
+.markdown a { text-underline-offset: 2px; }
+.markdown code { border: none; }
+.markdown p,
+.markdown li {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+
+/* 3. Tables: a light header row, thin cell rules */
+.markdown table {
+  display: table;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+.markdown table tr,
+.markdown table tr:nth-child(2n) {
+  background: transparent;
+  border: none;
+}
+.markdown th,
+.markdown td {
+  border: 1px solid var(--site-border);
+  padding: 0.5rem 0.75rem;
+}
+.markdown th {
+  background: var(--site-subtle);
+  font-weight: 600;
+  text-align: left;
+}
+
+/* 4. Quotes */
+.markdown blockquote {
+  border-left: 3px solid var(--site-border);
+  background: transparent;
+  color: var(--ifm-color-emphasis-700);
+}
+
+/* 5. Breadcrumbs, previous/next links, table of contents */
+.breadcrumbs__item--active .breadcrumbs__link {
+  background: var(--site-subtle);
+  color: var(--ifm-font-color-base);
+}
+.pagination-nav__link {
+  border: 1px solid var(--site-border);
+}
+.pagination-nav__link:hover {
+  border-color: var(--ifm-color-primary);
+}
+.table-of-contents__link--active {
+  font-weight: 500;
+}
+
+/* 6. Footer: the page background with a rule above */
+.footer {
+  border-top: 1px solid var(--site-border);
+  background-color: transparent;
 }

@@ -52,7 +52,8 @@ function rateValue(g: Group, pick: (x: ReturnType<typeof reviewRates>) => number
   return xs.length ? median(xs) : 0;
 }
 const fmt = (x: number, digits = 1) => (Number.isInteger(x) ? String(x) : x.toFixed(digits));
-const sideClass = (i: number) => (i === 0 ? styles.sideA : styles.sideB);
+// One colour per label: the first (before), the second (after), any third.
+const sideClass = (i: number) => [styles.sideA, styles.sideB, styles.sideC][Math.min(i, 2)];
 
 function useRepoTree(): string {
   const {siteConfig} = useDocusaurusContext();
@@ -536,7 +537,7 @@ function ScriptedSideBySide({data}: {data: ExperimentData}) {
             </div>
             <div className={styles.columns}>
               {calls.map((c, j) => (
-                <div key={j} className={clsx(styles.column, j === 0 ? styles.columnA : styles.columnB)}>
+                <div key={j} className={clsx(styles.column, [styles.columnA, styles.columnB, styles.columnC][Math.min(j, 2)])}>
                   <div className={clsx(styles.columnLabel, sideClass(j))}>{labels[j]}</div>
                   <pre className={styles.pre}>{String(c[i]?.result ?? '')}</pre>
                 </div>
@@ -634,7 +635,7 @@ function RunPanel({data, side, repoTree}: {data: ExperimentData; side: number; r
   const run: Run | undefined = group?.runs.find(r => r.run === runNo) ?? group?.runs[0];
   if (!label) return null;
   return (
-    <div className={clsx(styles.column, side === 0 ? styles.columnA : styles.columnB)}>
+    <div className={clsx(styles.column, [styles.columnA, styles.columnB, styles.columnC][Math.min(side, 2)])}>
       <div className={clsx(styles.columnLabel, sideClass(side))}>{label}</div>
       <div className={styles.pickers}>
         <select value={model} onChange={e => (setModel(e.target.value), setRunNo(1))}>
@@ -735,47 +736,9 @@ function RunExplorer({data}: {data: ExperimentData}) {
   );
 }
 
-function statusLabel(status: string): string {
-  switch (status) {
-    case 'done':
-      return translate({id: 'status.done', message: 'done'});
-    case 'in-progress':
-      return translate({id: 'status.inProgress', message: 'in progress'});
-    default:
-      return translate({id: 'status.planned', message: 'planned'});
-  }
-}
-
-export function kindLabel(kind: string): string {
-  switch (kind) {
-    case 'bug-fix':
-      return translate({id: 'kind.bugFix', message: 'bug fix'});
-    case 'feature':
-      return translate({id: 'kind.feature', message: 'feature'});
-    case 'ablation':
-      return translate({id: 'kind.ablation', message: 'ablation'});
-    case 'baseline':
-      return translate({id: 'kind.baseline', message: 'baseline'});
-    default:
-      return kind;
-  }
-}
-
-export function StatusBadge({status}: {status: string}) {
-  return <span className={clsx(styles.status, styles[`status_${status.replace('-', '_')}`])}>{statusLabel(status)}</span>;
-}
-
 function Overview({data}: {data: ExperimentData}) {
   return (
     <div className={styles.overview}>
-      {data.kind && (
-        <div className={styles.overviewRow}>
-          <span>
-            <Translate id="exp.kind">Kind</Translate>
-          </span>
-          <p>{kindLabel(data.kind)}</p>
-        </div>
-      )}
       <div className={styles.overviewRow}>
         <span>
           <Translate id="exp.change">Change</Translate>
@@ -837,7 +800,7 @@ export default function ExperimentPage({data}: {data: ExperimentData}) {
           / <code>{data.code}</code>
         </div>
         <h1>
-          <span className={styles.code}>{data.code}</span> {data.title} <StatusBadge status={data.status} />
+          <span className={styles.code}>{data.code}</span> {data.title}
         </h1>
         <Overview data={data} />
         <Conditions data={data} />

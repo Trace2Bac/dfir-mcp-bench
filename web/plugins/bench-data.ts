@@ -32,18 +32,18 @@ export type Run = {
   review: Review | null; // human review (review.yaml), null when not reviewed
 };
 export type Group = {label: string; model: string; runs: Run[]};
-export type CaseInfo = {id: string; title: string; purpose: string; dataset?: string; answersSource?: string};
+export type CaseInfo = {id: string; name: string; title: string; purpose: string; dataset?: string; answersSource?: string};
 export type ExperimentData = {
   number: number;
   code: string; // EXP-001
   id: string;
   title: string;
   server?: string;
-  kind: string;
   status: string;
   change: string;
   links: string[];
   harness?: string;
+  models: string[];
   conclusion: string;
   case: CaseInfo;
   tools: string[];
@@ -56,10 +56,10 @@ export type ExperimentSummary = {
   code: string;
   id: string;
   title: string;
-  kind: string;
   status: string;
   caseId: string;
-  dataset?: string;
+  caseName: string;
+  models: string[]; // empty: scripted runs only
   labels: string[];
   groups: {label: string; model: string; runs: number; turns: number | null}[];
 };
@@ -69,7 +69,11 @@ const readJson = (p: string) => JSON.parse(fs.readFileSync(p, 'utf8'));
 function readVariant(root: string, label: string, name: string): Variant {
   const file = path.join(root, 'servers', 'mulder', 'variants', `${name}.env`);
   const text = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
-  const get = (key: string) => text.match(new RegExp(`^${key}=([^\\s#]*)`, 'm'))?.[1] ?? '';
+  // KEY=value or KEY="value with spaces", as the shell reads the file.
+  const get = (key: string) => {
+    const m = text.match(new RegExp(`^${key}=(?:"([^"]*)"|([^\\s#]*))`, 'm'));
+    return m?.[1] ?? m?.[2] ?? '';
+  };
   const note = text
     .split('\n')
     .filter(l => l.startsWith('#'))
@@ -117,6 +121,16 @@ function localized(obj: any, key: string, locale: string): string {
   return String(value ?? '').trim();
 }
 
+// The models an experiment uses: those its harness options name (planner,
+// executor, analyst, or one model), else the model folders of its runs.
+// Empty when it only has scripted runs.
+function experimentModels(exp: any, groups: Group[]): string[] {
+  const options = exp.harness_options ?? {};
+  const named: string[] = options.models ? Object.values<string>(options.models) : options.model ? [options.model] : [];
+  const used = groups.map(g => g.model).filter(m => m !== 'scripted');
+  return [...new Set(named.length ? named : used)];
+}
+
 function readExperiment(root: string, id: string, locale: string): ExperimentData {
   const exp = YAML.parse(fs.readFileSync(path.join(root, 'experiments', id, 'experiment.yaml'), 'utf8'));
   const spec = YAML.parse(fs.readFileSync(path.join(root, 'cases', exp.case, 'case.yaml'), 'utf8'));
@@ -145,14 +159,15 @@ function readExperiment(root: string, id: string, locale: string): ExperimentDat
     id,
     title: localized(exp, 'title', locale) || id,
     server: exp.server,
-    kind: exp.kind ?? '',
     status: exp.status ?? 'planned',
     change: localized(exp, 'change', locale),
     links: exp.links ?? [],
     harness: exp.harness,
     conclusion: localized(exp, 'conclusion', locale),
+    models: experimentModels(exp, groups),
     case: {
       id: exp.case,
+      name: localized(spec, 'name', locale) || localized(spec, 'title', locale) || exp.case,
       title: localized(spec, 'title', locale) || exp.case,
       purpose: localized(spec, 'purpose', locale),
       dataset: spec.dataset,
@@ -173,10 +188,10 @@ function summarize(c: ExperimentData): ExperimentSummary {
     code: c.code,
     id: c.id,
     title: c.title,
-    kind: c.kind,
     status: c.status,
     caseId: c.case.id,
-    dataset: c.case.dataset,
+    caseName: c.case.name,
+    models: c.models,
     labels: c.variants.map(v => v.label),
     groups: c.groups.map(g => ({
       label: g.label,

@@ -1,9 +1,8 @@
 # EXP-009: one verification. The folder name is its permanent identifier;
 # the title may change.
-title: "[Bug Fix] analyze_disk_pcaps says what it searched when it finds nothing (Haiku)"
-title_ko: "[Bug Fix] analyze_disk_pcaps가 찾은 것이 없을 때 확인 범위를 알림 (Haiku)"
+title: "analyze_disk_pcaps says what it searched when it finds nothing (Haiku)"
+title_ko: "analyze_disk_pcaps가 찾은 것이 없을 때 확인 범위를 알림 (Haiku)"
 server: mulder
-kind: bug-fix                    # bug-fix | feature | ablation | baseline
 status: in-progress              # planned | in-progress | done
 change: >
   analyze_disk_pcaps looks for packet captures in the disk image's file
@@ -15,7 +14,10 @@ change: >
   the empty result: status no_results, the number of files and the
   partitions checked, that files were matched by extension only, and that
   this does not show the image holds no capture (guideline 4.1 and 4.2).
-  Compared: Q23-Q25 and claims that no capture exists, over repeated runs.
+  after-batch adds a second change: get_completed_results, which a batch
+  caller uses to read results, passes on a result's own status and message
+  (it returned only the outer "success" before). Compared: Q23-Q25 and
+  claims that no capture exists, over repeated runs.
 change_ko: >
   analyze_disk_pcaps는 디스크 이미지의 파일 목록에서 확장자로만 캡처 파일을 찾는다. 찾은 것이
   없으면 "No packet capture files found"와 함께 그냥 성공을 돌려주므로, 모델이 "캡처 파일이
@@ -23,7 +25,9 @@ change_ko: >
   저장된 캡처를 놓치고 Ethereal을 쓰지 않았다고 결론지었다. after는 찾는 방식은 그대로 두고
   결과 없음 응답만 바꾼다. 상태 no_results, 확인한 파일 수와 파티션, 확장자로만 찾았다는 것,
   그래서 캡처가 없다고 단정할 수 없다는 것을 알린다(가이드라인 4.1, 4.2). 반복 실행에서
-  Q23~Q25와 "캡처 파일이 없다"는 주장을 비교한다.
+  Q23~Q25와 "캡처 파일이 없다"는 주장을 비교한다. after-batch는 두 번째 변경을 더한다.
+  일괄 실행 결과를 읽는 get_completed_results가 결과의 상태와 메시지를 함께 넘긴다(전에는 바깥의
+  "success"만 넘겼다).
 links:
   - https://cfreds-archive.nist.gov/Hacking_Case.html
   - https://cfreds-archive.nist.gov/images/TestAnswers.pdf
@@ -38,14 +42,32 @@ harness_options:
 variants:
   before: mulder-1.5.10                 # upstream release
   after: mulder-1.5.10-pcap-scope       # the same release with the empty-result change
+  after-batch: mulder-1.5.10-pcap-scope-batch   # and get_completed_results passing it on
 
 conclusion: >
-  In progress: two runs per label. Before, run 1 (2026-11-10): 14 minutes,
-  214 tool calls; review full match 19%, detection 26%, false positives 10%.
-  analyze_disk_pcaps returned "ok, no capture files", Q23 says no capture
-  file was recovered, and the report states there is no evidence Ethereal
-  was run.
+  after: no effect. Two runs per label; review full match 22% before and 23%
+  after, false positives 8% on both. In all four runs Q23 states that no
+  capture file was recovered, and each report adds that no captured traffic
+  or interception was found. The changed message never reached the model:
+  mulder investigate runs analyze_disk_pcaps inside an extraction batch, and
+  get_completed_results returns only a few keys of each result (tool,
+  status, tool_call_id, source_name, windows_indexed, line_count,
+  error_message, and the outer status as result_status). The results
+  themselves, with pcaps_discovered, the message and the new status,
+  are dropped, so before and after the executor saw the same "success" and
+  reported "PCAP analysis complete". The claim of no capture comes from the
+  model filling that gap. A fix in the tool's result alone cannot help a
+  batch run; get_completed_results has to pass the result's own status and
+  message. after-batch (that change added) is to be run twice.
 conclusion_ko: >
-  진행 중: 라벨당 2회. before 1회차(2026-11-10): 14분, 도구 호출 214번, 검토 결과 완전 일치
-  19%, 탐지 26%, 오탐 10%. analyze_disk_pcaps가 "성공, 캡처 파일 없음"을 돌려줬고, Q23은
-  캡처 파일이 복구되지 않았다고 답했으며, 보고서는 Ethereal을 실행한 증거가 없다고 단정했다.
+  after: 효과 없음. 라벨당 2회, 검토 결과 완전 일치 before 22%, after 23%, 오탐은 둘 다 8%다. 네 번
+  모두 Q23에서 캡처 파일이 복구되지 않았다고 단정했고, 보고서마다 캡처된 트래픽이나 감청 증거가
+  없다고 덧붙였다. 바꾼 문구는 모델에게 전달되지 않았다. mulder investigate는
+  analyze_disk_pcaps를 일괄 추출(batch) 안에서 실행하는데, get_completed_results는 결과마다
+  몇 개 키(tool, status, tool_call_id, source_name, windows_indexed, line_count,
+  error_message, 바깥 status를 담은 result_status)만 돌려준다. pcaps_discovered, message, 새
+  status가 든 결과 본문은 버려진다. 그래서 before와 after 모두 executor는 같은 "success"를 보고
+  "PCAP analysis complete"라고 보고했다. "캡처가 없다"는 주장은 모델이 그 빈칸을 채운 것이다.
+  도구 응답만 고쳐서는 일괄 실행에 도움이 되지 않고, get_completed_results가 결과의 상태와
+  메시지를 전달해야 한다. after-batch(그 변경을 더한 것)는 2회 돌릴
+  예정이다.

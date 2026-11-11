@@ -14,10 +14,10 @@ before/after를 반복하려면 여러 번 돌릴 만큼 싸면서도, 바뀐 �
 
 | 검증 | 하네스 | 모델 | 결과 | 시간 | 도구 호출 |
 |---|---|---|---|---|---|
-| [EXP-005](../../experiments/EXP-005) | `mulder investigate` | Opus 4.6 (planner, analyst), Haiku 4.5 (executor) | 질문 22/29, 사실 39/47 | 36분 | 270 |
-| [EXP-006](../../experiments/EXP-006) | `mulder investigate` | Sonnet 4.6 (planner, analyst), Haiku 4.5 (executor) | 보고서 없음 | 50분 | 881 |
-| [EXP-009](../../experiments/EXP-009) | `mulder investigate` | 모든 역할 Haiku 4.5 | 질문 7/29, 사실 14/47 | 14분 | 214 |
-| [EXP-008](../../experiments/EXP-008) | `mulder serve`를 쓰는 Claude Code | Haiku 4.5 | 질문 7/29, 사실 13/47 | 3분 | 58 |
+| [EXP-005](../experiments/EXP-005) | `mulder investigate` | Opus 4.6 (planner, analyst), Haiku 4.5 (executor) | 질문 22/29, 사실 39/47 | 36분 | 270 |
+| [EXP-006](../experiments/EXP-006) | `mulder investigate` | Sonnet 4.6 (planner, analyst), Haiku 4.5 (executor) | 보고서 없음 | 50분 | 881 |
+| [EXP-009](../experiments/EXP-009) | `mulder investigate` | 모든 역할 Haiku 4.5 | 질문 7/29, 사실 14/47 | 14분 | 214 |
+| [EXP-008](../experiments/EXP-008) | `mulder serve`를 쓰는 Claude Code | Haiku 4.5 | 질문 7/29, 사실 13/47 | 3분 | 58 |
 
 ## 점수를 정하는 것
 

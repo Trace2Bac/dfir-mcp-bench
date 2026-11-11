@@ -15,10 +15,10 @@ answer key), the same mulder 1.5.10 and the same briefing.
 
 | Experiment | Harness | Models | Result | Time | Tool calls |
 |---|---|---|---|---|---|
-| [EXP-005](../../experiments/EXP-005) | `mulder investigate` | Opus 4.6 (planner, analyst), Haiku 4.5 (executor) | 22/29 questions, 39/47 facts | 36 min | 270 |
-| [EXP-006](../../experiments/EXP-006) | `mulder investigate` | Sonnet 4.6 (planner, analyst), Haiku 4.5 (executor) | no report | 50 min | 881 |
-| [EXP-009](../../experiments/EXP-009) | `mulder investigate` | Haiku 4.5 in every role | 7/29 questions, 14/47 facts | 14 min | 214 |
-| [EXP-008](../../experiments/EXP-008) | Claude Code with `mulder serve` | Haiku 4.5 | 7/29 questions, 13/47 facts | 3 min | 58 |
+| [EXP-005](../experiments/EXP-005) | `mulder investigate` | Opus 4.6 (planner, analyst), Haiku 4.5 (executor) | 22/29 questions, 39/47 facts | 36 min | 270 |
+| [EXP-006](../experiments/EXP-006) | `mulder investigate` | Sonnet 4.6 (planner, analyst), Haiku 4.5 (executor) | no report | 50 min | 881 |
+| [EXP-009](../experiments/EXP-009) | `mulder investigate` | Haiku 4.5 in every role | 7/29 questions, 14/47 facts | 14 min | 214 |
+| [EXP-008](../experiments/EXP-008) | Claude Code with `mulder serve` | Haiku 4.5 | 7/29 questions, 13/47 facts | 3 min | 58 |
 
 ## What limits the score
 

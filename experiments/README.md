@@ -11,9 +11,10 @@ experiments/EXP-<nnn>/
     <label>/<model>/run-<n>/
 ```
 
-`<model>` is `scripted` for runs without a model; `_reasoning-<effort>` is
-added when `MODEL_REASONING_EFFORT` is set. A new run with the same label,
-model and number replaces its folder.
+`<model>` is the model's name (the planner's for `mulder investigate`), or
+`scripted` for runs without a model; settings such as reasoning or effort
+are in each `run.json`. A new run takes the next free `run-<n>`; `review.yaml`
+next to it holds the reviewer's verdicts.
 
 ## experiment.yaml
 
@@ -21,13 +22,12 @@ model and number replaces its folder.
 |---|---|
 | (folder) | `EXP-<nnn>`, the permanent identifier: cite it, never rename or reuse it. Take the next number; a removed experiment leaves a gap |
 | `title`, `server` | a title, which may change, and the MCP server it is about |
-| `kind` | `bug-fix` (a fix, before and after), `feature` (an added feature), `ablation` (an existing feature removed) or `baseline` (one version, the reference for later comparisons) |
 | `status` | `planned`, `in-progress` or `done` |
 | `change` | what differs between the labels, or what the baseline is for |
 | `links` | issues, pull requests, dataset pages |
 | `case` | the test in `cases/`; the case names its dataset |
-| `harness` | what ran it: `bench-runner` (`runner/` with a local model or scripted calls, `./bench.sh run`) or `mulder-investigate` (mulder's orchestrator, `./bench.sh investigate`) |
-| `harness_options` | for `mulder-investigate`: `models` per role, `effort`, how it authenticated, and `answer_section` (ask the report for a "Case Questions" section with `Case Q<n>:` lines, which `review` reads and scoring uses; a question without such a line is scored on the whole report) |
+| `harness` | what ran it: `bench-runner` (`runner/` with a local model or scripted calls, `./bench.sh run`), `mulder-investigate` (mulder's orchestrator) or `claude-code` (Claude Code with `mulder serve`), both with `./bench.sh investigate` |
+| `harness_options` | for `mulder-investigate`: `models` per role, `effort`, how it authenticated, and `answer_section` (ask the report for a "Case Questions" section with `Case Q<n>:` lines, which `review` shows per question) |
 | `variants` | label to server variant (`servers/mulder/variants/<name>.env`) |
 | `scripted_expect` | scripted scores per label; `./bench.sh check` fails when they change |
 | `conclusion` | what the results show, and their limits |
@@ -37,11 +37,11 @@ model and number replaces its folder.
 
 | File | Contents |
 |---|---|
-| `run.json` | case, label, variant, run number, end reason (`final_answer`, `max_turns`, `max_tokens`, `model_error`), server commit (`server_ref`), image ID (`image_id`), model URL, name and settings, harness settings, turns, seconds, tool calls and errors, wrong claims, tools called, score and facts |
+| `run.json` | case, label, variant, run number, end reason (`final_answer`, `max_turns`, `max_tokens`, `model_error`), server commit (`server_ref`), image ID (`image_id`), model URL, name and settings, harness settings, turns, seconds, tool calls and errors, tools called; for scripted runs also the questions and facts reached |
 | `transcript.jsonl` | every prompt, model reply, tool call and tool result, with timings |
 | `answer.md` | the model's final answer (or the scripted tool output) |
-| `score.json` | per question: passed, missing facts, facts found, required tools not called |
-| `review.yaml` | a person's verdict per question (`./bench.sh review`); it counts over the automatic score |
+| `score.json` | scripted runs only: per question, whether the tool output holds every expected fact |
+| `review.yaml` | model runs: the reviewer's verdict per question (found, partial, missed, false positive) and contradicted claims outside the questions (`./bench.sh review`) |
 | `server-db/` | mulder's audit log (every tool call with an output hash), its log and console output; the case database is not published |
 
 Results are committed so that a claim can cite them. Link to a file at a

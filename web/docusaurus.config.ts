@@ -9,7 +9,7 @@ import benchDataPlugin from './plugins/bench-data';
 const config: Config = {
   title: 'DFIR MCP Bench',
   tagline: 'Before/after evidence for DFIR MCP server changes',
-  favicon: 'img/favicon.svg',
+  favicon: 'img/custom_logo.png',
   future: {v4: true},
 
   url: 'https://trace2bac.github.io',
@@ -33,6 +33,7 @@ const config: Config = {
     [
       'classic',
       {
+        // Dated write-ups across experiments (docs/), next to the experiment pages.
         docs: {
           path: '../docs',
           routeBasePath: 'docs',
@@ -46,17 +47,31 @@ const config: Config = {
 
   plugins: [benchDataPlugin],
 
+  // Local search, built into the site at build time (no external service).
+  themes: [
+    [
+      '@easyops-cn/docusaurus-search-local',
+      {
+        hashed: true,
+        language: ['en', 'ko'],
+        docsRouteBasePath: 'docs',
+        indexBlog: false,
+        indexPages: true,
+        highlightSearchTermsOnTargetPage: true,
+      },
+    ],
+  ],
+
   themeConfig: {
     colorMode: {respectPrefersColorScheme: true},
+    image: 'img/custom_logo.png',
     navbar: {
       title: 'DFIR MCP Bench',
+      logo: {alt: 'Trace2Bac logo', src: 'img/custom_logo.png'},
       items: [
         {to: '/', label: 'Results', position: 'left', activeBaseRegex: '^/(experiments/.*)?$'},
-        {to: '/docs/findings', label: 'Findings', position: 'left'},
-        {to: '/docs/notes', label: 'Notes', position: 'left'},
-        {to: '/docs/method', label: 'Test method', position: 'left'},
-        {to: '/docs/running', label: 'Guide', position: 'left'},
-        {to: '/docs/adding-a-case', label: 'Adding', position: 'left'},
+        // Opens the first document of the sidebar; every document is listed there.
+        {type: 'docSidebar', sidebarId: 'defaultSidebar', label: 'Docs', position: 'left'},
         {type: 'localeDropdown', position: 'right'},
         {href: 'https://github.com/Trace2Bac/dfir-mcp-bench', label: 'GitHub', position: 'right'},
       ],
