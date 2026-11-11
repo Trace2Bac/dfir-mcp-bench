@@ -22,9 +22,9 @@ cite them.
 | [EXP-004](experiments/EXP-004/experiment.yaml) | done | baseline: `mulder investigate` (Claude) on the same NIST image | 3/5 questions, 8/14 facts (scripted 5/5): run_fls skipped the small FAT12 and FAT16 partitions, and the later phase that noticed could not re-run it |
 | [EXP-005](experiments/EXP-005/experiment.yaml) | done | baseline: `mulder investigate` (Claude) on the NIST Hacking Case, all 31 questions of NIST's answer key | 22/29 questions, 39/47 facts; misses include the E01 media hash, an AV scan of the compressed segments and the capture file inside the image |
 | [EXP-006](experiments/EXP-006/experiment.yaml) | done | baseline: EXP-005 with Sonnet 4.6 as planner and analyst | no report: the report phase searched for 12 sessions (586 tool calls) and never finalized |
-| [EXP-007](experiments/EXP-007/experiment.yaml) | planned | baseline: Claude Code (Opus 4.6) with only `mulder serve` as tools, same case and questions as EXP-005 | not run yet |
+| [EXP-007](experiments/EXP-007/experiment.yaml) | done | baseline: Claude Code (Opus 4.6) with only `mulder serve` as tools, same case and questions as EXP-005 | review: full match 71%, detection 81%, false positives 13% in 16 minutes; found the victim device and sites, but reported e-mail accounts no tool returned |
 | [EXP-008](experiments/EXP-008/experiment.yaml) | done | baseline: EXP-007 with Haiku 4.5, to see whether the cheapest model is enough for repeated runs | 7/29 questions, 13/47 facts in under 3 minutes ($0.45 at API prices): too shallow for before/after runs |
-| [EXP-009](experiments/EXP-009/experiment.yaml) | done | baseline: `mulder investigate` with Haiku 4.5 in every role | 7/29 questions, 14/47 facts in 14 minutes: more tool calls than EXP-008 but no better answers |
+| [EXP-009](experiments/EXP-009/experiment.yaml) | in progress | bug fix: analyze_disk_pcaps says what it searched when it finds nothing (Haiku in every role, before and after) | before run 1: review full match 19%, false positives 10%; it read "no capture files" as no capture |
 
 Each experiment's `conclusion` states what the results show and their limits;
 `results/summary.md` has the numbers.

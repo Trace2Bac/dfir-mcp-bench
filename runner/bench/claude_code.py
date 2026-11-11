@@ -32,7 +32,7 @@ from typing import Any
 import yaml
 
 from .case import load_case, split_answers
-from .investigate import CASE_PREFIX, briefing_text
+from .investigate import CASE_PREFIX, briefing_text, run_dir
 
 # Claude Code names MCP tools mcp__<server>__<tool>.
 SERVER = "mulder"
@@ -133,8 +133,10 @@ def _slug(text: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", text).strip("-")
 
 
-def import_run(experiment_yaml: Path, label: str, work: Path, case_id: str, image_id: str | None) -> Path:
-    """Import into experiments/<id>/results/<label>/<model>/run-1 (effort and harness are in run.json)."""
+def import_run(
+    experiment_yaml: Path, label: str, work: Path, case_id: str, image_id: str | None, run_id: int | None = None
+) -> Path:
+    """Import into experiments/<id>/results/<label>/<model>/run-<n> (effort and harness are in run.json)."""
     exp = yaml.safe_load(experiment_yaml.read_text())
     root = experiment_yaml.parents[2]
     case = load_case(root / "cases" / exp["case"] / "case.yaml")
@@ -143,7 +145,7 @@ def import_run(experiment_yaml: Path, label: str, work: Path, case_id: str, imag
     env = (root / "servers" / "mulder" / "variants" / f"{variant}.env").read_text()
     ref = re.search(r"^REF=(\S+)", env, re.MULTILINE)
     folder = options.get("model", "default")
-    out = experiment_yaml.parent / "results" / label / _slug(folder) / "run-1"
+    out = run_dir(experiment_yaml.parent / "results" / label / _slug(folder), run_id)
     if out.exists():
         shutil.rmtree(out)
     (out / "claude").mkdir(parents=True)
@@ -213,7 +215,7 @@ def import_run(experiment_yaml: Path, label: str, work: Path, case_id: str, imag
             "model": init.get("model") or options.get("model"),
         },
         "model": None,
-        "run_id": 1,
+        "run_id": int(out.name.removeprefix("run-")),
         "end_reason": "error" if result.get("is_error") else result.get("subtype", "no result"),
         "case_answer_lines": len(lines),
         "turns": result.get("num_turns"),

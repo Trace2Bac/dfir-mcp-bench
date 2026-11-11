@@ -11,7 +11,7 @@
 #                                                     run every label (or the ones named), N times each
 #   ./bench.sh summary <experiment>                   compare labels and models over all runs
 #   ./bench.sh review  <experiment> [model]           review unreviewed model runs, question by question
-#   ./bench.sh investigate <experiment> [label...] [--dry-run]
+#   ./bench.sh investigate <experiment> [label...] [--repeat N] [--dry-run]
 #                                                     run a whole investigation on each label and import it:
 #                                                     `mulder investigate` (harness mulder-investigate; needs
 #                                                     ANTHROPIC_API_KEY for Claude models) or Claude Code with
@@ -19,9 +19,10 @@
 #                                                     `./bench.sh login` once, or CLAUDE_CODE_OAUTH_TOKEN)
 #   ./bench.sh login                                  sign Claude Code in to a Claude subscription for the
 #                                                     claude-code harness; kept in data/claude/, never committed
-#   ./bench.sh import  <experiment> <label> <mulder-cases-dir> <case-id>
+#   ./bench.sh import  <experiment> <label> <mulder-cases-dir> <case-id> [n]
 #                                                     record a `mulder investigate` run (harness
-#                                                     mulder-investigate) as run-1 of that label
+#                                                     mulder-investigate) as run-<n> of that label
+#                                                     (the next free number when n is not given)
 #   ./bench.sh check   [experiment...]                scripted runs must match scripted_expect
 #                                                     (every experiment that has one if none given)
 #
@@ -255,8 +256,16 @@ review)
     ;;
 investigate)
     e=$(experiment_id "${1:?experiment}"); shift
-    dry=0; labels=()
-    for a in "$@"; do case "$a" in --dry-run) dry=1 ;; *) labels+=("$a") ;; esac; done
+    dry=0; repeat=1; labels=()
+    while [ $# -gt 0 ]; do
+        case "$1" in
+        --dry-run) dry=1 ;;
+        --repeat) repeat=${2:?--repeat needs a number}; shift ;;
+        *) labels+=("$1") ;;
+        esac
+        shift
+    done
+    [ "$dry" = 0 ] || repeat=1
     set -- ${labels[@]+"${labels[@]}"}
     yaml=$(experiment_file "$e")
     harness=$(yaml_field "$yaml" harness)
@@ -286,7 +295,10 @@ investigate)
     fi
     pairs=$(experiment_variants "$yaml")
     [ $# -gt 0 ] || while read -r l _; do set -- "$@" "$l"; done <<< "$pairs"
-    for label in "$@"; do
+    # Each label --repeat times in turn; every run is imported as the next run-<n>.
+    queue=()
+    for label in "$@"; do for ((i = 0; i < repeat; i++)); do queue+=("$label"); done; done
+    for label in "${queue[@]}"; do
         v=$(echo "$pairs" | awk -v l="$label" '$1 == l {print $2}')
         [ -n "$v" ] || { echo "no label '$label' in $yaml" >&2; exit 1; }
         build "$v" -q >/dev/null
@@ -336,6 +348,7 @@ investigate)
     ;;
 import)
     e=$(experiment_id "${1:?experiment}"); label=${2:?label}; src=${3:?mulder cases dir}; cid=${4:?case id}
+    run=${5:-}   # run-<n> to write; the next free one when not given
     yaml=$(experiment_file "$e")
     v=$(experiment_variants "$yaml" | awk -v l="$label" '$1 == l {print $2}')
     [ -n "$v" ] || { echo "no label '$label' in $yaml" >&2; exit 1; }
@@ -344,7 +357,7 @@ import)
     image_id=$(docker image inspect -f '{{.Id}}' "dfir-mcp-bench/mulder:$v" 2>/dev/null \
         || docker image inspect -f '{{.Id}}' "$base" 2>/dev/null || true)
     in_tools env PYTHONPATH=runner python3 -m bench import-investigate "$yaml" "$label" "$src" "$cid" \
-        ${image_id:+--image-id "$image_id"}
+        ${image_id:+--image-id "$image_id"} ${run:+--run "$run"}
     summarize "$e"
     ;;
 login)

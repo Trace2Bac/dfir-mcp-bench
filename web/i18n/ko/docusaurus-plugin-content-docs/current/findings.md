@@ -18,9 +18,9 @@ sidebar_position: 0
 | [EXP-004](../experiments/EXP-004) | NIST CFTT `dfr-01-fat` | `mulder investigate`, Opus 4.6 | 질문 3/5, 사실 8/14 | 5/5, 14/14 |
 | [EXP-005](../experiments/EXP-005) | NIST Hacking Case, 31문항 | `mulder investigate`, Opus 4.6 | 질문 22/29, 사실 39/47 (검토 문항 2개 중 1개 맞음) | - |
 | [EXP-006](../experiments/EXP-006) | NIST Hacking Case, 31문항 | `mulder investigate`, Sonnet 4.6 | 보고서 없음: 보고서 단계가 검색만 하다 끝내 마무리하지 못함 | - |
-| [EXP-007](../experiments/EXP-007) | NIST Hacking Case, 31문항 | `mulder serve`를 쓰는 Claude Code, Opus 4.6 | 예정 | - |
+| [EXP-007](../experiments/EXP-007) | NIST Hacking Case, 31문항 | `mulder serve`를 쓰는 Claude Code, Opus 4.6 | 검토: 완전 일치 71%, 탐지 81%, 오탐 13% | - |
 | [EXP-008](../experiments/EXP-008) | NIST Hacking Case, 31문항 | `mulder serve`를 쓰는 Claude Code, Haiku 4.5 | 질문 7/29, 사실 13/47 (3분 만에 멈춤) | - |
-| [EXP-009](../experiments/EXP-009) | NIST Hacking Case, 31문항 | `mulder investigate`, 모든 역할 Haiku 4.5 | 질문 7/29, 사실 14/47 | - |
+| [EXP-009](../experiments/EXP-009) | NIST Hacking Case, 31문항 | `mulder investigate`, 모든 역할 Haiku 4.5 | 결과 없음 응답 수정의 before/after, 진행 중 | - |
 
 Opus로 돌린 `mulder investigate` 실행 비용은 mulder가 보고한 토큰 기준 정가로 회당 약 $1.5~3이고
 (캐시 읽기·쓰기는 빠져 있음), 실행 시간은 25~36분이었습니다.

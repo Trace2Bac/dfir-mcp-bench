@@ -4,7 +4,7 @@ title: "[Baseline] Claude Code with mulder's MCP tools on the NIST Hacking Case"
 title_ko: "[Baseline] mulder MCP 도구를 쓰는 Claude Code로 NIST Hacking Case 조사"
 server: mulder
 kind: baseline                   # bug-fix | feature | ablation | baseline
-status: planned                  # planned | in-progress | done
+status: done                     # planned | in-progress | done
 change: >
   None. Unmodified mulder 1.5.10 served over MCP (`mulder serve`) to Claude
   Code, which investigates the NIST CFReDS Hacking Case on its own, without
@@ -37,8 +37,29 @@ variants:
   before: mulder-1.5.10          # upstream release
 
 conclusion: >
-  Not run yet. Compare with EXP-005 (mulder investigate, Opus 4.6: 22/29
-  questions, 39/47 facts).
+  16 minutes, 123 turns, 121 tool calls. Review: full match 71%, detection
+  81%, false positives 13% (EXP-005, mulder investigate with the same model:
+  71%, 81%, 6%). Without the orchestrator Opus answered as many questions in
+  less than half the time, and it answered the three that every
+  mulder investigate run missed: it read the capture's disk clusters with
+  bulk_extractor and found the victim's Pocket PC, mobile.msn.com and
+  Hotmail (Q24, Q25). But it made more false claims. The e-mail accounts it
+  reported (langstrasse.ch, an MSN Mail account) appear in no tool output;
+  the registry it queried holds sbcglobal accounts (Q17, Q18). Q31 again
+  rests on ClamAV, which did not look inside the image. It also did not
+  answer the questions as given: it wrote its own numbered list, in another
+  order and with words replaced by "prior", and labelled its answers with
+  the wording it recalled, so the report has no "Case Q<n>" lines and was
+  read as a whole. Claude Code reported 43.8K output and 6.4M cache-read
+  tokens, $6.75 at API prices.
 conclusion_ko: >
-  아직 실행하지 않음. EXP-005(mulder investigate, Opus 4.6: 질문 22/29, 사실 39/47)와
-  비교한다.
+  16분, 123턴, 도구 호출 121번. 검토 결과 완전 일치 71%, 탐지 81%, 오탐 13%(같은 모델의
+  mulder investigate인 EXP-005: 71%, 81%, 6%). 오케스트레이터 없이도 Opus는 절반이 안 되는
+  시간에 같은 수의 질문에 답했고, mulder investigate 실행이 모두 놓친 세 질문에도 답했다.
+  bulk_extractor로 캡처 파일의 디스크 클러스터를 읽어 피해자 기기(Pocket PC), mobile.msn.com,
+  Hotmail을 찾았다(Q24, Q25). 하지만 틀린 단정은 더 많았다. 보고한 이메일 계정(langstrasse.ch,
+  MSN 메일 계정)은 어떤 도구 결과에도 없고, 조회한 레지스트리에는 sbcglobal 계정이 있다(Q17,
+  Q18). Q31은 이번에도 이미지 안을 보지 못한 ClamAV 결과다. 또 주어진 질문에 그대로 답하지
+  않았다. 순서가 다르고 단어가 "prior"로 바뀐 자기만의 질문 목록을 쓰고, 기억한 문구로 답에
+  번호를 붙였다. 그래서 보고서에 "Case Q<n>" 줄이 없어 전체를 읽고 판정했다. Claude Code가
+  보고한 토큰은 출력 43.8K, 캐시 읽기 6.4M으로 API 가격 기준 $6.75다.

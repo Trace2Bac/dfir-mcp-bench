@@ -120,6 +120,7 @@ and effort come from the experiment's `harness_options`.
 export ANTHROPIC_API_KEY=...                 # in this shell only; never written to a file
 ./bench.sh investigate EXP-004 --dry-run     # prepare and print the command; nothing is started
 ./bench.sh investigate EXP-004               # run every label and import the results
+./bench.sh investigate EXP-009 after --repeat 2   # one label, twice; each run becomes the next run-<n>
 ```
 
 For each label it builds the variant image, copies the case's evidence to

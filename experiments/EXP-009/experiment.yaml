@@ -1,21 +1,29 @@
 # EXP-009: one verification. The folder name is its permanent identifier;
 # the title may change.
-title: "[Baseline] mulder investigate on the NIST Hacking Case, Haiku in every role"
-title_ko: "[Baseline] 모든 역할을 Haiku로 돌린 NIST Hacking Case mulder investigate"
+title: "[Bug Fix] analyze_disk_pcaps says what it searched when it finds nothing (Haiku)"
+title_ko: "[Bug Fix] analyze_disk_pcaps가 찾은 것이 없을 때 확인 범위를 알림 (Haiku)"
 server: mulder
-kind: baseline                   # bug-fix | feature | ablation | baseline
-status: done                     # planned | in-progress | done
+kind: bug-fix                    # bug-fix | feature | ablation | baseline
+status: in-progress              # planned | in-progress | done
 change: >
-  None. EXP-005 (unmodified mulder 1.5.10, the NIST Hacking Case, all 31
-  questions) with Haiku 4.5 as planner, executor and analyst. It shows
-  whether mulder's orchestrator carries the cheapest Claude model far enough
-  to use it for repeated before/after runs, and, against EXP-008 (Claude Code
-  with the same model and tools), what the orchestrator adds.
+  analyze_disk_pcaps looks for packet captures in the disk image's file
+  listing by file name extension only. When it finds none it returns a plain
+  success, "No packet capture files found", so a model can read it as "there
+  is no capture". In the first run here (before, run 1) Haiku did exactly
+  that for the capture saved as "interception" and concluded Ethereal had not
+  been used. The after version keeps the search as it is and changes only
+  the empty result: status no_results, the number of files and the
+  partitions checked, that files were matched by extension only, and that
+  this does not show the image holds no capture (guideline 4.1 and 4.2).
+  Compared: Q23-Q25 and claims that no capture exists, over repeated runs.
 change_ko: >
-  변경 없음. EXP-005(수정하지 않은 mulder 1.5.10, NIST Hacking Case, 31문항 전부)에서
-  planner, executor, analyst를 모두 Haiku 4.5로 바꾼다. mulder 오케스트레이터가 가장 싼
-  Claude 모델을 before/after 반복 실행에 쓸 만큼 이끌어 주는지 보고, EXP-008(같은 모델과
-  도구를 쓰는 Claude Code)과 비교해 오케스트레이터의 효과를 본다.
+  analyze_disk_pcaps는 디스크 이미지의 파일 목록에서 확장자로만 캡처 파일을 찾는다. 찾은 것이
+  없으면 "No packet capture files found"와 함께 그냥 성공을 돌려주므로, 모델이 "캡처 파일이
+  없다"로 읽을 수 있다. 이 실험의 첫 실행(before 1회차)에서 Haiku가 실제로 "interception"으로
+  저장된 캡처를 놓치고 Ethereal을 쓰지 않았다고 결론지었다. after는 찾는 방식은 그대로 두고
+  결과 없음 응답만 바꾼다. 상태 no_results, 확인한 파일 수와 파티션, 확장자로만 찾았다는 것,
+  그래서 캡처가 없다고 단정할 수 없다는 것을 알린다(가이드라인 4.1, 4.2). 반복 실행에서
+  Q23~Q25와 "캡처 파일이 없다"는 주장을 비교한다.
 links:
   - https://cfreds-archive.nist.gov/Hacking_Case.html
   - https://cfreds-archive.nist.gov/images/TestAnswers.pdf
@@ -28,36 +36,16 @@ harness_options:
   answer_section: true
 
 variants:
-  before: mulder-1.5.10          # upstream release
+  before: mulder-1.5.10                 # upstream release
+  after: mulder-1.5.10-pcap-scope       # the same release with the empty-result change
 
 conclusion: >
-  14 minutes, 188 turns, 214 tool calls, 11 findings; all five phases
-  passed. 7/29 questions, 14/47 facts, about the same as Haiku in Claude
-  Code (EXP-008: 7/29) and far below EXP-005 (Opus as planner and analyst:
-  22/29). The orchestrator made Haiku investigate more (214 calls against
-  58) but not answer more: 15 answers say the evidence did not show it (time
-  zone, owner, network cards and addresses, newsgroups, recycle bin). Two
-  answers were scored per line only after the range line "Case Q28-Q30" was
-  read as covering all three questions; before that fix Q30 passed on the
-  whole report. Q3 passes on a date it names while saying the install date
-  was not found; a reviewer should decide. analyze_disk_pcaps ran on the
-  image, reported "ok, network captures analyzed" and found nothing (the
-  capture file "interception" has no extension), and the counter-analysis
-  phase then concluded there was no evidence Ethereal was used. Q1 is again
-  the MD5 of the E01 file, though this time the report says verification
-  could not be determined; Q31 rests on run_clamav run on the E01 file. mulder
-  reported 6.4K input and 67.6K output tokens. Haiku in every role is not
-  enough for before/after runs on this case.
+  In progress: two runs per label. Before, run 1 (2026-11-10): 14 minutes,
+  214 tool calls; review full match 19%, detection 26%, false positives 10%.
+  analyze_disk_pcaps returned "ok, no capture files", Q23 says no capture
+  file was recovered, and the report states there is no evidence Ethereal
+  was run.
 conclusion_ko: >
-  14분, 188턴, 도구 호출 214번, 발견 사항 11건. 다섯 단계 모두 통과했다. 질문 7/29, 사실
-  14/47로, Claude Code의 Haiku(EXP-008: 7/29)와 비슷하고 EXP-005(planner·analyst가
-  Opus: 22/29)보다 훨씬 낮다. 오케스트레이터 덕분에 Haiku가 더 많이 조사했지만(호출 214번
-  대 58번) 더 많이 답하지는 못했다. 답 15개가 증거에서 찾지 못했다고 했다(시간대, 소유자,
-  네트워크 카드와 주소, 뉴스그룹, 휴지통). "Case Q28-Q30"처럼 범위로 쓴 줄을 세 질문 모두의
-  답으로 읽도록 채점을 고친 뒤 다시 채점했다. 고치기 전에는 Q30이 보고서 전체로 채점돼
-  통과했다. Q3은 설치일을 찾지 못했다면서 적은 날짜로 통과했으니 검토자가 판단해야 한다.
-  analyze_disk_pcaps가 이미지에 실행돼 "ok, network captures analyzed"를 돌려줬지만 아무것도
-  찾지 못했고(캡처 파일 "interception"에 확장자가 없음), 이어서 반대 가설 검토 단계가
-  Ethereal을 쓴 증거가 없다고 결론지었다. Q1은 이번에도 E01 파일의 MD5이지만, 보고서가 검증
-  여부는 알 수 없다고 적었다. Q31은 E01 파일에 돌린 run_clamav 결과다. mulder가 보고한 토큰은
-  입력 6.4K, 출력 67.6K. 모든 역할을 Haiku로 하면 이 케이스에서 before/after 실행에 쓰기 어렵다.
+  진행 중: 라벨당 2회. before 1회차(2026-11-10): 14분, 도구 호출 214번, 검토 결과 완전 일치
+  19%, 탐지 26%, 오탐 10%. analyze_disk_pcaps가 "성공, 캡처 파일 없음"을 돌려줬고, Q23은
+  캡처 파일이 복구되지 않았다고 답했으며, 보고서는 Ethereal을 실행한 증거가 없다고 단정했다.

@@ -109,6 +109,7 @@ WSL 2를 씁니다. `bench.sh`는 bash 스크립트이고 컨테이너는 Linux�
 export ANTHROPIC_API_KEY=...                 # 이 셸에서만. 파일에는 쓰지 않습니다
 ./bench.sh investigate EXP-004 --dry-run     # 준비만 하고 명령을 보여 줌. 아무것도 시작하지 않음
 ./bench.sh investigate EXP-004               # 모든 라벨을 실행하고 결과를 가져옴
+./bench.sh investigate EXP-009 after --repeat 2   # 한 라벨을 두 번. 실행마다 다음 run-<n>으로 저장
 ```
 
 라벨마다 variant 이미지를 빌드하고, 케이스 증거를 `data/investigate/<검증>/<라벨>/`로

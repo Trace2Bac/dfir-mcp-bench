@@ -102,7 +102,7 @@ def import_investigation(
         "model": None,
         "started": started.isoformat() if started else None,
         "finished": finished.isoformat() if finished else None,
-        "run_id": 1,
+        "run_id": int(out.name.removeprefix("run-")),
         "end_reason": "report",
         "case_answer_lines": len(lines),
         "turns": turns,
@@ -183,14 +183,27 @@ def investigate_args(experiment_yaml: Path) -> str:
     return " ".join(flags)
 
 
+def run_dir(model_dir: Path, run_id: int | None) -> Path:
+    """model_dir/run-<run_id>, or the next free run-<n> when *run_id* is None."""
+    if run_id is None:
+        taken = [int(p.name[4:]) for p in model_dir.glob("run-*") if p.name[4:].isdigit()]
+        run_id = max(taken, default=0) + 1
+    return model_dir / f"run-{run_id}"
+
+
 def _slug(text: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", text).strip("-")
 
 
 def import_from_experiment(
-    experiment_yaml: Path, label: str, mulder_cases: Path, case_id: str, image_id: str | None
+    experiment_yaml: Path,
+    label: str,
+    mulder_cases: Path,
+    case_id: str,
+    image_id: str | None,
+    run_id: int | None = None,
 ) -> Path:
-    """Import into experiments/<id>/results/<label>/<model>/run-1, using the experiment's settings.
+    """Import into experiments/<id>/results/<label>/<model>/run-<n>, using the experiment's settings.
 
     The folder is named after the planner model only; the other roles, the
     effort and the harness are in experiment.yaml and run.json.
@@ -204,7 +217,7 @@ def import_from_experiment(
     settings = exp.get("harness_options") or {}
     models = settings.get("models") or {}
     folder = models.get("planner") or next(iter(models.values()), "mulder-investigate")
-    out = experiment_yaml.parent / "results" / label / _slug(folder) / "run-1"
+    out = run_dir(experiment_yaml.parent / "results" / label / _slug(folder), run_id)
     import_investigation(
         experiment_yaml.parents[2] / "cases" / exp["case"] / "case.yaml",
         mulder_cases,

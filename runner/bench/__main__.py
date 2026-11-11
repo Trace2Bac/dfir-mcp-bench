@@ -71,6 +71,7 @@ def _parser() -> argparse.ArgumentParser:
     imp.add_argument("mulder_cases", type=Path, help="mulder's cases folder (--db-dir) of that run")
     imp.add_argument("case_id", help="the CASE_ID given to mulder investigate")
     imp.add_argument("--image-id", help="ID of the image the run used")
+    imp.add_argument("--run", type=int, help="run-<n> to write (default: the next free number)")
     brief = sub.add_parser("briefing", help="write MULDER.md (case briefing and questions) into an evidence folder")
     brief.add_argument("case", type=Path, help="path to cases/<id>/case.yaml")
     brief.add_argument("evidence_dir", type=Path, help="the evidence folder mulder will read")
@@ -93,6 +94,7 @@ def _parser() -> argparse.ArgumentParser:
     cimp.add_argument("work", type=Path, help="the run's working folder")
     cimp.add_argument("case_id", help="the case ID given to scan_evidence")
     cimp.add_argument("--image-id", help="ID of the image the run used")
+    cimp.add_argument("--run", type=int, help="run-<n> to write (default: the next free number)")
     return parser
 
 
@@ -167,10 +169,12 @@ def main() -> None:
     elif args.command == "claude-progress":
         claude_code.progress()
     elif args.command == "import-claude":
-        out = claude_code.import_run(args.experiment, args.label, args.work, args.case_id, args.image_id)
+        out = claude_code.import_run(args.experiment, args.label, args.work, args.case_id, args.image_id, args.run)
         print(f"{args.label}: imported -> {out}; judge it with ./bench.sh review")
     elif args.command == "import-investigate":
-        out = import_from_experiment(args.experiment, args.label, args.mulder_cases, args.case_id, args.image_id)
+        out = import_from_experiment(
+            args.experiment, args.label, args.mulder_cases, args.case_id, args.image_id, args.run
+        )
         print(f"{args.label}: imported -> {out}; judge it with ./bench.sh review")
 
 

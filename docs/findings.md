@@ -19,9 +19,9 @@ answer key.
 | [EXP-004](../experiments/EXP-004) | NIST CFTT `dfr-01-fat` | `mulder investigate`, Opus 4.6 | 3/5 questions, 8/14 facts | 5/5, 14/14 |
 | [EXP-005](../experiments/EXP-005) | NIST Hacking Case, 31 questions | `mulder investigate`, Opus 4.6 | 22/29 questions, 39/47 facts (+1 of 2 on review) | - |
 | [EXP-006](../experiments/EXP-006) | NIST Hacking Case, 31 questions | `mulder investigate`, Sonnet 4.6 | no report: the report phase kept searching and never finalized | - |
-| [EXP-007](../experiments/EXP-007) | NIST Hacking Case, 31 questions | Claude Code with `mulder serve`, Opus 4.6 | planned | - |
+| [EXP-007](../experiments/EXP-007) | NIST Hacking Case, 31 questions | Claude Code with `mulder serve`, Opus 4.6 | review: full match 71%, detection 81%, false positives 13% | - |
 | [EXP-008](../experiments/EXP-008) | NIST Hacking Case, 31 questions | Claude Code with `mulder serve`, Haiku 4.5 | 7/29 questions, 13/47 facts (stopped after 3 minutes) | - |
-| [EXP-009](../experiments/EXP-009) | NIST Hacking Case, 31 questions | `mulder investigate`, Haiku 4.5 in every role | 7/29 questions, 14/47 facts | - |
+| [EXP-009](../experiments/EXP-009) | NIST Hacking Case, 31 questions | `mulder investigate`, Haiku 4.5 in every role | before/after of an empty-result fix, in progress | - |
 
 The `mulder investigate` runs with Opus cost about $1.5 to $3 each at list
 prices, counting the tokens mulder reports (cache reads and writes are not
