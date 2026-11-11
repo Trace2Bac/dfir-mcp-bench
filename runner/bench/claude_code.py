@@ -12,9 +12,8 @@ from `claude setup-token`.
 Claude Code in the variant's image with its stream-json output piped through
 `progress`, then calls `import` to turn that output into a bench run:
 
-- answer.md         Claude Code's final message; scored on its "Case Q<n>:" lines
+- answer.md         Claude Code's final message, judged by a reviewer (review.yaml)
 - transcript.jsonl  one tool_call event per mulder tool call, with its result
-- score.json        the case scoring; required tools are checked against the calls made
 - run.json          variant, model, effort, Claude Code version, timing, usage
 - claude/           the raw stream-json output and the prompt it was given
 - mulder/           mulder's audit log and logs for the case, if written
@@ -34,7 +33,6 @@ import yaml
 
 from .case import load_case, split_answers
 from .investigate import CASE_PREFIX, briefing_text
-from .score import score_case
 
 # Claude Code names MCP tools mcp__<server>__<tool>.
 SERVER = "mulder"
@@ -135,10 +133,8 @@ def _slug(text: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", text).strip("-")
 
 
-def import_run(
-    experiment_yaml: Path, label: str, work: Path, case_id: str, image_id: str | None
-) -> tuple[Path, dict[str, Any]]:
-    """Import into experiments/<id>/results/<label>/claude-code_<model>[_effort-<e>]/run-1."""
+def import_run(experiment_yaml: Path, label: str, work: Path, case_id: str, image_id: str | None) -> Path:
+    """Import into experiments/<id>/results/<label>/<model>/run-1 (effort and harness are in run.json)."""
     exp = yaml.safe_load(experiment_yaml.read_text())
     root = experiment_yaml.parents[2]
     case = load_case(root / "cases" / exp["case"] / "case.yaml")
@@ -146,9 +142,7 @@ def import_run(
     variant = exp["variants"][label]
     env = (root / "servers" / "mulder" / "variants" / f"{variant}.env").read_text()
     ref = re.search(r"^REF=(\S+)", env, re.MULTILINE)
-    folder = f"claude-code_{options.get('model', 'default')}"
-    if options.get("effort"):
-        folder += f"_effort-{options['effort']}"
+    folder = options.get("model", "default")
     out = experiment_yaml.parent / "results" / label / _slug(folder) / "run-1"
     if out.exists():
         shutil.rmtree(out)
@@ -203,9 +197,6 @@ def import_run(
     report = result.get("result") or ""
     (out / "answer.md").write_text(report)
     lines = split_answers(case, report, prefix=CASE_PREFIX, fallback=False)
-    answers = {q.id: lines.get(q.id) or report for q in case.questions}
-    score = score_case(case.questions, answers, called)
-    (out / "score.json").write_text(json.dumps(score, indent=2) + "\n")
 
     usage = result.get("modelUsage") or {}
     run_info = {
@@ -224,12 +215,11 @@ def import_run(
         "model": None,
         "run_id": 1,
         "end_reason": "error" if result.get("is_error") else result.get("subtype", "no result"),
-        "answers_from": f"{len(lines)} '{CASE_PREFIX}Q<n>' lines, whole report for the rest",
+        "case_answer_lines": len(lines),
         "turns": result.get("num_turns"),
         "seconds": round((result.get("duration_ms") or 0) / 1000, 1),
         "tool_calls": calls,
         "tool_errors": errors,
-        "wrong_claims": sum(len(q["forbidden_found"]) for q in score["questions"]),
         # Claude Code counts cache reads and writes too. The cost is what the
         # same tokens would cost on the API; a subscription is not billed per run.
         "token_usage": [
@@ -244,8 +234,6 @@ def import_run(
         ],
         "api_cost_usd": result.get("total_cost_usd"),
         "tools_called": sorted(called),
-        "score": f"{score['passed']}/{score['total']}",
-        "facts": f"{score['facts_found']}/{score['facts_total']}",
     }
     (out / "run.json").write_text(json.dumps(run_info, indent=2) + "\n")
-    return out, score
+    return out

@@ -1,18 +1,16 @@
 # EXP-002: one verification. The folder name is its permanent identifier;
 # the title may change.
-title: "Baseline: mulder investigate on the full Rhino Hunt answer key"
-title_ko: "기준선: Rhino Hunt 정답지 전체에 대한 mulder investigate"
+title: "[Baseline] Rhino Hunt case with mulder investigate on Claude"
+title_ko: "[Baseline] Rhino Hunt 케이스를 Claude로 mulder investigate 실행"
 server: mulder
-kind: baseline                   # bug-fix | feature | ablation | baseline
-status: done                     # planned | in-progress | done
+kind: baseline # bug-fix | feature | ablation | baseline
+status: done # planned | in-progress | done
 change: >
-  None. Unmodified mulder 1.5.10 runs its own five-phase investigation
-  (mulder investigate) on the Rhino Hunt evidence, to see which answers it
-  reaches and which it cannot because a tool is missing.
+  To evaluate mulder and the Claude models and to find a suitable test case,
+  we ran the Rhino Hunt case with mulder investigate on Claude (Opus 4.6).
 change_ko: >
-  변경 없음. 수정하지 않은 mulder 1.5.10이 Rhino Hunt 증거에 대해 자체 다섯 단계
-  조사(mulder investigate)를 돌린다. 어떤 답에 닿고, 어떤 답이 도구가 없어서 막히는지
-  본다.
+  mulder와 Claude 모델의 성능을 평가하고 적절한 테스트 케이스를 찾기 위해, Rhino Hunt
+  케이스를 Claude(Opus 4.6)로 mulder investigate로 돌려 봤다.
 links:
   - https://cfreds-archive.nist.gov/dfrws/Rhino_Hunt.html
   - https://cfreds-archive.nist.gov/dfrws/DFRWS2005-answers.pdf
@@ -23,16 +21,21 @@ case: rhino-hunt
 # way to give an investigation its questions; no answers were given.
 harness: mulder-investigate
 harness_options:
-  models: {planner: claude-opus-4-6, executor: claude-haiku-4-5, analyst: claude-opus-4-6}
+  models:
+    {
+      planner: claude-opus-4-6,
+      executor: claude-haiku-4-5,
+      analyst: claude-opus-4-6,
+    }
   effort: max
   auth: Anthropic API key
-  command: mulder investigate /evidence/rhino-hunt rhino-hunt   # release image, --privileged
+  command: mulder investigate /evidence/rhino-hunt rhino-hunt # release image, --privileged
 
 variants:
-  before: mulder-1.5.10          # upstream release
+  before: mulder-1.5.10 # upstream release
 
 scripted_expect:
-  before: {questions: 5/7, facts: 15/22}
+  before: { questions: 5/7, facts: 15/22 }
 
 conclusion: >
   35 minutes, 383 tool calls, 14 findings. Automatic score 4/7 questions,

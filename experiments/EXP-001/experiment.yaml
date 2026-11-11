@@ -1,20 +1,22 @@
 # EXP-001: one verification. The folder name is its permanent identifier;
 # the title may change.
-title: "Fix verification: pcap dns and smtp field names (calebevans/mulder#274)"
-title_ko: "수정 검증: pcap dns·smtp 필드 이름 (calebevans/mulder#274)"
+title: "[Bug Fix] tshark field names (calebevans/mulder#274)"
+title_ko: "[Bug Fix] tshark 필드 이름 수정 (calebevans/mulder#274)"
 server: mulder
-kind: bug-fix                    # bug-fix | feature | ablation | baseline
-status: done                     # planned | in-progress | done
+kind: bug-fix # bug-fix | feature | ablation | baseline
+status: done # planned | in-progress | done
 change: >
-  Our pull request calebevans/mulder#274, merged upstream. run_pcap_analysis asked tshark for dns.resp.addr and smtp.response.parameter,
-  which do not exist in current Wireshark. Both modes failed while the response
-  said success and stored the tshark error as the result. The fix requests
-  dns.a and smtp.rsp.parameter.
+  Our first test: verifying our PR calebevans/mulder#274. The run_pcap_analysis
+  tool asked tshark for fields that current Wireshark does not have
+  (dns.resp.addr, smtp.response.parameter), so both the dns and smtp modes
+  failed. Even so, mulder reported success and stored the tshark error as the
+  result. The fix requests dns.a and smtp.rsp.parameter.
 change_ko: >
-  우리가 올려 upstream에 머지된 PR calebevans/mulder#274. run_pcap_analysis가
-  현재 Wireshark에 없는 필드 dns.resp.addr, smtp.response.parameter를 tshark에
-  요청했다. 두 모드가 실패했는데도 응답은 success였고, tshark 오류 문구가 결과로
-  저장됐다. 수정은 dns.a와 smtp.rsp.parameter를 요청한다.
+  첫 번째 테스트로, 우리가 올린 PR calebevans/mulder#274를 검증했다.
+  run_pcap_analysis 도구가 현재 Wireshark에 없는 필드(dns.resp.addr,
+  smtp.response.parameter)를 tshark에 요청해서 dns·smtp 두 모드가 모두 실패했다.
+  그런데도 mulder는 성공했다고 보고하고 tshark 오류 문구를 결과로 저장했다.
+  수정 후에는 dns.a와 smtp.rsp.parameter를 요청한다.
 links:
   - https://github.com/calebevans/mulder/issues/273
   - https://github.com/calebevans/mulder/pull/274
@@ -22,19 +24,19 @@ links:
 # How it was tested: the case (questions, tools, scripted calls; its dataset is
 # named in the case) and the harness that ran it.
 case: pcap-dns-smtp
-harness: bench-runner            # runner/ with a local model, or scripted calls
+harness: bench-runner # runner/ with a local model, or scripted calls
 
 # Server versions, by label (servers/mulder/variants/<name>.env). before is the
 # parent commit of the fix and after the fix commit, so they differ by the fix.
 variants:
-  before: mulder-1040615         # v1.5.4, parent of the fix
-  after: mulder-e74ae6d          # the fix commit
+  before: mulder-1040615 # v1.5.4, parent of the fix
+  after: mulder-e74ae6d # the fix commit
 
 # Scores the scripted run must reach on each label; `./bench.sh check` fails
 # when a run differs.
 scripted_expect:
-  before: {questions: 0/3, facts: 0/4}
-  after: {questions: 3/3, facts: 4/4}
+  before: { questions: 0/3, facts: 0/4 }
+  after: { questions: 3/3, facts: 4/4 }
 
 conclusion: >
   Without a model the same calls return the tshark error before the fix and

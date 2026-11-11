@@ -4,9 +4,8 @@ mulder's orchestrator writes a report, an audit log and its own logs into its
 cases folder. This turns them into the files every bench run has, so the same
 scoring, review, summary and site apply:
 
-- answer.md         the report (Markdown); scored against the case questions
+- answer.md         the report (Markdown), judged by a reviewer (review.yaml)
 - transcript.jsonl  one tool_call event per audited tool call, in order
-- score.json        the case scoring; required tools are checked against the audit log
 - run.json          variant, models, effort, timing, tool calls, token usage
 - mulder/           report (md, html), audit log, model usage and logs, as written by mulder
 """
@@ -21,7 +20,6 @@ from pathlib import Path
 from typing import Any
 
 from .case import load_case, split_answers
-from .score import score_case
 
 # Copied as is; the case database is left out (it holds indexed evidence).
 KEEP = ("report.md", "report.html", "audit.jsonl", "model_usage.json", "mulder.log")
@@ -88,12 +86,7 @@ def import_investigation(
             f.write(json.dumps(event, ensure_ascii=False) + "\n")
 
     called = {e["tool_name"] for e in calls}
-    # A question is scored on its "Case Q<n>:" line when the report has one
-    # (answer_section); otherwise on the whole report, as for runs without it.
     lines = split_answers(case, report, prefix=CASE_PREFIX, fallback=False)
-    answers = {q.id: lines.get(q.id) or report for q in case.questions}
-    score = score_case(case.questions, answers, called)
-    (out / "score.json").write_text(json.dumps(score, indent=2) + "\n")
 
     started, finished = _log_span(log) if log.exists() else (None, None)
     turns = sum(int(m.group(2)) for m in _QUERY.finditer(log.read_text(errors="replace"))) if log.exists() else 0
@@ -111,18 +104,15 @@ def import_investigation(
         "finished": finished.isoformat() if finished else None,
         "run_id": 1,
         "end_reason": "report",
-        "answers_from": f"{len(lines)} '{CASE_PREFIX}Q<n>' lines, whole report for the rest",
+        "case_answer_lines": len(lines),
         "turns": turns,
         "seconds": round((finished - started).total_seconds(), 1) if started and finished else 0,
         "tool_calls": len(calls),
         "tool_errors": None,
-        "wrong_claims": sum(len(q["forbidden_found"]) for q in score["questions"]),
         # As reported by mulder: cache reads and writes are not included.
         "token_usage": usage,
         "findings": sum(1 for e in audit if e.get("type") == "finding"),
         "tools_called": sorted(called),
-        "score": f"{score['passed']}/{score['total']}",
-        "facts": f"{score['facts_found']}/{score['facts_total']}",
     }
     (out / "run.json").write_text(json.dumps(run_info, indent=2) + "\n")
     return run_info
@@ -200,7 +190,11 @@ def _slug(text: str) -> str:
 def import_from_experiment(
     experiment_yaml: Path, label: str, mulder_cases: Path, case_id: str, image_id: str | None
 ) -> Path:
-    """Import into experiments/<id>/results/<label>/<models>/run-1, using the experiment's settings."""
+    """Import into experiments/<id>/results/<label>/<model>/run-1, using the experiment's settings.
+
+    The folder is named after the planner model only; the other roles, the
+    effort and the harness are in experiment.yaml and run.json.
+    """
     import yaml
 
     exp = yaml.safe_load(experiment_yaml.read_text())
@@ -209,9 +203,7 @@ def import_from_experiment(
     ref = re.search(r"^REF=(\S+)", env, re.MULTILINE)
     settings = exp.get("harness_options") or {}
     models = settings.get("models") or {}
-    folder = "_".join(dict.fromkeys(models.values())) or "mulder-investigate"
-    if settings.get("effort"):
-        folder += f"_effort-{settings['effort']}"
+    folder = models.get("planner") or next(iter(models.values()), "mulder-investigate")
     out = experiment_yaml.parent / "results" / label / _slug(folder) / "run-1"
     import_investigation(
         experiment_yaml.parents[2] / "cases" / exp["case"] / "case.yaml",

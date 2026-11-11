@@ -121,9 +121,12 @@ def _run(args: argparse.Namespace) -> None:
         args.run_id,
     )
     out = asyncio.run(run_case(case, opts))
+    if not (out / "score.json").exists():  # a model run: judged with ./bench.sh review
+        print(f"{case.id} {opts.label} [{args.variant}] -> {out}")
+        return
     score = json.loads((out / "score.json").read_text())
     print(
-        f"{case.id} {opts.label} [{args.variant}] {score['passed']}/{score['total']} questions, "
+        f"{case.id} {opts.label} [{args.variant}] scripted: {score['passed']}/{score['total']} questions, "
         f"{score['facts_found']}/{score['facts_total']} facts -> {out}"
     )
     for q in score["questions"]:
@@ -164,18 +167,11 @@ def main() -> None:
     elif args.command == "claude-progress":
         claude_code.progress()
     elif args.command == "import-claude":
-        out, score = claude_code.import_run(args.experiment, args.label, args.work, args.case_id, args.image_id)
-        print(
-            f"{args.label}: {score['passed']}/{score['total']} questions, "
-            f"{score['facts_found']}/{score['facts_total']} facts -> {out}"
-        )
+        out = claude_code.import_run(args.experiment, args.label, args.work, args.case_id, args.image_id)
+        print(f"{args.label}: imported -> {out}; judge it with ./bench.sh review")
     elif args.command == "import-investigate":
         out = import_from_experiment(args.experiment, args.label, args.mulder_cases, args.case_id, args.image_id)
-        score = json.loads((out / "score.json").read_text())
-        print(
-            f"{args.label}: {score['passed']}/{score['total']} questions, "
-            f"{score['facts_found']}/{score['facts_total']} facts -> {out}"
-        )
+        print(f"{args.label}: imported -> {out}; judge it with ./bench.sh review")
 
 
 if __name__ == "__main__":

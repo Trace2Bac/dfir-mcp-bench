@@ -44,17 +44,35 @@ and `experiments/EXP-<nnn>/results/summary.md` is rewritten at the end.
 
 ## Review
 
-The automatic score only checks that the expected strings appear in the
-answer. Read the answers and record your verdict:
+A model's answers are not scored automatically. Read them and record your
+verdict:
 
 ```
 ./bench.sh review EXP-001
 ```
 
 For each unreviewed model run it shows every question, the expected facts, the
-model's answer and the automatic result, and asks for pass, partial or fail
-and an optional note. The verdicts are saved in the run's `review.yaml`; `q`
-stops and keeps what is saved. The reviewer name comes from `REVIEWER` or
+model's answer and which of the tools the question needs were called, and
+asks for a verdict and an
+optional note. The verdicts are those of mulder's own scorecards
+(`examples/*/ACCURACY-REPORT.md` in the mulder repository):
+
+| Key | Verdict | When |
+|---|---|---|
+| `f` | found | the answer matches the answer key |
+| `p` | partial | related evidence found, but a detail is wrong (a date, a time zone, a device) or it is stated without evidence |
+| `m` | missed | no answer, or the answer says the evidence does not show it |
+| `x` | false positive | a claim the answer key contradicts, or a cause the evidence does not support, stated as fact |
+
+A claim hedged as such ("consistent with", "possibly") is not a false
+positive. After the questions it asks for claims of that kind outside the
+questions, quoted from the answer; they count as false positives too. The
+summary and the site then show, as mulder does, full match (found),
+detection (found or partial) and false positives, each over the number of
+questions, as the median of the reviewed runs with the range.
+
+The verdicts are saved in the run's `review.yaml`; `q` stops and keeps what
+is saved. The reviewer name comes from `REVIEWER` or
 `git config user.name`. Where a review exists, it is the result that counts in
 the summary and on the site.
 
@@ -110,12 +128,11 @@ questions (no answers) into `MULDER.md` there, which is mulder's documented way
 to give an investigation its questions, runs `mulder investigate` with the
 image's own entrypoint and `--privileged`, and imports the result as
 `run-1`. The import keeps the report, audit log, model usage and logs (not the
-case database), scores the report against the case questions, and builds the
-run list from the audit log. mulder's report has its own fixed questions
+case database) and builds the run list from the audit log; the report is
+then judged with `./bench.sh review`. mulder's report has its own fixed questions
 (Q1 to Q8); with `answer_section: true` in `harness_options` the briefing
 labels the case questions `Case Q<n>` and asks for a "Case Questions" section
-with one answer line each, which `review` shows and scoring uses per
-question; a question without such a line is scored on the whole report. The
+with one answer line each, which `review` shows per question. The
 briefing used is kept with the run (`mulder/MULDER.md`). A run made by hand can be imported with
 `./bench.sh import <experiment> <label> <mulder cases folder> <case id>`.
 
@@ -140,9 +157,9 @@ questions that `MULDER.md` carries. Model and effort come from
 ```
 
 The terminal shows one line per tool call. The raw stream-json output is kept
-with the run (`claude/stream.jsonl`) next to the prompt; the import scores the
-final message on its `Case Q<n>:` lines and lists every mulder call with its
-result in `transcript.jsonl`. Claude Code's token counts include cache reads
+with the run (`claude/stream.jsonl`) next to the prompt; the import keeps the
+final message as the answer and lists every mulder call with its result in
+`transcript.jsonl`. Claude Code's token counts include cache reads
 and writes, and `api_cost_usd` in `run.json` is what they would cost on the
 API; a subscription is not billed per run but counts toward its usage
 limits. A run that ends in an error (a sign-in that expired, a usage limit)
@@ -157,7 +174,9 @@ there. The sign-in is kept in `data/claude/` (git-ignored, like all of
 ## Look at the results and publish
 
 ```
-cd web && npm start                  # http://localhost:3000, `npm start -- --locale ko` for Korean
+cd web && npm start                  # http://localhost:3000, English only (the dev server serves one language)
+npm run start:ko                     # Korean only; /ko/ gives 404 under npm start
+npm run preview                      # builds and serves both languages, as on GitHub Pages
 ```
 
 Before committing new results, run `./bench.sh check` to confirm that the

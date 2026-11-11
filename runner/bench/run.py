@@ -14,7 +14,7 @@ from typing import Any
 
 import httpx
 
-from .case import Case, split_answers, substitute
+from .case import Case, substitute
 from .mcp_server import Server, start_server
 from .model import Model
 from .score import score_case
@@ -244,9 +244,9 @@ async def _run_model(
 
 async def run_case(case: Case, opts: RunOptions) -> Path:
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    model_label = _slug(opts.model.resolve_name()) if opts.model else "scripted"
-    if opts.model and opts.model.cfg.reasoning_effort:
-        model_label += f"_reasoning-{_slug(opts.model.cfg.reasoning_effort)}"
+    # The model's own name, without its publisher ("qwen/qwen3.5-9b" -> "qwen3.5-9b");
+    # settings such as reasoning are in run.json.
+    model_label = _slug(opts.model.resolve_name().split("/")[-1]) if opts.model else "scripted"
     # results_root is the experiment's results folder. One folder per label,
     # model and repeat; a new run replaces it.
     out = opts.results_root / opts.label / model_label / f"run-{opts.run_id}"
@@ -269,21 +269,22 @@ async def run_case(case: Case, opts: RunOptions) -> Path:
             await _run_setup(server, case, env, log)
             if opts.model is None:
                 final, called = await _run_scripted(server, case, env, log)
-                answers = {q.id: final for q in case.questions}
                 stats: dict[str, int] = {}
             else:
                 final, called, reason, turns, stats = await _run_model(server, opts.model, case, env, log)
-                answers = split_answers(case, final)
             server_info = server.info
     finally:
         log.close()
         errlog.close()
 
-    score = score_case(case.questions, answers, called)
     events = [json.loads(line) for line in (out / "transcript.jsonl").read_text().splitlines()]
     calls = [e for e in events if e["kind"] == "tool_call"]
     (out / "answer.md").write_text(final + "\n")
-    (out / "score.json").write_text(json.dumps(score, indent=2) + "\n")
+    # Scripted runs check what the tools returned against the expected facts;
+    # a model's answers are judged by a reviewer (review.yaml), not scored here.
+    score = score_case(case.questions, {q.id: final for q in case.questions}, called) if opts.model is None else None
+    if score:
+        (out / "score.json").write_text(json.dumps(score, indent=2) + "\n")
     run_info = {
         "case": case.id,
         "label": opts.label,
@@ -311,8 +312,7 @@ async def run_case(case: Case, opts: RunOptions) -> Path:
         "seconds": round(events[-1]["t"], 1) if events else 0,
         "tool_calls": len(calls),
         "tool_errors": sum(bool(c["is_error"]) for c in calls),
-        "wrong_claims": sum(len(q["forbidden_found"]) for q in score["questions"]),
-        # Harness settings and what they did, so a score can be read in context.
+        # Harness settings and what they did, so a run can be read in context.
         "harness": {
             "max_turns": case.max_turns,
             "max_tool_chars": case.max_tool_chars,
@@ -321,8 +321,11 @@ async def run_case(case: Case, opts: RunOptions) -> Path:
             **stats,
         },
         "tools_called": sorted(called),
-        "score": f"{score['passed']}/{score['total']}",
-        "facts": f"{score['facts_found']}/{score['facts_total']}",
     }
+    if score:
+        run_info |= {
+            "score": f"{score['passed']}/{score['total']}",
+            "facts": f"{score['facts_found']}/{score['facts_total']}",
+        }
     (out / "run.json").write_text(json.dumps(run_info, indent=2) + "\n")
     return out

@@ -43,15 +43,29 @@ MODEL_REASONING_EFFORT=none ./bench.sh run EXP-001 --repeat 5   # 생각 끔, �
 
 ## 검토
 
-자동 채점은 기대한 문자열이 답에 들어 있는지만 봅니다. 답을 직접 읽고 판정을 남깁니다.
+모델의 답은 자동으로 채점하지 않습니다. 답을 직접 읽고 판정을 남깁니다.
 
 ```
 ./bench.sh review EXP-001
 ```
 
-검토하지 않은 모델 실행마다 질문, 기대한 사실, 모델의 답, 자동 결과를 보여 주고
-통과(p), 부분(a), 실패(f)와 메모를 묻습니다. 판정은 실행 폴더의 `review.yaml`에
-저장되고, `q`를 누르면 저장한 데까지 남기고 멈춥니다. 검토자 이름은 `REVIEWER`나
+검토하지 않은 모델 실행마다 질문, 기대한 사실, 모델의 답, 질문에 필요한 도구 중 호출한 것을 보여 주고 판정과
+메모를 묻습니다. 판정은 mulder가 자기 실행에 쓰는 채점표(mulder 저장소의
+`examples/*/ACCURACY-REPORT.md`)와 같습니다.
+
+| 키 | 판정 | 기준 |
+|---|---|---|
+| `f` | 일치 (found) | 정답지와 맞음 |
+| `p` | 부분 (partial) | 관련 증거는 찾았지만 세부(날짜, 시간대, 장치 등)가 틀리거나 근거 없이 말함 |
+| `m` | 놓침 (missed) | 답이 없거나, 증거에서 찾지 못했다고 함 |
+| `x` | 오탐 (false positive) | 정답지와 모순되는 주장이나 증거가 뒷받침하지 않는 원인을 사실로 단정함 |
+
+"~와 일치한다", "가능성이 있다"처럼 유보한 주장은 오탐이 아닙니다. 질문을 다 본 뒤에는 질문 밖에서
+같은 종류로 단정한 주장을 답에서 인용해 넣으라고 묻고, 이것도 오탐으로 셉니다. 요약과 사이트는
+mulder처럼 완전 일치(일치), 탐지(일치 또는 부분), 오탐을 각각 질문 수에 대한 비율로, 검토한
+실행들의 중앙값과 범위로 보여 줍니다.
+
+판정은 실행 폴더의 `review.yaml`에 저장되고, `q`를 누르면 저장한 데까지 남기고 멈춥니다. 검토자 이름은 `REVIEWER`나
 `git config user.name`에서 가져옵니다. 검토가 있으면 요약과 사이트에서 그 결과가
 최종입니다.
 
@@ -102,11 +116,10 @@ export ANTHROPIC_API_KEY=...                 # 이 셸에서만. 파일에는 �
 mulder가 문서로 안내하는, 조사에 질문을 주는 방법입니다. 그다음 이미지 기본
 entrypoint와 `--privileged`로 `mulder investigate`를 실행하고, 결과를 `run-1`로
 가져옵니다. 가져오기는 보고서, 감사 로그, 모델 사용량, 로그를 남기고(사건 DB 제외),
-보고서를 케이스 질문으로 채점하고, 감사 로그로 실행 기록을 만듭니다. mulder 보고서에는 자체 고정 질문(Q1~Q8)이 있습니다.
+감사 로그로 실행 기록을 만듭니다. 보고서는 그다음 `./bench.sh review`로 판정합니다. mulder 보고서에는 자체 고정 질문(Q1~Q8)이 있습니다.
 `harness_options`에 `answer_section: true`를 두면 브리핑이 케이스 질문을 `Case Q<n>`으로
 표시하고, 보고서에 질문마다 한 줄씩 답하는 "Case Questions" 절을 요청합니다. `review`는
-그 줄을 질문별 답으로 보여 주고, 채점도 그 줄로 합니다. 그런 줄이 없는 질문은 보고서
-전체로 채점합니다. 실제로 넣은 브리핑은 실행 결과(`mulder/MULDER.md`)에
+그 줄을 질문별 답으로 보여 줍니다. 실제로 넣은 브리핑은 실행 결과(`mulder/MULDER.md`)에
 남습니다. 손으로 돌린
 실행은 `./bench.sh import <검증> <라벨> <mulder cases 폴더> <case id>`로 가져옵니다.
 
@@ -129,7 +142,7 @@ Claude Code가 대화 없이(`claude -p`) 실행되고, MCP 서버는 `mulder se
 ```
 
 터미널에는 도구 호출마다 한 줄씩 나옵니다. stream-json 원본(`claude/stream.jsonl`)은 프롬프트와
-함께 실행 기록에 남습니다. 가져오기 단계에서 마지막 메시지를 `Case Q<n>:` 줄로 채점하고, mulder
+함께 실행 기록에 남습니다. 가져오기 단계에서 마지막 메시지를 답으로 남기고, mulder
 호출과 결과를 `transcript.jsonl`에 남깁니다. Claude Code의 토큰 수에는 캐시 읽기·쓰기가 포함되고,
 `run.json`의 `api_cost_usd`는 같은 토큰을 API로 썼을 때의 가격입니다. 구독은 실행마다 과금되지
 않지만 사용 한도에 포함됩니다. 오류로 끝난 실행(로그인 만료, 사용 한도)은 가져오지 않습니다.
@@ -142,7 +155,9 @@ Claude Code가 대화 없이(`claude -p`) 실행되고, MCP 서버는 `mulder se
 ## 결과 보기와 공개
 
 ```
-cd web && npm start                  # http://localhost:3000, 한글은 `npm start -- --locale ko`
+cd web && npm start                  # http://localhost:3000, 영어만 (개발 서버는 한 언어만 띄움)
+npm run start:ko                     # 한국어만. npm start에서 /ko/는 404
+npm run preview                      # 빌드한 뒤 두 언어를 함께 띄움 (GitHub Pages와 같음)
 ```
 
 새 결과를 커밋하기 전에 `./bench.sh check`로 scripted 점수가 바뀌지 않았는지

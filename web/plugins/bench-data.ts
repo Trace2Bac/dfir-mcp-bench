@@ -15,12 +15,18 @@ const MAX_RESULT_CHARS = 6000;
 export type Question = {id: string; text: string; expect: {all?: string[]; any?: string[]; none?: string[]}};
 export type Variant = {label: string; name: string; note: string; baseImage: string; ref: string; patches: string};
 export type Event = {t: number; kind: string; [key: string]: unknown};
-export type Review = {reviewer?: string; reviewed_at?: string; questions: Record<string, {verdict: string; note?: string}>};
+export type Review = {
+  reviewer?: string;
+  reviewed_at?: string;
+  questions: Record<string, {verdict: string; note?: string}>;
+  // Contradicted claims stated as fact outside the questions; they count as false positives.
+  extra_false_positives?: string[];
+};
 export type Run = {
   run: number;
   path: string; // results/<case>/<label>/<model>/run-<n>
   info: Record<string, any>;
-  score: Record<string, any>;
+  score: Record<string, any> | null; // scripted runs only; model runs are judged by review
   answer: string;
   events: Event[];
   review: Review | null; // human review (review.yaml), null when not reviewed
@@ -55,7 +61,7 @@ export type ExperimentSummary = {
   caseId: string;
   dataset?: string;
   labels: string[];
-  groups: {label: string; model: string; runs: number; runsPassed: number; facts: string; turns: number | null}[];
+  groups: {label: string; model: string; runs: number; turns: number | null}[];
 };
 
 const readJson = (p: string) => JSON.parse(fs.readFileSync(p, 'utf8'));
@@ -97,7 +103,7 @@ function readRun(root: string, dir: string): Run {
     run: Number(path.basename(dir).replace('run-', '')),
     path: path.relative(root, dir),
     info: readJson(path.join(dir, 'run.json')),
-    score: readJson(path.join(dir, 'score.json')),
+    score: fs.existsSync(path.join(dir, 'score.json')) ? readJson(path.join(dir, 'score.json')) : null,
     answer: fs.readFileSync(path.join(dir, 'answer.md'), 'utf8'),
     events,
     review: readReview(dir),
@@ -176,8 +182,6 @@ function summarize(c: ExperimentData): ExperimentSummary {
       label: g.label,
       model: g.model,
       runs: g.runs.length,
-      runsPassed: g.runs.filter(r => r.score.passed === r.score.total).length,
-      facts: `${mean(g.runs.map(r => r.score.facts_found ?? 0))?.toFixed(1)}/${g.runs[0].score.facts_total}`,
       turns: g.model === 'scripted' ? null : mean(g.runs.map(r => r.info.turns ?? 0)),
     })),
   };

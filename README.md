@@ -39,7 +39,7 @@ servers/mulder/
   variants/<name>.env       a server version: release image by digest, commit SHA, patches
   patches/                  diffs applied on top of the commit, e.g. to remove a feature
   Dockerfile                release image + source at the commit + patches + runner
-runner/bench/               the bench-runner harness: MCP client, local model client, scoring, review
+runner/bench/               the bench-runner harness: MCP client, local model client, scripted checks, review
 docs/                       findings, method, running and reviewing, adding a case or an experiment
 docs/notes/                 dated notes across experiments (e.g. which model to use for a case)
 web/                        the results site (Docusaurus), built from experiments/
@@ -94,8 +94,9 @@ feature, needs repeated model runs and a person's review. See
 5. Run with a local model: load it in LM Studio (context 32K or more), start
    its server (port 1234), `cp .env.example .env` and set `MODEL_NAME`, then
    `MODEL_REASONING_EFFORT=none ./bench.sh run EXP-001 --repeat 5`.
-6. Review the answers (`./bench.sh review EXP-001`); a review counts over the
-   automatic score. Before committing, run `./bench.sh check` again.
+6. Judge the answers (`./bench.sh review EXP-001`): found, partial, missed or
+   false positive per question; model runs are not scored automatically.
+   Before committing, run `./bench.sh check` again.
 
 See [docs/running.md](docs/running.md) for the full procedure (including Windows and `mulder investigate`), and
 [docs/adding-a-case.md](docs/adding-a-case.md) to add a case, a variant or an
@@ -160,7 +161,8 @@ per-question results with reviews, the scripted tool output side by side, and
 every run turn by turn, in English and Korean (`/ko/`).
 
 ```
-cd web && npm install && npm start    # http://localhost:3000; `npm start -- --locale ko` for Korean
+cd web && npm install && npm start    # http://localhost:3000, English only (the dev server serves one language)
+npm run start:ko                      # Korean only; `npm run preview` builds and serves both
 ```
 
 Interface text is translated in `web/i18n/ko/code.json` and the docs in

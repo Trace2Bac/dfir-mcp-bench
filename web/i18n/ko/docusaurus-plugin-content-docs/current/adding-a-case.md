@@ -58,7 +58,7 @@ server: mulder
 kind: bug-fix                    # bug-fix | feature | ablation | baseline
 status: in-progress              # planned | in-progress | done
 change: >
-  라벨 사이에 무엇이 다른지, 또는 기준선이 무엇을 위한 것인지.
+  라벨 사이에 무엇이 다른지, 또는 성능 측정 실험이 무엇을 위한 것인지.
 links: [https://github.com/calebevans/mulder/pull/274]
 case: pcap-dns-smtp              # cases/<id>. 데이터셋은 케이스에 적혀 있음
 harness: bench-runner            # 또는 다른 실행 방식. 결과는 직접 넣음
