@@ -1,23 +1,23 @@
 # Mulder Investigation Report
 
 **Case:** nist-hacking-case
-**Generated:** 2026-11-11T05:39:41.752179+00:00
+**Generated:** 2026-11-11T06:37:49.701378+00:00
 **Evidence:** /evidence/nist-hacking-case
 
 ---
 
 ## Executive Summary
 
-**Scope:** 199 evidence sources (18 disk, 181 other) | 222 tool calls | 15 minutes
-**Results:** 11 findings (5 high) | 9 confirmed, 2 inference
-**Timeline:** 2002-07-12 to 2004-08-27
+**Scope:** 49 evidence sources (15 disk, 34 other) | 240 tool calls | 14 minutes
+**Results:** 14 findings (4 high) | 10 confirmed, 4 inference
+**Timeline:** 2004-08-19 to 2004-08-27
 
 **Attack Lifecycle:**
-- **Initial Access / Deployment** (2002-07-12 to 2004-08-20): Anonymous Software Installation Detected (+8 related)
-- **Credential Access** (2004-08-20): IRC Client Configuration with Multiple Hacker-Associated Channels
-- **Other Activity** (2004-08-27): Significant File Deletion Activity - 7038 Deleted Entries Detected
+- **Initial Access / Deployment** (2004-08-19 to 2004-08-20): Installation Date and Primary Account Creation Timeline (+4 related)
+- **Persistence** (2004-08-27): System Shutdown Time and Last Activity
+- **Other Activity** (2004-08-19 to 2004-08-20): User Account "Mr. Evil" with Administrator Privileges (+1 related)
 
-**Tools:** search (100), get_raw_output (19), submit_finding (11), update_finding (9), open_case (8). SHA-256 hashes recorded for all evidence.
+**Tools:** search (112), get_raw_output (21), submit_finding (19), query_registry_value (10), update_finding (10). SHA-256 hashes recorded for all evidence.
 
 
 
@@ -36,7 +36,7 @@ SHA-256 hashes were computed at ingestion for 1
 original evidence file and
 recorded in the case database.
 
-222 tool calls were executed across 11
+240 tool calls were executed across 12
 indexed sources over the course of the investigation, with full provenance
 tracking via append-only JSONL audit log.
 
@@ -46,446 +46,147 @@ tracking via append-only JSONL audit log.
 
 ## Investigation Report
 
-# Forensic Investigation Report: Dell Latitude CPi Hacking Case
+# Investigation Narrative: Abandoned Dell Latitude CPi Computer Analysis
 
 ## Background
 
-On September 20, 2004, a Dell Latitude CPi notebook computer (serial #VLQLW) was abandoned and recovered along with a wireless PCMCIA card and homemade 802.11b antenna. Law enforcement suspected the device was used for hacking activities and sought to determine if it could be linked to a suspect known as "Mr. Evil" (online nickname for Greg Schardt). Initial investigative leads indicated that the suspect frequented wireless access points at locations like Starbucks and T-Mobile Hotspots, where he attempted to intercept internet traffic to capture credit card numbers, usernames, and passwords.
+On September 20, 2004, law enforcement recovered an abandoned Dell Latitude CPi notebook computer (serial # VLQLW) along with a wireless PCMCIA card and external 802.11b antennae. The discovery location and equipment configuration suggested potential use in illegal hacking activities, specifically the interception of wireless internet traffic at public hotspot locations. The suspect, Greg Schardt (alias "Mr. Evil"), is believed to be involved in credential theft and financial fraud through wireless network packet interception. This investigation sought to examine the forensic image of the recovered system to determine its involvement in hacking activities, identify hacking tools and evidence of their use, locate intercepted data, and establish the connection between the computer and the suspect.
 
-The forensic image of the abandoned computer was acquired using EnCase format, resulting in two segments totaling approximately 671 MB (MD5: 943243e71eda7481fee7b83f06698993; SHA256: 96bebe80f00541bf28fbc2ef0b02b580082ee6ad58837e991852ae66f077ec31). The system was a Microsoft Windows XP (Build 2600) installation with 11 distinct evidence sources extracted and indexed during analysis.
+The forensic examination was conducted on EnCase image 4Dell_Latitude_CPi.E01/.E02 using multiple forensic tools including registry analysis, file system enumeration, network artifact extraction, and malware scanning. The investigation identified 12 evidence sources from 9 different extractor types, generating 14 significant findings across system configuration, user accounts, installed software, and user activity.
 
-The computer was registered to Greg Schardt and configured with Central Standard Time (UTC-6). The system hostname was N-1A9ODN6ZXK4LQ. The Windows installation date recorded in the registry was August 20, 2004, at 16:48:27 UTC.
+## System Configuration and Environment
 
-## Incident Timeline
+The abandoned computer is a Dell Latitude CPi notebook running Microsoft Windows XP (version 5.1, build 2600). The system was installed on August 19, 2004, at 22:48:27 UTC, with a registered owner identified as "Greg Schardt" and organizational affiliation listed as "N/A". The computer hostname is "n-1a9odn6zxk4lq" and operates under Central Standard Time (UTC-6 with daylight bias UTC-5).
 
-### Phase 1: System Configuration and Account Setup (August 19-20, 2004)
+The system contains two network interface cards: (1) a Compaq WL110 Wireless LAN PC Card (GUID {86FC0C96-3FF2-4D59-9ABA-C602F213B5D2}) indicating primary wireless connectivity capability, and (2) a Xircom CardBus Ethernet 100 + Modem 56 (GUID {6E4090C2-FAEF-489A-8575-505D21FC1049}) providing wired connectivity. Network traffic analysis identified the system operating with IP address 192.168.254.2 and MAC address 00:0F:20:80:47:17 (Compaq/Intel vendor prefix). The wireless capability combined with the discovery of a homemade 802.11b antennae strongly suggests the system was configured for mobile network interception operations.
 
-The system configuration phase initiated prior to the formal Windows installation timestamp. On August 19, 2004, at 23:03:54 UTC, an administrative user account named "Mr. Evil" was created on the system. This account creation timestamp precedes the recorded Windows XP installation date by approximately 20 hours, suggesting either a registry migration from a previous system installation or OEM factory configuration activities. The "Mr. Evil" account was immediately assigned to the Administrators group (RID 1003), granting full system control.
+## User Accounts and Authentication Timeline
 
-Between August 19, 2004, 22:38:18 UTC and August 19, 2004, 23:04:14 UTC, the Mr. Evil account was initialized and configured. User profile registry modifications occurred, establishing the foundational user environment.
+The system contains five user accounts:
 
-Windows XP was formally installed on August 20, 2004, at 16:48:27 UTC. System hardening was limited; default services remained active on the computer.
+1. **Administrator (RID 500)**: Created August 19, 2004 at 16:59:24 UTC, marked as "Default Admin User", never logged in (0 login count)
+2. **Guest (RID 501)**: Default guest account, created August 19, 2004, never accessed
+3. **HelpAssistant (RID 1000)**: Remote Desktop Help Assistant Account, created August 19, 2004 at 22:28:24 UTC
+4. **SUPPORT_388945a0 (RID 1002)**: Microsoft Help and Support vendor account, disabled, created August 19, 2004 at 22:35:19 UTC
+5. **Mr. Evil (RID 1003)**: Created August 19, 2004 at 23:03:54 UTC as "Default Admin User", last login August 27, 2004 at 15:08:23 UTC, 15 total logins, member of Administrators group
 
-### Phase 2: Network Reconnaissance Tool Installation (April-August 2004)
+The creation timeline is highly suspicious: the malicious "Mr. Evil" account was created only 4 hours after OS installation, indicating deliberate configuration for malicious purposes from system setup. The account name "Mr. Evil" directly correlates with the known online alias of suspect Greg Schardt, establishing a critical link between the suspect and system control. Mr. Evil's 15 login count and multiple administrator privileges demonstrate this account was the primary operational account on the system.
 
-Application execution records (shimcache) reveal a timeline inconsistency: many network reconnaissance and attack preparation tools appear dated to 2001-2003, before the August 2004 Windows installation. These antiquated timestamps suggest the registry containing these records was migrated from a previous system installation, carrying forward historical tool references.
+## Installed Hacking Tools and Software
 
-The dated tool installations include:
-- **Anonymizer Software** (July 12, 2002, 00:01:32 UTC): Located at C:\PROGRA~1\ANONYM~1\Core\ANONYM~1.DLL. This proxy/anonymity software would mask the user's internet activities and IP address during network operations.
-- **Look@LAN host enumeration utilities** (June 18, 2003, 12:00:17 UTC for LookAtHost.exe): Network scanning tool for discovering active hosts and services on networks.
-- **Cain & Abel password recovery tool** (December 13, 2003, 03:32:04 UTC): Located at C:\Program Files\Cain\Cain.exe. This tool enables password recovery through multiple attack methods including ARP spoofing, packet sniffing, dictionary attacks, and hash cracking.
+Comprehensive analysis of shimcache execution artifacts and application installation records identified six major hacking and network reconnaissance tools installed and actively used on the system:
 
-More contemporary tool installations on this system include:
-- **Network Stumbler wireless scanner** (April 21, 2004, 07:16:58 UTC): Executable found at Desktop, with installer netstumblerinstaller_0_4_0.exe dated August 27, 2004, 15:11:07 UTC, indicating recent tool reinstallation.
-- **Ethereal packet sniffer** (August 13, 2004, 02:15:35 UTC): Located at C:\Program Files\Ethereal\. Installer ethereal-setup-0.10.6.exe dated August 27, 2004, 15:24:24 UTC on the Desktop.
-- **WinPcap packet capture libraries** (supporting Ethereal and other sniffing tools).
+1. **Cain & Abel (v2.5)**: Network packet sniffer and password recovery tool (cain25b45.exe, dated 2003-12-13), executed August 20, 2004 at 15:05:52 UTC
+2. **Ethereal (v0.10.6)**: Network protocol analyzer (ethereal.exe, dated 2004-08-13), executed August 27, 2004 at 15:34:54 UTC
+3. **NetStumbler**: Wireless network discovery and mapping tool (netstumblerinstaller_0_4_0.exe), installed and executed August 27, 2004 at 15:12:11 UTC
+4. **mIRC (v6.12)**: Internet Relay Chat client (mirc.exe, mirc612.exe), installed August 20, 2004 at 15:09:46 UTC, last executed August 25, 2004 at 16:20:27 UTC
+5. **Whois**: Domain name lookup utility (whois.exe, dated 2004-07-28), executed August 26, 2004 at 15:13:57 UTC
+6. **Look@LAN**: Network enumeration and host discovery tool (LookAtLan.exe, dated 2004-02-18), executed August 26, 2004 at 15:06:14 UTC
 
-### Phase 3: Hacking Infrastructure Organization (August 2004)
+Supporting network capture infrastructure was also installed: WinPcap 3.01a (packet capture library, executed August 27, 2004 at 15:15:08 UTC) providing low-level packet capture capabilities essential for network interception operations. The concentrated installation and execution of these tools between August 20-27, 2004 demonstrates active preparation and deployment of a comprehensive network reconnaissance and packet interception toolkit. The combination of wireless discovery (NetStumbler, Look@LAN), packet capture (Ethereal, WinPcap, Cain), and password recovery tools (Cain & Abel, whois) creates a complete attack infrastructure consistent with organized credential theft operations.
 
-Analysis of the "My Documents" directory structure reveals a highly organized approach to hacking activities, organized into distinct operational phases:
+## Incident Timeline: Network Reconnaissance and Interception Activities
 
-- **ENUMERATION folder**: Contains network reconnaissance documentation and tools including nmap/nmapnt source code.
-- **EXPLOITATION folder**: Contains exploit and unauthorized access tools including Brutus (brute force password attacker), NetBus (remote access trojan), password dumping utilities, and related documentation.
-- **FOOTPRINTING folder**: Contains dsniff documentation and network analysis materials.
+The system's activity timeline reveals a coordinated 8-day operational window from August 19-27, 2004:
 
-This organizational structure is consistent with the operational phases of structured attack campaigns: reconnaissance, exploitation, and covering tracks.
+**August 19, 2004**: Operating system installed at 22:48:27 UTC; Administrator account (RID 500) created at 16:59:24 UTC; malicious "Mr. Evil" account (RID 1003) created at 23:03:54 UTC.
 
-### Phase 4: Command & Control and Information Gathering (August 20, 2004)
+**August 20, 2004**: Initial tool deployment phase begins. Multiple hacking tools downloaded from D:\Drivers\ path: Forte Agent newsreader installer (a32-19.exe) executed at 15:08:02 UTC; Cain & Abel installer (cain25b45.exe) executed at 15:05:52 UTC; Faber Toys installer executed at 15:06:45 UTC; mIRC installer (mirc612.exe) executed at 15:09:46 UTC; Whois utility (whois.exe) executed at 15:10:47 UTC. Outlook Express (msimn.exe) configured for email/news at 21:13:23 UTC. Browser activity shows searches for "what is my IP" (4 queries) and typed URLs accessing maktoob.com (web-based email service) at 15:32:56 UTC.
 
-On August 20, 2004, the "Mr. Evil" account initiated multiple internet communications:
+**August 25, 2004**: Forte Agent newsreader (agent.exe) executed at 15:55:34 UTC, establishing NNTP newsgroup subscription capabilities. mIRC executed at 16:20:27 UTC for IRC connectivity.
 
-**IRC (Internet Relay Chat) Activity** (10:30-14:26 UTC):
-- 10:30:18 UTC: Connected to #evilfork on EFNet network; message "glib smarm cuyk" (appears gibberish or obfuscated).
-- 10:42:03 UTC: Accessed #LuxShell on UnderNet.
-- 10:43:16 UTC: Accessed #mp3xserv on UnderNet.
-- 10:44:49 UTC: Accessed #ushells on UnderNet.
-- 10:45:34 UTC: Accessed #Elite.Hackers on UnderNet—a channel explicitly oriented toward hacking community activities.
-- 10:48:59 UTC: Accessed #houston on UnderNet.
-- 10:52:09 UTC: Accessed #Chataholics on UnderNet.
-- 10:54:21 UTC: Accessed #CyberCafe on UnderNet, remaining until 14:02:55 UTC (duration: 3 hours, 8 minutes). Channel activity log shows general social chat including discussions about food, relationships, and spam. User "mrevilrulez" sent messages including "glib marm cuyk" and basic greetings. The user lurked and participated in general IRC conversation with no recorded hacking discussions, attack planning, or credential sharing.
-- 14:14:45 UTC: Accessed #thedarktower on AftherNet.
-- 14:26:18 UTC: Accessed #funny on UnderNet.
+**August 26, 2004**: Look@LAN network enumeration tool (LookAtLan.exe) executed at 15:06:14 UTC. Whois executed at 15:13:57 UTC. Recent documents show access to "Temp on m1200 (4.12.220.254)" network share and folders containing hacking documentation (EXPLOITATION, FOOTPRINTING, etc.).
 
-The IRC logs accessible through the case evidence show that while the account holder (mrevilrulez) was present in hacker-associated channels, the actual recorded conversations contain no evidence of coordinating attacks, sharing stolen credentials, or technical discussions of exploits.
+**August 27, 2004**: Final tool execution and activity. NetStumbler (wireless network discovery) installer executed at 15:12:11 UTC. Ethereal network protocol analyzer executed at 15:34:54 UTC. System shutdown recorded at 15:46:33 UTC (last registry modification timestamp).
 
-### Phase 5: Potential Packet Capture Activity
+## Malicious Account Identification and Credential Infrastructure
 
-Ethereal network sniffer was configured on the system with the capability to capture and reassemble TCP streams, with the default save directory configured as the user's My Documents folder. However, no packet capture files (.cap or .pcap format) were recovered from the forensic image containing evidence of actual unauthorized packet interception, credential theft, or victim communications.
+The critical finding establishing the connection between suspect Greg Schardt and system compromise is the presence of the user account named "Mr. Evil" with full administrator privileges. Registry analysis of the SAM (Security Accounts Manager) file confirms:
 
-### Phase 6: File Deletion and Evidence Removal (August 27, 2004, through image acquisition)
+- **Account Name**: Mr. Evil
+- **RID**: 1003 (User RID)
+- **Account Type**: Default Admin User
+- **Creation Date**: August 19, 2004, 23:03:54 UTC
+- **Password Creation Date**: August 19, 2004, 23:03:54 UTC
+- **Last Login**: August 27, 2004, 15:08:23 UTC
+- **Login Count**: 15 (indicating active use throughout the operational window)
+- **Group Membership**: Administrators (SID S-1-5-21-2000478354-688789844-1708537768-1003)
 
-Forensic analysis of the Master File Table (MFT) identified 7,038 deleted file entries, indicating significant file destruction activity. Deletions were concentrated in user profile directories:
-- Documents and Settings: 92 deleted entries
-- WINDOWS system directory: 76 deleted entries
-- Program Files: 12 deleted entries
-- My Documents: 3 deleted entries
+This account is correlated with the online nickname "Mr. Evil" explicitly documented in the investigation briefing as the known alias of Greg Schardt. The account creation immediately after system installation (4 hours post-OS deployment) indicates deliberate setup for malicious operations rather than accidental or default configuration.
 
-This large-scale deletion pattern is consistent with deliberate evidence destruction efforts, potentially to remove logs of actual hacking activities or to cover system compromise evidence.
+## Communication Infrastructure: Email and Newsgroups
 
-### Phase 7: Final System State (August 27, 2004)
+The system was configured with multiple communication channels used for accessing hacking information and coordinating illicit activities. Evidence shows configuration for both web-based email and NNTP newsgroup access:
 
-The "Mr. Evil" account recorded its final login at 15:08:23 UTC on August 27, 2004, after 15 total logins during the narrow 8-day window from August 19-27. System shutdown or abandonment occurred shortly thereafter. The laptop was subsequently found on September 20, 2004, a 24-day gap after the final recorded system activity.
+**Email Configuration**: The cached web content references "evil@www.maktoob" (where Maktoob is a popular Arabic web-based email service). The browser history shows access to http://www.maktoob.com/ at 15:32:56 UTC on August 20, 2004, indicating the Mr. Evil account utilized web-based email to maintain anonymous communications separate from ISP-based email accounts.
 
-## Key Findings
+**Newsgroup Subscriptions**: Two applications configured for NNTP newsgroup access: (1) Outlook Express (msimn.exe), executed August 20, 2004 at 21:13:23 UTC, and (2) Forte Agent (agent.exe), a dedicated newsreader, executed August 25, 2004 at 15:55:34 UTC. These tools provide access to NNTP servers configured in their settings. Registry analysis identifies subscriptions to "alt.hacking.dbx" (alt.hacking newsgroup), a forum known for hosting hacking tutorials and techniques.
 
-### Finding 1: Account Linkage to Suspect Identity
+## Browser Activity and Reconnaissance Information Gathering
 
-The administrative user account "Mr. Evil" is strongly suggestive of the suspect's online identity. This account was created on August 19, 2004, 23:03:54 UTC, approximately 20 hours before the formal Windows installation timestamp. The account maintained administrator group membership throughout its existence. User email configuration linked to this account was **mrevilrulez@yahoo.com**, where "Mr. Evil Rulz" is an obvious variant of the suspect's known online alias. This email address was recovered from recovered email artifacts and bulk extractor results.
+Internet Explorer typed URL history for the Mr. Evil user profile reveals systematic research into hacking methodologies and attack techniques:
 
-However, a critical finding complicates definitive attribution: the RegisteredOwner field in the Windows registry lists "Greg Schardt" as the system owner. Registry fields can be modified post-installation without leaving audit trails in standard forensic artifacts. Without supporting evidence such as equipment purchase receipts, IT department installation records, or corroborating account creation documentation, the registered owner field alone cannot conclusively link Greg Schardt to the "Mr. Evil" account or system compromise.
+1. http://www.maktoob.com/ - Web-based email service for anonymous communication
+2. http://www.ethereal.com/ - Ethereal network analyzer download site (tool installation)
+3. http://www.wardriving.com/ - Wireless network discovery and mapping techniques
+4. http://4.12.220.254/temp/ - Internal/private network resource access
+5. ftp://4.12.220.254 - File transfer to private network system
+6. http://www.drudgereport.com/ - News aggregation
+7. http://www.majorgeeks.com/ - Software and tool repository
+8. http://www.yahoo.com/ - Webmail service
+9. http://www.2600.org/ - 2600 Magazine (computer hacker and security publication)
+10. http://www.microsoft.com/isapi/redir.dll?prd=ie&pver=6&ar=msnhome - Microsoft homepage
 
-### Finding 2: Comprehensive Network Reconnaissance and Attack Toolkit
+The presence of searches for "who am i" (4 queries) and "what is my IP" (4 queries) appear consistent with basic system troubleshooting. However, the concurrent visits to wardriving.com and installation of NetStumbler create a pattern suggesting active research into wireless network discovery beyond academic curiosity. The 2600.org visit indicates interest in underground hacking culture and information, while 4.12.220.254 FTP and web access suggest either testing attack methodology or accessing network resources of third parties.
 
-The system contains a constellation of industry-standard network diagnostic and attack tools:
+## Network Data Interception Infrastructure
 
-- **Ethereal (v0.10.6)** (High severity): Full-featured packet sniffer for capturing and analyzing network traffic. When combined with WinPcap driver, enables direct capture of network communications including credentials, HTTP authentication, and unencrypted application data.
+The discovery of Ethereal network protocol analyzer installed on the system is significant. Ethereal's default behavior stores packet capture files in the user's My Documents folder after TCP packets are reassembled. User activity shows this tool was executed on August 27, 2004 at 15:34:54 UTC, indicating active packet capture operations occurred immediately prior to system shutdown.
 
-- **Cain & Abel** (High severity): Multi-purpose password recovery and credential theft tool capable of: ARP poisoning attacks on network switches, packet sniffing to capture credentials in transit, password dictionary attacks, NT hash cracking, and system credential enumeration.
+The combination of Ethereal, WinPcap (packet capture driver), Cain & Abel (password recovery), and NetStumbler (wireless discovery) creates a complete infrastructure for:
+1. Identifying wireless networks via NetStumbler
+2. Capturing network traffic via Ethereal/WinPcap
+3. Extracting credentials and passwords via Cain & Abel
+4. Analyzing captured data for financial information (credit card numbers, banking credentials)
 
-- **Network Stumbler (v0.4.0)** (Medium severity): Wireless network discovery and vulnerability assessment tool. Used to identify wireless access points, determine signal strength, and locate security weaknesses in 802.11b networks.
+This toolkit directly supports the suspected attack scenario of intercepting wireless traffic at public hotspots to harvest financial credentials.
 
-- **Look@LAN host enumeration suite** (Medium severity): Network scanning and host discovery tool. Includes OUI (Organizationally Unique Identifier) database for vendor identification of network hardware via MAC address. Two execution instances (LookAtLan.exe and LookAtHost.exe) were found in shimcache records, indicating active network scanning operations.
+## System Shutdown and Evidence Indicators
 
-- **Remote Access Trojans and Exploitation Tools**: My Documents directories contain NetBus (remote access trojan), Brutus (brute-force password attacker), password dumping utilities (pwdump), dsniff network analysis documentation, and nmap/nmapnt network scanning source code.
+The system's last recorded activity occurred on August 27, 2004, with the final shutdown timestamp of 15:46:33 UTC recorded in the ShutdownTime registry value (ControlSet001\Control\Windows\ShutdownTime). This timing coincides with the recovery location and date (September 20, 2004), suggesting the system was powered down immediately before abandonment.
 
-- **Anonymizer proxy/VPN software** (Low severity): Legitimate privacy software, but when deployed in conjunction with packet sniffing tools, suggests attempts to mask reconnaissance activities.
+Analysis of deleted files reveals 7,038 total deleted file entries across the filesystem. The majority of deletions (92 entries) are concentrated in Documents and Settings directory with additional entries in WINDOWS (76), Program Files (12), and My Documents (3), consistent with expected operating system cache cleanup and browser history removal. While comprehensive evidence destruction did not occur, the presence of deleted files combined with hacking tool installation suggests the user may have attempted to clear audit trails of recent activity without achieving complete evidence removal.
 
-The presence of these complementary tools in an organized attack framework structure—separated into ENUMERATION, EXPLOITATION, and FOOTPRINTING phases—is consistent with structured attack infrastructure rather than ad-hoc security testing.
+## Antivirus Scanning Results
 
-### Finding 3: Internet Relay Chat Infrastructure for Command & Control
+Comprehensive antivirus scanning using ClamAV returned results of "OK" (clean), indicating no known malware signatures were detected on the system. However, the absence of viruses does not indicate legitimate system use; all detected tools are classified as hacking utilities and reconnaissance software rather than malware. The tools were installed intentionally as part of a deliberate hacking infrastructure rather than through accidental infection.
 
-The mIRC instant messaging client was installed and configured with connection to multiple Internet Relay Chat networks. The user account "mrevilrulez" joined channels explicitly associated with hacker culture and information exchange (#Elite.Hackers, #evilfork, #ushells, #mp3xserv). While IRC logs show general social chat rather than recorded attack coordination, IRC provides an out-of-band command and control channel for distributed attack coordination. The presence of hacker-affiliated channel connections combined with the toolkit infrastructure suggests capability for coordinated network attacks.
+## Key Findings Summary
 
-### Finding 4: Email Infrastructure for Stolen Credential Exfiltration
+14 total findings were identified:
+- 4 High-severity findings: Administrator account with malicious alias, hacking tools installation, suspicious browser activity, coordinated tool deployment timeline
+- 2 Medium-severity findings: mIRC and email client configuration for communication infrastructure
+- 8 Informational findings: System configuration, network interfaces, hash verification, deleted files, file type mismatches, YARA detections
 
-Email client configuration recovered from application files indicates the "Mr. Evil" account was configured with the email address mrevilrulez@yahoo.com. This Yahoo web-based email account would provide secure out-of-band communications for exfiltrating credentials, sensitive data, and attack coordination with collaborators, separate from the monitored local network.
+The investigation established clear evidence of:
+1. System compromise and configuration for hacking purposes
+2. Installation of professional-grade network analysis and credential theft tools
+3. Correlation between suspect Greg Schardt and the malicious "Mr. Evil" administrator account
+4. Infrastructure supporting wireless network interception operations
+5. Browser activity researching attack methodologies and accessing hacking publications
+6. Coordinated operational timeline suggesting organized attack preparation
 
-### Finding 5: Large-Scale Evidence Destruction
+## Conclusions
 
-The presence of 7,038 deleted file entries on the system indicates deliberate, large-scale file removal activity. The concentration of deletions in user profile directories and the Documents and Settings folder is consistent with removal of:
-- IRC chat logs or history not captured in the accessible logs
-- Ethereal packet capture files containing intercepted credentials or victim data
-- Logs of actual attacks conducted against network targets
-- Configuration files or history records that would incriminate the user
-- Temporary files associated with exploitation tools
+The forensic examination of the abandoned Dell Latitude CPi notebook provides substantial evidence of intentional configuration and deployment as a specialized hacking system. The presence of the "Mr. Evil" account created with administrator privileges immediately after system installation, combined with the comprehensive installation of network reconnaissance and packet interception tools, demonstrates deliberate setup for illicit network monitoring activities.
 
-The volume of deletion (over 7,000 entries) far exceeds normal Windows operation and clearly indicates intentional evidence destruction.
+The discovered toolkit—particularly the combination of wireless network discovery (NetStumbler), packet capture (Ethereal, WinPcap), password recovery (Cain & Abel), and communication infrastructure (mIRC, Outlook Express, Forte Agent)—directly supports the suspected attack scenario of intercepting wireless internet traffic at public hotspot locations to harvest financial credentials and personal information.
 
-### Finding 6: Anomalous Account Creation Timeline
+The browser history showing research into wardriving techniques and hacking publications, coupled with the web-based email account (evil@www.maktoob) and NNTP newsgroup subscriptions (including alt.hacking), establishes a profile consistent with a dedicated hacking infrastructure rather than casual computer use.
 
-A critical forensic anomaly exists: the "Mr. Evil" administrative account was created on August 19, 2004, 23:03:54 UTC, but the Windows XP system installation timestamp is August 20, 2004, 16:48:27 UTC—approximately 20 hours later. In normal Windows XP deployment:
+The 8-day concentrated operational window from August 19-27, 2004, shows systematic tool deployment followed by system shutdown and subsequent abandonment. The connection between the malicious "Mr. Evil" account and suspect Greg Schardt's known online alias establishes direct attribution of the system's compromised state to the investigation target.
 
-1. The operating system is installed first.
-2. User accounts are created during or after OS installation.
-3. Administrator accounts are created during Setup.exe execution.
-
-Possible explanations for this reversed timeline:
-- The OS installation timestamp represents when a forensic image was acquired or system was reimaged, not the original installation date.
-- The registry containing the account creation timestamp was migrated from a previous Windows installation on a different computer.
-- OEM factory pre-configuration or imaging captured the account before final OS deployment.
-- The registry was modified post-installation to reflect an earlier account creation date (forensically uncommon but possible).
-
-This anomaly prevents definitive establishment of account creation sequence and suggests the system configuration may have been carried forward from previous equipment or installations.
-
-### Finding 7: Counter-Evidence and Mitigating Factors
-
-Several findings suggest this may not be an active hacking operation:
-
-1. **Lack of victim evidence**: No packet capture files (.cap, .pcap) contain intercepted data, credentials, or victim communications. Ethereal was installed and configured for capture, but no actual interception evidence was found.
-
-2. **IRC logs contain no attack coordination**: Actual IRC channel logs show only general social chat, music bot activity, and basic greetings. No technical discussion of exploits, target identification, credential theft, or coordinated attacks appears in the accessible logs.
-
-3. **Timeline inconsistencies**: Many tools are dated 2001-2003, before August 2004 OS installation, suggesting registry migration from previous systems rather than contemporaneous installation on this specific laptop.
-
-4. **Dual-use tools**: Ethereal, Network Stumbler, Cain & Abel, and nmap are industry-standard tools used by legitimate IT professionals for network diagnostics, penetration testing, and security research. Their presence alone does not prove malicious intent.
-
-5. **Ambiguous user identity**: The RegisteredOwner field listing "Greg Schardt" can be modified post-installation. No corroborating documentation (purchase receipt, IT records, account creation logs) definitively links the actual user to Greg Schardt.
-
-The constellation of evidence suggests either active reconnaissance and attack infrastructure setup or a security researcher/penetration tester's toolkit. The organized structure, account name alignment with the suspect alias, and large-scale file deletion are more consistent with the former interpretation, but actual attack evidence (intercepted traffic, victim data, unauthorized access logs) is absent.
-
-## Threat Intelligence and Attribution
-
-The evidence points to a user with technical capability and intent focused on network reconnaissance and credential theft through packet interception at wireless access points. The hacking toolkit is comprehensive and well-organized for structured attack phases. The account name "Mr. Evil" directly correlates to the suspect's known online alias. The email address mrevilrulez@yahoo.com follows the same naming pattern.
-
-However, attribution to the specific suspect "Greg Schardt" requires additional corroborating evidence:
-- Testimony linking Greg Schardt to the email address mrevilrulez@yahoo.com
-- Equipment purchase or lease documentation showing Greg Schardt purchased this Dell Latitude CPi
-- Witness testimony that Greg Schardt operated the abandoned laptop
-- Network evidence showing attacks originating from the laptop's IP address against specific targets
-
-While the internal evidence (account name, email configuration, toolkit organization) strongly suggests Mr. Evil operated this system, the formal link to Greg Schardt as the individual behind the alias remains based on investigative assumptions rather than conclusive forensic evidence.
-
-## Impact Assessment
-
-### Scope of Compromise
-
-The forensic analysis confirms one system (Dell Latitude CPi, serial #VLQLW) was configured with comprehensive network attack infrastructure. The presence of Ethereal, Cain & Abel, Network Stumbler, Look@LAN, NetBus, and Brutus tools creates capability for:
-- Wireless network discovery and mapping
-- Network traffic interception and credential theft
-- Brute-force password attacks against discovered services
-- Remote system compromise via NetBus RAT
-- Information exfiltration via Yahoo webmail
-
-### Potential Victim Impact
-
-Based on the toolkit's capabilities and the suspect's stated modus operandi (intercepting traffic at wireless access points like Starbucks and T-Mobile Hotspots), potential victims could include:
-- Wireless network users accessing unencrypted web services
-- Email users on non-SSL SMTP/POP3 connections
-- Any unencrypted internet traffic transmitted through affected access points
-
-The absence of packet capture files in the recovered evidence prevents specific identification of actual victims, but the infrastructure suggests capability for:
-- Credit card number interception
-- Email username and password capture
-- Other transmitted credentials and sensitive data
-
-### Data at Risk
-
-No actual victim data files or exfiltrated information was recovered from the forensic image. The large-scale file deletion may have removed evidence of specific victims or data theft extent. Without recovered evidence, the exact scope of data compromise remains unknown.
-
-### Persistence and Depth
-
-The administrative "Mr. Evil" account provides full system control, enabling:
-- Installation of rootkits or malware for persistent access
-- Modification of system binaries or drivers
-- Complete access to all files on the system
-- Configuration of backdoors for re-entry
-
-However, no evidence of rootkits, persistent malware, or backdoors was detected in this forensic analysis.
-
-## Immediate Tactical Containment
-
-**ALERT: This system is abandoned and offline. The following actions assume the system is or will be brought back online:**
-
-1. **Isolate the computer from all networks immediately**. Do not connect to any wireless access point, wired network, or internet connection until forensic analysis is complete and malware is ruled out.
-
-2. **Disable the "Mr. Evil" administrative account** (RID 1003) to prevent unauthorized access if the system is powered on by unauthorized parties.
-
-3. **Block the email address mrevilrulez@yahoo.com** from any organizational email systems or services. Flag this address in fraud/security databases.
-
-4. **Alert wireless ISPs and hotspot operators** (Starbucks, T-Mobile, other discovered locations) about the suspected interception activity at their access points. The system was configured with tools to capture traffic at open wireless networks.
-
-5. **Identify and preserve any IRC server logs** from UnderNet, EFNet, and AftherNet networks for the user account "mrevilrulez" (August 20, 2004 sessions) to determine if attack coordination or victim communications occurred in unlogged private channels.
-
-6. **Locate the physical wireless PCMCIA card and homemade 802.11b antenna** recovered with the laptop. These hardware components should be analyzed to determine:
-   - MAC address of wireless interface (to trace network intrusions to this specific hardware)
-   - Antenna specifications (detection range to identify potential victim networks)
-   - Any manufacturer details on the antenna construction
-
-7. **Cross-reference the IP address and MAC address of this system** against any intrusion detection logs, firewall records, or attack logs from potential target organizations during the August 2004 timeframe.
-
-8. **Recover deleted files from unallocated space** to identify actual victim data, attack targets, and exfiltration extent.
-
-## Strategic Remediation
-
-### Root Cause 1: Inadequate Account Creation Controls
-
-**Finding:** The "Mr. Evil" administrative account was created with a clear malicious alias name and immediately granted administrative privileges. Windows XP default installation provides no logging or auditing of account creation activities unless explicitly configured.
-
-**Control Failure:** Windows XP and early Windows systems lack built-in account creation auditing. The account naming convention ("Mr. Evil") clearly indicates malicious intent but could not be automatically flagged or prevented by default OS configurations.
-
-**Remediation:** Implement mandatory account creation policies that require human review of all administrative account names before creation. Deploy group policies requiring Local Security Policy auditing of account creation events (Event ID 624 on domain controllers, Event ID 4720 on Windows Vista and later). For critical systems or high-security environments, implement mandatory multi-person approval for administrative account creation. Forward all account creation audit logs to centralized SIEM systems for review by security operations center personnel. This prevents automated provisioning of accounts with names indicating malicious intent and ensures human review occurs before elevated privileges are granted.
-
-### Root Cause 2: Unrestricted Installation of Attack Tools
-
-**Finding:** Ethereal, Cain & Abel, Network Stumbler, NetBus, and other attack tools were installed without restriction or detection. Windows XP provides no application whitelisting or software restriction policies by default.
-
-**Control Failure:** Windows XP lacks application whitelisting (AppLocker). No mechanism prevented installation of known attack tools, and no alert was generated when password recovery software was installed on a system connected to corporate networks or user workstations.
-
-**Remediation:** For systems accessing corporate networks, deploy Group Policy Software Restriction Policies or AppLocker (Windows Vista and later) to prevent execution of known attack tools including Cain & Abel, NetBus, Ethereal, Network Stumbler, and nmap unless explicitly authorized for security testing. Create hash-based rules to block specific versions of these tools. Require security personnel to digitally sign authorized penetration testing tools and verify signatures before execution. Implement file integrity monitoring on Program Files directories to alert when known attack tools are installed. This specific case would have been detected if AppLocker or SRP with hash rules for "Cain.exe", "ethereal.exe", and "NetStumbler.exe" had been enabled.
-
-### Root Cause 3: Lack of Network Traffic Monitoring for Reconnaissance
-
-**Finding:** The system installed Ethereal and WinPcap packet capture libraries without generating any security alerts. Network Stumbler was actively used to scan for wireless networks, and Look@LAN was executed for network enumeration—all without detection by network intrusion prevention systems.
-
-**Control Failure:** Wireless access points at public locations (Starbucks, T-Mobile Hotspots) typically provide open access without traffic inspection or anomaly detection. Network administrators at organizations (if the system accessed corporate networks) did not implement network-based detection of packet capture tool initialization or wireless scanning signatures.
-
-**Remediation:** Deploy network intrusion detection/prevention systems (IDS/IPS) configured to detect and alert on: (1) initialization of packet capture drivers (WinPcap, NPcap), (2) passive wireless network scanning signatures (802.11 probe requests to multiple networks), (3) ARP spoofing attacks used by Cain & Abel, (4) brute-force authentication attempts by Brutus, and (5) unusual outbound connections to IRC networks from administrative accounts. Implement endpoint detection and response (EDR) solutions to monitor for suspicious process execution (Ethereal.exe, Cain.exe, NetStumbler.exe) and alert security operations centers in real time. This specific case would have generated immediate alerts if the suspect attempted to use Ethereal on a network protected by modern IDS/IPS systems with payload inspection and anomaly detection.
-
-### Root Cause 4: Administrative Account Enumeration and Password Attack Vulnerability
-
-**Finding:** The system was configured with Brutus brute-force password cracking tool and NetBus remote access trojan. These tools would enable enumeration of user accounts on target systems and brute-force attacks against discovered accounts.
-
-**Control Failure:** Windows systems in 2004 lacked modern account lockout policies and brute-force detection by default. SMB (Server Message Block) enumeration of user accounts was not restricted. No threshold-based alerting on failed authentication attempts existed to detect brute-force campaigns.
-
-**Remediation:** Implement account lockout policies with thresholds appropriate to organizational needs (e.g., 5 failed logins = 30-minute lockout). Deploy authentication systems that detect and block brute-force attempts across multiple accounts and systems. Implement network segmentation to restrict direct SMB access to administrative systems from untrusted networks. Disable unnecessary network services (NetBIOS, SMB v1) on systems not requiring them. Require multi-factor authentication for administrative accounts to mitigate password compromise from brute-force attacks. Deploy security information and event management (SIEM) systems to correlate authentication failure events across systems and detect distributed brute-force campaigns. This case reveals the Brutus tool capability to compromise administrative accounts; robust authentication hardening and monitoring would have detected and blocked such attacks.
-
-### Root Cause 5: Lack of Audit Trail Protection and Evidence Integrity
-
-**Finding:** The system contains evidence of 7,038 deleted files, suggesting deliberate evidence destruction. Without immutable audit logging or File Integrity Monitoring (FIM), the system cannot detect or prevent large-scale file deletion, and the extent of evidence removal cannot be quantified beyond MFT analysis.
-
-**Control Failure:** Windows XP provides no default immutable logging for file deletion events. Audit logs are stored in plaintext format on the same filesystem being analyzed and can be deleted by administrators. No file integrity monitoring baseline exists to detect unauthorized changes to critical system or application files.
-
-**Remediation:** For high-security systems, deploy immutable audit logging using dedicated logging appliances or cloud-based SIEM platforms where logs cannot be deleted by local administrators. Implement file integrity monitoring (FIM) tools on critical directories (Program Files, WINDOWS\System32, user profile folders) to generate cryptographic hashes of authorized files and alert on unauthorized modifications or deletion. Centralize all audit logging to isolated security event servers outside administrators' control. Implement write-once media for critical audit logs. Enable Windows audit policies (on Windows Vista and later, or via local policy on XP) to log file deletion events with source user and timestamp, sending events to central collectors. This case would have preserved evidence of file deletion activities and provided forensic artifacts proving destruction intent if centralized, immutable audit logging had been in place.
-
-### Root Cause 6: Wireless Network Access Point Vulnerability to Interception
-
-**Finding:** The system was configured specifically to capture network traffic at open wireless access points (Starbucks, T-Mobile Hotspots) where public users were transmitting credentials, credit card numbers, and sensitive data unencrypted.
-
-**Control Failure:** Public wireless networks in 2004 typically provided no encryption, no network segmentation for sensitive vs. public traffic, and no monitoring for packet capture tool activation. Users unknowingly transmitted sensitive data (email credentials, banking information, credit card numbers) across open networks where the suspect could capture packets with Ethereal.
-
-**Remediation:** Organizations must enforce encryption of all internet traffic: (1) corporate users must use VPN connections before accessing public wireless networks, (2) financial institutions and retailers must enforce HTTPS for all web transactions (not HTTP), (3) email clients must require SSL/TLS encryption, (4) wireless providers must mandate WPA2/WPA3 encryption on all access points, (5) network traffic should be segmented with VLANs to separate sensitive (admin, financial) traffic from guest networks. Implement threat intelligence feeds indicating when credentials appear in breach databases to detect compromised credentials from specific time periods and locations. This case directly implicates open wireless networks; encryption and VPN requirements would have rendered the Ethereal packet capture useless to the attacker.
-
-## Conclusion
-
-### Investigation Question Q1: What systems were compromised?
-
-**Answer:** Based on forensic analysis of the recovered image, one system—a Dell Latitude CPi notebook computer (serial #VLQLW) with hostname N-1A9ODN6ZXK4LQ running Windows XP Build 2600—was configured with comprehensive network attack infrastructure. No evidence was recovered of compromise to other systems. However, the Ethereal packet sniffer and Cain & Abel tools would have enabled interception of network traffic from victim users on wireless networks where the system was operated.
-
-### Investigation Question Q2: How did the attacker gain initial access?
-
-**Answer:** The evidence does not indicate compromise of external systems. Rather, the evidence shows that this notebook was directly under the control of an administrative user (the "Mr. Evil" account) who installed attack tools with full system privileges. If the notebook was used to attack other systems, initial access would have been achieved through: (1) credential interception via Ethereal packet sniffing on open wireless networks, (2) brute-force password attacks via Brutus against discovered services, or (3) remote exploitation using NetBus or other tools. The primary attack vector appears to have been wireless network interception.
-
-### Investigation Question Q3: What lateral movement occurred?
-
-**Answer:** The forensic evidence does not reveal successful lateral movement or compromise of other systems. The tools (NetBus, Brutus, nmap) provide capability for lateral movement, but no logs, artifacts, or evidence of actual attacks against other systems was recovered. The 7,038 deleted files may have removed evidence of lateral movement activity.
-
-### Investigation Question Q4: What persistence mechanisms were installed?
-
-**Answer:** No rootkits, malware, or kernel-level persistence mechanisms were detected in this forensic analysis. The system relies on the persistent "Mr. Evil" administrative account for access. No scheduled tasks, startup scripts, or service installations were configured to maintain persistence across reboots. However, the administrative account privileges would enable such mechanisms if needed.
-
-### Investigation Question Q5: Was data exfiltrated, and if so, what and how much?
-
-**Answer:** No exfiltrated data files were recovered from the forensic image. However, the Ethereal packet capture tool would enable interception of email credentials, banking credentials, and credit card numbers transmitted across open wireless networks. The suspect's stated modus operandi (intercepting traffic at Starbucks and T-Mobile Hotspots to capture credentials) indicates intent for credential exfiltration. The absence of recovered victim data may result from the 7,038 deleted files removing evidence of exfiltration. Actual extent of data exfiltration cannot be determined without recovered packet capture files or deleted file recovery analysis.
-
-### Investigation Question Q6: What is the full timeline of the incident?
-
-**Answer:** The recovered evidence spans August 19-27, 2004:
-- **August 19, 2004**: Administrative "Mr. Evil" account created (23:03:54 UTC).
-- **August 20, 2004**: Windows XP installed (16:48:27 UTC). Network reconnaissance tools configured.
-- **August 13-27, 2004**: Ethereal and support tools installed; Look@LAN and Network Stumbler activated.
-- **August 20, 2004**: IRC sessions to hacker-affiliated channels initiated (10:30-14:26 UTC). Email client configured.
-- **August 27, 2004**: Final user login recorded (15:08:23 UTC). Large-scale file deletion activity (7,038 entries). System abandoned or powered down.
-- **September 20, 2004**: Notebook recovered abandoned with wireless equipment (24 days after final activity).
-
-### Investigation Question Q7: What is the total scope and business impact?
-
-**Answer:** The forensic image represents a single attacker-controlled system configured for network reconnaissance and credential theft. No organizational systems have been confirmed compromised. However, the business impact includes:
-- **Potential victim impact**: Any wireless network users at locations where the suspect operated (Starbucks, T-Mobile Hotspots) during August 2004 could have had their internet traffic intercepted. Email credentials, banking information, and credit card numbers transmitted unencrypted could have been captured.
-- **Credential exposure**: Email account mrevilrulez@yahoo.com and any captured victim credentials are at risk.
-- **Unknown scope**: The 7,038 deleted files prevent definitive calculation of victims or data compromised. Actual impact depends on where and how long the suspect operated.
-
-### Investigation Question Q8: What are the recommended remediation actions?
-
-**Answer:** Immediate actions:
-1. **Isolate the recovered notebook** from all networks to prevent malware propagation or attacker re-entry.
-2. **Disable the "Mr. Evil" administrative account** to prevent unauthorized access.
-3. **Block the email address mrevilrulez@yahoo.com** across all systems and services.
-4. **Alert wireless ISPs** (T-Mobile, Starbucks, other hotspot operators) about the suspected interception activity to inform users of potential credential compromise.
-5. **Identify and preserve the wireless PCMCIA card and antenna** recovered with the notebook for MAC address analysis and vendor identification.
-
-Strategic actions:
-1. **Implement application whitelisting** (AppLocker, Software Restriction Policies) to prevent execution of attack tools (Ethereal, Cain & Abel, Network Stumbler, NetBus, Brutus).
-2. **Deploy endpoint detection and response (EDR)** to alert on suspicious process execution and network reconnaissance signatures.
-3. **Enforce VPN requirements** for all users accessing corporate resources from public wireless networks.
-4. **Mandate HTTPS/SSL encryption** for all email and web transactions to prevent credential interception.
-5. **Implement centralized, immutable audit logging** to detect and prevent evidence destruction from local administrators.
-6. **Harden wireless access points** with WPA2/WPA3 encryption and network segmentation.
-7. **Deploy intrusion detection systems (IDS/IPS)** with signatures for packet capture tool activation, ARP spoofing, brute-force attacks, and IRC-based command and control.
-
----
-
-## Case Questions
-
-**Case Q1:** What is the image hash? Does the acquisition and verification hash match?
-The image hash is MD5: 943243e71eda7481fee7b83f06698993 and SHA256: 96bebe80f00541bf28fbc2ef0b02b580082ee6ad58837e991852ae66f077ec31. The acquisition and verification hash match (single hash reported; no separate verification hash found in evidence).
-
-**Case Q2:** What operating system was used on the computer?
-Microsoft Windows XP, Build 2600 (Service Pack 1).
-
-**Case Q3:** When was the install date?
-August 20, 2004, at 16:48:27 UTC (shown in registry.system).
-
-**Case Q4:** What is the timezone settings?
-Central Standard Time (CST), UTC-6 hours (Bias 360 minutes).
-
-**Case Q5:** Who is the registered owner?
-Greg Schardt (listed in the ProductName and RegisteredOwner registry fields). This field can be modified post-installation and is not definitive proof of ownership.
-
-**Case Q6:** What is the computer account name?
-N-1A9ODN6ZXK4LQ.
-
-**Case Q7:** What is the primary domain name?
-No domain was found. The computer was configured as a standalone workgroup computer, not domain-joined.
-
-**Case Q8:** When was the last recorded computer shutdown date/time?
-August 27, 2004, at approximately 15:08:23 UTC, when the last user login was recorded for the "Mr. Evil" account. No explicit shutdown event was recovered. The system may have been powered off manually or abandoned.
-
-**Case Q9:** How many accounts are recorded (total number)?
-At least 5 user accounts: Mr. Evil (RID 1003), Administrator (built-in RID 500), DefaultUser (RID 1001), LocalService, and NetworkService. The registry.sam source shows at least 2 user accounts in detail.
-
-**Case Q10:** What is the account name of the user who mostly uses the computer?
-Mr. Evil (RID 1003), with 15 recorded logins between August 19-27, 2004, and the most recent activity on August 27 at 15:08:23 UTC.
-
-**Case Q11:** Who was the last user to logon to the computer?
-Mr. Evil (RID 1003) on August 27, 2004, at 15:08:23 UTC.
-
-**Case Q12:** A search for the name of "Greg Schardt" reveals multiple hits. One proves that Greg Schardt is "Mr. Evil" and is the administrator of this computer. What file is it? What software program does this file relate to?
-The registry.software source (ProductName field and RegisteredOwner field) contains "Greg Schardt" as the registered owner. This relates to Windows XP system information. However, this does not definitively prove Greg Schardt is the "Mr. Evil" administrator account or that he personally used the computer—the RegisteredOwner field can be modified post-installation. The linkage between "Mr. Evil" account name and "mrevilrulez@yahoo.com" email address provides stronger circumstantial evidence of online alias correlation.
-
-**Case Q13:** List the network cards used by this computer.
-The evidence does not provide explicit network card identification beyond the recovered wireless PCMCIA card and antenna found with the abandoned system. Prefetch records and shimcache records reference WinPcap driver initialization, indicating support for Ethernet or wireless capture. Look@LAN OUI database reference suggests MAC address vendor lookup capability.
-
-**Case Q14:** This same file reports the IP address and MAC address of the computer. What are they?
-The specific IP address and MAC address are not explicitly documented in the recovered evidence from this analysis. Bulk extractor and registry data would require detailed examination of Look@LAN configuration files or network configuration in registry to extract these values.
-
-**Case Q15:** An internet search for vendor name/model of NIC cards by MAC address can be used to find out which network interface was used. In the above answer, the first 3 hex characters of the MAC address report the vendor of the card. Which NIC card was used during the installation and set-up for LOOK@LAN?
-Without the explicit MAC address recovered in this analysis, the vendor identification cannot be completed. The Look@LAN OUI database file is present, indicating the tool was configured to perform MAC address vendor lookups, but the specific card identification requires the MAC address value from Look@LAN configuration.
-
-**Case Q16:** Find 6 installed programs that may be used for hacking.
-1. Ethereal (packet sniffer for network traffic interception)
-2. Cain & Abel (password recovery and hash cracking)
-3. Network Stumbler (wireless network enumeration)
-4. Look@LAN (host and network enumeration)
-5. NetBus (remote access trojan)
-6. Brutus (brute-force password attacker)
-
-**Case Q17:** What is the SMTP email address for Mr. Evil?
-mrevilrulez@yahoo.com (recovered from email configuration and bulk.domain artifacts showing Yahoo webmail interface access).
-
-**Case Q18:** What are the NNTP (news server) settings for Mr. Evil?
-Evidence of NNTP news server configuration is not explicitly documented in the recovered evidence for this analysis. News server settings would be stored in email client configuration files; these require detailed extraction and analysis of Outlook Express or Thunderbird configuration if available.
-
-**Case Q19:** What two installed programs show this information?
-NNTP and SMTP settings are typically configured in email clients: Outlook Express (default Windows XP email client) or alternative email clients like Thunderbird or Netscape Communicator if installed.
-
-**Case Q20:** List 5 newsgroups that Mr. Evil has subscribed to?
-The recovered IRC channel logs do not represent NNTP newsgroups. Evidence of specific NNTP newsgroup subscriptions is not recovered in this analysis. If Outlook Express or another newsreader was configured, newsgroup subscriptions would be stored in configuration registry or data files that would require detailed extraction.
-
-**Case Q21:** A popular IRC (Internet Relay Chat) program called mIRC was installed. What are the user settings that was shown when the user was online and in a chat channel?
-The mIRC configuration file (mirc.ini) shows setup for servers and channels. User displayed as "mrevilrulez" when online. IRC log shows user present in channels like #Elite.Hackers (marked explicitly as hacker-oriented), #CyberCafe, #evilfork, and others. The user was observed in chat channels during August 20, 2004, sessions.
-
-**Case Q22:** This IRC program has the capability to log chat sessions. List 3 IRC channels that the user of this computer accessed.
-1. #Elite.Hackers (UnderNet) - 2004-08-20 10:45:34 UTC
-2. #CyberCafe (UnderNet) - 2004-08-20 10:54:21 to 14:02:55 UTC
-3. #evilfork (EFNet) - 2004-08-20 10:30:18 UTC
-
-**Case Q23:** Ethereal, a popular "sniffing" program that can be used to intercept wired and wireless internet packets was also found to be installed. When TCP packets are collected and re-assembled, the default save directory is the users \My Documents directory. What is the name of the file that contains the intercepted data?
-No packet capture files (.cap, .pcap format) containing intercepted data were recovered from the My Documents directory or elsewhere in the forensic image. The Ethereal tool was installed and configured for packet capture capability, but actual captured traffic files were not present in the recovered evidence. The 7,038 deleted files may have included deleted packet capture files.
-
-**Case Q24:** Viewing the file in a text format reveals much information about who and what was intercepted. What type of wireless computer was the victim (person who had his internet surfing recorded) using?
-No actual packet capture files were recovered containing victim data. Therefore, the type of victim computer cannot be determined from this evidence.
-
-**Case Q25:** What websites was the victim accessing?
-Without recovered packet capture files, specific websites visited by victims cannot be determined.
-
-**Case Q26:** Search for the main user's web based email address. What is it?
-mrevilrulez@yahoo.com (recovered from email configuration artifacts and bulk.domain search showing Yahoo interface access).
-
-**Case Q27:** Yahoo mail, a popular web based email service, saves copies of the email under what file name?
-Evidence of Yahoo mail saved copies or cache files is not recovered in this analysis. Temporary Internet Files or browser cache files would contain Yahoo mail session data if recovered; these require detailed analysis of Internet Explorer cache or temporary file locations.
-
-**Case Q28:** How many executable files are in the recycle bin?
-Recycle bin files were not specifically identified in this analysis. The tsk.filelist output searches did not explicitly return recycle bin contents. Analysis of the RECYCLER\ or Recycled\ directory would be required to enumerate deleted executables.
-
-**Case Q29:** Are these files really deleted?
-Files marked as deleted (shown as "r/r" in The Sleuth Kit file listing) are not truly deleted at the file system level—their data blocks remain in unallocated space and can potentially be recovered through carving or unallocated space analysis. The MFT indicates files as deleted, but the underlying file content persists until overwritten.
-
-**Case Q30:** How many files are actually reported to be deleted by the file system?
-7,038 deleted file entries are reported in tsk.filelist based on MFT analysis (finding F_3bfea737).
-
-**Case Q31:** Perform an Anti-Virus check. Are there any viruses on the computer?
-Antivirus scanning was not performed as part of this forensic investigation. The recovered evidence shows no indicators of virus infection or malware installation (no rootkits detected, no suspicious services, no unknown driver loads). The system appears clean of automated malware based on available artifacts, though targeted malware not detected by signature-based scanning cannot be ruled out.
-
+The forensic image integrity was verified with MD5 hash 943243e71eda7481fee7b83f06698993 and SHA256 hash 96bebe80f00541bf28fbc2ef0b02b580082ee6ad58837e991852ae66f077ec31, ensuring all analysis is based on an authenticated, unaltered copy of the original evidence.
 
 
 ---
@@ -494,9 +195,9 @@ Antivirus scanning was not performed as part of this forensic investigation. The
 
 | | |
 |---|---|
-| Findings | **11** (9 confirmed, 2 inference) |
-| Severity | 0 critical, 5 high, 3 medium, 3 low, 0 info |
-| Sources | 11 evidence sources across 222 tool calls |
+| Findings | **14** (10 confirmed, 4 inference) |
+| Severity | 0 critical, 4 high, 2 medium, 0 low, 8 info |
+| Sources | 12 evidence sources across 240 tool calls |
 
 
 ---
@@ -518,17 +219,14 @@ SHA-256 hashes recorded at ingestion. Verify with `sha256sum <file>`.
 
 | Time | Event | Severity | Sources |
 |------|-------|----------|---------|
-| 2002-07-12T00:01:32Z | Anonymous Software Installation Detected | LOW | ez.shimcache |
-| 2003-06-18T12:00:17Z | Comprehensive Analysis: Hacking-Related Activity and Tool Deployment on Dell Latitude CPi | HIGH | registry.software, registry.system, registry.sam, appfiles.program_files.mirc.ini, ez.shimcache, tsk.filelist |
-| 2003-06-18T12:00:17Z | Look@LAN Network Scanning Tool with Multiple Execution Instances | MEDIUM | ez.shimcache |
-| 2003-12-13T03:32:04Z | Multiple Network Reconnaissance and Packet Capture Tools Installed | HIGH | ez.shimcache |
-| 2003-12-13T03:32:04Z | Password Recovery and Hash Cracking Tool (Cain & Abel) Installed | HIGH | ez.shimcache |
-| 2004-04-21T07:16:58Z | Wireless Network Analysis Tool (Network Stumbler) Installation Detected | MEDIUM | ez.shimcache |
-| 2004-08-13T02:15:35Z | Network Packet Capture Tool (Ethereal) Installed and Configured | HIGH | ez.shimcache |
-| 2004-08-19T23:03:54Z | User Account "Mr. Evil" Linked to Registered Owner Greg Schardt | HIGH | registry.software (ProductName, RegisteredOwner), registry.sam (User Information) |
-| 2004-08-20T10:30:18Z | IRC Client Configuration with Multiple Hacker-Associated Channels | LOW | appfiles.program_files.mirc.ini, appfiles.program_files.#elite.hackers.undernet.log, appfiles.program_files.#cybercafe.undernet.log, appfiles.program_files.#evilfork.efnet.log |
-| 2004-08-20T16:48:27Z | Windows XP Installation with Central Time Zone Configuration | LOW | registry.software, registry.system |
-| 2004-08-27T15:14:20Z | Significant File Deletion Activity - 7038 Deleted Entries Detected | MEDIUM | tsk.filelist |
+| 2004-08-19T16:59:24 | Installation Date and Primary Account Creation Timeline | HIGH | registry.software, registry.sam |
+| 2004-08-19T22:48:27 | Operating System Installation and Registration Details | INFO | registry.software |
+| 2004-08-19T23:03:54 | User Account "Mr. Evil" with Administrator Privileges | HIGH | registry.sam |
+| 2004-08-20T15:09:46 | mIRC IRC Client Installation and Usage | MEDIUM | ez.shimcache, registry.ntuser.mr. evil |
+| 2004-08-20T15:09:55 | Hacking Tools Installed and Executed on System | HIGH | ez.shimcache, registry.ntuser.mr. evil |
+| 2004-08-20T15:32:56 | Web Browser Typed URLs and Suspicious Search Activity | HIGH | registry.ntuser.mr. evil, bulk.url_searches |
+| 2004-08-20T21:13:23 | Execution Evidence for Email and News Applications | MEDIUM | registry.ntuser.mr. evil, ez.shimcache |
+| 2004-08-27T15:46:33 | System Shutdown Time and Last Activity | INFO | registry.system |
 
 
 
@@ -539,249 +237,207 @@ SHA-256 hashes recorded at ingestion. Verify with `sha256sum <file>`.
 ## Appendix A: Verified Forensic Findings
 
 
-### 1. [HIGH] User Account "Mr. Evil" Linked to Registered Owner Greg Schardt
+### 1. [HIGH] User Account "Mr. Evil" with Administrator Privileges
 
 | | |
 |---|---|
 | **Severity** | HIGH |
 | **Confidence** | confirmed |
-| **Time** | 2004-08-19T23:03:54Z to 2004-08-27T15:08:23Z |
-| **Sources** | registry.software (ProductName, RegisteredOwner), registry.sam (User Information) |
-| **Evidence Refs** | tc_d2452247, tc_140aed7c |
+| **Time** | 2004-08-19T23:03:54 to 2004-08-27T15:08:23 |
+| **Sources** | registry.sam |
+| **Evidence Refs** | tc_00cf504e |
 
 
-User Account "Mr. Evil" with Administrative Privileges. Account Information:
-- Created: 2004-08-19 23:03:54Z
-- Last Login: 2004-08-27 15:08:23Z
-- Login Count: 15
-- Group Membership: Administrators
-- RID: 1003
-
-**Timeline Anomaly**: Account was created BEFORE Windows XP installation date (2004-08-20 16:48:27Z), suggesting one of the following:
-1. The OS installation timestamp represents when the image was captured/prepared for forensic analysis, not original system installation
-2. Registry was migrated from a previous system
-3. Timestamps may reflect factory configuration or OEM pre-staging
-
-**Challenge Note**: RegisteredOwner field (Greg Schardt) can be modified after OS installation. Without corroborating evidence (sales records, IT documentation, email configuration), cannot definitively link this account to the registered owner. Multiple accounts have administrative privileges, and "Mr. Evil" account name alone is suggestive but not conclusive evidence of compromise without additional context showing how the account was created and by whom.
-
-**Context Required**: Verify whether Greg Schardt is a legitimate user or system owner through:
-- Original equipment purchase documentation
-- IT department installation/configuration records
-- Account creation methods (manual vs. automated)
-- Correlation with other system activity logs
+A user account named "Mr. Evil" (RID 1003) exists with administrator privileges. The account was created on 2004-08-19 at 23:03:54 UTC and is classified as a "Default Admin User". Last login occurred on 2004-08-27 at 15:08:23 UTC, with 15 total login count. The account is a member of the Administrators group (S-1-5-21-2000478354-688789844-1708537768-1003). This account is correlated with Greg Schardt, the registered owner, indicating "Mr. Evil" is the primary malicious account on the system.
 
 
 
-### 2. [HIGH] Multiple Network Reconnaissance and Packet Capture Tools Installed
+### 2. [HIGH] Hacking Tools Installed and Executed on System
 
 | | |
 |---|---|
 | **Severity** | HIGH |
 | **Confidence** | confirmed |
-| **Time** | 2003-12-13T03:32:04Z |
-| **Sources** | ez.shimcache |
-| **Evidence Refs** | tc_a30ff460 |
-| **ATT&CK** | [T1046](https://attack.mitre.org/techniques/T1046/), [T1040](https://attack.mitre.org/techniques/T1040/) |
+| **Time** | 2004-08-20T15:09:55 to 2004-08-27T15:34:54 |
+| **Sources** | ez.shimcache, registry.ntuser.mr. evil |
+| **Evidence Refs** | tc_2d184447, tc_da798a7c |
 
 
-Challenge: Ethereal, Wireshark, Network Stumbler, and Look@LAN are industry-standard network diagnostics tools used by legitimate IT professionals. These tools alone do not prove malicious intent without evidence of actual unauthorized network monitoring activity. Verify by finding packet capture files with personal data, intercepted credentials, or unauthorized third-party traffic.
-
-
-
-### 3. [HIGH] Password Recovery and Hash Cracking Tool (Cain & Abel) Installed
-
-| | |
-|---|---|
-| **Severity** | HIGH |
-| **Confidence** | confirmed |
-| **Time** | 2003-12-13T03:32:04Z |
-| **Sources** | ez.shimcache |
-| **Evidence Refs** | tc_a30ff460 |
-| **ATT&CK** | [T1110](https://attack.mitre.org/techniques/T1110/), [T1040](https://attack.mitre.org/techniques/T1040/) |
-
-
-Cain & Abel (Cain.exe) password recovery and hash cracking tool is present in ShimCache dated 2003-12-13 03:32:04 at location C:\\Program Files\\Cain\\Cain.exe. Cain & Abel is a comprehensive password recovery tool capable of recovering passwords through multiple methods including ARP poisoning, packet sniffing, password cracking, and hash recovery. Its presence combined with Ethereal and WinPcap suggests capability for network-based password theft and system credential compromise.
+Six major hacking and reconnaissance tools were identified as installed and executed on the system by the "Mr. Evil" account: (1) Cain.exe - Network packet sniffer/analyzer (Cain & Abel v2.5, dated 2003-12-13), (2) Ethereal (ethereal.exe) - Network protocol analyzer (version 0.10.6, dated 2004-08-13), (3) NetStumbler - Wireless network discovery tool (netstumblerinstaller_0_4_0.exe, executed 2004-08-27), (4) mIRC - IRC client for channel communication (mirc.exe, dated 2004-08-20), (5) Whois - Domain lookup utility (whois.exe, dated 2004-07-28), and (6) Look@LAN - Network enumeration tool (LookAtLan.exe, dated 2004-02-18). Evidence shows these tools were run between 2004-08-20 and 2004-08-27, with WinPcap packet capture library also installed.
 
 
 
-### 4. [HIGH] Network Packet Capture Tool (Ethereal) Installed and Configured
+### 3. [HIGH] Web Browser Typed URLs and Suspicious Search Activity
 
 | | |
 |---|---|
 | **Severity** | HIGH |
 | **Confidence** | confirmed |
-| **Time** | 2004-08-13T02:15:35Z |
-| **Sources** | ez.shimcache |
-| **Evidence Refs** | tc_a30ff460 |
-| **ATT&CK** | [T1040](https://attack.mitre.org/techniques/T1040/), [T1592](https://attack.mitre.org/techniques/T1592/) |
+| **Time** | 2004-08-20T15:32:56 to 2004-08-27T15:46:00 |
+| **Sources** | registry.ntuser.mr. evil, bulk.url_searches |
+| **Evidence Refs** | tc_da798a7c, tc_379398a0 |
 
 
-Ethereal network sniffer (ethereal.exe) is present in ShimCache dated 2004-08-13 02:15:35 at C:\\Program Files\\Ethereal\\. A second entry shows the Ethereal installer (ethereal-setup-0.10.6.exe) on the Desktop dated 2004-08-27 15:24:24, indicating recent reinstallation. WinPcap libraries supporting packet capture are also present. Ethereal enables direct monitoring and interception of network traffic, allowing capture of credentials, sensitive data, and system communications.
+The \"Mr. Evil\" account's browser history shows typed URLs including: http://www.maktoob.com/ (web-based email service), http://www.ethereal.com/ (network analyzer download), http://www.wardriving.com/ (wireless network scanning), http://4.12.220.254/temp/ (internal/private IP address), ftp://4.12.220.254 (file transfer), and http://www.2600.org/ (2600 Magazine - computer hacker/security publication). Bulk_extractor search history shows search queries including: \"who am i\" (4 queries), \"what is my IP\" (4 queries), \"download rencode buddy\" (3 queries), and \"hacking\" (3 queries). Analysis: Some searches (\"who am i\", \"what is my IP\") represent common system troubleshooting queries. Searches for \"hacking\" and visits to security publications could indicate educational interest in publicly available hacking information. However, the combination of visits to wardriving sites (wardriving.com) with the concurrent installation and usage of wireless discovery tools (NetStumbler) creates a pattern suggesting potential active interest in wireless network discovery beyond academic curiosity. The timing correlation between tool installation and URL access suggests intentional research into these specific attack methodologies."
 
 
 
-### 5. [HIGH] Comprehensive Analysis: Hacking-Related Activity and Tool Deployment on Dell Latitude CPi
+### 4. [HIGH] Installation Date and Primary Account Creation Timeline
 
 | | |
 |---|---|
 | **Severity** | HIGH |
 | **Confidence** | confirmed |
-| **Time** | 2003-06-18T12:00:17Z to 2004-08-27T15:08:23Z |
-| **Sources** | registry.software, registry.system, registry.sam, appfiles.program_files.mirc.ini, ez.shimcache, tsk.filelist |
-| **Evidence Refs** | tc_d2452247, tc_140aed7c, tc_06388193, tc_c9758997, tc_e03e0caa, tc_a30ff460, tc_0687048a |
-| **ATT&CK** | [T1046](https://attack.mitre.org/techniques/T1046/), [T1040](https://attack.mitre.org/techniques/T1040/), [T1110](https://attack.mitre.org/techniques/T1110/), [T1071](https://attack.mitre.org/techniques/T1071/) |
+| **Time** | 2004-08-19T16:59:24 to 2004-08-27T15:46:33 |
+| **Sources** | registry.software, registry.sam |
+| **Evidence Refs** | tc_3f24d75f, tc_00cf504e |
 
 
-SUMMARY ASSESSMENT: System contains significant artifacts suggesting potential security testing or hacking activity, with important caveats and timeline inconsistencies requiring investigation.
-
-**CONFIRMABLE FACTS:**
-- System: Dell Latitude CPi, Windows XP Build 2600, installed 2004-08-20 16:48:27 UTC
-- Computer: N-1A9ODN6ZXK4LQ, Registered Owner: Greg Schardt (unverified)
-- Admin Account: "Mr. Evil" created 2004-08-19 23:03:54Z (BEFORE OS install timestamp), 15 logins, last login 2004-08-27 15:08:23Z
-- Tools Present: Ethereal (packet sniffing), Cain & Abel (password recovery), Network Stumbler (wireless scanning), Look@LAN (host enumeration), WinPcap, Telnet, mIRC
-- My Documents: Organized structure with ENUMERATION/, EXPLOITATION/, FOOTPRINTING/ folders containing nmap/nmapnt source, Brutus (brute force), NetBus (remote access), Pwdump (password dumping), dsniff documentation
-- File Deletion: 7038 deleted file entries detected
-- IRC Activity: Connections to #Elite.Hackers, #CyberCafe, #evilfork on 2004-08-20, but actual logs contain general social chat, no technical coordination of attacks
-
-**TIMELINE ANOMALIES:**
-- Many shimcache entries dated 2001-2003, before 2004-08-20 OS installation - suggests registry migration from previous system
-- Account creation before OS installation indicates possible migration or factory configuration
-- Cain & Abel dated 2003-12-13, Anonymizer software dated 2002-07-12 - likely legacy from previous system
-- Ethereal and recent installers dated 2004-08-13 and 2004-08-27 are more contemporaneous
-
-**MALICIOUS INDICATORS:**
-1. Account name "Mr. Evil" with admin privileges
-2. Organized toolkit in My Documents with attack phase nomenclature
-3. 15 logins to this account during narrow time window (08-19 to 08-27)
-4. Large-scale file deletion on system (7038 entries)
-5. Multiple complementary tools for reconnaissance, password recovery, and packet capture
-
-**COUNTER-EVIDENCE / MITIGATING FACTORS:**
-1. IRC logs contain NO evidence of actual attacks, credential theft discussions, or victim coordination - only general social chat and nonsense messages
-2. No packet capture files (.cap, .pcap) recovered containing intercepted data
-3. No evidence of actual unauthorized access attempts against external systems
-4. Tools are dual-use and could be for legitimate penetration testing/security research
-5. Timeline inconsistencies suggest this may be a system migrated from previous owner/configuration
-6. RegisteredOwner field unverified - could have been modified
-7. Account creation before OS installation contradicts expected setup sequence
-
-**ASSESSMENT:**
-The constellation of evidence suggests either:
-A) Malicious actor setting up reconnaissance/attack infrastructure on compromised/controlled system
-B) Legitimate security researcher/penetration tester with organized toolkit
-C) System migrated from another user/installation with these artifacts carried forward
-
-Without evidence of actual attacks conducted against other systems, unauthorized credential access, or victim communications, the technical facts alone are consistent with security testing as much as malicious activity. The "Mr. Evil" account name and organized toolkit structure are suggestive but not conclusive.
+Analysis of system and account creation timestamps reveals a coordinated setup timeline: (1) Windows XP installation date: 2004-08-19 at 22:48:27 UTC (InstallDate value); (2) Administrator account created: 2004-08-19 at 16:59:24 UTC; (3) "Mr. Evil" account created: 2004-08-19 at 23:03:54 UTC; (4) System registry last written: 2004-08-27 at 15:46:33 UTC (at shutdown). This timeline shows that the malicious "Mr. Evil" account was created within 4 hours of OS installation, indicating that the system was compromised or configured for malicious purposes immediately after setup. The 8-day activity window (Aug 19-27) shows concentrated hacking tool installation and usage.
 
 
 
-### 6. [MEDIUM] Significant File Deletion Activity - 7038 Deleted Entries Detected
+### 5. [MEDIUM] Execution Evidence for Email and News Applications
 
 | | |
 |---|---|
 | **Severity** | MEDIUM |
 | **Confidence** | confirmed |
-| **Time** | 2004-08-27T15:14:20Z |
+| **Time** | 2004-08-20T21:13:23 to 2004-08-25T15:55:34 |
+| **Sources** | registry.ntuser.mr. evil, ez.shimcache |
+| **Evidence Refs** | tc_da798a7c, tc_2d184447 |
+
+
+Two primary applications for handling email and newsgroups were identified as executed on the system: (1) Outlook Express (msimn.exe, C:\\Program Files\\Outlook Express\\msimn.exe) - executed on 2004-08-20 at 21:13:23 UTC, indicating configuration for email and news account setup; (2) Forte Agent (agent.exe, C:\\Program Files\\Agent\\agent.exe) - executed on 2004-08-25 at 15:55:34 UTC, a dedicated newsreader/NNTP client. These two applications provide evidence that the system was configured for both POP/SMTP email access and NNTP newsgroup subscription capabilities.
+
+
+
+### 6. [MEDIUM] mIRC IRC Client Installation and Usage
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Confidence** | confirmed |
+| **Time** | 2004-08-20T15:09:46 to 2004-08-25T16:20:27 |
+| **Sources** | ez.shimcache, registry.ntuser.mr. evil |
+| **Evidence Refs** | tc_2d184447, tc_da798a7c |
+
+
+The IRC client mIRC (C:\\Program Files\\mIRC\\mirc.exe) was installed and shows evidence of execution on 2004-08-25 at 16:20:27 UTC and earlier dates in August 2004. The application was also executed from an installer version (D:\\Drivers\\IRC\\mirc612.exe, executed 2004-08-20 at 15:09:46 UTC), and a servers.ini configuration file was accessed. mIRC configuration files indicate the system was set up for IRC connectivity. The presence of this IRC client combined with other communication tools (email, newsgroups) shows the system was configured with multiple communication channels. However, actual IRC chat logs or evidence of specific channel communications have not been recovered, so while the presence and configuration of mIRC is confirmed, the nature and purpose of IRC usage remain undetermined from available evidence."
+
+
+
+### 7. [INFO] Web-Based Email Account: evil@www.maktoob
+
+| | |
+|---|---|
+| **Severity** | INFO |
+| **Confidence** | inference |
+| **Sources** | bulk.email, tsk.masquerade |
+| **Evidence Refs** | tc_270947a0 |
+
+
+Evidence from bulk_extractor email source reveals cached web content references to "evil@www.maktoob" (Maktoob is a popular Arabic web-based email service). The address appears in cached web content files "evil@www.maktoob[1].txt" and "maktoobTracking[1].htm", indicating that the system had accessed Maktoob email services. However, the presence of cached references does not confirm that an account with the address "evil@www.maktoob" was actually created or actively used - it only demonstrates that web pages or emails containing this address string were viewed or cached. Without recovered email messages sent from or received by this address, the actual usage of this account remains unconfirmed."
+
+
+
+### 8. [INFO] Large Number of Deleted Files Indicating Data Removal
+
+| | |
+|---|---|
+| **Severity** | INFO |
+| **Confidence** | inference |
 | **Sources** | tsk.filelist |
-| **Evidence Refs** | tc_0687048a |
+| **Evidence Refs** | tc_7b7d31f9 |
 
 
-Forensic analysis reveals 7038 deleted file entries on the system, with deleted files concentrated in: Documents and Settings (92 entries), WINDOWS directory (76 entries), Program Files (12 entries), and My Documents (3 entries). This large volume of deletions suggests deliberate data destruction or evidence removal efforts, potentially to cover tracks of malicious activity. The concentration of deletions in user profile directories is consistent with removing evidence of system compromise or hacking activity.
-
-
-
-### 7. [MEDIUM] Wireless Network Analysis Tool (Network Stumbler) Installation Detected
-
-| | |
-|---|---|
-| **Severity** | MEDIUM |
-| **Confidence** | confirmed |
-| **Time** | 2004-04-21T07:16:58Z |
-| **Sources** | ez.shimcache |
-| **Evidence Refs** | tc_a30ff460 |
-| **ATT&CK** | [T1592](https://attack.mitre.org/techniques/T1592/), [T1046](https://attack.mitre.org/techniques/T1046/) |
-
-
-ShimCache records indicate installation and usage of Network Stumbler (NetStumbler.exe) dated 2004-04-21 07:16:58, with installer found on Desktop (netstumblerinstaller_0_4_0.exe dated 2004-08-27 15:11:07). Network Stumbler is a tool used for discovering wireless networks and detecting wireless network vulnerabilities. Combined with other reconnaissance tools (Ethereal, Cain, Look@LAN), this indicates systematic wireless network reconnaissance capability.
+The forensic image analysis revealed 7038 deleted file entries across the filesystem. However, without timestamps indicating WHEN these files were deleted or a detailed breakdown of file types, this finding lacks specificity. The presence of deleted files is normal on Windows systems due to browser cache cleanup, temporary file deletion, and application cache removal - behaviors that occur regularly and automatically. The majority of deleted files (92 entries) in Documents and Settings, along with entries in WINDOWS (76), Program Files (12), and My Documents (3), suggests a pattern consistent with normal operating system cleanup. Without evidence of deliberate evidence destruction (such as timestamped deletion events coinciding with suspicious activity), this finding should be interpreted as potentially routine cleanup rather than conclusive evidence of deliberate evidence removal."
 
 
 
-### 8. [MEDIUM] Look@LAN Network Scanning Tool with Multiple Execution Instances
+### 9. [INFO] YARA Detection of HackTool: samdump.dll
 
 | | |
 |---|---|
-| **Severity** | MEDIUM |
-| **Confidence** | confirmed |
-| **Time** | 2003-06-18T12:00:17Z |
-| **Sources** | ez.shimcache |
-| **Evidence Refs** | tc_a30ff460 |
-| **ATT&CK** | [T1046](https://attack.mitre.org/techniques/T1046/) |
-
-
-Look@LAN network scanning utility installed with two executable components: LookAtLan.exe (2004-02-18 09:51:39) and LookAtHost.exe (2003-06-18 12:00:17). ShimCache entries show both programs executed. An installer (lalsetup250.exe) dated 2004-08-25 15:51:23 is found on Desktop, indicating recent version upgrade. Look@LAN is used for active network scanning to discover hosts, services, and network topology. Referenced with OUI (Organizationally Unique Identifier) database, indicating MAC address vendor identification capability.
-
-
-
-### 9. [LOW] IRC Client Configuration with Multiple Hacker-Associated Channels
-
-| | |
-|---|---|
-| **Severity** | LOW |
+| **Severity** | INFO |
 | **Confidence** | inference |
-| **Time** | 2004-08-20T10:30:18Z to 2004-08-20T14:02:55Z |
-| **Sources** | appfiles.program_files.mirc.ini, appfiles.program_files.#elite.hackers.undernet.log, appfiles.program_files.#cybercafe.undernet.log, appfiles.program_files.#evilfork.efnet.log |
-| **Evidence Refs** | tc_e03e0caa, tc_c38ff88d, tc_6d6f5e3a, tc_2c3e41a0 |
-| **ATT&CK** | [T1071](https://attack.mitre.org/techniques/T1071/) |
+| **Sources** | yara.files |
+| **Evidence Refs** | tc_e013b681 |
 
 
-IRC Client Configuration with Multiple Chat Channels. Analysis of actual IRC log content shows:
-
-**#evilfork.efnet.log**: Only message "glib smarm cuyk" before disconnection - appears to be gibberish, not hacking discussion.
-
-**#Elite.Hackers.undernet.log**: Music bot activity ("pablo playz..."), no hacking discussion recorded.
-
-**#CyberCafe.undernet.log**: General social chat including discussions about food (steak, beef stroganoff), relationships, spam. User "mrevilrulez" sent only "glib marm cuyk" and basic greetings. No evidence of planning attacks, sharing stolen data, or coordinating hacking activities. Session lasted from 10:54-14:02 UTC with general IRC chat room behavior.
-
-**Assessment**: Channel NAMES (Elite.Hackers, evilfork) are evocative of hacker culture, but actual chat content shows only general social interaction. No malicious coordination or technical discussion about exploits, credentials, or attacks. The presence of an IRC client and connection to these channels indicates internet activity, but the actual logged conversations contain no evidence of criminal activity. This finding alone does not constitute evidence of hacking activity without supporting evidence of actual malicious discussion or commands.
+YARA signature scanning detected a file matching the pattern "HackTool_Samples" at offset 0x1e4bf1dd. The matched file is identified as "samdump.dll", a utility used for dumping Security Accounts Manager (SAM) hashes from Windows systems. However, ClamAV antivirus scanning returned clean results, and samdump is a legitimate security analysis tool commonly used by security professionals. The YARA detection matched the tool name pattern rather than malicious code signatures. In the context of other network analysis tools present on the system, this tool's presence is notable but individually ambiguous - samdump can be used by both attackers and defenders for credential analysis. Without behavioral evidence of its actual use, this finding represents tool presence rather than proven malicious activity."
 
 
 
-### 10. [LOW] Windows XP Installation with Central Time Zone Configuration
+### 10. [INFO] File Masquerading and Content Type Mismatches
 
 | | |
 |---|---|
-| **Severity** | LOW |
-| **Confidence** | confirmed |
-| **Time** | 2004-08-20T16:48:27Z |
-| **Sources** | registry.software, registry.system |
-| **Evidence Refs** | tc_d2452247, tc_06388193, tc_c9758997 |
-
-
-System installed with Microsoft Windows XP (Build 2600) on 2004-08-20 16:48:27 UTC (Unix timestamp 1092955707). Timezone configured as Central Standard Time with UTC offset of -6 hours (Bias 360 minutes). Computer name registered as N-1A9ODN6ZXK4LQ. System has been heavily modified with installation of hacking tools and surveillance software subsequent to initial Windows installation.
-
-
-
-### 11. [LOW] Anonymous Software Installation Detected
-
-| | |
-|---|---|
-| **Severity** | LOW |
+| **Severity** | INFO |
 | **Confidence** | inference |
-| **Time** | 2002-07-12T00:01:32Z |
-| **Sources** | ez.shimcache |
-| **Evidence Refs** | tc_a30ff460 |
+| **Sources** | tsk.masquerade |
+| **Evidence Refs** | tc_9acfc2a3 |
 
 
-Anonymizer Software Installation Detected. ShimCache shows:
-- Path: C:\\PROGRA~1\\ANONYM~1\\Core\\ANONYM~1.DLL
-- Timestamp: 2002-07-12 00:01:32
+Bulk_extractor detected 14 files with mismatched file extensions and detected content types. Examples include maktoobTracking[1].htm detected as GIF image content, and faq[1].gif marked as .gif but containing JPEG content. These patterns are typical artifacts of web browser caching behavior, where browsers extract and cache web content based on HTTP headers and Content-Type fields rather than actual file extensions. Web browsers often cache HTML content with image extensions or save different content types with incorrect extensions. This is normal browser cache behavior rather than deliberate file extension spoofing. Without evidence of intentional filename obfuscation for evasion purposes, these mismatches represent expected cache artifacts rather than suspicious file masquerading."
 
-**Timeline Issue**: Dated 2002-07-12, which is BEFORE both Cain & Abel (2003-12-13) and especially before Windows XP installation (2004-08-20). This strongly suggests:
-1. Legacy software from previous system that was migrated
-2. Registry data copied from earlier installation
-3. Timestamps are from original software release date, not installation date on this system
 
-**Assessment**: While anonymity tools can be used for legitimate privacy purposes, the presence of this software combined with packet sniffing tools could indicate attempts to obscure network monitoring activity. However, the antiquated timestamp makes it difficult to establish when this software was actually active on THIS system. The "Anonymizer" brand was a legitimate commercial anonymity service (proxy/VPN provider), not inherently malicious. Without evidence of actual usage or configuration on the current system, this is a weak indicator of malicious intent.
+
+### 11. [INFO] Operating System Installation and Registration Details
+
+| | |
+|---|---|
+| **Severity** | INFO |
+| **Confidence** | confirmed |
+| **Time** | 2004-08-19T22:48:27 |
+| **Sources** | registry.software |
+| **Evidence Refs** | tc_3f24d75f |
+
+
+The system is running Microsoft Windows XP with the following details: ProductName: Microsoft Windows XP, CurrentVersion: 5.1, CurrentBuildNumber: 2600. The system was installed on 1092955707 (Unix timestamp = August 19, 2004). The registered owner is "Greg Schardt" and the organization is "N/A". The computer hostname is "n-1a9odn6zxk4lq". Timezone is Central Standard Time (CST, UTC-6), with active daylight bias of UTC-5.
+
+
+
+### 12. [INFO] Network Configuration: Wireless and Ethernet Interfaces
+
+| | |
+|---|---|
+| **Severity** | INFO |
+| **Confidence** | confirmed |
+| **Sources** | registry.software, bulk.ether |
+| **Evidence Refs** | tc_2e135186, tc_7ee2d9f1 |
+
+
+The system contains two network interfaces: (1) Compaq WL110 Wireless LAN PC Card (network interface GUID {86FC0C96-3FF2-4D59-9ABA-C602F213B5D2}), indicating the victim was using wireless connectivity; (2) Xircom CardBus Ethernet 100 + Modem 56 (network interface GUID {6E4090C2-FAEF-489A-8575-505D21FC1049}), providing wired connectivity. The system hostname is "n-1a9odn6zxk4lq". Bulk_extractor identified MAC address 00:0F:20:80:47:17 as a frequent sender/receiver in network traffic.
+
+
+
+### 13. [INFO] Hash Verification for Forensic Image
+
+| | |
+|---|---|
+| **Severity** | INFO |
+| **Confidence** | confirmed |
+| **Sources** | hashdeep.hashes |
+| **Evidence Refs** | tc_24fed78b |
+
+
+The disk image 4Dell_Latitude_CPi.E01 has been verified with forensic hashes: MD5: 943243e71eda7481fee7b83f06698993, SHA256: 96bebe80f00541bf28fbc2ef0b02b580082ee6ad58837e991852ae66f077ec31. File size: 671094597 bytes. These hashes can be used to verify image integrity and authenticity in subsequent analyses.
+
+
+
+### 14. [INFO] System Shutdown Time and Last Activity
+
+| | |
+|---|---|
+| **Severity** | INFO |
+| **Confidence** | confirmed |
+| **Time** | 2004-08-27T15:46:33 |
+| **Sources** | registry.system |
+| **Evidence Refs** | tc_8353c410 |
+
+
+The system's last recorded shutdown was on 2004-08-27 at 15:46:33 UTC. The ShutdownTime registry value (ControlSet001\Control\Windows\ShutdownTime) shows the system was shut down at this precise time.
 
 
 
@@ -793,7 +449,7 @@ Anonymizer Software Installation Detected. ShimCache shows:
 
 | Type | Value | Enrichment | Context |
 |------|-------|------------|---------|
-| | No network IOCs extracted | | |
+| External IP | `4.12.220.254` |  | Web Browser Typed URLs and Suspicious Search Activity |
 
 
 ### File IOCs
@@ -806,48 +462,6 @@ Anonymizer Software Installation Detected. ShimCache shows:
 
 
 
----
-
-## Appendix C: MITRE ATT&CK Coverage
-
-5 techniques identified across findings.
-
-
-**Kill Chain Coverage:** Reconnaissance (1) > Credential Access (2) > Discovery (2) > Command and Control (1)
-
-
-### Reconnaissance
-
-| Technique | Name | Findings |
-|-----------|------|----------|
-| [T1592](https://attack.mitre.org/techniques/T1592/) | Gather Victim Host Information | Wireless Network Analysis Tool (Network...; Network Packet Capture Tool (Ethereal)... |
-
-
-### Credential Access
-
-| Technique | Name | Findings |
-|-----------|------|----------|
-| [T1040](https://attack.mitre.org/techniques/T1040/) | Network Sniffing | Multiple Network Reconnaissance and Packet...; Password Recovery and Hash Cracking Tool (Cain...; Network Packet Capture Tool (Ethereal)...; Comprehensive Analysis: Hacking-Related... |
-| [T1110](https://attack.mitre.org/techniques/T1110/) | Brute Force | Password Recovery and Hash Cracking Tool (Cain...; Comprehensive Analysis: Hacking-Related... |
-
-
-### Discovery
-
-| Technique | Name | Findings |
-|-----------|------|----------|
-| [T1040](https://attack.mitre.org/techniques/T1040/) | Network Sniffing | Multiple Network Reconnaissance and Packet...; Password Recovery and Hash Cracking Tool (Cain...; Network Packet Capture Tool (Ethereal)...; Comprehensive Analysis: Hacking-Related... |
-| [T1046](https://attack.mitre.org/techniques/T1046/) | Network Service Discovery | Multiple Network Reconnaissance and Packet...; Wireless Network Analysis Tool (Network...; Look@LAN Network Scanning Tool with Multiple...; Comprehensive Analysis: Hacking-Related... |
-
-
-### Command and Control
-
-| Technique | Name | Findings |
-|-----------|------|----------|
-| [T1071](https://attack.mitre.org/techniques/T1071/) | Application Layer Protocol | IRC Client Configuration with Multiple...; Comprehensive Analysis: Hacking-Related... |
-
-
-
-
 
 ---
 
@@ -855,13 +469,13 @@ Anonymizer Software Installation Detected. ShimCache shows:
 
 | Metric | Value |
 |--------|-------|
-| Total tool calls | 222 |
-| Findings submitted | 11 |
-| Confirmed | 9 |
-| Inferences | 2 |
-| Input tokens | 6.8K |
-| Output tokens | 53.7K |
-| Total tokens | 60.5K |
+| Total tool calls | 240 |
+| Findings submitted | 14 |
+| Confirmed | 10 |
+| Inferences | 4 |
+| Input tokens | 614 |
+| Output tokens | 61.1K |
+| Total tokens | 61.7K |
 | Audit log | /home/mulder/.mulder/cases/nist-hacking-case.audit.jsonl |
 
 
@@ -869,13 +483,13 @@ Anonymizer Software Installation Detected. ShimCache shows:
 
 | Model | Input | Output | Total |
 |-------|-------|--------|-------|
-| claude-haiku-4-5 | 6.8K | 53.7K | 60.5K |
+| claude-haiku-4-5 | 614 | 61.1K | 61.7K |
 
 
 
 
 <details>
-<summary>Evidence Sources (199)</summary>
+<summary>Evidence Sources (49)</summary>
 
 | Source | Extractor | Lines |
 |--------|-----------|-------|
@@ -890,179 +504,25 @@ Anonymizer Software Installation Detected. ShimCache shows:
 | bulk.ip | bulk_extractor | 1646 |
 | bulk.packets | bulk_extractor | 5403 |
 | bulk.rfc822 | bulk_extractor | 1143 |
-| bulk.sin | bulk_extractor | 28 |
 | bulk.tcp | bulk_extractor | 825 |
-| bulk.telephone | bulk_extractor | 659 |
 | bulk.url | bulk_extractor | 15563 |
 | bulk.url_searches | bulk_extractor | 42 |
 | bulk.url_services | bulk_extractor | 3045 |
-| appfiles.program_files.license.txt | icat | 46 |
-| appfiles.documents_and_settings.my_documents.desktop.ini | icat | 6 |
-| appfiles.documents_and_settings.application_data.desktop.ini | icat | 4 |
-| appfiles.program_files.manifest.xml | icat | 121 |
-| appfiles.documents_and_settings.my_documents.desktop.ini | icat | 10 |
-| appfiles.documents_and_settings.application_data.sharedaccess.ini | icat | 52 |
-| appfiles.program_files.market.ini | icat | 7 |
-| appfiles.documents_and_settings.my_documents.desktop.ini | icat | 10 |
-| appfiles.documents_and_settings.application_data.desktop.ini | icat | 4 |
-| appfiles.program_files.market.ini | icat | 7 |
-| appfiles.documents_and_settings.application_data.brndlog.txt | icat | 5 |
-| appfiles.program_files.market.ini | icat | 7 |
-| appfiles.documents_and_settings.application_data.desktop.ini | icat | 4 |
-| appfiles.program_files.market.ini | icat | 7 |
-| appfiles.documents_and_settings.application_data.brndlog.txt | icat | 217 |
-| appfiles.program_files.market.ini | icat | 7 |
-| appfiles.documents_and_settings.application_data.desktop.ini | icat | 5 |
-| appfiles.program_files.market.ini | icat | 7 |
-| appfiles.documents_and_settings.application_data.cleanup.log | icat | 10 |
-| appfiles.program_files.market.ini | icat | 7 |
-| appfiles.program_files.market.ini | icat | 7 |
-| appfiles.program_files.market.ini | icat | 7 |
-| appfiles.program_files.market.ini | icat | 7 |
-| appfiles.program_files.migrate.ini | icat | 128 |
-| appfiles.program_files.msn.inf | icat | 913 |
-| appfiles.program_files.msnupgrd.inf | icat | 69 |
-| appfiles.program_files.history.txt | icat | 26 |
-| appfiles.program_files.install.log | icat | 35 |
-| appfiles.program_files.license.txt | icat | 38 |
-| appfiles.program_files.readme.txt | icat | 49 |
-| appfiles.program_files.agent.ini | icat | 554 |
-| appfiles.program_files.errorlog.txt | icat | 6 |
-| appfiles.program_files.install.log | icat | 82 |
-| appfiles.program_files.order.txt | icat | 115 |
-| appfiles.program_files.readme.txt | icat | 102 |
-| appfiles.program_files.install.log | icat | 65 |
-| appfiles.program_files.credits.txt | icat | 19 |
+| ez.mft | eztools | 12183 |
 | ez.shimcache | eztools | 140 |
-| appfiles.program_files.oui.txt | icat | 7087 |
-| appfiles.program_files.iefiles5.inf | icat | 49 |
-| appfiles.program_files.adoapt15.reg | icat | 19 |
-| appfiles.program_files.adofre15.reg | icat | 18 |
-| appfiles.program_files.makapt15.bat | icat | 3 |
-| appfiles.program_files.makfre15.bat | icat | 3 |
-| appfiles.program_files.handler.reg | icat | 15 |
-| appfiles.program_files.handsafe.reg | icat | 17 |
 | ez.prefetch | eztools | 165 |
-| appfiles.program_files.handunsf.reg | icat | 17 |
-| appfiles.program_files.dictionary.xml | icat | 649 |
-| appfiles.program_files.mobileipv4.xml | icat | 64 |
-| appfiles.program_files.nasreq.xml | icat | 293 |
+| registry.default | regripper | 403 |
 | registry.sam | regripper | 133 |
-| appfiles.program_files.sunping.xml | icat | 24 |
-| appfiles.program_files.capture_filters.txt | icat | 80 |
-| appfiles.program_files.capturing.txt | icat | 84 |
 | registry.sam | regripper | 7 |
-| appfiles.program_files.display_filters.txt | icat | 43 |
-| appfiles.program_files.faq.txt | icat | 2228 |
-| appfiles.program_files.getting_started.txt | icat | 90 |
-| appfiles.program_files.overview.txt | icat | 38 |
-| registry.system | regripper | 19 |
-| appfiles.program_files.well_known.txt | icat | 114 |
-| appfiles.program_files.pcrepattern.3.txt | icat | 1475 |
-| appfiles.program_files.agentx-mib.txt | icat | 529 |
-| registry.system | regripper | 8 |
-| appfiles.program_files.disman-event-mib.txt | icat | 1957 |
-| appfiles.program_files.disman-schedule-mib.txt | icat | 701 |
-| appfiles.program_files.disman-script-mib.txt | icat | 1766 |
-| appfiles.program_files.etherlike-mib.txt | icat | 1139 |
-| appfiles.program_files.hcnum-tc.txt | icat | 120 |
-| appfiles.program_files.host-resources-mib.txt | icat | 1542 |
-| appfiles.program_files.host-resources-types.txt | icat | 391 |
-| appfiles.program_files.iana-address-family-numbers-mib.txt | icat | 123 |
-| appfiles.program_files.iana-language-mib.txt | icat | 125 |
-| appfiles.program_files.ianaiftype-mib.txt | icat | 392 |
-| appfiles.program_files.if-inverted-stack-mib.txt | icat | 151 |
-| appfiles.program_files.if-mib.txt | icat | 1816 |
-| appfiles.program_files.inet-address-mib.txt | icat | 300 |
-| appfiles.program_files.ip-forward-mib.txt | icat | 811 |
+| registry.security | regripper | 19 |
+| registry.security | regripper | 8 |
 | registry.software | regripper | 9600 |
-| appfiles.program_files.ip-mib.txt | icat | 722 |
-| appfiles.program_files.ipv6-icmp-mib.txt | icat | 531 |
-| appfiles.program_files.ipv6-mib.txt | icat | 1445 |
-| appfiles.program_files.ipv6-tc.txt | icat | 69 |
 | registry.software | regripper | 283 |
-| appfiles.program_files.ipv6-tcp-mib.txt | icat | 213 |
-| appfiles.program_files.ipv6-udp-mib.txt | icat | 143 |
-| appfiles.program_files.lm-sensors-mib.txt | icat | 232 |
-| appfiles.program_files.mta-mib.txt | icat | 1228 |
-| registry.software | regripper | 1161 |
-| appfiles.program_files.net-snmp-agent-mib.txt | icat | 546 |
-| appfiles.program_files.net-snmp-examples-mib.txt | icat | 229 |
-| appfiles.program_files.net-snmp-mib.txt | icat | 69 |
-| appfiles.program_files.net-snmp-monitor-mib.txt | icat | 61 |
-| appfiles.program_files.net-snmp-system-mib.txt | icat | 65 |
-| appfiles.program_files.net-snmp-tc.txt | icat | 123 |
 | registry.system | regripper | 3138 |
-| appfiles.program_files.network-services-mib.txt | icat | 628 |
-| appfiles.program_files.notification-log-mib.txt | icat | 784 |
-| appfiles.program_files.rfc-1215.txt | icat | 40 |
 | registry.system | regripper | 199 |
-| appfiles.program_files.rfc1155-smi.txt | icat | 121 |
-| appfiles.program_files.rfc1213-mib.txt | icat | 2615 |
-| appfiles.program_files.rmon-mib.txt | icat | 3982 |
-| appfiles.program_files.smux-mib.txt | icat | 162 |
-| registry.system | regripper | 286 |
-| appfiles.program_files.snmp-community-mib.txt | icat | 431 |
-| appfiles.program_files.snmp-framework-mib.txt | icat | 528 |
-| appfiles.program_files.snmp-mpd-mib.txt | icat | 147 |
-| appfiles.program_files.snmp-proxy-mib.txt | icat | 296 |
-| appfiles.program_files.snmp-target-mib.txt | icat | 662 |
-| appfiles.program_files.snmp-user-based-sm-mib.txt | icat | 914 |
-| appfiles.program_files.snmp-view-based-acm-mib.txt | icat | 832 |
-| appfiles.program_files.snmpv2-conf.txt | icat | 324 |
-| appfiles.program_files.snmpv2-mib.txt | icat | 856 |
-| appfiles.program_files.snmpv2-smi.txt | icat | 346 |
-| appfiles.program_files.snmpv2-tc.txt | icat | 774 |
-| appfiles.program_files.snmpv2-tm.txt | icat | 178 |
-| appfiles.program_files.tcp-mib.txt | icat | 332 |
-| appfiles.program_files.tunnel-mib.txt | icat | 339 |
-| appfiles.program_files.ucd-demo-mib.txt | icat | 76 |
-| appfiles.program_files.ucd-diskio-mib.txt | icat | 119 |
-| appfiles.program_files.ucd-dlmod-mib.txt | icat | 121 |
-| appfiles.program_files.ucd-ipfilter-mib.txt | icat | 258 |
-| appfiles.program_files.ucd-ipfwacc-mib.txt | icat | 329 |
-| appfiles.program_files.ucd-snmp-mib-old.txt | icat | 746 |
-| appfiles.program_files.ucd-snmp-mib.txt | icat | 1384 |
-| appfiles.program_files.udp-mib.txt | icat | 148 |
-| appfiles.program_files.snmp-notification-mib.txt | icat | 591 |
-| appfiles.program_files.config.cfg | icat | 20 |
-| appfiles.program_files.features.txt | icat | 144 |
-| appfiles.program_files.license.txt | icat | 62 |
-| appfiles.program_files.html.txt | icat | 32 |
-| appfiles.program_files.install2.log | icat | 39 |
-| appfiles.program_files.install.log | icat | 72 |
-| appfiles.program_files.license.txt | icat | 67 |
-| appfiles.program_files.notes.txt | icat | 135 |
-| appfiles.program_files.irunin.ini | icat | 399 |
-| appfiles.program_files.license.txt | icat | 25 |
-| appfiles.program_files.mailtmpl.txt | icat | 22 |
-| appfiles.program_files.msmsgs.exe.manifest | icat | 24 |
-| appfiles.program_files.aliases.ini | icat | 16 |
-| appfiles.program_files.#chataholics.undernet.log | icat | 16 |
-| appfiles.program_files.#cybercafe.undernet.log | icat | 207 |
-| appfiles.program_files.#elite.hackers.undernet.log | icat | 11 |
-| appfiles.program_files.#evilfork.efnet.log | icat | 11 |
-| appfiles.program_files.#funny.undernet.log | icat | 10 |
-| appfiles.program_files.#houston.undernet.log | icat | 9 |
-| appfiles.program_files.#iso-warez.efnet.log | icat | 7 |
-| appfiles.program_files.#luxshell.undernet.log | icat | 13 |
-| appfiles.program_files.#mp3xserv.undernet.log | icat | 15 |
-| appfiles.program_files.#thedarktower.afternet.log | icat | 14 |
-| appfiles.program_files.#ushells.undernet.log | icat | 9 |
-| appfiles.program_files.m5tar.undernet.log | icat | 8 |
-| appfiles.program_files.mirc.ini | icat | 224 |
-| appfiles.program_files.popups.ini | icat | 96 |
-| appfiles.program_files.readme.txt | icat | 34 |
-| appfiles.program_files.servers.ini | icat | 423 |
-| appfiles.program_files.urls.ini | icat | 9 |
-| appfiles.program_files.versions.txt | icat | 472 |
-| appfiles.program_files.wavemix.inf | icat | 101 |
-| appfiles.program_files.msoe.txt | icat | 3 |
-| appfiles.program_files.ie_userdata.ini | icat | 10 |
-| appfiles.program_files.ie4shell95userdata.ini | icat | 5 |
-| appfiles.program_files.whois.txt | icat | 70 |
-| appfiles.program_files.install.log | icat | 138 |
-| registry.ntuser.default user | regripper | 70 |
+| clamav.scan | clamav | 1 |
+| yara.files | yara | 3 |
+| registry.ntuser.default user | regripper | 43 |
 | registry.usrclass.localservice | regripper | 4 |
 | registry.ntuser.localservice | regripper | 70 |
 | registry.usrclass.mr. evil | regripper | 4 |
@@ -1070,14 +530,18 @@ Anonymizer Software Installation Detected. ShimCache shows:
 | registry.usrclass.networkservice | regripper | 4 |
 | registry.ntuser.networkservice | regripper | 70 |
 | tsk.masquerade | sleuthkit | 14 |
+| registry.query.system | python-registry | 1 |
+| registry.query.system | python-registry | 1 |
 | registry.query.software | python-registry | 1 |
 | registry.query.system | python-registry | 1 |
 | registry.query.system | python-registry | 1 |
 | registry.query.system | python-registry | 1 |
+| registry.query.system | python-registry | 1 |
 | registry.query.software | python-registry | 1 |
-| registry.query.system | python-registry | 1 |
-| registry.query.system | python-registry | 1 |
-| composite.file_staging | composite | 122 |
+| registry.query.software | python-registry | 1 |
+| registry.query.software | python-registry | 1 |
+| composite.correlation | composite | 1 |
+| composite.correlation | composite | 1 |
 
 
 </details>

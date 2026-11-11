@@ -153,7 +153,7 @@ function Conditions({data}: {data: ExperimentData}) {
                       message: 'model default',
                     }),
                 }}>
-                {'temperature {temperature} · max tokens {maxTokens} · reasoning {reasoning}'}
+                {'randomness (temperature) {temperature} · max tokens {maxTokens} · reasoning {reasoning}'}
               </Translate>
             </div>
           ) : (
@@ -736,6 +736,18 @@ function RunExplorer({data}: {data: ExperimentData}) {
   );
 }
 
+// How an experiment was run, in words.
+function harnessName(harness?: string): string {
+  switch (harness) {
+    case 'mulder-investigate':
+      return 'mulder investigate';
+    case 'claude-code':
+      return translate({id: 'harness.claudeCode', message: 'Claude Code with mulder MCP'});
+    default:
+      return translate({id: 'harness.benchRunner', message: 'bench runner (local model or scripted calls)'});
+  }
+}
+
 function Overview({data}: {data: ExperimentData}) {
   return (
     <div className={styles.overview}>
@@ -761,17 +773,11 @@ function Overview({data}: {data: ExperimentData}) {
       )}
       <div className={styles.overviewRow}>
         <span>
-          <Translate id="exp.test">Test</Translate>
+          <Translate id="exp.test">Case</Translate>
         </span>
         <p>
-          <Translate
-            id="exp.testLine"
-            values={{
-              case: <code>{data.case.id}</code>,
-              dataset: <code>{data.case.dataset ?? '-'}</code>,
-              harness: <code>{data.harness ?? '-'}</code>,
-            }}>
-            {'case {case} on dataset {dataset}, run with {harness}'}
+          <Translate id="exp.testLine" values={{case: <strong>{data.case.name}</strong>, harness: harnessName(data.harness)}}>
+            {'{case}, run with {harness}'}
           </Translate>
           <br />
           <span className={styles.small}>{data.case.purpose}</span>

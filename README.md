@@ -26,7 +26,7 @@ servers/mulder/
   patches/                  diffs applied on top of the commit, e.g. to remove a feature
   Dockerfile                release image + source at the commit + patches + runner
 runner/bench/               the bench-runner harness: MCP client, local model client, scripted checks, review
-docs/                       dated write-ups across experiments, shown on the site
+docs/                       dated write-ups across experiments, shown on the site; docs/ko/ the Korean versions
 web/                        the results site (Docusaurus), built from experiments/
 bench.sh                    prepare / build / run / investigate / import / review / summary / check, all in Docker
 ```
@@ -166,8 +166,9 @@ cd web && npm install && npm start    # http://localhost:3000, English only (the
 npm run start:ko                      # Korean only; `npm run preview` builds and serves both
 ```
 
-Interface text is translated in `web/i18n/ko/code.json` and the docs in
-`web/i18n/ko/docusaurus-plugin-content-docs/current/`. Experiment and case text
+Interface text is translated in `web/i18n/ko/code.json`. Each document in
+`docs/` has its Korean version under the same name in `docs/ko/`, which the
+Korean site is built from. Experiment and case text
 comes from the YAML files: the plain fields (`title`, `change`, `conclusion`,
 `purpose`, question `text`) are English and the default, and a `<field>_ko`
 next to one is shown on the Korean site. The questions given to models always

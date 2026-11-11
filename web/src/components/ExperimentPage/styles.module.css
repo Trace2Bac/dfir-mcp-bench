@@ -1,4 +1,5 @@
 .main {
+  width: 100%; /* the page wrapper is a flex column; see src/pages/index.module.css */
   max-width: 1200px;
   margin: 0 auto;
   padding: 1.5rem 1rem 4rem;
@@ -21,8 +22,7 @@
 
 .section h2 {
   font-size: 1.25rem;
-  border-bottom: 1px solid var(--bench-border);
-  padding-bottom: 0.4rem;
+  margin-bottom: 0.6rem;
 }
 
 .note,
@@ -37,21 +37,41 @@
   font-size: 0.9rem;
 }
 
+/* Tables: no rules. A small muted header, a faint fill on every other row
+   and on the row under the pointer. */
 .table th,
 .table td {
   border: none;
-  border-top: 1px solid var(--bench-border);
-  padding: 0.45rem 0.7rem;
+  padding: 0.55rem 0.8rem;
   text-align: left;
   vertical-align: top;
 }
 
 .table thead th {
-  border-top: none;
+  color: var(--bench-muted);
+  font-size: 0.78rem;
+  font-weight: 500;
+  padding-bottom: 0.35rem;
 }
 
 .table tr {
   background: none !important;
+}
+
+.table tbody tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--site-subtle) 60%, transparent);
+}
+
+.table tbody tr:hover td {
+  background: var(--site-subtle);
+}
+
+.table tbody td:first-child {
+  border-radius: 8px 0 0 8px;
+}
+
+.table tbody td:last-child {
+  border-radius: 0 8px 8px 0;
 }
 
 .table code {
@@ -190,23 +210,18 @@
   align-items: start;
 }
 
+/* Side-by-side columns: a soft fill, the label's colour on its name only. */
 .column {
-  border: 1px solid var(--bench-border);
-  border-radius: 6px;
-  padding: 0.6rem 0.75rem;
+  border-radius: 12px;
+  padding: 0.75rem 0.9rem;
+  background: var(--site-subtle);
   min-width: 0;
 }
 
-.columnA {
-  border-top: 3px solid var(--bench-side-a);
-}
-
-.columnB {
-  border-top: 3px solid var(--bench-side-b);
-}
-
+.columnA,
+.columnB,
 .columnC {
-  border-top: 3px solid var(--bench-side-c);
+  border: none;
 }
 
 .columnLabel {
@@ -240,8 +255,8 @@
   max-width: 100%;
   background: var(--ifm-background-color);
   color: inherit;
-  border: 1px solid var(--bench-border);
-  border-radius: 4px;
+  border: none;
+  border-radius: 8px;
 }
 
 .runMeta {
@@ -250,8 +265,7 @@
 }
 
 .event {
-  border-top: 1px solid var(--bench-border);
-  padding: 0.4rem 0;
+  padding: 0.45rem 0;
   font-size: 0.85rem;
   overflow-wrap: anywhere;
 }
@@ -284,9 +298,9 @@
 }
 
 .review {
-  border: 1px solid var(--bench-border);
-  border-radius: 4px;
-  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+  background: var(--ifm-background-color);
   margin-bottom: 0.5rem;
   font-size: 0.85rem;
 }
@@ -294,10 +308,10 @@
 /* overview */
 
 .overview {
-  border: 1px solid var(--bench-border);
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
+  border-radius: 14px;
+  padding: 0.9rem 1.2rem;
   margin-top: 0.75rem;
+  background: var(--site-subtle);
 }
 
 .overviewRow {
@@ -308,7 +322,7 @@
 }
 
 .overviewRow + .overviewRow {
-  border-top: 1px solid var(--bench-border);
+  margin-top: 0.25rem;
 }
 
 .overviewRow > span {

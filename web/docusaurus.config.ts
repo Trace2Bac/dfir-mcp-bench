@@ -6,6 +6,9 @@ import benchDataPlugin from './plugins/bench-data';
 // The site shows experiments/ as before/after comparisons. The pages under
 // /experiments/<id> come from plugins/bench-data.ts; the method and how-to pages
 // come from ../docs.
+// Docusaurus builds one locale at a time and names it here.
+const KO = process.env.DOCUSAURUS_CURRENT_LOCALE === 'ko';
+
 const config: Config = {
   title: 'DFIR MCP Bench',
   tagline: 'Before/after evidence for DFIR MCP server changes',
@@ -35,8 +38,11 @@ const config: Config = {
       {
         // Dated write-ups across experiments (docs/), next to the experiment pages.
         docs: {
-          path: '../docs',
+          // docs/ko/ holds the Korean version of each document under the same
+          // name, and the Korean site is built from it.
+          path: KO ? '../docs/ko' : '../docs',
           routeBasePath: 'docs',
+          exclude: ['ko/**', '**/_*.{js,jsx,ts,tsx,md,mdx}', '**/_*/**', '**/*.test.{js,jsx,ts,tsx}', '**/__tests__/**'],
           sidebarPath: undefined,
         },
         blog: false,
