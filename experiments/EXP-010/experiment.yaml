@@ -3,7 +3,7 @@
 title: "Does a larger model act on the limits it is given? (Opus)"
 title_ko: "큰 모델은 전달받은 한계를 따를까? (Opus)"
 server: mulder
-status: planned                  # planned | in-progress | done
+status: in-progress                 # planned | in-progress | done
 change: >
   EXP-009 again, with Opus as planner and analyst. In EXP-009 (Haiku in every
   role) after-2 carried the limits of analyze_disk_pcaps and run_clamav all
@@ -33,3 +33,18 @@ harness_options:
 variants:
   before: mulder-1.5.10                      # upstream release
   after-2: mulder-1.5.10-limits-to-analyst   # same as EXP-009 after-2
+
+conclusion: >
+  One run per label so far. Review: before full match 81%, false positives
+  3% (Q1, a hash match it did not check); after-2 77%, 0%. Opus found the
+  capture "interception" in both runs by reading the file listing, so Q23
+  does not separate the labels. On Q31, before reported ClamAV's "OK"
+  without the caveat; after-2 received the caveat and wrote that no
+  conclusion can be drawn about the files inside the image. Neither claimed
+  the computer has no virus. More runs are needed.
+conclusion_ko: >
+  지금까지 라벨당 1회. 검토: before 완전 일치 81%, 오탐 3%(Q1, 확인하지 않은 해시 일치); after-2
+  77%, 0%. Opus는 두 실행 모두 파일 목록을 읽어 캡처 파일 "interception"을 찾았으므로 Q23으로는
+  두 라벨이 갈리지 않는다. Q31에서 before는 ClamAV의 "OK"를 주의 없이 보고했고, after-2는 주의를
+  받아 이미지 안의 파일에 대해서는 결론을 낼 수 없다고 적었다. 둘 다 "바이러스가 없다"고 단정하지는
+  않았다. 더 돌려 봐야 한다.
