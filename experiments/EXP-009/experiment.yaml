@@ -32,7 +32,9 @@ change: >
   and user agents in a capture (Q23 to Q25); get_windows_system_profile, a
   new tool, reads the OS, install date, owner, computer name, time zone,
   last shutdown, network cards and local accounts in one call (Q2 to Q9,
-  Q13).
+  Q13). after-4 has the planner always plan run_hashdeep and
+  analyze_disk_pcaps for a disk image (each ran in only some after-3 runs),
+  and names the capture file and its path in the capture's indexed summary.
 change_ko: >
   analyze_disk_pcaps는 디스크 이미지의 파일 목록에서 확장자로만 캡처 파일을 찾는다. 찾은 것이
   없으면 "No packet capture files found"와 함께 그냥 성공을 돌려주므로, 모델이 "캡처 파일이
@@ -51,7 +53,9 @@ change_ko: >
   확인하고, 파일 해시는 매체 해시가 아니라고 알린다(Q1). analyze_disk_pcaps가 확장자 없는 파일도
   열어 헤더로 캡처를 알아보고, 캡처 안의 HTTP 호스트와 User-Agent를 정리한다(Q23~Q25). 새 도구
   get_windows_system_profile이 OS, 설치일, 소유자, 컴퓨터 이름, 시간대, 마지막 종료, 네트워크 카드,
-  로컬 계정을 한 번에 읽는다(Q2~Q9, Q13).
+  로컬 계정을 한 번에 읽는다(Q2~Q9, Q13). after-4는 planner가 디스크 이미지에 run_hashdeep과
+  analyze_disk_pcaps를 항상 계획하게 하고(after-3에서는 일부 실행에서만 돌았다), 캡처의 색인 요약에
+  파일 이름과 경로를 넣는다.
 links:
   - https://cfreds-archive.nist.gov/Hacking_Case.html
   - https://cfreds-archive.nist.gov/images/TestAnswers.pdf
@@ -68,6 +72,7 @@ variants:
   after: mulder-1.5.10-pcap-scope-batch   # the empty-result change, and get_completed_results passing it on
   after-2: mulder-1.5.10-limits-to-analyst   # and the limit carried on to the analyst; run_clamav's caveat
   after-3: mulder-1.5.10-tool-assists        # and three tools that do work Haiku left undone
+  after-4: mulder-1.5.10-tool-assists-2      # and those tools always planned; the capture's path in its summary
 
 conclusion: >
   Haiku in every role, five runs per label. With get_completed_results
@@ -84,8 +89,20 @@ conclusion: >
   false positives 6% (3 to 10); after 26% (19 to 35), 3% (0 to 13); after-2
   26% (19 to 32), 6% (0 to 10). The ranges overlap, so the change is not
   shown to lower false positives with Haiku: delivering the limit is
-  necessary, but Haiku does not always act on it. The capture was not
-  found by name in any run (it has no extension).
+  necessary, but Haiku does not always act on it. Up to after-2 the capture
+  was not found by name in any run (it has no extension). after-3, where
+  three tools do work Haiku left undone, is the first change whose range
+  does not overlap the others: full match 48% (35 to 58) against 26% (19 to
+  32) for after-2, detection 61% (52 to 71), false positives 3% (0 to 6).
+  get_windows_system_profile was called in all five runs, and Q2 to Q6, Q9
+  to Q11 and Q13 were answered in every run (before: Q6, Q9 and Q13 at most
+  once). Q24 and Q25 (the victim's Pocket PC and the MSN Hotmail sites, from
+  the capture's HTTP summary) were found in three runs, never before. Q1 was
+  found in the two runs that called run_hashdeep. Left: the capture was
+  named in one run only, and in run 4 the report says no capture file was
+  recovered although the tool had found and analysed it (the indexed
+  capture summary does not carry the file's path). run_hashdeep ran in two
+  runs and analyze_disk_pcaps in four.
 conclusion_ko: >
   모든 역할 Haiku, 라벨당 5회. get_completed_results가 결과의 상태와 메시지를 넘기게 하자(after)
   메시지가 executor까지는 전달됐지만, "캡처가 없다"는 단정은 줄지 않았다. before 5회 중 2회, after
@@ -95,5 +112,12 @@ conclusion_ko: >
   없다"는 5회 중 2회로 before, after와 같았다. 5회차는 ClamAV 주의 문구를 그대로 인용하고도 "바이러스
   없음"으로 결론지었다. 검토 중앙값(범위): before 완전 일치 19%(16~26), 오탐 6%(3~10); after
   26%(19~35), 3%(0~13); after-2 26%(19~32), 6%(0~10). 범위가 겹치므로 Haiku에서는 이 변경이
-  오탐을 줄인다고 보이지 않았다. 한계 전달은 필요조건이지만, Haiku가 그것을 늘 따르지는 않는다. 캡처
-  파일 이름은 어느 실행에서도 찾지 못했다(확장자가 없음).
+  오탐을 줄인다고 보이지 않았다. 한계 전달은 필요조건이지만, Haiku가 그것을 늘 따르지는 않는다.
+  after-2까지는 캡처 파일 이름을 어느 실행에서도 찾지 못했다(확장자가 없음). Haiku가 하지 않던 일을
+  도구 세 개가 대신하게 한 after-3는 처음으로 범위가 겹치지 않았다. 완전 일치 48%(35~58), after-2는
+  26%(19~32); 탐지 61%(52~71), 오탐 3%(0~6). get_windows_system_profile은 5회 모두 호출됐고,
+  Q2~Q6, Q9~Q11, Q13은 매번 맞혔다(before에서 Q6, Q9, Q13은 많아야 1회). Q24, Q25(피해자의 Pocket
+  PC와 MSN Hotmail 사이트, 캡처의 HTTP 요약에서 나옴)는 3회 맞혔다(이전에는 0회). Q1은 run_hashdeep을
+  부른 2회에서 맞혔다. 남은 것: 캡처 파일 이름은 1회만 답했고, 4회차는 도구가 파일을 찾아 분석했는데도
+  보고서에 "캡처 파일 없음"이라고 썼다(색인된 캡처 요약에 파일 경로가 없음). run_hashdeep은 2회,
+  analyze_disk_pcaps는 4회 실행됐다.
