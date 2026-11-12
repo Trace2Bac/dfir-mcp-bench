@@ -102,7 +102,19 @@ conclusion: >
   named in one run only, and in run 4 the report says no capture file was
   recovered although the tool had found and analysed it (the indexed
   capture summary does not carry the file's path). run_hashdeep ran in two
-  runs and analyze_disk_pcaps in four.
+  runs and analyze_disk_pcaps in four. after-4 (the planner told to always
+  plan both tools, and the capture's path in its summary): full match 48%
+  (42 to 48), detection 61% (58 to 61), false positives 0% (0 to 6). The
+  medians are those of after-3 but the ranges are narrower. run_hashdeep ran
+  in all five runs and Q1 was found in all five; Q4 was found in all five.
+  The capture was named in three runs (once in after-3), each with its path,
+  and Q24 was found in those three. The claim that no capture exists stayed
+  in two runs, for two different reasons: in run 4 the planner still left
+  out analyze_disk_pcaps; in run 1 the tool ran and found the capture, but
+  the executor reported its source as "pcap_analysis", a name that does not
+  exist (get_completed_results does not return a source name, and this tool
+  indexes one source per capture), so the analyst read nothing under it.
+  The claim that there is no virus did not appear in after-3 or after-4.
 conclusion_ko: >
   모든 역할 Haiku, 라벨당 5회. get_completed_results가 결과의 상태와 메시지를 넘기게 하자(after)
   메시지가 executor까지는 전달됐지만, "캡처가 없다"는 단정은 줄지 않았다. before 5회 중 2회, after
@@ -120,4 +132,12 @@ conclusion_ko: >
   PC와 MSN Hotmail 사이트, 캡처의 HTTP 요약에서 나옴)는 3회 맞혔다(이전에는 0회). Q1은 run_hashdeep을
   부른 2회에서 맞혔다. 남은 것: 캡처 파일 이름은 1회만 답했고, 4회차는 도구가 파일을 찾아 분석했는데도
   보고서에 "캡처 파일 없음"이라고 썼다(색인된 캡처 요약에 파일 경로가 없음). run_hashdeep은 2회,
-  analyze_disk_pcaps는 4회 실행됐다.
+  analyze_disk_pcaps는 4회 실행됐다. after-4(planner가 두 도구를 항상 계획하게 하고, 캡처 요약에 경로를
+  넣음): 완전 일치 48%(42~48), 탐지 61%(58~61), 오탐 0%(0~6). 중앙값은 after-3와 같고 범위가
+  좁아졌다. run_hashdeep은 5회 모두 실행됐고 Q1을 5회 모두 맞혔다. Q4도 5회 모두 맞혔다. 캡처 파일
+  이름은 3회 답했고(after-3는 1회) 모두 경로가 함께 있었으며, 그 3회는 Q24도 맞혔다. "캡처가 없다"는
+  단정은 2회 남았고 원인이 서로 다르다. 4회차는 planner가 여전히 analyze_disk_pcaps를 빼먹었다.
+  1회차는 도구가 실행돼 캡처를 찾았지만, executor가 그 source를 존재하지 않는 "pcap_analysis"로
+  보고해서 analyst가 그 이름으로 아무것도 읽지 못했다(get_completed_results는 source 이름을 돌려주지
+  않고, 이 도구는 캡처마다 source를 하나씩 만든다). "바이러스가 없다"는 단정은 after-3, after-4에서
+  나오지 않았다.

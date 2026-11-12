@@ -8,7 +8,7 @@ Model runs. Means are per run.
 | after | claude-haiku-4-5 | mulder-1.5.10-pcap-scope-batch | 5 | 5/5 | 179.8 | 202.8 | - | 901.5 | report 5 |
 | after-2 | claude-haiku-4-5 | mulder-1.5.10-limits-to-analyst | 5 | 5/5 | 176.6 | 193.6 | - | 842.6 | report 5 |
 | after-3 | claude-haiku-4-5 | mulder-1.5.10-tool-assists | 5 | 5/5 | 166.2 | 181.0 | - | 819.1 | report 5 |
-| after-4 | claude-haiku-4-5 | mulder-1.5.10-tool-assists-2 | 5 | 0/5 | 155.8 | 173.6 | - | 836.6 | report 5 |
+| after-4 | claude-haiku-4-5 | mulder-1.5.10-tool-assists-2 | 5 | 5/5 | 155.8 | 173.6 | - | 836.6 | report 5 |
 
 Human review, on the scale mulder uses for its own runs: full match = found, detection = found or partial, false positives = contradicted claims stated as fact (inside or outside the questions), each over the number of questions. Median of the reviewed runs, range in parentheses.
 
@@ -18,6 +18,7 @@ Human review, on the scale mulder uses for its own runs: full match = found, det
 | after | claude-haiku-4-5 | 5 | 26% (19 to 35) | 42% (35 to 58) | 3% (0 to 13) |
 | after-2 | claude-haiku-4-5 | 5 | 26% (19 to 32) | 39% (29 to 45) | 6% (0 to 10) |
 | after-3 | claude-haiku-4-5 | 5 | 48% (35 to 58) | 61% (52 to 71) | 3% (0 to 6) |
+| after-4 | claude-haiku-4-5 | 5 | 48% (42 to 48) | 61% (58 to 61) | 0% (0 to 6) |
 
 Verdicts per question (F found, P partial, M missed, X false positive; count of reviewed runs):
 
@@ -27,3 +28,4 @@ Verdicts per question (F found, P partial, M missed, X false positive; count of 
 | after | claude-haiku-4-5 | M4 X1 | F5 | F5 | F2 P1 M2 | F3 M2 | F2 P1 M2 | M5 | P5 | F3 P1 M1 | F5 | F5 | F1 P1 M3 | F1 M4 | F1 M4 | P1 M4 | P4 M1 | F1 M4 | F1 M4 | F2 P3 | P3 M2 | F1 P2 M2 | F3 P1 M1 | M3 X2 | M5 | M5 | M5 | M5 | M5 | F2 P1 M1 X1 | M5 | M3 X2 |
 | after-2 | claude-haiku-4-5 | M1 X4 | F5 | F4 M1 | P3 M2 | F2 M3 | F3 M2 | M5 | P4 M1 | F2 M3 | F5 | F5 | F1 P1 M3 | M5 | F1 M4 | M5 | P5 | F1 M4 | F1 M4 | P4 M1 | M5 | F2 M3 | F4 M1 | M4 X1 | M4 X1 | P1 M4 | M5 | M5 | M5 | F3 P2 | M5 | M3 X2 |
 | after-3 | claude-haiku-4-5 | F2 M3 | F5 | F5 | F4 P1 | F5 | F5 | M5 | P5 | F5 | F5 | F5 | F3 M2 | F5 | F1 P1 M3 | F1 P1 M3 | P4 M1 | F3 M2 | F3 M2 | F2 P3 | M5 | F3 P1 M1 | F5 | F1 M2 X2 | F3 M2 | F3 M2 | F1 M4 | M5 | M5 | P2 M2 X1 | M5 | M5 |
+| after-4 | claude-haiku-4-5 | F5 | F5 | F5 | F5 | F5 | F5 | M5 | P5 | F5 | F5 | F5 | F1 P1 M3 | F5 | F1 M4 | P1 M4 | P5 | F3 M2 | F2 M3 | F1 P4 | M5 | P1 M4 | F3 M2 | F3 X2 | F3 M2 | F2 P1 M2 | F2 M3 | M5 | M5 | F1 P3 M1 | M5 | M5 |
