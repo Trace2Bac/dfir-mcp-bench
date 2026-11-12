@@ -1,60 +1,92 @@
 # EXP-004: one verification. The folder name is its permanent identifier;
 # the title may change.
-title: "mulder investigate on a NIST CFTT test image (DFR-01, FAT)"
-title_ko: "NIST CFTT 테스트 이미지에 대한 mulder investigate (DFR-01, FAT)"
+title: "Tools that do the work Haiku leaves undone"
+title_ko: "Haiku가 하지 않는 일을 도구가 대신함"
 server: mulder
 status: done                     # planned | in-progress | done
 change: >
-  None. Unmodified mulder 1.5.10 runs its own five-phase investigation on the
-  small NIST deleted-file-recovery image of EXP-003, to see whether the
-  orchestrator finds every partition's deleted file without the workarounds
-  the scripted run needed.
+  With Haiku in every role, mulder investigate misses most answers less
+  from wrong reasoning than from work Haiku does not do: registry values it
+  does not query, a capture without a file name extension it does not open,
+  a hash it does not check, tools the planner leaves out. Earlier trial runs
+  of this case (not kept) also showed that stating a tool's limits is not
+  enough: Haiku often read the limit and still concluded "no capture" or "no
+  virus". The after version has the tools do that work. run_hashdeep checks
+  the acquisition hash stored in an EWF image with ewfverify and says the
+  file hashes are not the media hash. analyze_disk_pcaps also recognizes a
+  capture without an extension by its header, lists the HTTP hosts and user
+  agents in it, and names the file's path in its summary. A new
+  get_windows_system_profile reads the OS, install date, owner, computer
+  name, time zone, last shutdown, network cards, installed programs and
+  local accounts in one call. A new get_recycle_bin reads the Recycle Bin
+  index (INFO2, $I) and says whether each item is still in the bin.
+  run_clamav also copies the files out of a disk image with tsk_recover and
+  scans them, since clamscan cannot open an image. get_completed_results
+  returns the source name of a result, and the sources a tool such as
+  analyze_disk_pcaps indexes one per file (in a trial run the executor made
+  up a source name for the capture and the analyst found nothing under it).
+  When the first extraction plan for a disk image leaves out run_hashdeep,
+  analyze_disk_pcaps, get_windows_system_profile or get_recycle_bin, they
+  are added to it in code. It also carries tool limits to the analyst, as
+  in EXP-003. Compared, five runs per label: full match, detection and
+  false positives.
 change_ko: >
-  변경 없음. 수정하지 않은 mulder 1.5.10이 EXP-003과 같은 NIST 삭제 파일 복구
-  이미지에 자체 다섯 단계 조사를 돌린다. scripted 실행에 필요했던 우회 없이
-  오케스트레이터가 모든 파티션의 삭제 파일을 찾는지 본다.
+  모든 역할을 Haiku로 하면 mulder investigate가 틀리는 답은 잘못된 추론보다 Haiku가 하지 않은 일에서
+  나온다. 조회하지 않은 레지스트리 값, 확장자가 없어 열어 보지 않은 캡처 파일, 확인하지 않은 해시,
+  planner가 빼먹은 도구다. 이 사건으로 먼저 돌려 본 실행(기록은 남기지 않음)에서는 도구의 한계를
+  알리는 것만으로는 부족하다는 것도 보였다. Haiku는 한계를 읽고도 "캡처 없음", "바이러스 없음"으로
+  결론짓는 경우가 많았다. after는 그 일을 도구가 대신한다. run_hashdeep이 EWF 이미지에 저장된 획득
+  해시를 ewfverify로 확인하고, 파일 해시는 매체 해시가 아니라고 알린다. analyze_disk_pcaps가 확장자
+  없는 캡처도 헤더로 알아보고, HTTP 호스트와 User-Agent를 정리하고, 요약에 파일 경로를 넣는다. 새
+  도구 get_windows_system_profile이 OS, 설치일, 소유자, 컴퓨터 이름, 시간대, 마지막 종료, 네트워크
+  카드, 설치 프로그램, 로컬 계정을 한 번에 읽는다. 새 도구 get_recycle_bin이 휴지통 색인(INFO2,
+  $I)을 읽고 각 항목이 아직 휴지통에 있는지 알린다. run_clamav가 디스크 이미지 안의 파일을
+  tsk_recover로 꺼내 검사한다(clamscan은 이미지를 열지 못함). get_completed_results가 결과의 source
+  이름과, analyze_disk_pcaps처럼 파일마다 만드는 source들을 돌려준다(먼저 돌려 본 실행에서 executor가
+  캡처의 source 이름을 지어내 analyst가 아무것도 찾지 못했다). 디스크 이미지의 첫 추출 계획에
+  run_hashdeep, analyze_disk_pcaps, get_windows_system_profile, get_recycle_bin이 빠지면 코드가
+  추가한다. EXP-003처럼 도구의 한계도 analyst까지 전달한다. 라벨당 5회로 완전 일치, 탐지, 오탐을
+  비교한다.
 links:
-  - https://cfreds-archive.nist.gov/dfr-test-images.html
-  - https://cfreds-archive.nist.gov/dfr-images/setup-july-10-2012.pdf
+  - https://cfreds-archive.nist.gov/Hacking_Case.html
+  - https://cfreds-archive.nist.gov/images/TestAnswers.pdf
 
-case: nist-dfr-01-fat
-# mulder's own orchestrator, started by `./bench.sh investigate EXP-004`. The
-# case briefing and questions go into MULDER.md in an evidence copy; no answers.
-# Same models and effort as EXP-002, so the two runs compare.
+case: nist-hacking-case
 harness: mulder-investigate
 harness_options:
-  models: {planner: claude-opus-4-6, executor: claude-haiku-4-5, analyst: claude-opus-4-6}
-  effort: max
-  auth: Anthropic API key (ANTHROPIC_API_KEY in the shell)
+  models: {planner: claude-haiku-4-5, executor: claude-haiku-4-5, analyst: claude-haiku-4-5}
+  # No effort: the effort setting is for Opus and Sonnet models.
+  answer_section: true
 
 variants:
-  before: mulder-1.5.10          # upstream release
-
-scripted_expect:
-  before: {questions: 5/5, facts: 14/14}
+  before: mulder-1.5.10                  # upstream release
+  after: mulder-1.5.10-haiku-assists     # every tool assist above
 
 conclusion: >
-  25 minutes, 207 tool calls, 7 findings. Automatic score 3/5 questions, 8/14
-  facts; the scripted ceiling is 5/5, 14/14. mulder called run_fls once
-  without an offset and indexed only the FAT32 partition, so it found one of
-  the three deleted files (Bellatrix.txt) and two of the eight allocated ones;
-  Q4 and Q5 passed on that one file only. The cause is in run_fls: the
-  partitions it lists besides the primary one must be at least 204,800
-  sectors and of an NTFS, FAT32 or Linux type, which drops the 8 MB FAT12 and
-  32 MB FAT16 partitions. The alternative-narrative phase noticed the gap and
-  planned fls on offsets 128 and 16512, but that phase's executor may not
-  call run_fls (EXTRACT_EXECUTOR only), so the report states the two
-  partitions were not analysed. mulder reported 13.8K uncached input and
-  56.2K output tokens for Opus and 14.5K output for Haiku, about $1.55 at
-  list prices before cache tokens.
+  Haiku in every role, five runs per label. Review, median (range): before
+  full match 29% (19 to 32), detection 39% (26 to 45), false positives 6% (0
+  to 6); after 65% (45 to 65), 71% (55 to 74), 0% (0 to 6). The ranges do
+  not overlap. Every after run called run_hashdeep, analyze_disk_pcaps,
+  get_windows_system_profile, get_recycle_bin and run_clamav. Answered in
+  all five after runs and in none before: Q1 (the acquisition hash, which
+  before claimed as verified in three runs from the E01 file hashes), Q28
+  and Q29 (four executables, still in the Recycle Bin) and Q31 (ClamAV
+  found 18 files inside the image; before, three runs said there was no
+  virus). The capture "interception" and what it shows (Q23 to Q25) were
+  found in four runs, never before. In the fifth (run 4) the executor
+  passed on the right source, pcap.disk.interception, but the analyst only
+  searched it with words such as "pcap" and "victim", found nothing, never
+  read it, and wrote that no capture exists. Still missed in every run:
+  Q7, Q15, Q20, Q27 and Q30. The ClamAV scan of the files inside the image
+  made each after run take about 31 minutes, against about 14 before.
 conclusion_ko: >
-  25분, 도구 호출 207번, 발견 사항 7건. 자동 점수는 질문 3/5, 사실 8/14이고 scripted
-  상한은 5/5, 14/14다. mulder가 run_fls를 오프셋 없이 한 번 불러 FAT32 파티션만
-  색인했다. 그래서 삭제 파일 3개 중 1개(Bellatrix.txt), 남은 파일 8개 중 2개만
-  찾았고, Q4·Q5는 그 한 파일로만 통과했다. 원인은 run_fls에 있다. 주 파티션 말고
-  나머지 파티션은 204,800섹터 이상이면서 NTFS·FAT32·Linux 유형이어야 색인하는데,
-  8MB FAT12와 32MB FAT16이 여기서 빠진다. 검토 단계가 빈틈을 알아채고 오프셋 128,
-  16512에 fls를 돌리는 계획을 세웠지만, 그 단계 실행자는 run_fls를 쓸 수 없어
-  (EXTRACT_EXECUTOR 전용) 보고서는 두 파티션을 분석하지 않았다고 적었다. mulder가
-  보고한 토큰은 Opus 캐시 제외 입력 13.8K·출력 56.2K, Haiku 출력 14.5K로 정가 기준
-  약 $1.55이며, 캐시 토큰은 빠져 있다.
+  모든 역할 Haiku, 라벨당 5회. 검토 중앙값(범위): before 완전 일치 29%(19~32), 탐지 39%(26~45),
+  오탐 6%(0~6); after 65%(45~65), 71%(55~74), 0%(0~6). 범위가 겹치지 않는다. after는 5회 모두
+  run_hashdeep, analyze_disk_pcaps, get_windows_system_profile, get_recycle_bin, run_clamav를
+  호출했다. after 5회 모두 맞히고 before는 한 번도 못 맞힌 문제: Q1(획득 해시. before는 3회에서 E01
+  파일 해시로 "검증됐다"고 단정), Q28, Q29(실행 파일 4개, 아직 휴지통에 있음), Q31(ClamAV가 이미지
+  안의 파일 18개를 탐지. before는 3회에서 "바이러스 없음"). 캡처 파일 "interception"과 그 내용
+  (Q23~Q25)은 4회 맞혔다(before 0회). 나머지 1회(4회차)는 executor가 올바른 source
+  pcap.disk.interception을 넘겼지만, analyst가 "pcap", "victim" 같은 단어로만 검색해 결과가 없자
+  원문을 읽지 않고 "캡처 없음"이라고 썼다. 5회 모두 틀린 문제: Q7, Q15, Q20, Q27, Q30. 이미지 안
+  파일의 ClamAV 검사 때문에 after 1회 실행이 약 31분 걸렸다(before 약 14분).

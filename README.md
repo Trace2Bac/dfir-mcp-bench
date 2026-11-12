@@ -132,22 +132,23 @@ are Linux. What else you need depends on what you run:
    export ANTHROPIC_API_KEY=...               # this shell only, never in a file
    ./bench.sh investigate EXP-004 --dry-run   # prepares and prints the command, starts nothing
    ./bench.sh investigate EXP-004             # runs it and imports the result
-   ./bench.sh investigate EXP-005             # NIST Hacking Case, 31 questions (the setting for repeated runs)
+   ./bench.sh investigate EXP-004 after --repeat 5   # one label, five runs
    ```
-   Every run costs money (EXP-002 reported 134.5K output tokens, about $3 at
-   list prices before cache tokens).
+   Every run costs money; runs with Opus as planner and analyst cost far
+   more than runs with Haiku in every role.
 
-   Claude Code with a Claude subscription instead (EXP-007):
+   Claude Code with a Claude subscription instead (an experiment with
+   harness `claude-code`):
    ```
    ./bench.sh login                           # once: sign in with a Claude subscription
-   ./bench.sh investigate EXP-007             # Opus 4.6 (Haiku 4.5, EXP-008, was too shallow)
+   ./bench.sh investigate EXP-<nnn>
    ```
    The sign-in is kept in `data/claude/` (never committed). Runs count
    toward the subscription's usage limits; a run stopped by a limit is not
    imported.
 5. Only for local-model runs: start LM Studio's server on Windows (port 1234,
    context 32K or more), `cp .env.example .env` and set `MODEL_NAME`, then
-   `MODEL_REASONING_EFFORT=none ./bench.sh run EXP-003 --repeat 3`. Containers
+   `MODEL_REASONING_EFFORT=none ./bench.sh run EXP-001 --repeat 3`. Containers
    reach LM Studio at `host.docker.internal:1234`; if they cannot, turn on
    *Serve on Local Network* in LM Studio.
 6. Review the answers (`./bench.sh review EXP-004`), update the experiment's

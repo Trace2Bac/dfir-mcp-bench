@@ -1,58 +1,42 @@
 # EXP-002: one verification. The folder name is its permanent identifier;
 # the title may change.
-title: "Rhino Hunt case with mulder investigate on Claude"
-title_ko: "Rhino Hunt 케이스를 Claude로 mulder investigate 실행"
+title: "NIST CFTT case: mulder tools called directly, no model"
+title_ko: "NIST CFTT 케이스에서 모델 없이 mulder 도구만 호출"
 server: mulder
-status: done # planned | in-progress | done
+status: in-progress # planned | in-progress | done
 change: >
-  To evaluate mulder and the Claude models and to find a suitable test case,
-  we ran the Rhino Hunt case with mulder investigate on Claude (Opus 4.6).
+  Calls mulder's disk tools directly from a script, without a model, to check
+  whether they find and recover the deleted files on the NIST CFTT image.
 change_ko: >
-  mulder와 Claude 모델의 성능을 평가하고 적절한 테스트 케이스를 찾기 위해, Rhino Hunt
-  케이스를 Claude(Opus 4.6)로 mulder investigate로 돌려 봤다.
+  모델 없이 스크립트로 mulder 디스크 도구를 직접 호출해서, NIST CFTT 이미지에서
+  삭제 파일을 찾아 복구할 수 있는지 검증한다.
 links:
-  - https://cfreds-archive.nist.gov/dfrws/Rhino_Hunt.html
-  - https://cfreds-archive.nist.gov/dfrws/DFRWS2005-answers.pdf
+  - https://cfreds-archive.nist.gov/dfr-test-images.html
+  - https://cfreds-archive.nist.gov/dfr-images/setup-july-10-2012.pdf
 
-case: rhino-hunt
-# mulder's own orchestrator (Claude Agent SDK). The case briefing and question
-# texts were written to MULDER.md in the evidence folder, mulder's documented
-# way to give an investigation its questions; no answers were given.
-harness: mulder-investigate
-harness_options:
-  models:
-    {
-      planner: claude-opus-4-6,
-      executor: claude-haiku-4-5,
-      analyst: claude-opus-4-6,
-    }
-  effort: max
-  auth: Anthropic API key
-  command: mulder investigate /evidence/rhino-hunt rhino-hunt # release image, --privileged
+case: nist-dfr-01-fat
+harness: bench-runner
 
 variants:
   before: mulder-1.5.10 # upstream release
 
 scripted_expect:
-  before: { questions: 5/7, facts: 15/22 }
+  before: { questions: 5/5, facts: 14/14 }
 
 conclusion: >
-  35 minutes, 383 tool calls, 14 findings. Automatic score 4/7 questions,
-  12/22 facts against the full answer key; the scripted ceiling with mulder's
-  tools is 5/7, 15/22. Of the 10 facts missed, 9 need features mulder lacks:
-  carving tools delete their output (so no stego, no look at carved images,
-  no hash match between the USB image and the zip from the FTP stream) and
-  there is no way to open the encrypted zip. One reachable fact was missed
-  (rhino2.jpg, the name inside contraband.zip, visible with strings).
-  run_photorec failed on every call because of its command line. mulder
-  reported 34.7K uncached input and 134.5K output tokens (about $3.0 at list
-  prices); cache reads and writes are not in that count.
+  Scripted 5/5 questions, 14/14 facts: every fact is reachable with mulder's
+  disk tools, but only with workarounds. Without an offset run_fls indexes
+  only the FAT32 partition (it lists other partitions only when they are at
+  least 204,800 sectors and of an NTFS, FAT32 or Linux type); with an offset
+  it skips the second and third partition as "already indexed" unless force
+  is set;
+  get_file_metadata and extract_file_by_inode take no partition and read the
+  FAT32 partition only; get_deleted_files reports 8 deleted entries where
+  there is 1. Model runs are pending.
 conclusion_ko: >
-  35분, 도구 호출 383번, 발견 사항 14건. 정답지 전체 기준 자동 점수는 질문 4/7,
-  사실 12/22이고, mulder 도구로 낼 수 있는 상한(scripted)은 5/7, 15/22이다. 놓친 사실
-  10개 중 9개는 mulder에 없는 기능이 필요하다. 카빙 도구가 결과를 지워서 스테고 분석,
-  카빙한 그림 확인, USB 이미지와 FTP로 보낸 zip의 해시 비교를 할 수 없고, 암호화된
-  zip을 열 방법이 없다. 닿을 수 있었는데 놓친 사실은 하나다 (contraband.zip 안의
-  파일 이름 rhino2.jpg, strings로 보임). run_photorec은 명령 형식 때문에 매번
-  실패했다. mulder가 보고한 토큰은 캐시 제외 입력 34.7K, 출력 134.5K로 정가 기준
-  약 $3.0이며, 캐시 읽기·쓰기는 빠져 있다.
+  scripted 5/5 질문, 14/14 사실. 모든 사실에 mulder 디스크 도구로 닿지만, 우회가
+  필요하다. run_fls는 오프셋 없이 부르면 FAT32 파티션만 색인하고(다른 파티션은
+  204,800섹터 이상이면서 NTFS·FAT32·Linux 유형일 때만 색인), 오프셋을 주면 force
+  없이는 두 번째·세 번째 파티션을 "이미 색인됨"으로 건너뛴다. get_file_metadata와 extract_file_by_inode는 파티션 인자가
+  없어 FAT32 파티션만 읽는다. get_deleted_files는 삭제 파일이 1개인데 8개라고 한다.
+  모델 실행은 아직 하지 않았다.

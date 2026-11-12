@@ -1,61 +1,41 @@
 # EXP-005: one verification. The folder name is its permanent identifier;
 # the title may change.
-title: "mulder investigate on the NIST Hacking Case answer key"
-title_ko: "NIST Hacking Case 정답지에 대한 mulder investigate"
+title: "The Haiku tool changes on another case (Rhino Hunt)"
+title_ko: "Haiku용 도구 변경을 다른 사건에 적용 (Rhino Hunt)"
 server: mulder
-status: done                     # planned | in-progress | done
+status: planned                  # planned | in-progress | done
 change: >
-  None. Unmodified mulder 1.5.10 runs its own five-phase investigation on the
-  NIST CFReDS Hacking Case (a Windows XP notebook, about 1 GB as EnCase
-  segments) and is scored against all 31 questions of NIST's answer key. The
-  reference for later ablations on an expert-authored key.
+  EXP-004 changed mulder's tools on the NIST Hacking Case and reviewed the
+  result against that case's answers, so the gain may be partly fitted to
+  that case. This experiment runs the same two versions, unchanged, on a
+  case they were not built for: Rhino Hunt (DFRWS 2005), a dd image of a
+  reformatted USB key and network traces, with no Windows system. Most of
+  the new tools do not apply here (no registry, no Recycle Bin, no EWF
+  image); what does apply is the packet capture search by header, the
+  source names returned by get_completed_results, the tools added to a
+  plan when the planner leaves them out, run_clamav on the files inside the
+  image, and the tool limits carried to the analyst. The question is
+  whether the after version does at least as well as before on a case it
+  was not made for. Haiku in every role, five runs per label.
 change_ko: >
-  변경 없음. 수정하지 않은 mulder 1.5.10이 NIST CFReDS Hacking Case(Windows XP 노트북,
-  EnCase 조각 약 1GB)에 자체 다섯 단계 조사를 돌리고, NIST 정답지의 31개 질문 전부로
-  채점한다. 전문가가 만든 정답지에서 이후 기능 제거 실험의 기준이 된다.
+  EXP-004는 NIST Hacking Case로 mulder 도구를 고치고 그 사건의 정답으로 검토했으므로, 향상의 일부가
+  그 사건에 맞춘 결과일 수 있다. 이 실험은 같은 두 버전을 그대로, 만들 때 쓰지 않은 사건에 돌린다.
+  Rhino Hunt(DFRWS 2005)는 포맷된 USB 키의 dd 이미지와 네트워크 트레이스로, Windows 시스템이 없다.
+  새 도구 대부분은 여기에 해당하지 않는다(레지스트리, 휴지통, EWF 이미지가 없음). 해당하는 것은 헤더로
+  캡처를 찾는 기능, get_completed_results가 돌려주는 source 이름, planner가 빠뜨린 도구를 계획에
+  추가하는 기능, 이미지 안 파일의 run_clamav 검사, analyst까지 전달되는 도구의 한계다. after가 만들
+  때 쓰지 않은 사건에서도 before만큼 이상 하는지 본다. 모든 역할 Haiku, 라벨당 5회.
 links:
-  - https://cfreds-archive.nist.gov/Hacking_Case.html
-  - https://cfreds-archive.nist.gov/images/TestAnswers.pdf
+  - https://cfreds-archive.nist.gov/dfrws/Rhino_Hunt.html
+  - https://cfreds-archive.nist.gov/dfrws/DFRWS2005-answers.pdf
 
-case: nist-hacking-case
-# Same models and effort as EXP-002 and EXP-004, so the runs compare.
+case: rhino-hunt
 harness: mulder-investigate
 harness_options:
-  models: {planner: claude-opus-4-6, executor: claude-haiku-4-5, analyst: claude-opus-4-6}
-  effort: max
-  auth: Anthropic API key (ANTHROPIC_API_KEY in the shell)
-  # MULDER.md labels the questions "Case Q<n>" and asks the report for a "Case
-  # Questions" section with one answer line each, kept apart from the Q1-Q8 of
-  # mulder's own report template. Each question is scored on its line.
+  models: {planner: claude-haiku-4-5, executor: claude-haiku-4-5, analyst: claude-haiku-4-5}
+  # No effort: the effort setting is for Opus and Sonnet models.
   answer_section: true
 
 variants:
-  before: mulder-1.5.10          # upstream release
-
-conclusion: >
-  36 minutes, 270 tool calls, 9 findings. The report answered all 31
-  questions on "Case Q<n>" lines, and each was scored on its line: 22/29
-  questions, 39/47 facts. Q29 is right on review (the files in the recycle bin
-  are not deleted) and Q31 wrong (no viruses reported). Misses against
-  NIST's key: Q1, the image hash, is the MD5 of the E01 file, not the media
-  MD5 stored in it, and the claimed acquisition/verification match was never
-  checked; Q4 gives Central Standard rather than Daylight time; Q7 says the
-  domain is empty (key: Evil); Q16 lists five of the key's programs plus
-  mIRC; Q24 and Q25, the victim's device and sites, were left open because
-  the "interception" capture inside the image was never parsed; Q30 gives
-  about 7,038 deleted entries (key: 3); Q31 rests on run_clamav run against
-  the folder of compressed E01 segments, which cannot see files inside the
-  image. mulder reported 80.9K Opus and 20.0K Haiku output tokens, about $2.1
-  at list prices before cache tokens.
-conclusion_ko: >
-  36분, 도구 호출 270번, 발견 사항 9건. 보고서가 질문 31개 모두에 "Case Q<n>" 줄로
-  답했고, 질문마다 그 줄로 채점했다. 질문 22/29, 사실 39/47. 검토 전용 문항 중 Q29는
-  맞고(휴지통 파일은 삭제된 것이 아님) Q31은 틀렸다(바이러스 없다고 함). NIST 정답지와
-  다른 답: Q1 이미지 해시는 E01 파일 자체의 MD5이고 E01 안에 저장된 원본 미디어 MD5가
-  아니며, 획득·검증 해시가 일치한다는 말은 확인 없이 나왔다. Q4는 Daylight가 아니라
-  Standard 시간, Q7은 도메인이 비어 있다고 답함(정답 Evil), Q16은 정답지 프로그램 5개와
-  mIRC를 적음. Q24·Q25(피해자 기기와 사이트)는 이미지 안의 "interception" 캡처를
-  분석하지 않아 답하지 못함. Q30은 삭제 항목 약 7,038개라고 함(정답 3). Q31은
-  run_clamav를 압축된 E01 조각이 든 폴더에 돌린 결과라 이미지 안의 파일을 볼 수 없었다.
-  mulder가 보고한 출력 토큰은 Opus 80.9K, Haiku 20.0K로 정가 기준 약 $2.1이며, 캐시
-  토큰은 빠져 있다.
+  before: mulder-1.5.10                  # upstream release
+  after: mulder-1.5.10-haiku-assists     # the version reviewed in EXP-004
