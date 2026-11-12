@@ -1,0 +1,795 @@
+diff --git a/src/mulder/orchestrator/prompts/extract_analyst.md b/src/mulder/orchestrator/prompts/extract_analyst.md
+index 6714a87..87c11d1 100644
+--- a/src/mulder/orchestrator/prompts/extract_analyst.md
++++ b/src/mulder/orchestrator/prompts/extract_analyst.md
+@@ -195,8 +195,11 @@ When your analysis reveals something that warrants deeper investigation,
+ you may call these targeted tools directly (no need for a follow-up
+ plan request):
+ - get_windows_system_profile: OS, install date, owner, computer name,
+-  time zone, last shutdown, network cards, IP addresses and local
+-  accounts of a Windows image in one call (also indexed as registry.profile).
++  time zone, last shutdown, network cards, IP addresses, installed
++  programs and local accounts of a Windows image in one call (also
++  indexed as registry.profile).
++- get_recycle_bin: Recycle Bin items with original path, deletion time
++  and whether the stored file is still there (also indexed as recycle_bin).
+ - query_registry_value: retrieve specific registry values by key path.
+   Use when you need timezone, install date, shutdown time, USB history,
+   or other targeted data rather than searching bulk RegRipper output.
+diff --git a/src/mulder/orchestrator/prompts/extract_executor.md b/src/mulder/orchestrator/prompts/extract_executor.md
+index f70e6c2..a28f564 100644
+--- a/src/mulder/orchestrator/prompts/extract_executor.md
++++ b/src/mulder/orchestrator/prompts/extract_executor.md
+@@ -87,6 +87,10 @@ message or a warning, put that status in "status" and copy the message and
+ warning word for word into "note". Do not shorten or reword them: they say
+ what the tool did not check.
+ 
++For "source", copy source_name from get_completed_results exactly; when it
++also lists "sources", put all of them in "source", separated by commas.
++Never make up a source name: the analyst reads the evidence by this name.
++
+ CONSTRAINTS:
+ - Do NOT reason about or interpret results.
+ - Do NOT submit findings or call submit_finding.
+diff --git a/src/mulder/orchestrator/prompts/extract_planner.md b/src/mulder/orchestrator/prompts/extract_planner.md
+index 203bafb..825facd 100644
+--- a/src/mulder/orchestrator/prompts/extract_planner.md
++++ b/src/mulder/orchestrator/prompts/extract_planner.md
+@@ -94,7 +94,10 @@ Go beyond the standard toolset when signals suggest specific artifacts.
+ When a Windows disk image is detected:
+ - Plan get_windows_system_profile once per image, after run_fls. It
+   returns the OS, install date, owner, computer name, time zone, last
+-  shutdown, network cards, IP addresses and local accounts in one call.
++  shutdown, network cards, IP addresses, installed programs and local
++  accounts in one call.
++- Plan get_recycle_bin once per image, after run_fls (Recycle Bin items
++  with their original paths and deletion times).
+ - Plan query_registry_value for system metadata it does not cover: timezone
+   (SYSTEM\ControlSet001\Control\TimeZoneInformation), install date
+   (SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallDate),
+diff --git a/src/mulder/orchestrator/roles.py b/src/mulder/orchestrator/roles.py
+index e3616a4..b20de1c 100644
+--- a/src/mulder/orchestrator/roles.py
++++ b/src/mulder/orchestrator/roles.py
+@@ -11,6 +11,7 @@ from __future__ import annotations
+ import json
+ import logging
+ import re
++from pathlib import PurePosixPath
+ from typing import Any
+ from uuid import uuid4
+ 
+@@ -49,6 +50,38 @@ _PLANNER_OUT_OF_TURNS: str = (
+ 
+ _MAX_PLANNER_NOTES_CHARS: int = 20_000
+ 
++_DISK_IMAGE_SUFFIXES: tuple[str, ...] = (
++    ".e01",
++    ".ex01",
++    ".dd",
++    ".raw",
++    ".img",
++    ".001",
++    ".vmdk",
++    ".vhd",
++    ".vhdx",
++    ".aff4",
++)
++
++# Tools the first extraction plan must hold for a disk image. The planner
++# prompt asks for them, but a planner can still leave one out.
++_DISK_IMAGE_BASELINE: tuple[str, ...] = ("run_hashdeep", "analyze_disk_pcaps")
++
++# The same for a Windows disk image, recognised by Windows tools in the plan.
++_WINDOWS_IMAGE_BASELINE: tuple[str, ...] = ("get_windows_system_profile", "get_recycle_bin")
++
++_WINDOWS_PLAN_TOOLS: frozenset[str] = frozenset(
++    {
++        "run_registry_parser",
++        "run_regripper",
++        "run_prefetch_parser",
++        "run_amcache_parser",
++        "run_shimcache_parser",
++        "run_evtx_parser",
++        "get_windows_system_profile",
++    }
++)
++
+ _REPAIR_MAX_CHARS: int = 24_000
+ """Cap on planner text sent to the JSON-repair utility model (~6K tokens)."""
+ 
+@@ -123,6 +156,50 @@ def _sanitize_for_prompt(text: str, max_len: int = 200) -> str:
+     return cleaned
+ 
+ 
++def _plan_image_path(tasks: list[dict[str, Any]]) -> str | None:
++    """The disk image the plan works on, from run_fls or any image argument."""
++    candidates: list[str] = []
++    for task in tasks:
++        args = task.get("args")
++        if not isinstance(args, dict):
++            continue
++        for value in args.values():
++            if isinstance(value, str) and value.lower().endswith(_DISK_IMAGE_SUFFIXES):
++                if task.get("tool") == "run_fls":
++                    return value
++                candidates.append(value)
++    return candidates[0] if candidates else None
++
++
++def _add_baseline_tasks(tasks: list[dict[str, Any]], executor_allowed: list[str]) -> list[str]:
++    """Append the disk-image tools the plan left out; return their names."""
++    image = _plan_image_path(tasks)
++    if image is None:
++        return []
++    planned = {str(task.get("tool")) for task in tasks}
++    wanted = list(_DISK_IMAGE_BASELINE)
++    if planned & _WINDOWS_PLAN_TOOLS:
++        wanted.extend(_WINDOWS_IMAGE_BASELINE)
++    allowed = frozenset(executor_allowed)
++    added: list[str] = []
++    for tool in wanted:
++        if tool in planned or f"mcp__mulder__{tool}" not in allowed:
++            continue
++        if tool == "run_hashdeep":
++            args = {"target_path": str(PurePosixPath(image).parent)}
++        else:
++            args = {"image_path": image}
++        tasks.append(
++            {
++                "tool": tool,
++                "args": args,
++                "purpose": "Required for a disk image; added because the plan left it out",
++            }
++        )
++        added.append(tool)
++    return added
++
++
+ class RoleRunner:
+     """Runs planner, executor, and analyst roles within split-mode phases.
+ 
+@@ -245,9 +322,17 @@ class RoleRunner:
+             logger.warning("Phase '%s' planner did not produce a valid plan", phase.name)
+             return None
+ 
++        tasks = plan_json.get("tasks", [])
++        if phase.name == "extraction" and not follow_up_context and isinstance(tasks, list):
++            added = _add_baseline_tasks(tasks, phase.executor_allowed_tools)
++            if added:
++                msg = f"Added to the plan, required for a disk image: {', '.join(added)}"
++                logger.info("[%s] %s", phase.name, msg)
++                self._dashboard.log_info(msg)
++
+         return Plan(
+             plan_id=f"{phase.name}-plan-{self._case_id}-{uuid4().hex[:8]}",
+-            tasks=plan_json.get("tasks", []),
++            tasks=tasks,
+             investigation_questions=plan_json.get("investigation_questions", []),
+             expected_sources=plan_json.get("expected_sources", []),
+             raw_text="\n".join(result.messages),
+diff --git a/src/mulder/server/data/tool_guide.json b/src/mulder/server/data/tool_guide.json
+index aeca703..db2df50 100644
+--- a/src/mulder/server/data/tool_guide.json
++++ b/src/mulder/server/data/tool_guide.json
+@@ -266,6 +266,12 @@
+       "input": "Disk image (run after run_fls)",
+       "related": ["query_registry_value", "run_registry_parser"]
+     },
++    {
++      "tool": "get_recycle_bin",
++      "description": "Recycle Bin items of every user from INFO2 and $I records: original path, deletion time, size, and whether the stored file is still allocated",
++      "input": "Disk image (run after run_fls)",
++      "related": ["get_deleted_files", "run_fls"]
++    },
+     {
+       "tool": "run_evtx_parser",
+       "description": "Extract Windows Event Logs from disk image",
+diff --git a/src/mulder/server/tools/extract/__init__.py b/src/mulder/server/tools/extract/__init__.py
+index 3b80fc5..644b0d6 100644
+--- a/src/mulder/server/tools/extract/__init__.py
++++ b/src/mulder/server/tools/extract/__init__.py
+@@ -10,6 +10,7 @@ from mulder.server.tools.extract import (  # noqa: F401
+     optical,
+     pcap,
+     plaso,
++    recycle_bin,
+     registry,
+     registry_query,
+     system_profile,
+diff --git a/src/mulder/server/tools/extract/misc.py b/src/mulder/server/tools/extract/misc.py
+index f87cadc..8d27e4f 100644
+--- a/src/mulder/server/tools/extract/misc.py
++++ b/src/mulder/server/tools/extract/misc.py
+@@ -653,9 +653,110 @@ _DISK_IMAGE_SUFFIXES = frozenset(
+ 
+ def _disk_images(target_path: str) -> list[str]:
+     """Names of disk images at *target_path* (the file, or files directly in the folder)."""
++    return [p.name for p in _disk_image_paths(target_path)]
++
++
++def _disk_image_paths(target_path: str) -> list[Path]:
+     path = Path(target_path)
+     candidates = [path] if path.is_file() else sorted(p for p in path.glob("*") if p.is_file())
+-    return [p.name for p in candidates if p.suffix.lower() in _DISK_IMAGE_SUFFIXES]
++    return [p for p in candidates if p.suffix.lower() in _DISK_IMAGE_SUFFIXES]
++
++
++# Further EWF segments are read through the first one.
++_EWF_LATER_SEGMENT = re.compile(r"\.(e|ex|s|l)(0[2-9]|[1-9]\d)$", re.IGNORECASE)
++
++# clamscan is single-threaded and slow on a whole volume; split the files
++# between a few processes (each holds its own copy of the signatures, about
++# 1 GB of memory).
++_IMAGE_SCAN_WORKERS = 3
++_IMAGE_SCAN_MAX_FILESIZE = "50M"
++_IMAGE_SCAN_TIMEOUT = 3600
++
++# Not files a user or program wrote: paging, hibernation and swap.
++_IMAGE_SCAN_SKIP = frozenset({"pagefile.sys", "hiberfil.sys", "swapfile.sys"})
++
++
++def _scan_image_contents(image: Path) -> dict[str, object]:
++    """Copy the files out of a disk image with tsk_recover and scan them with clamscan.
++
++    Allocated and deleted files with recoverable content, on the partition
++    the case uses for this image.
++    """
++    scan: dict[str, object] = {"image": image.name}
++    if not require_binary("tsk_recover"):
++        scan["status"] = "not_scanned"
++        scan["reason"] = "tsk_recover not found on PATH"
++        return scan
++    offset = _resolve_partition_offset(str(image))
++    scan["partition_offset"] = offset
++    tmp = Path(tempfile.mkdtemp(prefix="mulder_clamav_"))
++    try:
++        cmd = ["tsk_recover", "-e", *(["-o", str(offset)] if offset > 0 else [])]
++        proc = subprocess.run(
++            [*cmd, str(image), str(tmp)],
++            capture_output=True,
++            text=True,
++            timeout=_IMAGE_SCAN_TIMEOUT,
++            check=False,
++        )
++        files = [
++            p for p in tmp.rglob("*") if p.is_file() and p.name.lower() not in _IMAGE_SCAN_SKIP
++        ]
++        if proc.returncode != 0 and not files:
++            scan["status"] = "not_scanned"
++            scan["reason"] = f"tsk_recover failed: {(proc.stderr or '').strip()[:300]}"
++            return scan
++        files.sort(key=lambda p: p.stat().st_size, reverse=True)
++        lists = []
++        for n in range(_IMAGE_SCAN_WORKERS):
++            share = files[n::_IMAGE_SCAN_WORKERS]
++            if share:
++                list_file = tmp.parent / f"{tmp.name}.list{n}"
++                list_file.write_text("\n".join(str(p) for p in share) + "\n")
++                lists.append(list_file)
++        workers = [
++            subprocess.Popen(
++                [
++                    "clamscan",
++                    "--no-summary",
++                    "-i",
++                    f"--max-filesize={_IMAGE_SCAN_MAX_FILESIZE}",
++                    f"--file-list={list_file}",
++                ],
++                stdout=subprocess.PIPE,
++                stderr=subprocess.DEVNULL,
++                text=True,
++            )
++            for list_file in lists
++        ]
++        found: list[str] = []
++        timed_out = False
++        deadline = time.monotonic() + _IMAGE_SCAN_TIMEOUT
++        for worker in workers:
++            try:
++                out, _ = worker.communicate(timeout=max(1, deadline - time.monotonic()))
++            except subprocess.TimeoutExpired:
++                worker.kill()
++                out, _ = worker.communicate()
++                timed_out = True
++            prefix = f"{tmp}/"
++            found.extend(
++                line.replace(prefix, "/", 1) for line in out.splitlines() if "FOUND" in line
++            )
++        for list_file in lists:
++            list_file.unlink(missing_ok=True)
++        scan["status"] = "partial" if timed_out else "scanned"
++        scan["files_scanned"] = len(files)
++        scan["detections"] = sorted(found)
++        if timed_out:
++            scan["reason"] = f"clamscan did not finish within {_IMAGE_SCAN_TIMEOUT} s"
++        return scan
++    except subprocess.TimeoutExpired:
++        scan["status"] = "not_scanned"
++        scan["reason"] = f"tsk_recover did not finish within {_IMAGE_SCAN_TIMEOUT} s"
++        return scan
++    finally:
++        shutil.rmtree(tmp, ignore_errors=True)
+ 
+ 
+ @mcp.tool()
+@@ -664,7 +765,10 @@ def run_clamav(target_path: str) -> dict[str, object]:
+     """Scan files for malware signatures using ClamAV.
+ 
+     Runs clamscan recursively on the target path and indexes any
+-    detections found.
++    detections found. A disk image is one opaque file to clamscan, so for
++    each disk image at the target path the files inside it (allocated and
++    deleted, up to 50 MB each, without the paging and hibernation files)
++    are also copied out with tsk_recover and scanned. This takes minutes.
+ 
+     Args:
+         target_path: Path to the file or directory to scan.
+@@ -676,9 +780,16 @@ def run_clamav(target_path: str) -> dict[str, object]:
+     if not require_binary("clamscan"):
+         return error_response(tc_id, "run_clamav", params, "clamscan not found on PATH")
+ 
++    # The files inside a disk image are scanned below; scanning the image file
++    # itself as one opaque file only costs time.
++    skip_images = [
++        f"--exclude=/{re.escape(p.name)}$"
++        for p in _disk_image_paths(target_path)
++        if shutil.which("tsk_recover")
++    ]
+     try:
+         proc = subprocess.run(
+-            ["clamscan", "-r", "--no-summary", cli_path(target_path)],
++            ["clamscan", "-r", "--no-summary", *skip_images, cli_path(target_path)],
+             capture_output=True,
+             text=True,
+             timeout=adaptive_timeout(target_path),
+@@ -699,24 +810,53 @@ def run_clamav(target_path: str) -> dict[str, object]:
+         )
+ 
+     output = proc.stdout.strip()
+-    images = _disk_images(target_path)
++    image_paths = [
++        p for p in _disk_image_paths(target_path) if not _EWF_LATER_SEGMENT.search(p.name)
++    ]
++    images = [p.name for p in image_paths]
+     infected_lines = [line for line in output.splitlines() if "FOUND" in line]
+     unscanned_lines = [
+         line for line in output.splitlines() if line.endswith((": Access denied", " ERROR"))
+     ]
++    content_scans = [_scan_image_contents(p) for p in image_paths]
++    for scan in content_scans:
++        detections = scan.get("detections")
++        if isinstance(detections, list):
++            infected_lines.extend(f"{scan['image']} (file in image): {d}" for d in detections)
+     summary_text = "\n".join(infected_lines) if infected_lines else output
++    caveat = ""
+     if images:
+-        # clamscan reads a disk image as one opaque file; say so where the
+-        # result is read, the indexed text included.
+-        caveat = (
+-            f"Disk image(s) scanned as single files: {', '.join(images)}. "
+-            "clamscan does not open the file system inside an image, so the files "
+-            "in it were not scanned; no detection does not mean the image is clean."
++        # clamscan reads a disk image as one opaque file; say what was scanned
++        # inside it, and what was not, where the result is read.
++        lines = []
++        for scan in content_scans:
++            if scan.get("status") == "not_scanned":
++                lines.append(
++                    f"{scan['image']}: the files inside the image were NOT scanned "
++                    f"({scan.get('reason')}); no detection does not mean the image is clean."
++                )
++            else:
++                detected = scan.get("detections")
++                count = len(detected) if isinstance(detected, list) else 0
++                lines.append(
++                    f"{scan['image']}: {scan.get('files_scanned')} files inside the image "
++                    f"(partition offset {scan.get('partition_offset')}, allocated and deleted, "
++                    f"up to {_IMAGE_SCAN_MAX_FILESIZE}B each) were copied out and scanned; "
++                    f"{count} detections."
++                    + (f" Incomplete: {scan.get('reason')}." if scan.get("reason") else "")
++                )
++        if skip_images:
++            lines.append("The image files themselves were not scanned as single files.")
++        caveat = " ".join(lines) + (
++            " Only files with a known signature are detected; files that could not be "
++            "recovered and other partitions were not scanned."
+         )
+         summary_text = f"NOTE: {caveat}\n{summary_text}"
+ 
+     summary = extract_and_index(summary_text, "clamav.scan", target_path, "clamav")
+     summary["detections"] = len(infected_lines)
++    if content_scans:
++        summary["image_contents"] = content_scans
+     if images:
+         summary["warning"] = caveat
+     if proc.returncode not in (0, 1) or unscanned_lines:
+diff --git a/src/mulder/server/tools/extract/recycle_bin.py b/src/mulder/server/tools/extract/recycle_bin.py
+new file mode 100644
+index 0000000..70ab79d
+--- /dev/null
++++ b/src/mulder/server/tools/extract/recycle_bin.py
+@@ -0,0 +1,252 @@
++"""Windows Recycle Bin contents from its index files.
++
++A file sent to the Recycle Bin is moved, not deleted: Windows renames it
++inside the bin folder and records its original path and deletion time in
++an index (INFO2 up to Windows XP, one ``$I`` file per item from Vista).
++Reads those records for every user and says whether the moved file is
++still allocated in the bin folder.
++"""
++
++from __future__ import annotations
++
++import logging
++import struct
++import subprocess
++import time
++from datetime import datetime, timedelta, timezone
++from typing import Any
++
++from mulder.patterns import FlsEntry, parse_fls_rows
++from mulder.server.app import get_ctx, mcp
++from mulder.server.extract_helpers import extract_and_index
++from mulder.server.helpers import make_tool_call_id, tool_response
++from mulder.server.tool_access import Role, tool_access
++from mulder.server.tools.extract.tsk import _collect_fls_chunks
++
++__all__ = ["get_recycle_bin"]
++
++logger = logging.getLogger(__name__)
++
++_BIN_FOLDERS = ("recycler", "recycled", "$recycle.bin")
++
++_EXECUTABLE_SUFFIXES = (".exe", ".com", ".bat", ".cmd", ".scr", ".pif", ".msi")
++
++_INFO2_HEADER = 20
++_INFO2_ANSI_PATH = 260
++
++
++def _filetime(ticks: int) -> str | None:
++    if ticks <= 0:
++        return None
++    moment = datetime(1601, 1, 1, tzinfo=timezone.utc) + timedelta(microseconds=ticks // 10)
++    return moment.isoformat()
++
++
++def _icat(image_path: str, offset: int, inode: str) -> bytes | None:
++    cmd = ["icat", *(["-o", str(offset)] if offset > 0 else []), image_path, inode]
++    try:
++        proc = subprocess.run(cmd, capture_output=True, timeout=60, check=False)
++    except (subprocess.TimeoutExpired, OSError) as exc:
++        logger.warning("icat failed for inode %s: %s", inode, exc)
++        return None
++    return proc.stdout if proc.returncode == 0 else None
++
++
++def _parse_info2(data: bytes) -> list[dict[str, Any]]:
++    """Records of a Windows 95 to XP INFO2 file."""
++    if len(data) < _INFO2_HEADER:
++        return []
++    record_size = struct.unpack_from("<I", data, 12)[0]
++    if record_size < _INFO2_ANSI_PATH + 20:
++        return []
++    records = []
++    for start in range(_INFO2_HEADER, len(data) - record_size + 1, record_size):
++        rec = data[start : start + record_size]
++        ansi = rec[:_INFO2_ANSI_PATH]
++        index, drive, ticks, size = struct.unpack_from("<IIQI", rec, _INFO2_ANSI_PATH)
++        # A restored or emptied item keeps its record with the first byte of the
++        # ANSI path (the drive letter) cleared.
++        removed = ansi[:1] == b"\0"
++        path = ""
++        if record_size >= 800:
++            path = rec[280:800].decode("utf-16-le", errors="replace").split("\0")[0]
++        if not path:
++            path = ansi[1:].split(b"\0")[0].decode("latin-1")
++            path = (chr(ord("A") + drive) if removed else ansi[:1].decode("latin-1")) + path
++        suffix = path[path.rfind(".") :] if "." in path.rsplit("\\", 1)[-1] else ""
++        records.append(
++            {
++                "original_path": path,
++                "deleted_utc": _filetime(ticks),
++                "size_bytes": size,
++                "bin_name": f"D{chr(ord('a') + drive)}{index}{suffix}",
++                "record_removed": removed,
++            }
++        )
++    return records
++
++
++def _parse_dollar_i(data: bytes, name: str) -> dict[str, Any] | None:
++    """One Vista and later ``$I`` record (version 1 or 2)."""
++    if len(data) < 24:
++        return None
++    version, size, ticks = struct.unpack_from("<QQQ", data, 0)
++    if version == 1:
++        raw = data[24 : 24 + 520]
++    elif version == 2 and len(data) >= 28:
++        length = struct.unpack_from("<I", data, 24)[0]
++        raw = data[28 : 28 + length * 2]
++    else:
++        return None
++    return {
++        "original_path": raw.decode("utf-16-le", errors="replace").split("\0")[0],
++        "deleted_utc": _filetime(ticks),
++        "size_bytes": size,
++        "bin_name": "$R" + name[2:],
++        "record_removed": False,
++    }
++
++
++def _bin_entries(image_path: str) -> list[tuple[FlsEntry, int]]:
++    """fls rows inside a Recycle Bin folder, with their partition offset."""
++    entries = []
++    for chunks, offset in _collect_fls_chunks(image_path):
++        for chunk in chunks:
++            for entry in parse_fls_rows(chunk):
++                top = entry.path.replace("\\", "/").split("/", 1)[0].lower()
++                if top in _BIN_FOLDERS:
++                    entries.append((entry, offset))
++    return entries
++
++
++def _bin_text(items: list[dict[str, Any]], executables: int) -> str:
++    lines = [
++        "Recycle Bin contents (from INFO2 and $I index records)",
++        f"Items: {len(items)}; executable files: {executables}",
++        "Items in the Recycle Bin are moved, not deleted: the file stays in the bin "
++        "folder until the bin is emptied.",
++    ]
++    for item in items:
++        lines.append(
++            f"{item['deleted_utc']} | {item['original_path']} | {item['size_bytes']} bytes"
++            f" | stored as {item['bin_folder']}/{item['bin_name']}"
++            f" | file in bin: {item['file_in_bin']}"
++        )
++    return "\n".join(lines)
++
++
++@mcp.tool()
++@tool_access(Role.EXTRACT_EXECUTOR | Role.EXTRACT_ANALYST)
++def get_recycle_bin(case_id: str, image_path: str) -> dict[str, Any]:
++    """List what is in the Windows Recycle Bin of a disk image.
++
++    Reads the Recycle Bin index records of every user (INFO2 up to
++    Windows XP, ``$I`` files from Vista on): the original path, deletion
++    time (UTC) and size of each item, and the name it is stored under in
++    the bin folder. For each item it says whether that stored file is
++    still allocated (``present``), deleted by the file system
++    (``deleted``) or missing. Counts the executable items. The result is
++    also indexed as ``recycle_bin`` for search.
++
++    Run it once per Windows disk image, after run_fls.
++
++    Args:
++        case_id: Active case identifier.
++        image_path: Path to the disk image.
++
++    Returns:
++        Dict with the items, the item and executable counts, and a message.
++    """
++    tc_id = make_tool_call_id()
++    t0 = time.monotonic()
++    params: dict[str, Any] = {"case_id": case_id, "image_path": image_path}
++
++    ctx = get_ctx()
++    _ = ctx.case_id
++
++    entries = _bin_entries(image_path)
++    if not entries:
++        return tool_response(
++            tc_id,
++            "get_recycle_bin",
++            params,
++            {
++                "status": "no_results",
++                "items": [],
++                "message": (
++                    "No RECYCLER, RECYCLED or $Recycle.Bin folder was found in the file "
++                    "listing. Ensure run_fls has been executed on this image."
++                ),
++            },
++            source=None,
++            elapsed_ms=(time.monotonic() - t0) * 1000,
++        )
++
++    by_folder: dict[str, dict[str, FlsEntry]] = {}
++    for entry, _offset in entries:
++        folder, _, name = entry.path.replace("\\", "/").rpartition("/")
++        by_folder.setdefault(folder, {})
++        # An allocated entry wins over a deleted one with the same name.
++        known = by_folder[folder].get(name.lower())
++        if known is None or (known.deleted and not entry.deleted):
++            by_folder[folder][name.lower()] = entry
++
++    items: list[dict[str, Any]] = []
++    unreadable: list[str] = []
++    for entry, offset in entries:
++        if entry.meta_type.lower() == "d" or entry.deleted:
++            continue
++        folder, _, name = entry.path.replace("\\", "/").rpartition("/")
++        is_info2 = name.upper() == "INFO2"
++        is_dollar_i = name.upper().startswith("$I")
++        if not (is_info2 or is_dollar_i):
++            continue
++        data = _icat(image_path, offset, entry.base_inode)
++        if data is None:
++            unreadable.append(entry.path)
++            continue
++        if is_info2:
++            records = _parse_info2(data)
++        else:
++            record = _parse_dollar_i(data, name)
++            records = [record] if record else []
++        for record in records:
++            stored = by_folder.get(folder, {}).get(str(record["bin_name"]).lower())
++            if record["record_removed"]:
++                state = "removed from the bin (restored or emptied)"
++            elif stored is None:
++                state = "missing"
++            else:
++                state = "deleted" if stored.deleted else "present"
++            record["bin_folder"] = folder
++            record["file_in_bin"] = state
++            items.append(record)
++
++    in_bin = [i for i in items if not i["record_removed"]]
++    executables = sum(
++        1 for i in in_bin if str(i["original_path"]).lower().endswith(_EXECUTABLE_SUFFIXES)
++    )
++    present = sum(1 for i in in_bin if i["file_in_bin"] == "present")
++    message = (
++        f"{len(in_bin)} items in the Recycle Bin, {executables} of them executable files; "
++        f"{present} are still allocated in the bin folder, so they are not deleted "
++        "and can be read in full."
++    )
++    if unreadable:
++        message += f" Index files not read: {', '.join(unreadable)}."
++
++    extract_and_index(_bin_text(items, executables), "recycle_bin", image_path, "icat")
++    results: dict[str, Any] = {
++        "items": items,
++        "items_in_bin": len(in_bin),
++        "executable_items": executables,
++        "message": message,
++    }
++    return tool_response(
++        tc_id,
++        "get_recycle_bin",
++        params,
++        results,
++        source=None,
++        elapsed_ms=(time.monotonic() - t0) * 1000,
++    )
+diff --git a/src/mulder/server/tools/extract/system_profile.py b/src/mulder/server/tools/extract/system_profile.py
+index 913dcf4..31b5920 100644
+--- a/src/mulder/server/tools/extract/system_profile.py
++++ b/src/mulder/server/tools/extract/system_profile.py
+@@ -2,7 +2,8 @@
+ 
+ Reads the values an examiner records first about a Windows computer
+ (operating system, install date, owner, computer name, time zone, last
+-shutdown, network cards and addresses, local accounts) in one call, so
++shutdown, network cards and addresses, installed programs, local
++accounts) in one call, so
+ they do not depend on a series of separate registry queries.
+ """
+ 
+@@ -121,6 +122,7 @@ def _software_profile(reg: Registry.Registry) -> dict[str, Any]:
+         if card:
+             cards.append(card)
+     profile["network_cards"] = cards
++    profile["installed_programs"] = _installed_programs(reg)
+     profile["winlogon"] = _values(
+         _open_key(reg, "Microsoft\\Windows NT\\CurrentVersion\\Winlogon"),
+         "DefaultUserName",
+@@ -129,6 +131,19 @@ def _software_profile(reg: Registry.Registry) -> dict[str, Any]:
+     return profile
+ 
+ 
++def _installed_programs(reg: Registry.Registry) -> list[dict[str, Any]]:
++    """Programs registered for Add/Remove Programs (the Uninstall key)."""
++    programs: list[dict[str, Any]] = []
++    uninstall = _open_key(reg, "Microsoft\\Windows\\CurrentVersion\\Uninstall")
++    for sub in uninstall.subkeys() if uninstall else []:
++        program = _values(sub, "DisplayName", "DisplayVersion", "Publisher", "InstallLocation")
++        if not program.get("DisplayName"):
++            continue
++        program["key_last_written_utc"] = sub.timestamp().replace(tzinfo=timezone.utc).isoformat()
++        programs.append(program)
++    return sorted(programs, key=lambda p: str(p["DisplayName"]).lower())
++
++
+ def _system_profile(reg: Registry.Registry) -> dict[str, Any]:
+     current = _values(_open_key(reg, "Select"), "Current").get("Current", 1)
+     cs = f"ControlSet{int(current):03d}"
+@@ -223,6 +238,10 @@ def _profile_text(profile: dict[str, Any]) -> str:
+         lines.append(f"Winlogon {name}: {value}")
+     for name, value in profile.get("tcpip", {}).items():
+         lines.append(f"Tcpip {name}: {value}")
++    programs = profile.get("installed_programs", [])
++    lines.append(f"Installed programs (Uninstall key): {len(programs)}")
++    for program in programs:
++        lines.append("Program " + ", ".join(f"{k}={v}" for k, v in program.items()))
+     for card in profile.get("network_cards", []):
+         lines.append(f"Network card: {card.get('Description')} ({card.get('ServiceName')})")
+     for iface in profile.get("interfaces", []):
+@@ -243,7 +262,8 @@ def get_windows_system_profile(case_id: str, image_path: str) -> dict[str, Any]:
+     service pack), install date, registered owner and organization,
+     computer name, time zone (standard and daylight names, the offset in
+     effect when the hive was last written), last shutdown time, the
+-    network cards and the configured IP addresses, the Winlogon default
++    network cards and the configured IP addresses, the installed programs
++    listed for Add/Remove Programs, the Winlogon default
+     user and domain, and the local accounts in the SAM hive with their
+     RIDs, logon counts and last logon times. All times are UTC. The
+     result is also indexed as ``registry.profile`` for search.
+diff --git a/src/mulder/server/tools/jobs.py b/src/mulder/server/tools/jobs.py
+index fa8ea42..41edbde 100644
+--- a/src/mulder/server/tools/jobs.py
++++ b/src/mulder/server/tools/jobs.py
+@@ -338,6 +338,28 @@ def check_extraction_status(batch_id: str) -> dict[str, Any]:
+     return status
+ 
+ 
++def _nested_source_names(value: object, depth: int = 0) -> list[str]:
++    """Sources a tool indexed itself and lists inside its results.
++
++    analyze_disk_pcaps, for one, indexes one source per capture
++    (``pcap.disk.<name>``) and returns them only within ``analyses``.
++    """
++    names: list[str] = []
++    if depth > 3:
++        return names
++    if isinstance(value, dict):
++        name = value.get("source_name")
++        if isinstance(name, str) and name:
++            names.append(name)
++        for item in value.values():
++            if isinstance(item, (dict, list)):
++                names.extend(_nested_source_names(item, depth + 1))
++    elif isinstance(value, list):
++        for item in value:
++            names.extend(_nested_source_names(item, depth + 1))
++    return list(dict.fromkeys(names))
++
++
+ @mcp.tool()
+ @tool_access(Role.CATALOG | Role.EXTRACT_EXECUTOR, unthrottled=True)
+ def get_completed_results(
+@@ -351,7 +373,9 @@ def get_completed_results(
+     jobs finish).
+ 
+     Returns per-tool metadata: source_name, windows_indexed, line_count,
+-    and tool_call_id for use as evidence_refs in submit_finding.
++    and tool_call_id for use as evidence_refs in submit_finding. A tool
++    that indexes several sources (one per packet capture, for example)
++    lists them under ``sources``.
+ 
+     Args:
+         batch_id: The batch ID returned by ``start_extraction_batch``.
+@@ -396,8 +420,11 @@ def get_completed_results(
+             if "tool_call_id" in res:
+                 sub_call_ids.append(res["tool_call_id"])
+                 summary["tool_call_id"] = res["tool_call_id"]
+-            if "source_name" in res:
+-                summary["source_name"] = res["source_name"]
++            # Tools report the indexed source as "source" (tool_response) or
++            # "source_name"; without it a caller has to guess the name.
++            source = res.get("source_name") or res.get("source")
++            if isinstance(source, str) and source:
++                summary["source_name"] = source
+             if "windows_indexed" in res:
+                 summary["windows_indexed"] = res["windows_indexed"]
+             if "line_count" in res:
+@@ -416,6 +443,9 @@ def get_completed_results(
+             # outcome in them: "no_results", "partial", and what was searched.
+             # Pass that status and message on, or a batch caller sees only "success".
+             inner = res.get("results")
++            nested = _nested_source_names(inner)
++            if nested:
++                summary["sources"] = nested
+             if isinstance(inner, dict):
+                 if isinstance(inner.get("status"), str):
+                     summary["result_status"] = inner["status"]

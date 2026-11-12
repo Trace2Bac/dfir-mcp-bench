@@ -1,0 +1,64 @@
+# EXP-011: one verification. The folder name is its permanent identifier;
+# the title may change.
+title: "Tools that do the work Haiku leaves undone"
+title_ko: "Haiku가 하지 않는 일을 도구가 대신함"
+server: mulder
+status: planned                  # planned | in-progress | done
+change: >
+  In EXP-009 (Haiku in every role) the misses came less from wrong reasoning
+  than from work Haiku did not do: registry values it did not query, a
+  capture without an extension it did not open, a hash it did not check,
+  tools the planner left out. after-3 and after-4 there gave tools that do
+  this work, and full match went from 19% to 48%. This experiment gathers
+  all of those changes in one version and adds the rest. From EXP-009:
+  the limits of analyze_disk_pcaps and run_clamav carried to the analyst;
+  run_hashdeep checks the acquisition hash stored in an EWF image with
+  ewfverify and says the file hashes are not the media hash;
+  analyze_disk_pcaps also recognizes a capture without an extension by its
+  header, lists the HTTP hosts and user agents in it, and names the file's
+  path in its summary; get_windows_system_profile reads the OS, install
+  date, owner, computer name, time zone, last shutdown, network cards and
+  local accounts in one call. New: get_windows_system_profile also lists
+  the installed programs (the Uninstall key); a new get_recycle_bin reads
+  the Recycle Bin index (INFO2, $I) and says whether each item is still in
+  the bin; run_clamav also copies the files out of a disk image with
+  tsk_recover and scans them, since clamscan cannot open an image;
+  get_completed_results returns the source name of a result, and the
+  sources a tool such as analyze_disk_pcaps indexes one per file (in
+  EXP-009 after-4 run 1 the executor made up a source name for the capture
+  and the analyst found nothing under it); and when the first extraction
+  plan for a disk image leaves out run_hashdeep, analyze_disk_pcaps,
+  get_windows_system_profile or get_recycle_bin, they are added to it in
+  code. Compared, five runs per label: full match, detection and false
+  positives.
+change_ko: >
+  EXP-009(모든 역할 Haiku)에서 틀린 답은 잘못된 추론보다 Haiku가 하지 않은 일에서 나왔다. 조회하지
+  않은 레지스트리 값, 확장자가 없어 열어 보지 않은 캡처 파일, 확인하지 않은 해시, planner가 빼먹은
+  도구다. 그 실험의 after-3, after-4는 이 일을 도구가 대신하게 했고, 완전 일치가 19%에서 48%가 됐다.
+  이 실험은 그 변경을 한 버전으로 모으고 나머지를 더한다. EXP-009에서 가져온 것: analyze_disk_pcaps와
+  run_clamav의 한계를 analyst까지 전달; run_hashdeep이 EWF 이미지에 저장된 획득 해시를 ewfverify로
+  확인하고, 파일 해시는 매체 해시가 아니라고 알림; analyze_disk_pcaps가 확장자 없는 캡처도 헤더로
+  알아보고, HTTP 호스트와 User-Agent를 정리하고, 요약에 파일 경로를 넣음; get_windows_system_profile이
+  OS, 설치일, 소유자, 컴퓨터 이름, 시간대, 마지막 종료, 네트워크 카드, 로컬 계정을 한 번에 읽음.
+  새로 더한 것: get_windows_system_profile이 설치 프로그램 목록(Uninstall 키)도 읽음; 새 도구
+  get_recycle_bin이 휴지통 색인(INFO2, $I)을 읽고 각 항목이 아직 휴지통에 있는지 알림; run_clamav가
+  디스크 이미지 안의 파일을 tsk_recover로 꺼내 검사함(clamscan은 이미지를 열지 못함);
+  get_completed_results가 결과의 source 이름과, analyze_disk_pcaps처럼 파일마다 만드는 source들을
+  돌려줌(EXP-009 after-4 1회차에서 executor가 캡처의 source 이름을 지어내 analyst가 아무것도 찾지
+  못했다); 디스크 이미지의 첫 추출 계획에 run_hashdeep, analyze_disk_pcaps,
+  get_windows_system_profile, get_recycle_bin이 빠지면 코드가 추가함. 라벨당 5회로 완전 일치, 탐지,
+  오탐을 비교한다.
+links:
+  - https://cfreds-archive.nist.gov/Hacking_Case.html
+  - https://cfreds-archive.nist.gov/images/TestAnswers.pdf
+
+case: nist-hacking-case
+harness: mulder-investigate
+harness_options:
+  models: {planner: claude-haiku-4-5, executor: claude-haiku-4-5, analyst: claude-haiku-4-5}
+  # No effort: the effort setting is for Opus and Sonnet models.
+  answer_section: true
+
+variants:
+  before: mulder-1.5.10                  # upstream release
+  after: mulder-1.5.10-haiku-assists     # every tool assist above
