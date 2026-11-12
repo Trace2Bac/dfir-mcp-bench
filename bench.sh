@@ -171,6 +171,7 @@ prepare)
     rhino-hunt) in_tools bash datasets/rhino-hunt/fetch.sh ;;
     nist-cftt-dfr) in_tools bash datasets/nist-cftt-dfr/fetch.sh ;;
     nist-hacking-case) in_tools bash datasets/nist-hacking-case/fetch.sh ;;
+    nist-data-leakage) in_tools bash datasets/nist-data-leakage/fetch.sh ;;
     synthetic-dns-smtp) in_tools python3 datasets/synthetic-dns-smtp/make_pcap.py data/evidence/synthetic-dns-smtp/sample.pcap ;;
     *) echo "unknown dataset: $ds" >&2; exit 1 ;;
     esac

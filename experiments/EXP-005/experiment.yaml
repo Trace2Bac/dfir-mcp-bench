@@ -3,7 +3,7 @@
 title: "The Haiku tool changes on another case (Rhino Hunt)"
 title_ko: "Haiku용 도구 변경을 다른 사건에 적용 (Rhino Hunt)"
 server: mulder
-status: planned                  # planned | in-progress | done
+status: done                     # planned | in-progress | done
 change: >
   EXP-004 changed mulder's tools on the NIST Hacking Case and reviewed the
   result against that case's answers, so the gain may be partly fitted to
@@ -39,3 +39,33 @@ harness_options:
 variants:
   before: mulder-1.5.10                  # upstream release
   after: mulder-1.5.10-haiku-assists     # the version reviewed in EXP-004
+
+conclusion: >
+  Haiku in every role, five runs per label. Review, median (range): before
+  full match 0%, detection 29% (29 to 43), false positives 0% (0 to 43);
+  after 0% (0 to 14), 43% (29 to 57), 0% (0 to 14). The ranges overlap, so
+  the after version neither helps nor hurts on this case. Both labels found
+  the FTP and HTTP transfers in the traces (Q3, partial in every run) and
+  the account gnome (Q2; the password gnome123 in one after run). Neither
+  found who gave the account, what happened to the hard drive or that the
+  USB key was reformatted (Q1, Q4, Q5). Those answers are in a deleted Word
+  journal on the USB key. An earlier single run with Opus as planner and
+  analyst (not kept) found them by running run_strings on the USB image;
+  no Haiku run here called run_strings, and the runs that carved the image
+  with foremost (which recovered the journal as an OLE file) did not read
+  what was carved, since mulder's carving tools delete their output.
+  Claims that the USB key holds no images or deleted files appeared in two
+  before runs and one after run. The EXP-004 gain came from tools for what
+  the NIST Hacking Case asks; on this case Haiku again leaves undone the
+  step that finds the answers.
+conclusion_ko: >
+  모든 역할 Haiku, 라벨당 5회. 검토 중앙값(범위): before 완전 일치 0%, 탐지 29%(29~43), 오탐
+  0%(0~43); after 0%(0~14), 43%(29~57), 0%(0~14). 범위가 겹치므로 after는 이 사건에서 도움도 해도
+  되지 않았다. 두 라벨 모두 트레이스의 FTP·HTTP 전송(Q3, 매번 부분 정답)과 계정 gnome(Q2, 비밀번호
+  gnome123은 after 1회)을 찾았다. 계정을 준 사람, 하드 드라이브의 행방, USB 키를 포맷했다는 사실(Q1,
+  Q4, Q5)은 어느 실행도 찾지 못했다. 이 답은 USB 키에서 삭제된 Word 일기에 있다. 앞서 Opus를
+  planner와 analyst로 한 번 돌린 실행(기록은 남기지 않음)은 USB 이미지에 run_strings를 돌려 이
+  답을 찾았다. 여기서는 Haiku 실행 중 run_strings를 부른 것이 없고, foremost로 카빙한 실행(일기가
+  OLE 파일로 복구됨)도 카빙한 파일을 읽지 않았다(mulder의 카빙 도구는 결과를 지운다). "USB 키에
+  그림이나 삭제 파일이 없다"는 단정은 before 2회, after 1회 나왔다. EXP-004의 향상은 NIST Hacking
+  Case가 묻는 것을 위한 도구에서 나왔고, 이 사건에서도 Haiku는 답을 찾는 단계를 하지 않았다.

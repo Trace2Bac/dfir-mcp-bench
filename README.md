@@ -76,8 +76,9 @@ needs.
    with Claude also needs `ANTHROPIC_API_KEY`, and local-model runs need LM
    Studio (step 5).
 2. Prepare the evidence: `./bench.sh prepare synthetic-dns-smtp`,
-   `./bench.sh prepare rhino-hunt`, `./bench.sh prepare nist-cftt-dfr` and
-   `./bench.sh prepare nist-hacking-case` (about 1 GB).
+   `./bench.sh prepare rhino-hunt`, `./bench.sh prepare nist-cftt-dfr`,
+   `./bench.sh prepare nist-hacking-case` (about 1 GB) and
+   `./bench.sh prepare nist-data-leakage` (about 7.6 GB).
 3. Run without a model (no cost); the terminal shows each step as it happens:
    ```
    ./bench.sh check                      # every experiment's scripted calls against scripted_expect
@@ -125,6 +126,7 @@ are Linux. What else you need depends on what you run:
    ```
    ./bench.sh prepare nist-cftt-dfr
    ./bench.sh prepare nist-hacking-case       # about 1 GB
+   ./bench.sh prepare nist-data-leakage       # about 7.6 GB
    ./bench.sh check
    ```
 4. `mulder investigate` with Claude:
