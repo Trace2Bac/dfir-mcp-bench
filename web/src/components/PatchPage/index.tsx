@@ -36,11 +36,11 @@ function splitDiff(diff: string): DiffFile[] {
 }
 
 // One file of the diff, as on GitHub: old and new line numbers, then the line.
-function DiffFileBlock({file, id, added, removed}: {file: DiffFile; id: string; added: number; removed: number}) {
+function DiffFileBlock({file, added, removed}: {file: DiffFile; added: number; removed: number}) {
   let oldNo = 0;
   let newNo = 0;
   return (
-    <details open id={id} className={diffStyles.fileBlock}>
+    <details className={diffStyles.fileBlock}>
       <summary className={diffStyles.fileHead}>
         <code>{file.path}</code>
         <span className={clsx(styles.pass, diffStyles.num)}>+{added}</span>
@@ -164,35 +164,17 @@ export default function PatchPage({data}: {data: PatchData}) {
           )}
         </Section>
 
-        <Section title={translate({id: 'patchPage.files', message: 'Files'})}>
-          <table className={styles.table}>
-            <tbody>
-              {data.files.map((f, i) => (
-                <tr key={f.path}>
-                  <td>
-                    <a href={`#file-${i}`}>
-                      <code>{f.path}</code>
-                    </a>
-                  </td>
-                  <td className={clsx(styles.pass, diffStyles.num)}>+{f.added}</td>
-                  <td className={clsx(styles.fail, diffStyles.num)}>−{f.removed}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Section>
-
         <Section
-          title={translate({id: 'patchPage.diff', message: 'Diff'})}
+          title={translate({id: 'patchPage.files', message: 'Files'})}
           note={translate({
-            id: 'patchPage.diff.note',
-            message: 'Against mulder at the commit the variant names, after the patches listed before this one.',
+            id: 'patchPage.files.note',
+            message:
+              'Open a file to see its changes, against mulder at the commit the variant names after the patches listed before this one.',
           })}>
           {splitDiff(data.diff).map((file, i) => (
             <DiffFileBlock
               key={file.path}
               file={file}
-              id={`file-${i}`}
               added={data.files[i]?.added ?? 0}
               removed={data.files[i]?.removed ?? 0}
             />
