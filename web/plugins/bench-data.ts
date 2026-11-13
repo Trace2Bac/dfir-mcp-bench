@@ -3,16 +3,21 @@ import path from 'path';
 import YAML from 'yaml';
 import type {LoadContext, Plugin} from '@docusaurus/types';
 
-// Reads experiments/, cases/ and servers/mulder/variants/ at build time and
-// adds one page per experiment (/experiments/<id>). The home page gets a short
-// summary of every experiment through global data. Nothing is fetched in the
-// browser.
+// Reads experiments/, cases/, datasets/ and servers/mulder/ (variants,
+// patches) at build time and adds one page per experiment (/experiments/<id>),
+// per case (/cases/<id>) and per patch (/patches/<name>). The list pages get a short summary of each through global
+// data. Nothing is fetched in the browser.
 
 // Tool output in transcripts is cut to this length on the site; the full
 // text stays in results/ and is linked from each run.
 const MAX_RESULT_CHARS = 6000;
 
-export type Question = {id: string; text: string; expect: {all?: string[]; any?: string[]; none?: string[]}};
+export type Question = {
+  id: string;
+  text: string;
+  expect: {all?: string[]; any?: string[]; none?: string[]; min?: number};
+  reviewOnly?: boolean; // left to a reviewer: no expected facts
+};
 export type Variant = {label: string; name: string; note: string; baseImage: string; ref: string; patches: string};
 export type Event = {t: number; kind: string; [key: string]: unknown};
 export type Review = {
@@ -67,6 +72,42 @@ export type ExperimentSummary = {
   groups: {label: string; model: string; runs: number; turns: number | null}[];
 };
 
+export type CaseData = {
+  id: string;
+  name: string;
+  title: string;
+  purpose: string;
+  answersSource?: string;
+  evidence: string; // folder under data/evidence/, /evidence/<folder> in the container
+  briefing: string; // what the model is told about the case (briefing.md)
+  dataset: {
+    id: string;
+    title: string;
+    source?: string;
+    contributor?: string;
+    answers?: string;
+    notes: string;
+    files: {name: string; note: string}[];
+  } | null;
+  questions: Question[];
+  experiments: {code: string; id: string; title: string; status: string; models: string[]}[];
+};
+export type PatchData = {
+  slug: string; // file name without .patch, the page path
+  name: string; // file name
+  title: string;
+  summary: string;
+  knownIssues: string;
+  diff: string;
+  files: {path: string; added: number; removed: number}[];
+  added: number;
+  removed: number;
+  variants: string[]; // variants that apply it
+  experiments: {code: string; id: string; title: string; labels: string[]}[];
+};
+export type PatchSummary = Omit<PatchData, 'diff' | 'summary' | 'knownIssues'> & {experimentCodes: string[]};
+export type CaseSummary = {id: string; name: string; title: string; questions: number; experiments: string[]};
+
 const readJson = (p: string) => JSON.parse(fs.readFileSync(p, 'utf8'));
 
 function readVariant(root: string, label: string, name: string): Variant {
@@ -96,7 +137,7 @@ function readReview(dir: string): Review | null {
 }
 
 // The answer per question from "Q<n>:" lines (also "Case Q<n>:", "**Q<n>.**",
-// and ranges such as "Q28-Q30:"). An answer runs on until a blank line or a
+// "**Q<n> - Short title:**" and ranges such as "Q28-Q30:"). An answer runs on until a blank line or a
 // heading. When the text has a "Case Questions" section, only that section is
 // read, since a mulder report has its own numbered questions earlier on.
 export function splitAnswers(text: string, questions: {id: string; text?: string}[]): Record<string, string> {
@@ -104,21 +145,26 @@ export function splitAnswers(text: string, questions: {id: string; text?: string
   const lines = text.split('\n');
   const section = lines.map((l, i) => (/^\W*#*\W*case questions/i.test(l) ? i : -1)).filter(i => i >= 0).pop();
   const body = section === undefined ? lines : lines.slice(section + 1);
-  const label = /^[\s*_#>-]*(?:case\s*)?(q\d+)(?:\s*[-\u2013]\s*(?:case\s*)?(q\d+))?[\s*_]*[:.)][\s*_]*(.*)$/i;
+  const label =
+    /^[\s*_#>-]*(?:case\s*)?(q\d+)(?:\s*[-\u2013]\s*(?:case\s*)?(q\d+))?(?:\s*[-\u2013]\s+[^:*\n]{1,80}[\s*_]*:|[\s*_]*[:.)])[\s*_]*(.*)$/i;
   const order = ids.map(i => i.toLowerCase());
+  // When the questions are labelled "Case Q<n>", as the briefing asks, other
+  // "Q<n>" lines (a report's own sections) are part of an answer, not labels.
+  const caseLabels = body.some(l => /^[\s*_#>-]*case\s*q\d+/i.test(l));
   const answers: Record<string, string> = {};
   let current: string[] = [];
   // Set while the answer so far only repeats the question ("Q1: **What ...?**"),
   // so a blank line before the answer itself does not end it.
   let echoOnly = false;
   for (const line of body) {
-    const m = label.exec(line);
+    const m = caseLabels && !/^[\s*_#>-]*case\s*q\d+/i.test(line) ? null : label.exec(line);
     if (m && order.includes(m[1].toLowerCase())) {
       const first = order.indexOf(m[1].toLowerCase());
       const last = m[2] && order.includes(m[2].toLowerCase()) ? order.indexOf(m[2].toLowerCase()) : first;
       current = ids.slice(first, Math.max(first, last) + 1);
       for (const id of current) answers[id] = m[3];
-      echoOnly = /\?[\s*_]*$/.test(m[3]);
+      // Nothing yet, or only the question: the answer starts after a blank line.
+      echoOnly = !m[3].trim() || /\?[\s*_]*$/.test(m[3]);
     } else if (current.length && echoOnly && !line.trim()) {
       continue;
     } else if (current.length && (!line.trim() || /^\s*#/.test(line) || /^---/.test(line))) {
@@ -164,12 +210,9 @@ function readRun(root: string, dir: string, questions: {id: string; text?: strin
     info: readJson(path.join(dir, 'run.json')),
     score: fs.existsSync(path.join(dir, 'score.json')) ? readJson(path.join(dir, 'score.json')) : null,
     answer: fs.readFileSync(path.join(dir, 'answer.md'), 'utf8'),
-    // case_answer_lines 0: the report has no "Case Q<n>" lines (its own numbering
-    // may differ), so it is not split.
-    answers:
-      readJson(path.join(dir, 'run.json')).case_answer_lines === 0
-        ? {}
-        : splitAnswers(fs.readFileSync(path.join(dir, 'answer.md'), 'utf8'), questions),
+    // The report's own text for each question; a report that labels them
+    // "Q<n>" without "Case" is split the same way.
+    answers: splitAnswers(fs.readFileSync(path.join(dir, 'answer.md'), 'utf8'), questions),
     events,
     review: readReview(dir),
   };
@@ -235,10 +278,105 @@ function readExperiment(root: string, id: string, locale: string): ExperimentDat
       answersSource: spec.answers_source,
     },
     tools: spec.tools ?? [],
-    questions: (spec.questions ?? []).map((q: any) => ({id: q.id, text: localized(q, 'text', locale), expect: q.expect ?? {}})),
+    questions: readQuestions(spec, locale),
     variants,
     groups,
   };
+}
+
+function readQuestions(spec: any, locale: string): Question[] {
+  return (spec.questions ?? []).map((q: any) => ({
+    id: q.id,
+    text: localized(q, 'text', locale),
+    expect: q.expect ?? {},
+    reviewOnly: Boolean(q.review_only),
+  }));
+}
+
+function readCase(root: string, id: string, locale: string, experiments: ExperimentData[]): CaseData {
+  const dir = path.join(root, 'cases', id);
+  const spec = YAML.parse(fs.readFileSync(path.join(dir, 'case.yaml'), 'utf8'));
+  const evidence = spec.evidence ?? id;
+  const briefingFile = path.join(dir, 'briefing.md');
+  const briefing = fs.existsSync(briefingFile)
+    ? fs.readFileSync(briefingFile, 'utf8').split('${EVIDENCE}').join(`/evidence/${evidence}`).trim()
+    : '';
+  const dsFile = spec.dataset ? path.join(root, 'datasets', spec.dataset, 'dataset.yaml') : '';
+  const ds = dsFile && fs.existsSync(dsFile) ? YAML.parse(fs.readFileSync(dsFile, 'utf8')) : null;
+  return {
+    id,
+    name: localized(spec, 'name', locale) || localized(spec, 'title', locale) || id,
+    title: localized(spec, 'title', locale) || id,
+    purpose: localized(spec, 'purpose', locale),
+    answersSource: spec.answers_source,
+    evidence,
+    briefing,
+    dataset: ds && {
+      id: spec.dataset,
+      title: String(ds.title ?? spec.dataset),
+      source: ds.source,
+      contributor: ds.contributor,
+      answers: ds.answers,
+      notes: String(ds.notes ?? '').trim(),
+      files: (ds.files ?? []).map((f: any) => ({name: String(f.name), note: String(f.note ?? '')})),
+    },
+    questions: readQuestions(spec, locale),
+    experiments: experiments
+      .filter(e => e.case.id === id)
+      .map(e => ({code: e.code, id: e.id, title: e.title, status: e.status, models: e.models})),
+  };
+}
+
+// Lines added and removed per file, from a git diff.
+function diffFiles(diff: string): {path: string; added: number; removed: number}[] {
+  const files: {path: string; added: number; removed: number}[] = [];
+  for (const line of diff.split('\n')) {
+    const m = /^diff --git a\/(.+?) b\//.exec(line);
+    if (m) files.push({path: m[1], added: 0, removed: 0});
+    else if (files.length && line.startsWith('+') && !line.startsWith('+++')) files[files.length - 1].added++;
+    else if (files.length && line.startsWith('-') && !line.startsWith('---')) files[files.length - 1].removed++;
+  }
+  return files;
+}
+
+function readPatches(root: string, locale: string, experiments: ExperimentData[]): PatchData[] {
+  const dir = path.join(root, 'servers', 'mulder', 'patches');
+  if (!fs.existsSync(dir)) return [];
+  const metaFile = path.join(root, 'servers', 'mulder', 'patches.yaml');
+  const meta = fs.existsSync(metaFile) ? YAML.parse(fs.readFileSync(metaFile, 'utf8')) ?? {} : {};
+  const variantDir = path.join(root, 'servers', 'mulder', 'variants');
+  const variants = fs
+    .readdirSync(variantDir)
+    .filter(f => f.endsWith('.env'))
+    .map(f => readVariant(root, '', f.replace(/\.env$/, '')));
+  // In the order the variants apply them; patches no variant lists come last.
+  const position = (name: string) =>
+    Math.min(...variants.map(v => v.patches.split(/\s+/).indexOf(name)).filter(i => i >= 0), Infinity);
+  return fs
+    .readdirSync(dir)
+    .filter(f => f.endsWith('.patch'))
+    .sort((a, b) => position(a) - position(b) || a.localeCompare(b))
+    .map(name => {
+      const diff = fs.readFileSync(path.join(dir, name), 'utf8');
+      const files = diffFiles(diff);
+      const uses = (v: Variant) => v.patches.split(/\s+/).includes(name);
+      const m = meta[name] ?? {};
+      return {
+        slug: name.replace(/\.patch$/, ''),
+        name,
+        title: localized(m, 'title', locale) || name,
+        summary: localized(m, 'summary', locale),
+        knownIssues: localized(m, 'known_issues', locale),
+        diff,
+        files,
+        added: files.reduce((n, f) => n + f.added, 0),
+        removed: files.reduce((n, f) => n + f.removed, 0),
+        variants: variants.filter(uses).map(v => v.name),
+        experiments: experiments
+          .map(e => ({code: e.code, id: e.id, title: e.title, labels: e.variants.filter(uses).map(v => v.label)}))
+          .filter(e => e.labels.length > 0),
+      };
+    });
 }
 
 const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
@@ -263,7 +401,9 @@ function summarize(c: ExperimentData): ExperimentSummary {
   };
 }
 
-export default function benchDataPlugin(context: LoadContext): Plugin<ExperimentData[]> {
+export default function benchDataPlugin(
+  context: LoadContext,
+): Plugin<{experiments: ExperimentData[]; cases: CaseData[]; patches: PatchData[]}> {
   const root = path.resolve(context.siteDir, '..');
   return {
     name: 'bench-data',
@@ -271,23 +411,67 @@ export default function benchDataPlugin(context: LoadContext): Plugin<Experiment
     getPathsToWatch() {
       return [
         path.join(root, 'experiments', '**', '*.{json,jsonl,md,yaml}'),
-        path.join(root, 'cases', '**', '*.yaml'),
+        path.join(root, 'cases', '**', '*.{yaml,md}'),
+        path.join(root, 'datasets', '**', '*.yaml'),
         path.join(root, 'servers', 'mulder', 'variants', '*.env'),
+        path.join(root, 'servers', 'mulder', 'patches', '*.patch'),
+        path.join(root, 'servers', 'mulder', 'patches.yaml'),
       ];
     },
 
     async loadContent() {
+      const locale = context.i18n.currentLocale;
       const dir = path.join(root, 'experiments');
-      return fs
+      const experiments = fs
         .readdirSync(dir)
         .filter(id => fs.existsSync(path.join(dir, id, 'experiment.yaml')))
-        .map(id => readExperiment(root, id, context.i18n.currentLocale))
+        .map(id => readExperiment(root, id, locale))
         .sort((a, b) => a.number - b.number);
+      const caseDir = path.join(root, 'cases');
+      const cases = fs
+        .readdirSync(caseDir)
+        .filter(id => fs.existsSync(path.join(caseDir, id, 'case.yaml')))
+        .map(id => readCase(root, id, locale, experiments))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      return {experiments, cases, patches: readPatches(root, locale, experiments)};
     },
 
     async contentLoaded({content, actions}) {
-      actions.setGlobalData({experiments: content.map(summarize)});
-      for (const c of content) {
+      const {experiments, cases, patches} = content;
+      actions.setGlobalData({
+        experiments: experiments.map(summarize),
+        cases: cases.map(
+          (c): CaseSummary => ({
+            id: c.id,
+            name: c.name,
+            title: c.title,
+            questions: c.questions.length,
+            experiments: c.experiments.map(e => e.code),
+          }),
+        ),
+        patches: patches.map(
+          ({diff, summary, knownIssues, ...p}): PatchSummary => ({...p, experimentCodes: p.experiments.map(e => e.code)}),
+        ),
+      });
+      for (const p of patches) {
+        const data = await actions.createData(`patch-${p.slug}.json`, JSON.stringify(p));
+        actions.addRoute({
+          path: `${context.baseUrl}patches/${p.slug}`,
+          component: '@site/src/components/PatchPage',
+          modules: {data},
+          exact: true,
+        });
+      }
+      for (const c of cases) {
+        const data = await actions.createData(`case-${c.id}.json`, JSON.stringify(c));
+        actions.addRoute({
+          path: `${context.baseUrl}cases/${c.id}`,
+          component: '@site/src/components/CasePage',
+          modules: {data},
+          exact: true,
+        });
+      }
+      for (const c of experiments) {
         const data = await actions.createData(`experiment-${c.id}.json`, JSON.stringify(c));
         actions.addRoute({
           path: `${context.baseUrl}experiments/${c.id}`,

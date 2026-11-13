@@ -1,0 +1,440 @@
+diff --git a/src/mulder/orchestrator/prompts/extract_analyst.md b/src/mulder/orchestrator/prompts/extract_analyst.md
+index 3fc6d7f..7c611f5 100644
+--- a/src/mulder/orchestrator/prompts/extract_analyst.md
++++ b/src/mulder/orchestrator/prompts/extract_analyst.md
+@@ -194,6 +194,10 @@ TARGETED FOLLOW-UP TOOLS:
+ When your analysis reveals something that warrants deeper investigation,
+ you may call these targeted tools directly (no need for a follow-up
+ plan request):
++- get_windows_system_profile: OS, install date, owner, computer name,
++  time zone, last shutdown, network cards, IP addresses, installed
++  programs and local accounts of a Windows image in one call (also
++  indexed as registry.profile).
+ - query_registry_value: retrieve specific registry values by key path.
+   Use when you need timezone, install date, shutdown time, USB history,
+   or other targeted data rather than searching bulk RegRipper output.
+diff --git a/src/mulder/orchestrator/prompts/extract_planner.md b/src/mulder/orchestrator/prompts/extract_planner.md
+index c98da95..e80c338 100644
+--- a/src/mulder/orchestrator/prompts/extract_planner.md
++++ b/src/mulder/orchestrator/prompts/extract_planner.md
+@@ -92,7 +92,11 @@ but what the evidence CONTAINS and what the investigation CONCERNS.
+ Go beyond the standard toolset when signals suggest specific artifacts.
+ 
+ When a Windows disk image is detected:
+-- Plan query_registry_value for system metadata: timezone
++- Plan get_windows_system_profile once per image, after run_fls. It
++  returns the OS, install date, owner, computer name, time zone, last
++  shutdown, network cards, IP addresses, installed programs and local
++  accounts in one call.
++- Plan query_registry_value for system metadata it does not cover: timezone
+   (SYSTEM\ControlSet001\Control\TimeZoneInformation), install date
+   (SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallDate),
+   shutdown time (SYSTEM\ControlSet001\Control\Windows\ShutdownTime),
+diff --git a/src/mulder/orchestrator/roles.py b/src/mulder/orchestrator/roles.py
+index dd7f013..694fefe 100644
+--- a/src/mulder/orchestrator/roles.py
++++ b/src/mulder/orchestrator/roles.py
+@@ -68,7 +68,7 @@ _DISK_IMAGE_SUFFIXES: tuple[str, ...] = (
+ _DISK_IMAGE_BASELINE: tuple[str, ...] = ("run_hashdeep", "analyze_disk_pcaps")
+ 
+ # The same for a Windows disk image, recognised by Windows tools in the plan.
+-_WINDOWS_IMAGE_BASELINE: tuple[str, ...] = ()
++_WINDOWS_IMAGE_BASELINE: tuple[str, ...] = ("get_windows_system_profile",)
+ 
+ _WINDOWS_PLAN_TOOLS: frozenset[str] = frozenset(
+     {
+@@ -78,6 +78,7 @@ _WINDOWS_PLAN_TOOLS: frozenset[str] = frozenset(
+         "run_amcache_parser",
+         "run_shimcache_parser",
+         "run_evtx_parser",
++        "get_windows_system_profile",
+     }
+ )
+ 
+diff --git a/src/mulder/server/data/tool_guide.json b/src/mulder/server/data/tool_guide.json
+index 88da3e0..aeca703 100644
+--- a/src/mulder/server/data/tool_guide.json
++++ b/src/mulder/server/data/tool_guide.json
+@@ -260,6 +260,12 @@
+     }
+   ],
+   "windows": [
++    {
++      "tool": "get_windows_system_profile",
++      "description": "OS, install date, owner, computer name, time zone, last shutdown, network cards, IP addresses and local accounts from the registry hives",
++      "input": "Disk image (run after run_fls)",
++      "related": ["query_registry_value", "run_registry_parser"]
++    },
+     {
+       "tool": "run_evtx_parser",
+       "description": "Extract Windows Event Logs from disk image",
+diff --git a/src/mulder/server/tools/extract/__init__.py b/src/mulder/server/tools/extract/__init__.py
+index b7ec7a9..3b80fc5 100644
+--- a/src/mulder/server/tools/extract/__init__.py
++++ b/src/mulder/server/tools/extract/__init__.py
+@@ -12,6 +12,7 @@ from mulder.server.tools.extract import (  # noqa: F401
+     plaso,
+     registry,
+     registry_query,
++    system_profile,
+     tsk,
+     volatility,
+ )
+diff --git a/src/mulder/server/tools/extract/system_profile.py b/src/mulder/server/tools/extract/system_profile.py
+new file mode 100644
+index 0000000..505faad
+--- /dev/null
++++ b/src/mulder/server/tools/extract/system_profile.py
+@@ -0,0 +1,352 @@
++"""Windows system profile from the SYSTEM, SOFTWARE and SAM hives.
++
++Reads the values an examiner records first about a Windows computer
++(operating system, install date, owner, computer name, time zone, last
++shutdown, network cards and addresses, installed programs, local
++accounts) in one call, so
++they do not depend on a series of separate registry queries.
++"""
++
++from __future__ import annotations
++
++import logging
++import shutil
++import struct
++import subprocess
++import tempfile
++import time
++from datetime import datetime, timezone
++from pathlib import Path
++from typing import Any
++
++from Registry import Registry
++
++from mulder.patterns import fls_file_entries
++from mulder.server.app import get_ctx, mcp
++from mulder.server.extract_helpers import extract_and_index
++from mulder.server.helpers import error_response, make_tool_call_id, tool_response
++from mulder.server.tool_access import Role, tool_access
++from mulder.server.tools.extract.registry_query import _try_decode_filetime
++from mulder.server.tools.extract.tsk import _collect_fls_chunks
++
++__all__ = ["get_windows_system_profile"]
++
++logger = logging.getLogger(__name__)
++
++_HIVES = ("SYSTEM", "SOFTWARE", "SAM")
++
++
++def _extract_hives(image_path: str, dest: Path) -> tuple[dict[str, Path], int, list[str]]:
++    """Copy the SYSTEM, SOFTWARE and SAM hives out of the image, by exact path.
++
++    Returns the hives copied, the number of file listing rows read, and the
++    hives that are in the listing but could not be read from the image.
++    """
++    hives: dict[str, Path] = {}
++    rows = 0
++    unreadable: list[str] = []
++    for chunks, offset in _collect_fls_chunks(image_path):
++        for chunk in chunks:
++            entries = fls_file_entries(chunk)
++            rows += len(entries)
++            for entry in entries:
++                path = entry.path.replace("\\", "/")
++                parent, _, name = path.rpartition("/")
++                hive = name.upper()
++                if hive not in _HIVES or hive in hives or entry.deleted:
++                    continue
++                if not parent.lower().endswith("system32/config"):
++                    continue
++                cmd = ["icat", *(["-o", str(offset)] if offset > 0 else []), image_path]
++                try:
++                    proc = subprocess.run(
++                        [*cmd, entry.base_inode], capture_output=True, timeout=60, check=False
++                    )
++                except (subprocess.TimeoutExpired, OSError) as exc:
++                    logger.warning("icat failed for %s: %s", path, exc)
++                    continue
++                if proc.returncode == 0 and proc.stdout:
++                    out = dest / hive
++                    out.write_bytes(proc.stdout)
++                    hives[hive] = out
++                else:
++                    detail = proc.stderr.decode(errors="replace").strip().splitlines()
++                    unreadable.append(f"{path} ({detail[0][:120] if detail else 'icat failed'})")
++    return hives, rows, unreadable
++
++
++def _open_key(reg: Registry.Registry, path: str) -> Registry.RegistryKey | None:
++    try:
++        return reg.open(path)
++    except Registry.RegistryKeyNotFoundException:
++        return None
++
++
++def _values(key: Registry.RegistryKey | None, *names: str) -> dict[str, Any]:
++    """The named values of *key* that exist, by name."""
++    if key is None:
++        return {}
++    found: dict[str, Any] = {}
++    for value in key.values():
++        if value.name() in names:
++            found[value.name()] = value.value()
++    return found
++
++
++def _signed(dword: Any) -> int | None:
++    """A REG_DWORD read as the signed 32-bit number Windows stores in it."""
++    if not isinstance(dword, int):
++        return None
++    signed: int = struct.unpack("<i", struct.pack("<I", dword & 0xFFFFFFFF))[0]
++    return signed
++
++
++def _utc_offset(bias_minutes: int) -> str:
++    """Windows bias (UTC = local + bias) as an offset such as UTC-5 or UTC+5:30."""
++    minutes = -bias_minutes
++    sign = "+" if minutes >= 0 else "-"
++    hours, rest = divmod(abs(minutes), 60)
++    return f"UTC{sign}{hours}" + (f":{rest:02d}" if rest else "")
++
++
++def _software_profile(reg: Registry.Registry) -> dict[str, Any]:
++    profile: dict[str, Any] = {}
++    cv = _values(
++        _open_key(reg, "Microsoft\\Windows NT\\CurrentVersion"),
++        "ProductName",
++        "CurrentVersion",
++        "CurrentBuildNumber",
++        "CSDVersion",
++        "RegisteredOwner",
++        "RegisteredOrganization",
++        "InstallDate",
++    )
++    install = cv.pop("InstallDate", None)
++    profile["os"] = cv
++    if isinstance(install, int) and install > 0:
++        profile["install_date_utc"] = datetime.fromtimestamp(install, tz=timezone.utc).isoformat()
++
++    cards = []
++    cards_key = _open_key(reg, "Microsoft\\Windows NT\\CurrentVersion\\NetworkCards")
++    for sub in cards_key.subkeys() if cards_key else []:
++        card = _values(sub, "Description", "ServiceName")
++        if card:
++            cards.append(card)
++    profile["network_cards"] = cards
++    profile["installed_programs"] = _installed_programs(reg)
++    profile["winlogon"] = _values(
++        _open_key(reg, "Microsoft\\Windows NT\\CurrentVersion\\Winlogon"),
++        "DefaultUserName",
++        "DefaultDomainName",
++    )
++    return profile
++
++
++def _installed_programs(reg: Registry.Registry) -> list[dict[str, Any]]:
++    """Programs registered for Add/Remove Programs (the Uninstall key)."""
++    programs: list[dict[str, Any]] = []
++    uninstall = _open_key(reg, "Microsoft\\Windows\\CurrentVersion\\Uninstall")
++    for sub in uninstall.subkeys() if uninstall else []:
++        program = _values(sub, "DisplayName", "DisplayVersion", "Publisher", "InstallLocation")
++        if not program.get("DisplayName"):
++            continue
++        program["key_last_written_utc"] = sub.timestamp().replace(tzinfo=timezone.utc).isoformat()
++        programs.append(program)
++    return sorted(programs, key=lambda p: str(p["DisplayName"]).lower())
++
++
++def _system_profile(reg: Registry.Registry) -> dict[str, Any]:
++    current = _values(_open_key(reg, "Select"), "Current").get("Current", 1)
++    cs = f"ControlSet{int(current):03d}"
++    profile: dict[str, Any] = {"control_set": cs}
++
++    profile["computer_name"] = _values(
++        _open_key(reg, f"{cs}\\Control\\ComputerName\\ComputerName"), "ComputerName"
++    ).get("ComputerName")
++
++    tz = _values(
++        _open_key(reg, f"{cs}\\Control\\TimeZoneInformation"),
++        "StandardName",
++        "DaylightName",
++        "Bias",
++        "ActiveTimeBias",
++    )
++    bias, active = _signed(tz.get("Bias")), _signed(tz.get("ActiveTimeBias"))
++    if bias is not None:
++        tz["standard_offset"] = _utc_offset(bias)
++    if active is not None:
++        tz["offset_in_effect"] = _utc_offset(active)
++        if bias is not None:
++            # ActiveTimeBias is the bias in force when the hive was last written.
++            tz["daylight_time_in_effect"] = active != bias
++    tz.pop("Bias", None)
++    tz.pop("ActiveTimeBias", None)
++    profile["time_zone"] = tz
++
++    shutdown = _values(_open_key(reg, f"{cs}\\Control\\Windows"), "ShutdownTime").get(
++        "ShutdownTime"
++    )
++    if isinstance(shutdown, bytes) and len(shutdown) == 8:
++        profile["last_shutdown_utc"] = _try_decode_filetime(shutdown)
++
++    params = _values(
++        _open_key(reg, f"{cs}\\Services\\Tcpip\\Parameters"), "Hostname", "Domain", "NV Domain"
++    )
++    profile["tcpip"] = params
++    interfaces = []
++    ifaces = _open_key(reg, f"{cs}\\Services\\Tcpip\\Parameters\\Interfaces")
++    for sub in ifaces.subkeys() if ifaces else []:
++        cfg = _values(sub, "EnableDHCP", "IPAddress", "DhcpIPAddress", "DhcpServer")
++        addresses = [a for a in cfg.get("IPAddress") or [] if a and a != "0.0.0.0"]
++        dhcp = cfg.get("DhcpIPAddress")
++        if addresses or (dhcp and dhcp != "0.0.0.0"):
++            interfaces.append({"interface": sub.name(), **cfg})
++    profile["interfaces"] = interfaces
++    return profile
++
++
++def _sam_accounts(reg: Registry.Registry) -> list[dict[str, Any]]:
++    accounts: list[dict[str, Any]] = []
++    names = _open_key(reg, "SAM\\Domains\\Account\\Users\\Names")
++    for sub in names.subkeys() if names else []:
++        account: dict[str, Any] = {"name": sub.name()}
++        try:
++            # The default value's type field holds the RID.
++            rid = sub.value("(default)").value_type()
++        except Registry.RegistryValueNotFoundException:
++            rid = None
++        if rid is not None:
++            account["rid"] = rid
++            user = _open_key(reg, f"SAM\\Domains\\Account\\Users\\{rid:08X}")
++            f_value = _values(user, "F").get("F")
++            if isinstance(f_value, bytes) and len(f_value) >= 0x44:
++                account["last_logon_utc"] = _try_decode_filetime(f_value[8:16])
++                account["logon_count"] = struct.unpack("<H", f_value[0x42:0x44])[0]
++        accounts.append(account)
++    return sorted(accounts, key=lambda a: a.get("rid", 0))
++
++
++def _profile_text(profile: dict[str, Any]) -> str:
++    """The profile as lines of text for the search index."""
++    lines = ["Windows system profile (SYSTEM, SOFTWARE and SAM hives)"]
++    os_info = profile.get("os", {})
++    for name, value in os_info.items():
++        lines.append(f"{name}: {value}")
++    if "install_date_utc" in profile:
++        lines.append(f"Install date (UTC): {profile['install_date_utc']}")
++    if profile.get("computer_name"):
++        lines.append(f"Computer name: {profile['computer_name']}")
++    tz = profile.get("time_zone", {})
++    if tz:
++        lines.append(
++            "Time zone: "
++            + ", ".join(f"{k}={v}" for k, v in tz.items())
++            + " (offset_in_effect is the one in force when the hive was last written)"
++        )
++    if profile.get("last_shutdown_utc"):
++        lines.append(f"Last shutdown (UTC): {profile['last_shutdown_utc']}")
++    for name, value in profile.get("winlogon", {}).items():
++        lines.append(f"Winlogon {name}: {value}")
++    for name, value in profile.get("tcpip", {}).items():
++        lines.append(f"Tcpip {name}: {value}")
++    programs = profile.get("installed_programs", [])
++    lines.append(f"Installed programs (Uninstall key): {len(programs)}")
++    for program in programs:
++        lines.append("Program " + ", ".join(f"{k}={v}" for k, v in program.items()))
++    for card in profile.get("network_cards", []):
++        lines.append(f"Network card: {card.get('Description')} ({card.get('ServiceName')})")
++    for iface in profile.get("interfaces", []):
++        lines.append("Interface " + ", ".join(f"{k}={v}" for k, v in iface.items()))
++    accounts = profile.get("accounts", [])
++    lines.append(f"Local accounts in SAM: {len(accounts)}")
++    for acct in accounts:
++        lines.append("Account " + ", ".join(f"{k}={v}" for k, v in acct.items()))
++    return "\n".join(lines)
++
++
++@mcp.tool()
++@tool_access(Role.EXTRACT_EXECUTOR | Role.EXTRACT_ANALYST)
++def get_windows_system_profile(case_id: str, image_path: str) -> dict[str, Any]:
++    """Read the basic facts about a Windows computer from its registry hives.
++
++    One call returns the operating system (ProductName, version, build,
++    service pack), install date, registered owner and organization,
++    computer name, time zone (standard and daylight names, the offset in
++    effect when the hive was last written), last shutdown time, the
++    network cards and the configured IP addresses, the installed programs
++    listed for Add/Remove Programs, the Winlogon default
++    user and domain, and the local accounts in the SAM hive with their
++    RIDs, logon counts and last logon times. All times are UTC. The
++    result is also indexed as ``registry.profile`` for search.
++
++    Run it once per Windows disk image, after run_fls.
++
++    Args:
++        case_id: Active case identifier.
++        image_path: Path to the disk image.
++
++    Returns:
++        Dict with the profile.
++    """
++    tc_id = make_tool_call_id()
++    t0 = time.monotonic()
++    params: dict[str, Any] = {"case_id": case_id, "image_path": image_path}
++
++    ctx = get_ctx()
++    _ = ctx.case_id
++
++    tmp = Path(tempfile.mkdtemp(prefix="mulder_profile_"))
++    try:
++        hives, rows, unreadable_hives = _extract_hives(image_path, tmp)
++        if not hives:
++            if unreadable_hives:
++                reason = (
++                    "The hives are in the file listing but could not be read from the image "
++                    f"({'; '.join(unreadable_hives)}). The image itself may be damaged or "
++                    "missing a segment file."
++                )
++            elif rows == 0:
++                reason = "There is no file listing for this image; run_fls has not run or failed."
++            else:
++                reason = (
++                    f"None of the {rows} files in the file listing is a SYSTEM, SOFTWARE or SAM "
++                    "hive under Windows/System32/config; this may not be a Windows system "
++                    "partition, or the listing covers another partition."
++                )
++            return error_response(
++                tc_id,
++                "get_windows_system_profile",
++                params,
++                f"No registry hive read from {image_path}. {reason}",
++                error_type="hive_not_found",
++            )
++        profile: dict[str, Any] = {}
++        unreadable: list[str] = []
++        readers = {"SOFTWARE": _software_profile, "SYSTEM": _system_profile}
++        for hive in _HIVES:
++            path = hives.get(hive)
++            if path is None:
++                unreadable.append(f"{hive} (not found)")
++                continue
++            try:
++                reg = Registry.Registry(str(path))
++                if hive == "SAM":
++                    profile["accounts"] = _sam_accounts(reg)
++                else:
++                    profile.update(readers[hive](reg))
++            except Exception as exc:  # a damaged hive should not lose the others
++                logger.warning("Could not read %s hive: %s", hive, exc)
++                unreadable.append(f"{hive} ({exc})")
++    finally:
++        shutil.rmtree(tmp, ignore_errors=True)
++
++    extract_and_index(_profile_text(profile), "registry.profile", image_path, "python-registry")
++    results: dict[str, Any] = {"source_name": "registry.profile", "profile": profile}
++    return tool_response(
++        tc_id,
++        "get_windows_system_profile",
++        params,
++        results,
++        source=None,
++        elapsed_ms=(time.monotonic() - t0) * 1000,
++    )

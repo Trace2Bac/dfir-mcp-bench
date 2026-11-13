@@ -154,7 +154,18 @@ function Conditions({data}: {data: ExperimentData}) {
               <td>
                 <code title={v.baseImage}>{v.baseImage.split('@')[0].split('/').pop()}</code>
               </td>
-              <td>{v.patches || '—'}</td>
+              <td>
+                {v.patches
+                  ? v.patches
+                      .split(/\s+/)
+                      .filter(Boolean)
+                      .map(p => (
+                        <Link key={p} to={`/patches/${p.replace(/\.patch$/, '')}`} className={styles.link}>
+                          <code>{p}</code>
+                        </Link>
+                      ))
+                  : '—'}
+              </td>
               <td className={styles.small}>{v.note}</td>
             </tr>
           ))}
@@ -546,7 +557,7 @@ function ScriptedSideBySide({data}: {data: ExperimentData}) {
     <Section
       title={translate({
         id: 'case.sideBySide',
-        message: 'Same calls, side by side',
+        message: 'Tool output by version',
       })}
       note={translate({
         id: 'case.sideBySide.note',
@@ -723,10 +734,16 @@ function RunAnswers({data, run}: {data: ExperimentData; run: Run}) {
           </Translate>
         </div>
       )}
-      {!split && (
+      {!run.answer.trim() ? (
         <p className={styles.small}>
-          <Translate id="run.notSplit">The answer has no line per question; read it in full below.</Translate>
+          <Translate id="run.noAnswer">The model gave no answer in this run.</Translate>
         </p>
+      ) : (
+        !split && (
+          <p className={styles.small}>
+            <Translate id="run.notSplit">The answer has no line per question; read it in full below.</Translate>
+          </p>
+        )
       )}
       {data.questions.map(q => {
         const v = run.review?.questions[q.id];
@@ -909,7 +926,14 @@ function Overview({data}: {data: ExperimentData}) {
           <Translate id="exp.test">Case</Translate>
         </span>
         <p>
-          <Translate id="exp.testLine" values={{case: <strong>{data.case.name}</strong>, harness: harnessName(data.harness)}}>
+          <Translate id="exp.testLine" values={{
+              case: (
+                <Link to={`/cases/${data.case.id}`}>
+                  <strong>{data.case.name}</strong>
+                </Link>
+              ),
+              harness: harnessName(data.harness),
+            }}>
             {'{case}, run with {harness}'}
           </Translate>
           <br />

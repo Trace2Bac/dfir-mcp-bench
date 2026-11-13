@@ -1,0 +1,324 @@
+diff --git a/src/mulder/orchestrator/prompts/extract_analyst.md b/src/mulder/orchestrator/prompts/extract_analyst.md
+index 7c611f5..87c11d1 100644
+--- a/src/mulder/orchestrator/prompts/extract_analyst.md
++++ b/src/mulder/orchestrator/prompts/extract_analyst.md
+@@ -198,6 +198,8 @@ plan request):
+   time zone, last shutdown, network cards, IP addresses, installed
+   programs and local accounts of a Windows image in one call (also
+   indexed as registry.profile).
++- get_recycle_bin: Recycle Bin items with original path, deletion time
++  and whether the stored file is still there (also indexed as recycle_bin).
+ - query_registry_value: retrieve specific registry values by key path.
+   Use when you need timezone, install date, shutdown time, USB history,
+   or other targeted data rather than searching bulk RegRipper output.
+diff --git a/src/mulder/orchestrator/prompts/extract_planner.md b/src/mulder/orchestrator/prompts/extract_planner.md
+index e80c338..825facd 100644
+--- a/src/mulder/orchestrator/prompts/extract_planner.md
++++ b/src/mulder/orchestrator/prompts/extract_planner.md
+@@ -96,6 +96,8 @@ When a Windows disk image is detected:
+   returns the OS, install date, owner, computer name, time zone, last
+   shutdown, network cards, IP addresses, installed programs and local
+   accounts in one call.
++- Plan get_recycle_bin once per image, after run_fls (Recycle Bin items
++  with their original paths and deletion times).
+ - Plan query_registry_value for system metadata it does not cover: timezone
+   (SYSTEM\ControlSet001\Control\TimeZoneInformation), install date
+   (SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallDate),
+diff --git a/src/mulder/orchestrator/roles.py b/src/mulder/orchestrator/roles.py
+index 694fefe..b8fbe51 100644
+--- a/src/mulder/orchestrator/roles.py
++++ b/src/mulder/orchestrator/roles.py
+@@ -68,7 +68,7 @@ _DISK_IMAGE_SUFFIXES: tuple[str, ...] = (
+ _DISK_IMAGE_BASELINE: tuple[str, ...] = ("run_hashdeep", "analyze_disk_pcaps")
+ 
+ # The same for a Windows disk image, recognised by Windows tools in the plan.
+-_WINDOWS_IMAGE_BASELINE: tuple[str, ...] = ("get_windows_system_profile",)
++_WINDOWS_IMAGE_BASELINE: tuple[str, ...] = ("get_windows_system_profile", "get_recycle_bin")
+ 
+ _WINDOWS_PLAN_TOOLS: frozenset[str] = frozenset(
+     {
+diff --git a/src/mulder/server/data/tool_guide.json b/src/mulder/server/data/tool_guide.json
+index aeca703..db2df50 100644
+--- a/src/mulder/server/data/tool_guide.json
++++ b/src/mulder/server/data/tool_guide.json
+@@ -266,6 +266,12 @@
+       "input": "Disk image (run after run_fls)",
+       "related": ["query_registry_value", "run_registry_parser"]
+     },
++    {
++      "tool": "get_recycle_bin",
++      "description": "Recycle Bin items of every user from INFO2 and $I records: original path, deletion time, size, and whether the stored file is still allocated",
++      "input": "Disk image (run after run_fls)",
++      "related": ["get_deleted_files", "run_fls"]
++    },
+     {
+       "tool": "run_evtx_parser",
+       "description": "Extract Windows Event Logs from disk image",
+diff --git a/src/mulder/server/tools/extract/__init__.py b/src/mulder/server/tools/extract/__init__.py
+index 3b80fc5..644b0d6 100644
+--- a/src/mulder/server/tools/extract/__init__.py
++++ b/src/mulder/server/tools/extract/__init__.py
+@@ -10,6 +10,7 @@ from mulder.server.tools.extract import (  # noqa: F401
+     optical,
+     pcap,
+     plaso,
++    recycle_bin,
+     registry,
+     registry_query,
+     system_profile,
+diff --git a/src/mulder/server/tools/extract/recycle_bin.py b/src/mulder/server/tools/extract/recycle_bin.py
+new file mode 100644
+index 0000000..1f71ca6
+--- /dev/null
++++ b/src/mulder/server/tools/extract/recycle_bin.py
+@@ -0,0 +1,250 @@
++"""Windows Recycle Bin contents from its index files.
++
++A file sent to the Recycle Bin is moved, not deleted: Windows renames it
++inside the bin folder and records its original path and deletion time in
++an index (INFO2 up to Windows XP, one ``$I`` file per item from Vista).
++Reads those records for every user and says whether the moved file is
++still allocated in the bin folder.
++"""
++
++from __future__ import annotations
++
++import logging
++import struct
++import subprocess
++import time
++from datetime import datetime, timedelta, timezone
++from typing import Any
++
++from mulder.patterns import FlsEntry, parse_fls_rows
++from mulder.server.app import get_ctx, mcp
++from mulder.server.extract_helpers import extract_and_index
++from mulder.server.helpers import make_tool_call_id, tool_response
++from mulder.server.tool_access import Role, tool_access
++from mulder.server.tools.extract.tsk import _collect_fls_chunks
++
++__all__ = ["get_recycle_bin"]
++
++logger = logging.getLogger(__name__)
++
++_BIN_FOLDERS = ("recycler", "recycled", "$recycle.bin")
++
++_EXECUTABLE_SUFFIXES = (".exe", ".com", ".bat", ".cmd", ".scr", ".pif", ".msi")
++
++_INFO2_HEADER = 20
++_INFO2_ANSI_PATH = 260
++
++
++def _filetime(ticks: int) -> str | None:
++    if ticks <= 0:
++        return None
++    moment = datetime(1601, 1, 1, tzinfo=timezone.utc) + timedelta(microseconds=ticks // 10)
++    return moment.isoformat()
++
++
++def _icat(image_path: str, offset: int, inode: str) -> bytes | None:
++    cmd = ["icat", *(["-o", str(offset)] if offset > 0 else []), image_path, inode]
++    try:
++        proc = subprocess.run(cmd, capture_output=True, timeout=60, check=False)
++    except (subprocess.TimeoutExpired, OSError) as exc:
++        logger.warning("icat failed for inode %s: %s", inode, exc)
++        return None
++    return proc.stdout if proc.returncode == 0 else None
++
++
++def _parse_info2(data: bytes) -> list[dict[str, Any]]:
++    """Records of a Windows 95 to XP INFO2 file."""
++    if len(data) < _INFO2_HEADER:
++        return []
++    record_size = struct.unpack_from("<I", data, 12)[0]
++    if record_size < _INFO2_ANSI_PATH + 20:
++        return []
++    records = []
++    for start in range(_INFO2_HEADER, len(data) - record_size + 1, record_size):
++        rec = data[start : start + record_size]
++        ansi = rec[:_INFO2_ANSI_PATH]
++        index, drive, ticks, size = struct.unpack_from("<IIQI", rec, _INFO2_ANSI_PATH)
++        # A restored or emptied item keeps its record with the first byte of the
++        # ANSI path (the drive letter) cleared.
++        removed = ansi[:1] == b"\0"
++        path = ""
++        if record_size >= 800:
++            path = rec[280:800].decode("utf-16-le", errors="replace").split("\0")[0]
++        if not path:
++            path = ansi[1:].split(b"\0")[0].decode("latin-1")
++            path = (chr(ord("A") + drive) if removed else ansi[:1].decode("latin-1")) + path
++        suffix = path[path.rfind(".") :] if "." in path.rsplit("\\", 1)[-1] else ""
++        records.append(
++            {
++                "original_path": path,
++                "deleted_utc": _filetime(ticks),
++                "size_bytes": size,
++                "bin_name": f"D{chr(ord('a') + drive)}{index}{suffix}",
++                "record_removed": removed,
++            }
++        )
++    return records
++
++
++def _parse_dollar_i(data: bytes, name: str) -> dict[str, Any] | None:
++    """One Vista and later ``$I`` record (version 1 or 2)."""
++    if len(data) < 24:
++        return None
++    version, size, ticks = struct.unpack_from("<QQQ", data, 0)
++    if version == 1:
++        raw = data[24 : 24 + 520]
++    elif version == 2 and len(data) >= 28:
++        length = struct.unpack_from("<I", data, 24)[0]
++        raw = data[28 : 28 + length * 2]
++    else:
++        return None
++    return {
++        "original_path": raw.decode("utf-16-le", errors="replace").split("\0")[0],
++        "deleted_utc": _filetime(ticks),
++        "size_bytes": size,
++        "bin_name": "$R" + name[2:],
++        "record_removed": False,
++    }
++
++
++def _bin_entries(image_path: str) -> list[tuple[FlsEntry, int]]:
++    """fls rows inside a Recycle Bin folder, with their partition offset."""
++    entries = []
++    for chunks, offset in _collect_fls_chunks(image_path):
++        for chunk in chunks:
++            for entry in parse_fls_rows(chunk):
++                top = entry.path.replace("\\", "/").split("/", 1)[0].lower()
++                if top in _BIN_FOLDERS:
++                    entries.append((entry, offset))
++    return entries
++
++
++def _bin_text(items: list[dict[str, Any]], executables: int) -> str:
++    lines = [
++        "Recycle Bin contents (from INFO2 and $I index records)",
++        f"Items: {len(items)}; executable files: {executables}",
++        "Items in the Recycle Bin are moved, not deleted: the file stays in the bin "
++        "folder until the bin is emptied.",
++    ]
++    for item in items:
++        lines.append(
++            f"{item['deleted_utc']} | {item['original_path']} | {item['size_bytes']} bytes"
++            f" | stored as {item['bin_folder']}/{item['bin_name']}"
++            f" | file in bin: {item['file_in_bin']}"
++            + (
++                " | index file deleted (bin emptied or item purged)"
++                if item.get("index_deleted")
++                else ""
++            )
++        )
++    return "\n".join(lines)
++
++
++@mcp.tool()
++@tool_access(Role.EXTRACT_EXECUTOR | Role.EXTRACT_ANALYST)
++def get_recycle_bin(case_id: str, image_path: str) -> dict[str, Any]:
++    """List what is in the Windows Recycle Bin of a disk image.
++
++    Reads the Recycle Bin index records of every user (INFO2 up to
++    Windows XP, ``$I`` files from Vista on): the original path, deletion
++    time (UTC) and size of each item, and the name it is stored under in
++    the bin folder. For each item it says whether that stored file is
++    still allocated (``present``), deleted by the file system
++    (``deleted``) or missing. Index files that were deleted, as when the
++    bin is emptied, are read too and their items reported separately.
++    Counts the executable items. The result is
++    also indexed as ``recycle_bin`` for search.
++
++    Run it once per Windows disk image, after run_fls.
++
++    Args:
++        case_id: Active case identifier.
++        image_path: Path to the disk image.
++
++    Returns:
++        Dict with the items and the item and executable counts.
++    """
++    tc_id = make_tool_call_id()
++    t0 = time.monotonic()
++    params: dict[str, Any] = {"case_id": case_id, "image_path": image_path}
++
++    ctx = get_ctx()
++    _ = ctx.case_id
++
++    entries = _bin_entries(image_path)
++    if not entries:
++        return tool_response(
++            tc_id,
++            "get_recycle_bin",
++            params,
++            {"items": []},
++            source=None,
++            elapsed_ms=(time.monotonic() - t0) * 1000,
++        )
++
++    by_folder: dict[str, dict[str, FlsEntry]] = {}
++    for entry, _offset in entries:
++        folder, _, name = entry.path.replace("\\", "/").rpartition("/")
++        by_folder.setdefault(folder, {})
++        # An allocated entry wins over a deleted one with the same name.
++        known = by_folder[folder].get(name.lower())
++        if known is None or (known.deleted and not entry.deleted):
++            by_folder[folder][name.lower()] = entry
++
++    items: list[dict[str, Any]] = []
++    unreadable: list[str] = []
++    seen_index: set[tuple[str, str]] = set()
++    for entry, offset in entries:
++        # A deleted index file is read too: emptying the bin deletes the $I
++        # files and INFO2, but their content often survives.
++        if entry.meta_type.lower() == "d" or (entry.path, entry.base_inode) in seen_index:
++            continue
++        seen_index.add((entry.path, entry.base_inode))
++        folder, _, name = entry.path.replace("\\", "/").rpartition("/")
++        is_info2 = name.upper() == "INFO2"
++        is_dollar_i = name.upper().startswith("$I")
++        if not (is_info2 or is_dollar_i):
++            continue
++        data = _icat(image_path, offset, entry.base_inode)
++        if not data:
++            if not entry.deleted:
++                unreadable.append(entry.path)
++            continue
++        if is_info2:
++            records = _parse_info2(data)
++        else:
++            record = _parse_dollar_i(data, name)
++            records = [record] if record else []
++        for record in records:
++            stored = by_folder.get(folder, {}).get(str(record["bin_name"]).lower())
++            if record["record_removed"]:
++                state = "removed from the bin (restored or emptied)"
++            elif stored is None:
++                state = "missing"
++            else:
++                state = "deleted" if stored.deleted else "present"
++            record["bin_folder"] = folder
++            record["file_in_bin"] = state
++            # The index file itself was deleted: the bin was emptied or the item purged.
++            record["index_deleted"] = entry.deleted
++            items.append(record)
++
++    in_bin = [i for i in items if not i["record_removed"] and not i["index_deleted"]]
++    executables = sum(
++        1 for i in in_bin if str(i["original_path"]).lower().endswith(_EXECUTABLE_SUFFIXES)
++    )
++    extract_and_index(_bin_text(items, executables), "recycle_bin", image_path, "icat")
++    results: dict[str, Any] = {
++        "source_name": "recycle_bin",
++        "items": items,
++        "items_in_bin": len(in_bin),
++        "executable_items": executables,
++    }
++    return tool_response(
++        tc_id,
++        "get_recycle_bin",
++        params,
++        results,
++        source=None,
++        elapsed_ms=(time.monotonic() - t0) * 1000,
++    )

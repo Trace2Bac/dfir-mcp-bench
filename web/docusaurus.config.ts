@@ -76,6 +76,8 @@ const config: Config = {
       logo: {alt: 'Trace2Bac logo', src: 'img/custom_logo.png'},
       items: [
         {to: '/', label: 'Results', position: 'left', activeBaseRegex: '^/(experiments/.*)?$'},
+        {to: '/cases', label: 'Cases', position: 'left'},
+        {to: '/patches', label: 'Patches', position: 'left'},
         // Opens the first document of the sidebar; every document is listed there.
         {type: 'docSidebar', sidebarId: 'defaultSidebar', label: 'Docs', position: 'left'},
         {type: 'localeDropdown', position: 'right'},

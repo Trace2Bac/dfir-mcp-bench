@@ -1,0 +1,103 @@
+# One entry per patch in patches/: what it changes and why. Kept outside
+# patches/ so that editing it does not change the image build. Shown on the
+# site's patch pages next to the diff. Patches apply in the order a variant
+# lists them (PATCHES in servers/mulder/variants/*.env), each on top of the
+# ones before it: tool-improvements, system-profile, recycle-bin,
+# limit-display. None of them is upstream yet.
+
+tool-improvements.patch:
+  title: "Existing tools find more, and batch results name their sources"
+  title_ko: "기존 도구가 더 찾고, 일괄 결과가 source 이름을 알려 줌"
+  summary: >
+    run_hashdeep checks the acquisition hash stored in an EWF image with
+    ewfverify and indexes the check as hashdeep.acquisition; an image
+    ewfverify cannot read is recorded as a failed check, not as "no stored
+    hash". analyze_disk_pcaps also opens files without an extension and
+    recognizes a capture by its header (user folders first, files under 24
+    bytes skipped), lists the HTTP hosts and user agents in a capture, and
+    names the file's path in its indexed summary. run_clamav copies the files
+    out of a disk image with tsk_recover and scans them, since clamscan
+    cannot open an image. get_completed_results returns each result's source
+    name, the sources a tool indexes one per file, and the job's status (it
+    returned none of these, a bug). When the first extraction plan for a disk
+    image leaves out run_hashdeep or analyze_disk_pcaps, they are added to it
+    in code.
+  summary_ko: >
+    run_hashdeep이 EWF 이미지에 저장된 획득 해시를 ewfverify로 확인해 hashdeep.acquisition으로
+    색인한다. ewfverify가 이미지를 다 읽지 못하면 "저장 해시 없음"이 아니라 검증 실패로 기록한다.
+    analyze_disk_pcaps가 확장자 없는 파일도 열어 헤더로 캡처를 알아보고(사용자 폴더 먼저, 24바이트
+    미만 제외), 캡처 안의 HTTP 호스트와 User-Agent를 정리하고, 색인 요약에 파일 경로를 넣는다.
+    run_clamav가 디스크 이미지 안의 파일을 tsk_recover로 꺼내 검사한다(clamscan은 이미지를 열지
+    못함). get_completed_results가 결과의 source 이름, 파일마다 만드는 source들, 작업 상태를
+    돌려준다(원래 하나도 돌려주지 못한 버그). 디스크 이미지의 첫 추출 계획에 run_hashdeep이나
+    analyze_disk_pcaps가 빠지면 코드가 추가한다.
+  known_issues: >
+    The ClamAV scan of the files inside an image can take an hour or more on
+    a large disk.
+  known_issues_ko: >
+    이미지 안 파일의 ClamAV 검사는 큰 디스크에서 1시간 이상 걸릴 수 있다.
+
+system-profile.patch:
+  title: "New tool: get_windows_system_profile"
+  title_ko: "새 도구: get_windows_system_profile"
+  summary: >
+    Reads the OS, install date, owner, computer name, time zone (with the
+    offset in effect), last shutdown, network cards and addresses, installed
+    programs and local accounts (logon count, last logon) from the SYSTEM,
+    SOFTWARE and SAM hives in one call, and indexes them as registry.profile.
+    When no hive can be read it says whether there was no file listing, no
+    hive in it, or a hive that could not be read. mulder can reach the same
+    values with run_registry_parser and query_registry_value; this tool
+    saves a weaker model the many separate queries. Planned with every
+    Windows disk image, and added to the plan in code when left out.
+  summary_ko: >
+    SYSTEM, SOFTWARE, SAM 하이브에서 OS, 설치일, 소유자, 컴퓨터 이름, 시간대(적용 중인 오프셋
+    포함), 마지막 종료, 네트워크 카드와 주소, 설치 프로그램, 로컬 계정(로그인 횟수, 마지막 로그인)을
+    한 번에 읽어 registry.profile로 색인한다. 하이브를 못 읽으면 파일 목록이 없었는지, 목록에
+    하이브가 없었는지, 하이브를 읽지 못했는지를 알린다. mulder는 run_registry_parser와
+    query_registry_value로 같은 값을 얻을 수 있다. 이 도구는 약한 모델이 여러 번 따로 조회하지 않게
+    해 준다. Windows 디스크 이미지마다 계획하고, 빠지면 코드가 추가한다.
+
+recycle-bin.patch:
+  title: "New tool: get_recycle_bin"
+  title_ko: "새 도구: get_recycle_bin"
+  summary: >
+    Reads the Recycle Bin index of every user (INFO2 up to Windows XP, $I
+    files from Vista on, including index files deleted when the bin was
+    emptied): the original path, deletion time and size of each item, the
+    name it is stored under, and whether that stored file is still allocated.
+    Counts the executable items and indexes the list as recycle_bin. mulder
+    had no tool that reads the Recycle Bin index. Planned with every Windows
+    disk image, and added to the plan in code when left out.
+  summary_ko: >
+    모든 사용자의 휴지통 색인(Windows XP까지는 INFO2, Vista부터는 $I 파일, 휴지통을 비울 때
+    삭제된 색인 포함)을 읽는다. 항목마다 원래 경로, 삭제 시각, 크기, 휴지통 안에 저장된 이름, 그
+    파일이 아직 할당돼 있는지를 알리고, 실행 파일 수를 세어 recycle_bin으로 색인한다. mulder에는
+    휴지통 색인을 읽는 도구가 없었다. Windows 디스크 이미지마다 계획하고, 빠지면 코드가 추가한다.
+
+limit-display.patch:
+  title: "Tools state what they did not check, and the limit reaches the analyst"
+  title_ko: "도구가 확인하지 않은 범위를 알리고, 그 한계를 analyst까지 전달"
+  summary: >
+    The only difference between the two variants. The limit is a sentence in
+    the tool's message, nothing else: analyze_disk_pcaps says how many files
+    it searched, on which partitions, by which extensions and how many it
+    opened by header, and that files with other extensions were not opened;
+    run_hashdeep says the file hashes are not the media hash; run_clamav says
+    what it scanned inside an image and what it did not (also in its indexed
+    text); get_windows_system_profile and get_recycle_bin name what they
+    could not read. The message then reaches the analyst: tool_response keeps
+    it outside the preview, get_completed_results passes it on, the executor
+    prompts copy it word for word into a "message" field of their report,
+    and the analyst, which saw only tool, status and source, also receives
+    it. This path carries any tool's message, including those mulder's own
+    tools already had.
+  summary_ko: >
+    두 variant의 유일한 차이다. 한계는 도구 메시지 안의 문장으로만 알린다. analyze_disk_pcaps는 몇
+    개 파일을 어느 파티션에서 어떤 확장자로 찾았고 몇 개를 헤더로 열어 봤는지, 다른 확장자 파일은
+    열지 않았다는 것을 적는다. run_hashdeep은 파일 해시가 매체 해시가 아니라고 적는다. run_clamav는
+    이미지 안에서 무엇을 검사했고 무엇을 검사하지 않았는지 적는다(색인 텍스트에도).
+    get_windows_system_profile과 get_recycle_bin은 읽지 못한 것을 적는다. 그리고 이 메시지가
+    analyst까지 간다. tool_response가 미리보기 밖에 두고, get_completed_results가 넘기고, executor
+    프롬프트가 보고서의 "message" 칸에 그대로 옮기며, tool·status·source만 받던 analyst가 그것도
+    받는다. 이 통로는 mulder의 원래 도구들이 갖고 있던 메시지도 함께 전달한다.
