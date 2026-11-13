@@ -54,6 +54,23 @@ index 8ac798b..2485345 100644
  
  CONTRADICTION CHECKS:
  - If an artifact is called legitimate in one finding but malicious in
+diff --git a/src/mulder/server/tools/artifacts.py b/src/mulder/server/tools/artifacts.py
+index 02dbcc8..b97db25 100644
+--- a/src/mulder/server/tools/artifacts.py
++++ b/src/mulder/server/tools/artifacts.py
+@@ -1223,11 +1223,7 @@ def detect_timestomping() -> dict[str, object]:
+     else:
+         summary = {
+             "status": "no_results",
+-            "message": (
+-                f"No timestomping indicators found in {len(windows)} MFT windows. "
+-                "This does not guarantee absence of timestomping if SI/FN columns "
+-                "are not present in the MFTECmd output format."
+-            ),
++            "message": (f"No timestomping indicators found in {len(windows)} MFT windows."),
+         }
+ 
+     elapsed = (time.monotonic() - t0) * 1000
 diff --git a/src/mulder/server/tools/extract/carving.py b/src/mulder/server/tools/extract/carving.py
 index c3c8f35..7b83fff 100644
 --- a/src/mulder/server/tools/extract/carving.py
@@ -70,10 +87,10 @@ index c3c8f35..7b83fff 100644
      return tool_response(
          tc_id,
 diff --git a/src/mulder/server/tools/extract/misc.py b/src/mulder/server/tools/extract/misc.py
-index 8f85da3..49d3fd3 100644
+index 6b429a8..b6f0069 100644
 --- a/src/mulder/server/tools/extract/misc.py
 +++ b/src/mulder/server/tools/extract/misc.py
-@@ -828,11 +828,7 @@ def run_clamav(target_path: str) -> dict[str, object]:
+@@ -837,11 +837,7 @@ def run_clamav(target_path: str) -> dict[str, object]:
      if content_scans:
          summary["image_contents"] = content_scans
      if proc.returncode not in (0, 1) or unscanned_lines:

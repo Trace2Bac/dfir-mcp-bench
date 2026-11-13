@@ -1,11 +1,40 @@
-diff --git a/src/mulder/orchestrator/prompts/extract_executor.md b/src/mulder/orchestrator/prompts/extract_executor.md
-index 704b9ae..cef3500 100644
---- a/src/mulder/orchestrator/prompts/extract_executor.md
-+++ b/src/mulder/orchestrator/prompts/extract_executor.md
-@@ -81,6 +81,10 @@ OUTPUT (MANDATORY):
+diff --git a/src/mulder/orchestrator/prompts/cross_system_executor.md b/src/mulder/orchestrator/prompts/cross_system_executor.md
+index e7ee7af..f82932d 100644
+--- a/src/mulder/orchestrator/prompts/cross_system_executor.md
++++ b/src/mulder/orchestrator/prompts/cross_system_executor.md
+@@ -18,11 +18,15 @@ OUTPUT (MANDATORY):
+ {
+   "results": [
+     {"tool": "...", "status": "ok", "source": "...", "lines": N},
++    {"tool": "...", "status": "ok", "source": "...", "message": "the tool's message, copied as is"},
+     {"tool": "...", "status": "error", "error": "reason"}
+   ],
    "summary": "Brief description of what completed"
  }
  
++When get_completed_results gives a "message" for a tool, copy it word for
++word into "message". Do not shorten or reword it.
++
+ CONSTRAINTS:
+ - Do NOT reason about or interpret results.
+ - Do NOT submit findings or call submit_finding.
+diff --git a/src/mulder/orchestrator/prompts/extract_executor.md b/src/mulder/orchestrator/prompts/extract_executor.md
+index 704b9ae..e958591 100644
+--- a/src/mulder/orchestrator/prompts/extract_executor.md
++++ b/src/mulder/orchestrator/prompts/extract_executor.md
+@@ -76,11 +76,19 @@ OUTPUT (MANDATORY):
+ {
+   "results": [
+     {"tool": "...", "status": "ok", "source": "...", "lines": N},
++    {"tool": "...", "status": "ok", "source": "...", "message": "the tool's message, copied as is"},
+     {"tool": "...", "status": "error", "error": "reason"}
+   ],
+   "summary": "Brief description of what completed"
+ }
+ 
++When get_completed_results gives a "message" for a tool, copy it word for
++word into "message". Do not shorten or reword it.
++
 +For "source", copy source_name from get_completed_results exactly; when it
 +also lists "sources", put all of them in "source", separated by commas.
 +Never make up a source name: the analyst reads the evidence by this name.
@@ -28,8 +57,28 @@ index 9e3f715..c98da95 100644
  - Additional tools based on the detected OS and filesystem:
    Windows: run_evtx_parser, run_hayabusa, run_chainsaw,
      run_registry_parser, run_prefetch_parser, run_amcache_parser,
+diff --git a/src/mulder/orchestrator/prompts/narrative_executor.md b/src/mulder/orchestrator/prompts/narrative_executor.md
+index e54f0da..6d729e5 100644
+--- a/src/mulder/orchestrator/prompts/narrative_executor.md
++++ b/src/mulder/orchestrator/prompts/narrative_executor.md
+@@ -18,11 +18,15 @@ OUTPUT (MANDATORY):
+ {
+   "results": [
+     {"tool": "...", "status": "ok", "source": "...", "lines": N},
++    {"tool": "...", "status": "ok", "source": "...", "message": "the tool's message, copied as is"},
+     {"tool": "...", "status": "error", "error": "reason"}
+   ],
+   "summary": "Brief description of what completed"
+ }
+ 
++When get_completed_results gives a "message" for a tool, copy it word for
++word into "message". Do not shorten or reword it.
++
+ CONSTRAINTS:
+ - Do NOT reason about or interpret results.
+ - Do NOT submit findings or call submit_finding.
 diff --git a/src/mulder/orchestrator/roles.py b/src/mulder/orchestrator/roles.py
-index 43a3235..dd7f013 100644
+index 43a3235..bd1f387 100644
 --- a/src/mulder/orchestrator/roles.py
 +++ b/src/mulder/orchestrator/roles.py
 @@ -11,6 +11,7 @@ from __future__ import annotations
@@ -148,6 +197,34 @@ index 43a3235..dd7f013 100644
              investigation_questions=plan_json.get("investigation_questions", []),
              expected_sources=plan_json.get("expected_sources", []),
              raw_text="\n".join(result.messages),
+@@ -384,6 +468,12 @@ class RoleRunner:
+                 "tool": _sanitize_for_prompt(r.get("tool", ""), 100),
+                 "status": r.get("status", ""),
+                 "source": _sanitize_for_prompt(r.get("source", ""), 150),
++                # The tool's message, as the executor copied it.
++                **(
++                    {"message": _sanitize_for_prompt(str(r["message"]), 400)}
++                    if r.get("message")
++                    else {}
++                ),
+             }
+             for r in exec_results.results
+         ]
+diff --git a/src/mulder/server/helpers.py b/src/mulder/server/helpers.py
+index 63bab95..03cd504 100644
+--- a/src/mulder/server/helpers.py
++++ b/src/mulder/server/helpers.py
+@@ -405,6 +405,10 @@ def tool_response(
+         resp["line_count"] = line_count
+     if windows_indexed is not None:
+         resp["windows_indexed"] = windows_indexed
++    # The tool's own message stays readable outside the preview.
++    message = results.get("message") if isinstance(results, dict) else None
++    if isinstance(message, str):
++        resp["message"] = message[:_PREVIEW_CHAR_LIMIT]
+     return resp
+ 
+ 
 diff --git a/src/mulder/server/jobs.py b/src/mulder/server/jobs.py
 index 2bbe5f9..e1e5a57 100644
 --- a/src/mulder/server/jobs.py
@@ -161,7 +238,7 @@ index 2bbe5f9..e1e5a57 100644
                          "result": job.result,
                          "elapsed_ms": elapsed,
 diff --git a/src/mulder/server/tools/extract/disk_pcap.py b/src/mulder/server/tools/extract/disk_pcap.py
-index 3ae6e14..e3233d1 100644
+index 3ae6e14..8442544 100644
 --- a/src/mulder/server/tools/extract/disk_pcap.py
 +++ b/src/mulder/server/tools/extract/disk_pcap.py
 @@ -42,6 +42,20 @@ _PCAP_EXTENSIONS: frozenset[str] = frozenset(
@@ -382,8 +459,30 @@ index 3ae6e14..e3233d1 100644
                  pcaps_analyzed.append(analysis)
  
                  if extract_credentials and analysis.get("credentials"):
+@@ -472,6 +633,21 @@ def analyze_disk_pcaps(
+         "analyses": pcaps_analyzed,
+         "total_credentials_found": len(all_credentials),
+         "credentials": all_credentials[:100],
++        "message": (
++            f"{len(pcaps_analyzed)} packet capture(s) analysed: "
++            + (
++                "; ".join(
++                    f"{a.get('filename')} (indexed as {a.get('source_name')}"
++                    + (", found by its header" if a.get("found_by") else "")
++                    + ")"
++                    for a in pcaps_analyzed
++                )
++                or "none"
++            )
++            + (f"; {len(pcaps_failed)} could not be analysed" if pcaps_failed else "")
++            + (f"; {len(pcaps_skipped_size)} over the size limit" if pcaps_skipped_size else "")
++            + "."
++        ),
+     }
+ 
+     return tool_response(
 diff --git a/src/mulder/server/tools/extract/misc.py b/src/mulder/server/tools/extract/misc.py
-index 87ac5d8..8f85da3 100644
+index 87ac5d8..6b429a8 100644
 --- a/src/mulder/server/tools/extract/misc.py
 +++ b/src/mulder/server/tools/extract/misc.py
 @@ -644,13 +644,131 @@ def run_strings(target_path: str, min_length: int = 8) -> dict[str, object]:
@@ -537,7 +636,7 @@ index 87ac5d8..8f85da3 100644
              capture_output=True,
              text=True,
              timeout=adaptive_timeout(target_path),
-@@ -685,14 +810,23 @@ def run_clamav(target_path: str) -> dict[str, object]:
+@@ -685,14 +810,32 @@ def run_clamav(target_path: str) -> dict[str, object]:
          )
  
      output = proc.stdout.strip()
@@ -557,12 +656,21 @@ index 87ac5d8..8f85da3 100644
 -
      summary = extract_and_index(summary_text, "clamav.scan", target_path, "clamav")
      summary["detections"] = len(infected_lines)
++    in_images = 0
++    for scan in content_scans:
++        found = scan.get("detections")
++        in_images += len(found) if isinstance(found, list) else 0
++    summary["message"] = (
++        f"{len(infected_lines)} ClamAV detections"
++        + (f", {in_images} of them in files inside the image" if content_scans else "")
++        + "; listed in clamav.scan."
++    )
 +    if content_scans:
 +        summary["image_contents"] = content_scans
      if proc.returncode not in (0, 1) or unscanned_lines:
          detail = ("; ".join(unscanned_lines) or (proc.stderr or "").strip())[:_PREVIEW_CHAR_LIMIT]
          summary["partial"] = True
-@@ -708,13 +842,17 @@ def run_clamav(target_path: str) -> dict[str, object]:
+@@ -708,13 +851,17 @@ def run_clamav(target_path: str) -> dict[str, object]:
  def run_hashdeep(target_path: str) -> dict[str, object]:
      """Compute recursive cryptographic hashes using hashdeep.
  
@@ -583,7 +691,7 @@ index 87ac5d8..8f85da3 100644
          binary="hashdeep",
          cmd=["hashdeep", "-r", "-l", cli_path(target_path)],
          tool_name="run_hashdeep",
-@@ -724,6 +862,112 @@ def run_hashdeep(target_path: str) -> dict[str, object]:
+@@ -724,6 +871,113 @@ def run_hashdeep(target_path: str) -> dict[str, object]:
          extractor_label="hashdeep",
          timeout=adaptive_timeout(target_path),
      )
@@ -599,6 +707,7 @@ index 87ac5d8..8f85da3 100644
 +        # The second source, so a batch caller can name it (get_completed_results
 +        # lists it under "sources").
 +        results["acquisition"] = {"source_name": "hashdeep.acquisition", "checks": checks}
++        results["message"] = " ".join(lines) + " Indexed as hashdeep.acquisition."
 +    return response
 +
 +
@@ -697,7 +806,7 @@ index 87ac5d8..8f85da3 100644
  
  @mcp.tool()
 diff --git a/src/mulder/server/tools/jobs.py b/src/mulder/server/tools/jobs.py
-index 62b8693..c45ec38 100644
+index 62b8693..25d0fa4 100644
 --- a/src/mulder/server/tools/jobs.py
 +++ b/src/mulder/server/tools/jobs.py
 @@ -335,6 +335,28 @@ def check_extraction_status(batch_id: str) -> dict[str, Any]:
@@ -754,13 +863,20 @@ index 62b8693..c45ec38 100644
              if "windows_indexed" in res:
                  summary["windows_indexed"] = res["windows_indexed"]
              if "line_count" in res:
-@@ -403,6 +430,9 @@ def get_completed_results(
+@@ -403,6 +430,16 @@ def get_completed_results(
                  summary["error_message"] = res["error_message"]
              if "status" in res:
                  summary["result_status"] = res["status"]
 +            nested = _nested_source_names(res.get("results"))
 +            if nested:
 +                summary["sources"] = nested
++            # The tool's message, at the top (indexed results) or in its results.
++            inner = res.get("results")
++            message = res.get("message")
++            if not isinstance(message, str) and isinstance(inner, dict):
++                message = inner.get("message")
++            if isinstance(message, str):
++                summary["message"] = message[:500]
          elif isinstance(res, str) and len(res) > 200:
              summary["result_preview"] = res[:200]
          else:

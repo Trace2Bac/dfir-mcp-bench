@@ -19,9 +19,14 @@ tool-improvements.patch:
     out of a disk image with tsk_recover and scans them, since clamscan
     cannot open an image. get_completed_results returns each result's source
     name, the sources a tool indexes one per file, and the job's status (it
-    returned none of these, a bug). When the first extraction plan for a disk
-    image leaves out run_hashdeep or analyze_disk_pcaps, they are added to it
-    in code.
+    returned none of these, a bug). A tool's message now reaches the analyst:
+    tool_response keeps it outside the preview, get_completed_results passes it
+    on (it dropped it), the executor prompts copy it word for word into a
+    "message" field of their report, and the analyst receives it. The
+    messages of run_hashdeep, analyze_disk_pcaps and run_clamav summarize
+    what was found and where it is indexed. When the first extraction plan
+    for a disk image leaves out run_hashdeep or analyze_disk_pcaps, they are
+    added to it in code.
   summary_ko: >
     run_hashdeep이 EWF 이미지에 저장된 획득 해시를 ewfverify로 확인해 hashdeep.acquisition으로
     색인합니다. ewfverify가 이미지를 다 읽지 못하면 "저장 해시 없음"이 아니라 검증 실패로 기록합니다.
@@ -29,8 +34,11 @@ tool-improvements.patch:
     미만 제외), 캡처 안의 HTTP 호스트와 User-Agent를 정리하고, 색인 요약에 파일 경로를 넣습니다.
     run_clamav가 디스크 이미지 안의 파일을 tsk_recover로 꺼내 검사합니다(clamscan은 이미지를 열지
     못함). get_completed_results가 결과의 source 이름, 파일마다 만드는 source들, 작업 상태를
-    돌려줍니다(원래 하나도 돌려주지 못한 버그). 디스크 이미지의 첫 추출 계획에 run_hashdeep이나
-    analyze_disk_pcaps가 빠지면 코드가 추가합니다.
+    돌려줍니다(원래 하나도 돌려주지 못한 버그). 도구의 메시지가 analyst까지 갑니다. tool_response가
+    메시지를 미리보기 밖에 두고, get_completed_results가 넘기고(원래 버렸습니다), executor 프롬프트가
+    보고서의 "message" 칸에 그대로 옮기며, analyst가 받습니다. run_hashdeep, analyze_disk_pcaps,
+    run_clamav의 메시지는 찾은 것과 색인된 위치를 요약합니다. 디스크 이미지의 첫 추출 계획에
+    run_hashdeep이나 analyze_disk_pcaps가 빠지면 코드가 추가합니다.
   known_issues: >
     The ClamAV scan of the files inside an image can take an hour or more on
     a large disk.
@@ -66,43 +74,40 @@ recycle-bin.patch:
     files from Vista on, including index files deleted when the bin was
     emptied): the original path, deletion time and size of each item, the
     name it is stored under, and whether that stored file is still allocated.
-    Counts the executable items and indexes the list as recycle_bin. mulder
+    Counts the executable items, indexes the list as recycle_bin, and
+    summarizes the counts in its message. mulder
     had no tool that reads the Recycle Bin index. Planned with every Windows
     disk image, and added to the plan in code when left out.
   summary_ko: >
     모든 사용자의 휴지통 색인(Windows XP까지는 INFO2, Vista부터는 $I 파일, 휴지통을 비울 때
     삭제된 색인 포함)을 읽습니다. 항목마다 원래 경로, 삭제 시각, 크기, 휴지통 안에 저장된 이름, 그
-    파일이 아직 할당돼 있는지를 알리고, 실행 파일 수를 세어 recycle_bin으로 색인합니다. mulder에는
+    파일이 아직 할당돼 있는지를 알리고, 실행 파일 수를 세어 recycle_bin으로 색인하고, 메시지에 개수를
+    요약합니다. mulder에는
     휴지통 색인을 읽는 도구가 없었습니다. Windows 디스크 이미지마다 계획하고, 빠지면 코드가 추가합니다.
 
 limit-display.patch:
-  title: "Tools state what they did not check, and the limit reaches the analyst"
-  title_ko: "도구가 확인하지 않은 범위를 알리고, 그 한계를 analyst까지 전달"
+  title: "Tools state what they did not check (interpretation limits)"
+  title_ko: "도구가 확인하지 않은 범위를 알림 (해석 한계)"
   summary: >
     Applied in the variant with interpretation limits (the one without them
-    applies strip-limits instead). The limit is a sentence in
-    the tool's message, nothing else: analyze_disk_pcaps says how many files
-    it searched, on which partitions, by which extensions and how many it
-    opened by header, and that files with other extensions were not opened;
-    run_hashdeep says the file hashes are not the media hash; run_clamav says
+    applies strip-limits instead). It only appends limit sentences to tool
+    messages that every variant already sends: analyze_disk_pcaps says how
+    many files it searched, on which partitions, by which extensions and how
+    many it opened by header, that files with other extensions were not
+    opened, and with no result that this does not show the image holds no
+    capture; run_hashdeep says the file hashes are not the media hash and
+    that a failed check says nothing about a stored hash; run_clamav says
     what it scanned inside an image and what it did not (also in its indexed
     text); get_windows_system_profile and get_recycle_bin name what they
-    could not read. The message then reaches the analyst: tool_response keeps
-    it outside the preview, get_completed_results passes it on, the executor
-    prompts copy it word for word into a "message" field of their report,
-    and the analyst, which saw only tool, status and source, also receives
-    it. This path carries any tool's message, including those mulder's own
-    tools already had.
+    could not read.
   summary_ko: >
-    해석 한계가 있는 variant에 적용합니다(없는 variant는 대신 strip-limits를 적용합니다). 한계는 도구
-    메시지 안의 문장으로만 알립니다. analyze_disk_pcaps는 몇
-    개 파일을 어느 파티션에서 어떤 확장자로 찾았고 몇 개를 헤더로 열어 봤는지, 다른 확장자 파일은
-    열지 않았다는 것을 적습니다. run_hashdeep은 파일 해시가 매체 해시가 아니라고 적습니다. run_clamav는
-    이미지 안에서 무엇을 검사했고 무엇을 검사하지 않았는지 적습니다(색인 텍스트에도).
-    get_windows_system_profile과 get_recycle_bin은 읽지 못한 것을 적습니다. 그리고 이 메시지가
-    analyst까지 갑니다. tool_response가 미리보기 밖에 두고, get_completed_results가 넘기고, executor
-    프롬프트가 보고서의 "message" 칸에 그대로 옮기며, tool·status·source만 받던 analyst가 그것도
-    받습니다. 이 통로는 mulder의 원래 도구들이 갖고 있던 메시지도 함께 전달합니다.
+    해석 한계가 있는 variant에 적용합니다(없는 variant는 대신 strip-limits를 적용합니다). 모든
+    variant가 이미 보내는 도구 메시지 끝에 한계 문장만 덧붙입니다. analyze_disk_pcaps는 몇 개 파일을
+    어느 파티션에서 어떤 확장자로 찾았고 몇 개를 헤더로 열어 봤는지, 다른 확장자 파일은 열지
+    않았다는 것, 결과가 없으면 캡처가 없다는 뜻은 아니라는 것을 적습니다. run_hashdeep은 파일 해시가
+    매체 해시가 아니라는 것과, 검증 실패가 해시 저장 여부를 말해 주지 않는다는 것을 적습니다.
+    run_clamav는 이미지 안에서 무엇을 검사했고 무엇을 하지 않았는지 적습니다(색인 텍스트에도).
+    get_windows_system_profile과 get_recycle_bin은 읽지 못한 것을 적습니다.
 
 strip-limits.patch:
   title: "Remove the interpretation limits mulder already had (bench only)"
@@ -114,7 +119,9 @@ strip-limits.patch:
     presence in carved output does not prove execution", "a single detection
     is not enough for high confidence"), the YARA caveat that rule names do
     not confirm malware, the malfind caveat on RWX memory, and the warning
-    text of a partial ClamAV or bulk_extractor run (the partial flag stays).
+    text of a partial ClamAV or bulk_extractor run (the partial flag stays),
+    and the sentence in detect_timestomping's message that no result does not
+    guarantee absence.
     Tool descriptions, error messages, the general rule that every claim
     must be supported by its source, and operational warnings are kept. The
     ClamAV tests that checked the warning text are adjusted.
@@ -123,6 +130,7 @@ strip-limits.patch:
     증명하지 않는지 말하는 문장("한 출처에 증거가 없다고 결론을 낼 수는 없다", "카빙 결과에 문자열이
     있다고 실행된 것은 아니다", "탐지 하나로는 높은 확신을 줄 수 없다")을 지우고, YARA의 "규칙 이름이
     악성코드를 확정하지 않는다" 주의 문구, malfind의 RWX 메모리 주의 문구, ClamAV와 bulk_extractor가
-    일부만 검사했을 때의 경고 문장(partial 표시는 남김)을 지웁니다. 도구 설명, 오류 메시지, "모든
+    일부만 검사했을 때의 경고 문장(partial 표시는 남김), detect_timestomping 메시지의 "결과가 없다고
+    없다는 것을 보장하지 않는다" 문장을 지웁니다. 도구 설명, 오류 메시지, "모든
     주장은 인용한 출처로 뒷받침해야 한다"는 일반 원칙, 운영상의 경고는 남깁니다. 경고 문장을 확인하던
     ClamAV 테스트는 맞게 고쳤습니다.

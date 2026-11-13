@@ -25,7 +25,7 @@ index e80c338..825facd 100644
    (SYSTEM\ControlSet001\Control\TimeZoneInformation), install date
    (SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallDate),
 diff --git a/src/mulder/orchestrator/roles.py b/src/mulder/orchestrator/roles.py
-index 694fefe..b8fbe51 100644
+index aedcaad..c270f39 100644
 --- a/src/mulder/orchestrator/roles.py
 +++ b/src/mulder/orchestrator/roles.py
 @@ -68,7 +68,7 @@ _DISK_IMAGE_SUFFIXES: tuple[str, ...] = (
@@ -68,10 +68,10 @@ index 3b80fc5..644b0d6 100644
      system_profile,
 diff --git a/src/mulder/server/tools/extract/recycle_bin.py b/src/mulder/server/tools/extract/recycle_bin.py
 new file mode 100644
-index 0000000..1f71ca6
+index 0000000..508afac
 --- /dev/null
 +++ b/src/mulder/server/tools/extract/recycle_bin.py
-@@ -0,0 +1,250 @@
+@@ -0,0 +1,265 @@
 +"""Windows Recycle Bin contents from its index files.
 +
 +A file sent to the Recycle Bin is moved, not deleted: Windows renames it
@@ -251,7 +251,10 @@ index 0000000..1f71ca6
 +            tc_id,
 +            "get_recycle_bin",
 +            params,
-+            {"items": []},
++            {
++                "items": [],
++                "message": "No RECYCLER, RECYCLED or $Recycle.Bin folder in the file listing.",
++            },
 +            source=None,
 +            elapsed_ms=(time.monotonic() - t0) * 1000,
 +        )
@@ -304,6 +307,7 @@ index 0000000..1f71ca6
 +            items.append(record)
 +
 +    in_bin = [i for i in items if not i["record_removed"] and not i["index_deleted"]]
++    emptied = [i for i in items if i["index_deleted"]]
 +    executables = sum(
 +        1 for i in in_bin if str(i["original_path"]).lower().endswith(_EXECUTABLE_SUFFIXES)
 +    )
@@ -313,6 +317,17 @@ index 0000000..1f71ca6
 +        "items": items,
 +        "items_in_bin": len(in_bin),
 +        "executable_items": executables,
++        "message": (
++            f"{len(in_bin)} items in the Recycle Bin, {executables} of them executable files, "
++            f"{sum(1 for i in in_bin if i['file_in_bin'] == 'present')} still stored in the bin"
++            + (
++                f"; {len(emptied)} more listed in deleted index files (bin emptied or "
++                "items purged)"
++                if emptied
++                else ""
++            )
++            + "; indexed as recycle_bin."
++        ),
 +    }
 +    return tool_response(
 +        tc_id,
