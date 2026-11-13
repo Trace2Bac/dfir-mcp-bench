@@ -1,46 +1,113 @@
-/* A git diff: one line per row, additions and removals on a soft fill. */
+/* A git diff, one block per file as on GitHub: a header with the path and
+   counts, then old and new line numbers beside each line. */
+.fileBlock {
+  margin-bottom: 1rem;
+  border: 1px solid var(--site-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.fileHead {
+  display: flex;
+  list-style: none;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 0.9rem;
+  cursor: pointer;
+  background: var(--site-subtle);
+  font-size: 0.85rem;
+  scroll-margin-top: 5rem;
+}
+
+.fileHead::-webkit-details-marker {
+  display: none;
+}
+
+/* A thin chevron drawn with two borders: down when open, right when folded. */
+.fileHead::before {
+  content: '';
+  flex: none;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin: 0 0.15rem 0.2rem 0.1rem;
+  border-right: 1.5px solid var(--bench-muted);
+  border-bottom: 1.5px solid var(--bench-muted);
+  transform: rotate(45deg);
+  transition: transform 0.15s;
+}
+
+.fileBlock:not([open]) .fileHead::before {
+  margin-bottom: 0;
+  transform: rotate(-45deg);
+}
+
+.fileHead code {
+  margin-right: auto;
+  padding: 0;
+  background: none;
+  font-weight: 600;
+}
+
+.fileBlock:not([open]) .fileHead {
+  border-bottom: none;
+}
+
+.fileBlock[open] .fileHead {
+  border-bottom: 1px solid var(--site-border);
+}
+
 .diff {
   font-family: var(--ifm-font-family-monospace);
   font-size: 0.78rem;
-  line-height: 1.45;
-  border-radius: 10px;
-  background: var(--site-subtle);
-  padding: 0.5rem 0;
+  line-height: 1.5;
   overflow-x: auto;
 }
 
-.line {
-  white-space: pre;
-  padding: 0 0.8rem;
-  min-height: 1.45em;
+table.lines {
+  display: table;
+  width: 100%;
+  margin: 0;
+  border-collapse: collapse;
 }
 
-.add {
+.lines tr,
+.lines tr:nth-child(2n) {
+  border: none;
+  background: none;
+}
+
+.lines td {
+  border: none;
+  padding: 0 0.6rem;
+  vertical-align: top;
+}
+
+.no {
+  width: 1%;
+  min-width: 3rem;
+  text-align: right;
+  color: var(--bench-muted);
+  user-select: none;
+  white-space: nowrap;
+}
+
+.code {
+  white-space: pre;
+}
+
+.add td {
   background: color-mix(in srgb, var(--bench-pass) 14%, transparent);
 }
 
-.del {
+.del td {
   background: color-mix(in srgb, var(--bench-fail) 14%, transparent);
 }
 
-.hunk {
+.hunk td {
   color: var(--bench-muted);
-}
-
-.file {
-  font-weight: 700;
-  margin-top: 0.6rem;
-  padding-top: 0.4rem;
-  border-top: 1px solid var(--ifm-color-emphasis-300);
-}
-
-.file:first-child {
-  margin-top: 0;
-  border-top: none;
-}
-
-.meta {
-  color: var(--bench-muted);
+  background: color-mix(in srgb, var(--ifm-color-primary) 8%, transparent);
+  padding-top: 0.15rem;
+  padding-bottom: 0.15rem;
 }
 
 .num {

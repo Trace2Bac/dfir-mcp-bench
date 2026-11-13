@@ -33,7 +33,7 @@ export default function Patches() {
                 <Translate id="patches.col.patch">Patch</Translate>
               </th>
               <th className={styles.colCase}>
-                <Translate id="patches.col.size">Lines</Translate>
+                <Translate id="patches.col.size">Size</Translate>
               </th>
               <th className={styles.colModel}>
                 <Translate id="patches.col.experiments">Experiments</Translate>
@@ -47,25 +47,14 @@ export default function Patches() {
                   <Link to={`/patches/${p.slug}`} className={styles.title}>
                     {p.title}
                   </Link>
-                  <div className={styles.muted}>
-                    <code>{p.name}</code> ·{' '}
-                    <Translate id="patches.files" values={{n: p.files.length}}>
-                      {'{n} files'}
-                    </Translate>
-                  </div>
-                  {p.variants.length > 0 && (
-                    <div className={styles.muted}>
-                      <Translate id="patches.variants">Variants:</Translate>{' '}
-                      {p.variants.map(v => (
-                        <code key={v} className={styles.variantName}>
-                          {v}
-                        </code>
-                      ))}
-                    </div>
-                  )}
                 </td>
                 <td className={styles.colCase}>
-                  +{p.added} −{p.removed}
+                  <Translate id="patches.files" values={{n: p.files.length}}>
+                    {'{n} files'}
+                  </Translate>
+                  <div className={styles.muted}>
+                    +{p.added} −{p.removed}
+                  </div>
                 </td>
                 <td className={styles.colModel}>
                   {p.experimentCodes.length ? (

@@ -20,31 +20,64 @@ function Section({title, children, note}: {title: string; children: ReactNode; n
   );
 }
 
-function Diff({diff}: {diff: string}) {
+type DiffFile = {path: string; lines: string[]};
+
+// Split a git diff into files; each keeps its hunks and drops the header lines.
+function splitDiff(diff: string): DiffFile[] {
+  const files: DiffFile[] = [];
+  for (const line of diff.replace(/\n$/, '').split('\n')) {
+    const m = line.match(/^diff --git a\/(.+?) b\//);
+    if (m) files.push({path: m[1], lines: []});
+    else if (!files.length) continue;
+    else if (/^(index |--- |\+\+\+ |new file|deleted file|similarity|rename )/.test(line)) continue;
+    else files[files.length - 1].lines.push(line);
+  }
+  return files;
+}
+
+// One file of the diff, as on GitHub: old and new line numbers, then the line.
+function DiffFileBlock({file, id, added, removed}: {file: DiffFile; id: string; added: number; removed: number}) {
+  let oldNo = 0;
+  let newNo = 0;
   return (
-    <div className={diffStyles.diff}>
-      {diff
-        .replace(/\n$/, '')
-        .split('\n')
-        .map((line, i) => {
-          const cls = line.startsWith('diff --git')
-            ? diffStyles.file
-            : line.startsWith('index ') || line.startsWith('+++') || line.startsWith('---') || line.startsWith('new file')
-              ? diffStyles.meta
-              : line.startsWith('@@')
-                ? diffStyles.hunk
-                : line.startsWith('+')
-                  ? diffStyles.add
-                  : line.startsWith('-')
-                    ? diffStyles.del
-                    : undefined;
-          return (
-            <div key={i} className={clsx(diffStyles.line, cls)}>
-              {line.startsWith('diff --git') ? line.replace(/^diff --git a\/(.+?) b\/.*$/, '$1') : line}
-            </div>
-          );
-        })}
-    </div>
+    <details open id={id} className={diffStyles.fileBlock}>
+      <summary className={diffStyles.fileHead}>
+        <code>{file.path}</code>
+        <span className={clsx(styles.pass, diffStyles.num)}>+{added}</span>
+        <span className={clsx(styles.fail, diffStyles.num)}>−{removed}</span>
+      </summary>
+      <div className={diffStyles.diff}>
+        <table className={diffStyles.lines}>
+          <tbody>
+            {file.lines.map((line, i) => {
+              const hunk = line.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)/);
+              if (hunk) {
+                oldNo = Number(hunk[1]);
+                newNo = Number(hunk[2]);
+                return (
+                  <tr key={i} className={diffStyles.hunk}>
+                    <td className={diffStyles.no} />
+                    <td className={diffStyles.no} />
+                    <td className={diffStyles.code}>{line}</td>
+                  </tr>
+                );
+              }
+              const add = line.startsWith('+');
+              const del = line.startsWith('-');
+              const o = add ? '' : oldNo++;
+              const n = del ? '' : newNo++;
+              return (
+                <tr key={i} className={add ? diffStyles.add : del ? diffStyles.del : undefined}>
+                  <td className={diffStyles.no}>{o}</td>
+                  <td className={diffStyles.no}>{n}</td>
+                  <td className={diffStyles.code}>{line}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </details>
   );
 }
 
@@ -134,10 +167,12 @@ export default function PatchPage({data}: {data: PatchData}) {
         <Section title={translate({id: 'patchPage.files', message: 'Files'})}>
           <table className={styles.table}>
             <tbody>
-              {data.files.map(f => (
+              {data.files.map((f, i) => (
                 <tr key={f.path}>
                   <td>
-                    <code>{f.path}</code>
+                    <a href={`#file-${i}`}>
+                      <code>{f.path}</code>
+                    </a>
                   </td>
                   <td className={clsx(styles.pass, diffStyles.num)}>+{f.added}</td>
                   <td className={clsx(styles.fail, diffStyles.num)}>−{f.removed}</td>
@@ -153,7 +188,15 @@ export default function PatchPage({data}: {data: PatchData}) {
             id: 'patchPage.diff.note',
             message: 'Against mulder at the commit the variant names, after the patches listed before this one.',
           })}>
-          <Diff diff={data.diff} />
+          {splitDiff(data.diff).map((file, i) => (
+            <DiffFileBlock
+              key={file.path}
+              file={file}
+              id={`file-${i}`}
+              added={data.files[i]?.added ?? 0}
+              removed={data.files[i]?.removed ?? 0}
+            />
+          ))}
         </Section>
       </main>
     </Layout>

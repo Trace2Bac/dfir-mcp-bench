@@ -13,7 +13,17 @@ const config: Config = {
   title: 'DFIR MCP Bench',
   tagline: 'Before/after evidence for DFIR MCP server changes',
   favicon: 'img/custom_logo.png',
-  future: {v4: true},
+  // CSS cascade layers off: the build polyfills them by adding :not(#\#)
+  // to Infima's selectors, which then outrank the site's own table styles.
+  future: {
+    v4: {
+      removeLegacyPostBuildHeadAttribute: true,
+      useCssCascadeLayers: false,
+      siteStorageNamespacing: true,
+      fasterByDefault: true,
+      mdx1CompatDisabledByDefault: true,
+    },
+  },
 
   url: 'https://trace2bac.github.io',
   // `npm start` serves at /, build and serve use the GitHub Pages path. BASE_URL overrides both.
