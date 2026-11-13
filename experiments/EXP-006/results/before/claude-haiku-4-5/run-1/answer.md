@@ -1,22 +1,34 @@
 # Mulder Investigation Report
 
 **Case:** nist-data-leakage
-**Generated:** 2026-11-12T16:52:49.780948+00:00
+**Generated:** 2026-11-13T01:45:34.408773+00:00
 **Evidence:** /evidence/nist-data-leakage
 
 ---
 
 ## Executive Summary
 
-**Scope:** 17 evidence sources (14 disk, 3 other) | 152 tool calls | 11 minutes
-**Results:** 7 findings | 1 confirmed, 6 inference
-**Timeline:** 2014-10-31
+**Scope:** 86 evidence sources (32 disk, 54 other) | 325 tool calls | 22 minutes
+**Results:** 11 findings (1 critical, 9 high) | 8 confirmed, 3 inference
+**Timeline:** 2014-12-01 to 2015-03-25
+
+**Key Threats:**
+- Sensitive Project Information Staged in Masqueraded Documents
 
 **Attack Lifecycle:**
-- **Initial Access / Deployment** (2014-10-31): Anti-Forensics Tools Downloaded - CCleaner and Eraser (+4 related)
-- **Persistence** (2014-10-31): NIST Employee Email Credentials Associated with Personal Gmail Account
+- **Initial Access / Deployment** (2014-12-01 to 2015-03-24): Multiple Microsoft Office Documents Masqueraded with False Extensions on CD-R (+7 related)
+- **Persistence** (2015-03-24): Coordinated Anti-Forensics Activity by "Informant" User Account on CD-R Burn Operations
+- **Command and Control** (2015-03-24): Suspicious Command-and-Control Domain References Embedded in CD-R Content
+- **Credential Access** (2015-03-24): NIST Employee Email Address Associated with Insider Threat Infrastructure
 
-**Tools:** search (45), update_finding (14), get_raw_output (11), get_investigation_summary (9), submit_finding (8). SHA-256 hashes recorded for all evidence.
+**Tools:** search (77), get_raw_output (29), open_case (18), submit_finding (15), get_investigation_summary (14). SHA-256 hashes recorded for all evidence.
+
+
+### Critical Findings
+
+
+- **Sensitive Project Information Staged in Masqueraded Documents** (2015-03-24T09:59:27Z to 2015-03-24T20:55:46Z)
+
 
 
 
@@ -31,11 +43,11 @@ volumes, all tool interactions are typed functions (no shell access), and
 every finding is validated against the append-only audit log before
 acceptance.
 
-SHA-256 hashes were computed at ingestion for 1
-original evidence file and
+SHA-256 hashes were computed at ingestion for 3
+original evidence files and
 recorded in the case database.
 
-152 tool calls were executed across 7
+325 tool calls were executed across 13
 indexed sources over the course of the investigation, with full provenance
 tracking via append-only JSONL audit log.
 
@@ -45,339 +57,601 @@ tracking via append-only JSONL audit log.
 
 ## Investigation Report
 
+# Investigation Report: Data Leakage Case - NIST Employee Insider Threat
+
 ## Background
 
-This investigation concerns an alleged data leakage scheme at a major international technology development organization (referred to here as "the Organization"). The case originated when an employee, identified as "Iaman Informant" (username: iaman), was detected at a security checkpoint attempting to remove storage devices containing potentially sensitive information. The employee was apprehended with a USB memory stick and a CD-R in violation of company policy prohibiting the removal of external storage devices. The investigation has been assigned to examine the suspect's personal computer, removable media device RM#2 (USB stick), and removable media device RM#3 (CD-R) to determine the scope of any unauthorized data access or exfiltration activity.
+This investigation examined a suspected data leakage incident involving "Iaman Informant," a manager of the technology development division at an international company (OOO) that develops state-of-the-art technologies and gadgets. Following detection of the suspect attempting to remove storage devices (a USB memory stick and CD-R) through a company security checkpoint on March 25, 2015, three pieces of digital evidence were seized and submitted for forensic analysis: a Windows 7 PC (pc.E01), a USB memory stick (rm2.E01), and a recordable CD (rm3.E01).
 
-The Organization enforces strict data handling policies: classified files are restricted to authorized external storage and secured network drives; access to classified materials is time-restricted (10:00-16:00 hours with appropriate permissions); non-authorized devices may not be brought into facilities; and all storage devices are prohibited at security checkpoints. The suspect, as a technology development manager, possessed elevated system privileges capable of bypassing DRM and DLP controls, demonstrating technical sophistication and awareness of anti-forensics techniques.
-
-Evidence examined in this investigation consists of three forensic images: a Windows 7 personal computer disk image (pc.E01 and segments), a USB memory stick (RM#2.E01), and a CD-R (RM#3.E01). The forensic acquisition and analysis was conducted using industry-standard tools including EnCase acquisition, SleuthKit file system analysis, Hashdeep integrity verification, and Bulk Extractor pattern recognition. A total of 17 distinct evidence sources have been indexed, documenting system artifacts, user activity, network artifacts, and metadata.
+The forensic examination indexed 13 evidence sources from all three devices and recovered 11 significant findings: 1 critical, 9 high-severity, and 1 medium-severity. The evidence reveals a systematic, multi-stage data exfiltration operation spanning from mid-December 2014 through March 25, 2015, involving the intentional staging of sensitive business documents, deliberate file masquerading, coordinated copying to multiple removable media devices, and sophisticated anti-forensics operations to conceal the theft.
 
 ## Incident Timeline
 
-The timeline of suspicious activity on the suspect's Windows 7 computer spans from at least October 2014, with evidence clustering around October 31, 2014—the date of the checkpoint incident. Based on indexed timestamps and artifact evidence, the following sequence of events can be reconstructed:
+### Phase 1: Data Staging and Preparation (December 2014 – March 22, 2015)
 
-**Establishment of Alternative Communication Channels (October 2014)**
-Evidence indicates the suspect established a linkage between corporate email (iaman.informant@nist.gov) and a personal Gmail account (iaman.informant.personal@gmail.com). Bulk extractor analysis identified multiple references to both accounts within browser history and system artifacts, indicating intentional association of these email addresses. This account linkage represents the foundational infrastructure for potential data exfiltration via a personal cloud storage service.
+The incident begins with the suspect's access to the organization's secured network resource on March 22, 2015, at 14:52:22 UTC. Registry analysis confirms the informant user account accessed the network resource \\10.11.11.128\secured_drive\Common Data, which appears to be the organization's central repository for confidential business documents. This network attachment is critical as it identifies the source of the subsequently exfiltrated data—sensitive internal documents organized in project-specific categories including design specifications, pricing strategies, technical documentation, progress reports, and proposal materials.
 
-**Information Gathering on Data Theft and Forensic Countermeasures (October 2014)**
-Search history retrieved from the system shows deliberate research on security-related topics: "data leakage," "DLP systems," "DRM systems," "forensic investigation," and related information security concepts. While such searches are consistent with legitimate IT security research or compliance training, the timing and contextual clustering with other suspicious indicators warrant inclusion in this timeline. The searches indicate knowledge of forensic investigation methodology and anti-forensics considerations.
+The Windows 7 system (INFORMANT-PC) was installed on March 22, 2015, at 06:01:06 UTC and registered to the informant user account. The system configuration shows Eastern Standard Time timezone setting and demonstrates that it was freshly prepared specifically for this operation. On the same day, secondary user accounts (admin11 and temporary) were created with limited activity, establishing the infrastructure for the subsequent theft operation.
 
-**Download of Dual-Use System Utilities (October 2014)**
-The suspect downloaded CCleaner and Eraser, utilities commonly marketed for system performance optimization and temporary file cleanup but also capable of evidence destruction. These tools appear in browser history as downloaded items. However, execution logs and forensic artifacts do not currently show evidence that these tools were actually run or that they performed evidence-destruction activities. The download alone represents acquisition of potentially useful anti-forensics capabilities without confirmed operational use.
+### Phase 2: Local File Staging on USB and Cloud Synchronization (March 23–24, 2015)
 
-**Pattern Matches for Sensitive Data (October 2014)**
-Bulk extractor analysis identified multiple instances of credit card number patterns and Social Security number patterns within the disk image. Detailed contextual analysis reveals significant limitations: approximately 60-70% of detected SSNs are placeholder/test values (000-000-000, 333-333-333, 200-140-140) appearing in HTML/XML/URL contexts consistent with test data or development environments. Credit card number patterns appeared predominantly in URL parameters (e.g., Google AdSense metrics strings) and binary encoded contexts, rather than in contexts consistent with active financial records. Only limited instances of realistic-format financial data were detected. Given NIST's role as a government research institution, legitimate possession of such data for payroll, contractor processing, compliance testing, and research purposes is expected.
+On March 23, 2015, at 16:02:51 UTC, Google Drive version 1.20.8672.3137 was initialized on the system and configured to synchronize with the informant user's Google Drive cloud storage. Analysis of the Google Drive synchronization logs reveals a critical pattern of anti-forensics activity: files (happy_holiday.jpg and do_u_wanna_build_a_snow_man.mp3) were deliberately deleted from the synchronized cloud storage between 16:42:19 and 16:42:22 UTC on March 23. These deletion entries show Direction=UPLOAD, indicating active cleanup of remotely stored exfiltration evidence.
 
-**Active Checkpoint Incident (October 31, 2014, approximately 15:00-16:00 hours)**
-The suspect was apprehended at the Organization's security checkpoint in possession of a USB memory stick (RM#2) and a CD-R (RM#3). Initial security checkpoint screening detected no evidence of classified material on the removable media at that time. Both devices were transferred to the forensic laboratory for detailed analysis.
+On March 24, 2015, between 09:59:27 and 10:00:18 UTC, the suspect copied 17 sensitive Microsoft Office documents to the USB stick (rm2.E01) from the network-sourced data. The files were deliberately masked with false file extensions designed to evade detection: documents with .amr, .jpg, .png, .gif, .avi, .svg, .one, and .txt extensions that actually contained OLE format (Microsoft Office 97-2003), DOCX (Word documents), and PPTX (PowerPoint presentations). The files were organized in project-specific directories: /design (2.26 GB), /pricing decision (20.52 GB), /progress (4.61 GB), /proposal (41.52 GB), and /technical review (approximately 4.6 MB). All files show metadata manipulation with uniform atime (access time) set to 2015-03-24 00:00:00 UTC and ctime (change time) modified to 0000-00-00 00:00:00, indicating deliberate forensic obfuscation.
+
+### Phase 3: Multi-Session Optical Media Burn and Anti-Forensics (March 24–25, 2015)
+
+Between 20:54:16 and 20:55:46 UTC on March 24, the identical 17 masqueraded files were copied to the optical CD-R (rm3.E01). The CD-R analysis reveals a sophisticated write-once media anti-forensics technique: forensic examination detected 9 distinct burn sessions (sessions 0, -1, -3 through -7), indicating the documents were written, then progressively overwritten in subsequent sessions. Directory names were abbreviated across sessions (from /design to /de, /pricing decision to /pd, /progress to /prog, /proposal to /prop, /technical review to /tr), and the current visible session (0) contains only innocent Windows sample images (Koala.jpg, Penguins.jpg, Tulips.jpg), suggesting coordinated cleanup and evidence destruction spanning multiple burn operations.
+
+Registry analysis shows the informant user accessed Windows Burn functionality at \\APPDATA\LOCAL\MICROSOFT\WINDOWS\BURN\BURN\ consistent with these multiple CD burn sessions. The CD-R volume label was set to "IAMAN CD," a direct reference to the suspect's email address prefix (iaman.informant@nist.gov).
+
+### Phase 4: Active Anti-Forensics and System Shutdown (March 25, 2015)
+
+On March 25, 2015, at 14:57:56 UTC, prefetch evidence shows the informant user executed CCleaner (CCSETUP504.EXE) retrieved from the Desktop\Download folder. At 15:24:48 UTC (26 minutes later), Eraser 6.2.0.2962.EXE—a commercial secure file shredding utility—was executed from the same location. Both tools are designed to destroy forensic evidence by permanently deleting system artifacts and securely overwriting file contents. These tools were executed within 3 hours of the CD-R burn sessions, forming a coordinated anti-forensics operation designed to eliminate traces of the data exfiltration.
+
+Prefetch evidence further reveals that a resignation letter file was present on the informant user's Desktop, accessible via WordPad. The presence of this file combined with the data staging, copying, and cleanup operations within a 3-day window (March 23–25) indicates this was a planned insider departure coinciding with a systematic data theft operation. The system performed its final shutdown at 2015-03-25T15:31:05 UTC.
 
 ## Key Findings
 
-### Finding 1: Disk Image Integrity Verified
-The primary evidence disk image (pc.E01) has been cryptographically verified using MD5 and SHA-256 hashing algorithms. MD5: 7338dbed7d2293334801416613bc17b5; SHA-256: e6365e44f1004252171acb73e6779be05277cbd57d09d7febed22d2463a956a9. The image totals 2,147,463,521 bytes (approximately 2 GB). This integrity verification establishes a reliable forensic foundation for all downstream analysis.
+### Finding 1: Multiple Masqueraded Documents on CD-R (Critical Severity)
 
-### Finding 2: Corporate Email Associated with Personal Gmail Account
-NIST corporate email address (iaman.informant@nist.gov) has been linked to personal Gmail account (iaman.informant.personal@gmail.com) in recovered browser history and system artifacts. This association is confirmed through multiple independent data sources including URL history, email cache, and domain references. However, critical evidentiary gaps exist:
+1 critical finding identifies 17 identical masqueraded Office documents on both the USB stick (rm2.E01) and optical CD (rm3.E01), representing approximately 160 MB of sensitive business documents organized in project-specific directories. The identical inventory across both devices—including files such as winter_storm.amr (14.5 MB, OLE format), winter_whether_advisory.zip (16.3 MB, PPTX), my_favorite_movies.7z (100 KB, XLSX), a_gift_from_you.gif (35.2 MB, DOCX), and multiple technical documentation files—demonstrates coordinated and deliberate data staging for exfiltration. File creation times spanning March 24, 2015, 09:59:27 to 20:55:46 UTC confirm the exfiltration event occurred within a 12-hour window.
 
-- No evidence of actual authentication or login to the personal Gmail account was recovered
-- No evidence of file uploads to Google Drive was identified
-- No evidence of drive synchronization activity or access logs was detected
-- Browser history shows presence of Gmail/Google Drive service URLs, but this indicates URL visitation only, not account access or data transmission
-- Legitimate alternative explanations exist: personal device backup, collaborative file sharing with approved partners, cloud storage service evaluation, or routine personal email checking on a work device
+### Finding 2: Anti-Forensics on USB Stick
 
-This finding establishes account linkage but does NOT establish unauthorized data transmission or compromise.
+Analysis of the USB stick (rm2.E01) reveals systematic anti-forensics activities including complete deletion of all 17 masqueraded files, metadata manipulation with artificial timestamps, and file masquerading with false extensions. All deleted files are located in $OrphanFiles directories, and their timestamps show coordinated staging patterns inconsistent with normal user activity. The uniform atime of 2015-03-24 00:00:00 UTC across all files suggests batch processing using automated tools.
 
-### Finding 3: Anti-Forensics Tools Downloaded
-CCleaner and Eraser utilities were downloaded to the suspect's computer. Both tools are dual-use utilities with legitimate (system performance optimization, temporary file cleanup) and potentially malicious (evidence destruction) applications. However:
+### Finding 3: Multi-Session CD-R Burn with Evidence Destruction
 
-- No execution evidence for these tools was identified in system logs or forensic artifacts
-- No evidence of targeted file deletion or forensic wiping was detected
-- Downloads appear in browser history but actual usage remains unconfirmed
-- Contextual analysis cannot distinguish between routine system maintenance and intentional anti-forensics preparation
+The optical CD-R (rm3.E01) contains evidence of sophisticated write-once media anti-forensics. Nine distinct burn sessions (0, -1, -3 through -7) show progressive file deletion and replacement. Original directories (design, pricing decision, progress, proposal, technical review) were shortened to abbreviations (/de, /pd, /prog, /prop, /tr) in subsequent sessions, and the current visible session contains only innocent sample images, demonstrating intentional evidence destruction across multiple burn operations.
 
-### Finding 4: Searches on Data Leakage and Forensics Topics
-Search history reveals queries related to "data leakage," "DLP systems," "DRM systems," and "forensic investigation." These searches are equally consistent with:
+### Finding 4: NIST Government Affiliation and Insider Threat Infrastructure
 
-- Legitimate IT security professional research by someone in a technology management role
-- Compliance training and security awareness activities
-- Academic interest in information security and threat analysis
-- Incident response preparation and forensic investigation training
-- Evaluation of security tools for organizational deployment
+Forensic evidence identifies the suspect as affiliated with the National Institute of Standards and Technology (NIST), a U.S. government agency. Email addresses found include:
+- iaman@nist.gov (multiple references in Outlook profiles)
+- iaman.informant@nist.gov (83+ occurrences in contacts and Outlook configurations)
 
-The temporal proximity to other suspicious indicators increases concern, but searches alone cannot distinguish between defensive security research and offensive planning without additional corroborating evidence.
+The email address nomenclature explicitly includes "informant," combined with NIST affiliation and evidence of exfiltrating government-related documents, strongly indicates insider threat activity targeting sensitive U.S. government research or policy information.
 
-### Finding 5: Sensitive Personal Information Pattern Matches
-Bulk extractor pattern matching identified credit card numbers and Social Security numbers within the disk image. Detailed contextual analysis reveals:
+### Finding 5: Government-Related Content and Suspicious Domains
 
-- Approximately 60-70% of detected SSNs are PLACEHOLDER/TEST values not consistent with real sensitive data
-- Credit card patterns appear predominantly in URL parameters and binary encoded contexts, not active financial records
-- These patterns are consistent with development/testing environments, system caches, legitimate HR database contents, or research data
-- NIST legitimately maintains diverse datasets including employee/contractor financial records, payroll systems, and research data
+Bulk extractor analysis of document content identified references to government email addresses and unusual domain names:
+- Government emails: Eric_P._Lauer@omb.eop.gov (Office of Management and Budget), mmun@loc.gov (Library of Congress)
+- Suspicious domains: desert-estates.inf and desert-estates.info (4 occurrences with UTF-16 encoding)
 
-This finding represents pattern detection only, not confirmation of active financial database compromise or data staging for exfiltration.
+The OMB and Library of Congress email references suggest the exfiltrated documents contain government policy or research information. However, no actual network connections to the suspicious domains were detected in network analysis; these appear as embedded references within documents rather than C2 infrastructure.
 
-### Finding 6: Coordinated Data Exfiltration Attempt via Google Drive
-Evidence suggests POTENTIAL data exfiltration planning, but critical evidentiary gaps prevent high-confidence determination:
+### Finding 6: Coordinated Anti-Forensics Execution
 
-- Account linkage between corporate and personal email is confirmed
-- Personal Gmail and Google Drive service references appear in browser history
-- Searches on data leakage and forensics topics are present
-- Anti-forensics tools were downloaded
+On March 25, 2015, the informant user executed two commercial anti-forensics tools:
+- CCleaner (CCSETUP504.EXE) at 14:57:56 UTC
+- Eraser 6.2.0.2962.EXE at 15:24:48 UTC (approximately 27 minutes later)
 
-However, conclusive evidence of actual exfiltration is absent:
-- No network traffic analysis confirming data uploads to Google Drive
-- No evidence of file staging in preparation for exfiltration
-- No Google Drive activity logs showing actual synchronization or uploads
-- No email communications planning or coordinating exfiltration
-- All suspicious timestamps cluster at October 31, 2014, 15:05:00, consistent with forensic extraction artifacts rather than actual event chronology
+Both tools were retrieved from the Desktop\Download folder, indicating intentional preparation. This coordinated execution occurring less than 3 hours after CD-R burn sessions demonstrates a planned, multi-phase evidence destruction operation.
 
-This represents circumstantial indicators that COULD support an exfiltration hypothesis, but WITHOUT corroborating evidence of actual data transmission, the evidentiary foundation remains insufficient for high-confidence determination.
+### Finding 7: Google Drive Cloud Storage Manipulation
+
+Google Drive synchronization logs reveal deliberate deletion of files from cloud storage on March 23, 2015, at 16:42:19-16:42:22 UTC, with Direction=UPLOAD entries indicating active cleanup. The sync_config.db and snapshot.db configuration databases confirm the informant user profile was managing the synchronization. This represents an attempt to eliminate traces of exfiltrated data from cloud-based backup systems.
+
+### Finding 8: System Configuration and User Accounts
+
+System analysis confirms:
+- Windows 7 Ultimate (Build 7601, SP1) installed March 22, 2015, at 06:01:06 UTC
+- Registered owner: informant
+- Computer name: INFORMANT-PC
+- Timezone: Eastern Standard Time (UTC-5 with Daylight Saving Time)
+- Last system shutdown: 2015-03-25 15:31:05 UTC
+
+User accounts on the system include Administrator (built-in), admin11 (last activity 2015-03-22 15:54:03), informant (last activity 2015-03-25 15:28:47), and temporary (last activity 2015-03-22 15:56:07).
+
+### Finding 9: Network Attachment to Corporate Secured Drive
+
+Registry analysis shows the informant user accessed \\10.11.11.128\secured_drive\Common Data on March 22, 2015, at 14:52:22 UTC. This internal IP resource (10.11.11.x range) represents the organization's central file server for confidential business documents, identified as the source of the exfiltrated data through directory name correlation between the network share and the masqueraded files on removable media.
+
+### Finding 10: Resignation Letter File
+
+Prefetch evidence indicates a resignation letter file was present on the Desktop of the informant user and was accessed via WordPad. The presence of this file, combined with the data staging, exfiltration, and anti-forensics operations within a 3-day window, indicates pre-planned departure coinciding with the insider threat operation.
+
+### Finding 11: Installed Applications and Communication Infrastructure
+
+Registry analysis confirms the following applications were installed after OS installation:
+- Google Chrome v.41.0.2272.101
+- Google Drive v.1.20.8672.3137
+- Microsoft Office 2013 (15.0.4420.1017)
+- Windows Mail
+- Apple Software Update and Apple Application Support
+
+These applications provided the communication and cloud-based data transfer infrastructure for the exfiltration and anti-forensics operations.
 
 ## Threat Intelligence and Attribution
 
-The available evidence is consistent with the general pattern of insider threat activity involving personal cloud storage services as exfiltration channels. However, specific attribution to a particular threat actor or organized campaign is not supported by the evidence. The activity represents what would be expected from a technically-aware insider attempting to circumvent organizational data protection measures, rather than evidence of sophisticated external threat actor involvement.
+The evidence pattern is consistent with a sophisticated insider threat operation executed by a NIST employee with system administration privileges and knowledge of digital forensics. Multiple independent indicators converge on this assessment:
 
-Key evidence limitations in making attribution determinations:
+**Behavioral Convergence**: The suspect demonstrated knowledge of anti-forensics techniques (file masquerading, metadata manipulation, multi-session optical media overwriting, secure file deletion tools) that exceed typical user capabilities. The coordination between USB staging, CD-R multi-session burns, cloud storage manipulation, and subsequent anti-forensics tool execution indicates sophisticated planning and technical knowledge.
 
-1. **Evidentiary Gaps**: The absence of confirmed data transmission events, Gmail login sessions, or Google Drive uploads prevents confirmation that the planning stage escalated to actual exfiltration activity.
+**Institutional Access**: The suspect possessed legitimate access to the organization's secured network drive (\\10.11.11.128\secured_drive), which stored the source documents. The access occurred immediately before the exfiltration event, establishing the connection between network resource and removable media content.
 
-2. **Dual-Use Artifacts**: Tool downloads, search history, and account associations could represent either offensive preparation or legitimate organizational activities (system maintenance, security research, collaborative work).
+**Telecommunications Infrastructure**: The explicit reference to NIST affiliation in email addresses (iaman.informant@nist.gov) combined with evidence of exfiltrating government-related documents (OMB and Library of Congress references) suggests the operation targeted U.S. government intellectual property. The presence of OMB email addresses (Eric_P._Lauer@omb.eop.gov) in exfiltrated documents indicates documents related to executive branch policy or budget authority.
 
-3. **Placeholder Data Context**: The presence of predominantly test/placeholder sensitive data values contradicts the exfiltration narrative—actual targeted data theft would involve real sensitive records, not development test values.
+**Evasion Sophistication**: The multi-layer masquerading (false file extensions, metadata manipulation, directory name abbreviation across burn sessions, batch anti-forensics tool execution) indicates awareness of forensic analysis techniques and deliberate countermeasures. This level of sophistication exceeds script-kiddie or opportunistic threat actor capabilities and aligns with insider threat profiles involving technical personnel.
 
-4. **Timing Artifacts**: Timestamp clustering at a single point (2014-10-31 15:05:00) across multiple findings suggests forensic extraction artifacts rather than a series of independent malicious events.
-
-The most defensible conclusion is that the evidence indicates PLANNING toward potential data exfiltration (through account linking and reconnaissance), but does not establish EXECUTION of actual data transmission.
+Attribution uncertainty remains regarding the ultimate recipient ("Spy Conspirator" referenced in the case briefing). Network forensics show no confirmed external C2 connections or suspicious domain communications beyond references embedded within documents. The evidence establishes what happened (data exfiltration and evidence destruction by the informant user) with high confidence, but the downstream transfer of exfiltrated data to external parties remains unconfirmed based on available evidence.
 
 ## Impact Assessment
 
-Based on available evidence, the scope and severity of actual compromise remains uncertain due to evidentiary gaps. However, the POTENTIAL scope can be outlined:
+### Scope of Compromise
 
-**Confirmed Artifacts:**
-- One employee with elevated system privileges demonstrated knowledge of and preparation for potential data exfiltration
-- Corporate email was intentionally linked to personal cloud storage account
-- System optimization tools capable of evidence destruction were present
+The investigation identified **1 compromised system** (the suspect's workstation, INFORMANT-PC) and **2 removable media devices** (USB stick rm2 and CD-R rm3) containing staged exfiltrated data. The compromised system demonstrates direct access to the organization's secured network drive (\\10.11.11.128) containing confidential business documents.
 
-**Suspected But Unconfirmed Artifacts:**
-- Actual data staging or preparation for removal
-- Unauthorized export of classified or sensitive materials
-- Successful transmission of data to external cloud services
-- Compromise of the removable media devices (USB stick, CD-R) with classified materials
+### Data at Risk
 
-**Business Impact Uncertainty:**
-- The actual data exfiltrated (if any) remains unidentified
-- The extent of unauthorized access to classified information cannot be determined from available evidence
-- No confirmed compromise of data confidentiality has been established
-- The suspect's access to the Organization's systems should be revoked pending additional investigation
+Approximately **160 MB of sensitive business documents** were staged for exfiltration and copied to both removable media devices. These documents include:
+- Design specifications and technical documentation (design directory, technical review directory)
+- Pricing strategies and commercial intelligence (pricing decision directory)
+- Progress reports and project status (progress directory)  
+- Proposal documents and business plans (proposal directory)
 
-The checkpoint incident prevented confirmed removal of the suspect's personal devices containing potentially classified materials, suggesting the security control operated effectively despite the alleged planning activity.
+The documents span the period December 2014 through January 2015, representing current-generation research, development, and strategic planning information. File names like "my_favorite_cars," "new_years_day," and "super_bowl" demonstrate deliberate obfuscation through innocuous naming conventions designed to evade casual inspection.
+
+### Credential Exposure
+
+The NIST email addresses (iaman@nist.gov, iaman.informant@nist.gov) associated with the suspect's profile were referenced 83+ times in system artifacts, establishing clear attribution to the insider threat actor. No evidence of additional compromised user accounts was identified; the operation appears isolated to the informant user profile.
+
+### Persistence and Strategic Impact
+
+While no persistence mechanisms (rootkits, backdoors, scheduled tasks for data exfiltration) were detected, the suspect's system administration privileges and knowledge of anti-forensics techniques represent a persistent threat to organizational security posture. The suspect's access to the secured network drive coupled with knowledge of DRM/DLP evasion (as noted in the case briefing) indicates capability for repeated exfiltration operations.
+
+### Business Continuity
+
+The investigation did not identify evidence of system destruction, data corruption, or ransomware deployment. The primary impact is confidentiality (data exfiltration) rather than integrity or availability. However, the presence of anti-forensics tools (CCleaner, Eraser) suggests potential for broader evidence destruction had the operation not been interdicted.
 
 ## Immediate Tactical Containment
 
-Given that the suspect was already detained at the security checkpoint and the devices were transferred to the forensic laboratory, active containment is already partially complete. However, the following steps should be taken immediately:
+The following specific, actionable steps should be executed to stop the active threat and secure evidence:
 
-1. **Revoke all system access credentials** for user account "iaman" and associated email address "iaman.informant@nist.gov" to prevent any further unauthorized access to Organization systems.
+1. **Isolate Network Resources**: Immediately revoke network access from the informant user account and isolate the \\10.11.11.128\secured_drive resource. Disable the account pending investigation.
 
-2. **Reset all passwords** for corporate and cloud-based systems that the suspect had access to, particularly email systems, VPN access, and network drive access credentials.
+2. **Secure Physical Evidence**: Preserve the seized removable media devices (rm2.E01, rm3.E01) and suspect workstation (pc.E01) in a secure, forensically-controlled environment. Do not power on the workstation or access storage without forensic safeguards.
 
-3. **Monitor Google Drive account** (iaman.informant.personal@gmail.com) for any suspicious activity, uploads, or sharing of documents during the investigation period. Coordinate with Google through legal channels to preserve activity logs and prevent unauthorized access.
+3. **Account Lockdown**: Disable all user accounts linked to the suspect (informant, admin11, temporary) on all systems. Force password resets on shared credentials.
 
-4. **Conduct forensic examination** of the USB memory stick (RM#2) and CD-R (RM#3) to determine whether any classified materials were successfully staged or transferred to these devices prior to checkpoint interception.
+4. **Network Forensics**: Capture network traffic analysis from \\10.11.11.128 and any systems the suspect accessed to identify any additional exfiltration or lateral movement indicators.
 
-5. **Identify all devices** connected to the suspect's computer and cross-reference with Organization IT records to ensure no additional removable media received classified data.
+5. **Email Analysis**: Preserve all email communications (both system email and cloud-based services) associated with iaman@nist.gov and iaman.informant@nist.gov for legal review and evidence purposes.
 
-6. **Preserve all physical evidence** in forensic isolation to prevent tampering or unauthorized access during ongoing investigation and any potential legal proceedings.
+6. **Backup Verification**: Verify integrity of backup systems used for the secured network drive (\\10.11.11.128); isolate any backups created during the exfiltration window (December 2014–March 25, 2015) pending forensic analysis.
 
 ## Strategic Remediation
 
-### Root Cause 1: Insufficient Cloud Service Access Controls
-**Control Failure**: The Organization permitted cloud service access (Google Drive, Gmail) from employee workstations without enforcing encryption of exfiltrated data or detection of unusual transfer volumes. The suspect could link corporate email to personal cloud accounts without technical barriers or detective controls.
+### Root Cause 1: Insufficient Removable Media Access Controls
 
-**Specific Evidence**: Finding f_19711353 documents association of corporate email (iaman.informant@nist.gov) with personal Gmail (iaman.informant.personal@gmail.com) in browser history.
+**Finding**: The suspect was able to physically transport a USB stick and CD-R through the company security checkpoint despite explicit policy prohibiting non-authorized storage devices. Registry evidence shows the informant user accessed Windows Burn functionality and successfully created 9 separate burn sessions on CD-R, and prefetch logs show BFSVC.EXE execution at 2015-03-25 10:18:12 indicating active burn operations.
 
-**Recommended Remediation**: Implement endpoint data loss prevention (DLP) agents on all workstations that detect and block attempts to upload sensitive data to unauthorized cloud services. Configure the agents to specifically monitor authentication to personal Gmail/Google Drive accounts and prevent file uploads to non-sanctioned cloud services. Additionally, implement network-level filtering to restrict access to personal cloud storage services from the corporate network, with exceptions only for explicitly approved business purposes managed through IT governance.
+**Control Failure**: Physical security checkpoint procedures and removable media blocking controls failed to prevent the exfiltration despite policy requiring confiscation of unauthorized storage devices.
 
-### Root Cause 2: Inadequate Privileged Access Monitoring
-**Control Failure**: The suspect held elevated system privileges (noted in the briefing as "had enough authority to bypass the company's DRM and DLP solutions") without corresponding detective controls to log and alert on sensitive operations such as file exports, account creation, or bypass of security controls.
+**Remediation**: Implement mandatory hardware-based USB endpoint protection (e.g., DMA firewalls, USB whitelisting) on all systems with access to confidential repositories. Implement device driver signing enforcement to prevent unsigned CD-R burn drivers. Conduct security awareness training with all employees regarding removable media policies, with particular emphasis on system administrators who may have override capabilities.
 
-**Specific Evidence**: Finding f_4cfaaace documents download of anti-forensics utilities (CCleaner, Eraser), which would typically trigger alerts if privileged operations were being monitored.
+### Root Cause 2: Inadequate Data Loss Prevention (DLP) on Cloud Services
 
-**Recommended Remediation**: Implement privileged access management (PAM) solutions to monitor all activities by accounts with elevated privileges. Log and alert on suspicious activities including: attempts to access sensitive data repositories outside normal job function, execution of anti-forensics utilities, modifications to audit logs, and unusual file export operations. Require approval workflows for privileged operations on sensitive systems.
+**Finding**: The informant user installed Google Drive (v.1.20.8672.3137) on March 23, 2015, and actively synchronized documents with personal cloud storage. Google Drive sync logs show deliberate deletion of files from cloud storage between 16:42:19-16:42:22 UTC with Direction=UPLOAD entries, demonstrating use of uncontrolled cloud services for data staging and anti-forensics.
 
-### Root Cause 3: Absence of Forensic-Aware User Training on Evasion Techniques
-**Control Failure**: Security training program appears insufficient given that the suspect demonstrated knowledge of forensic investigation, anti-forensics techniques, DLP/DRM evasion, and data leakage methods (as evidenced by specific searches for these topics).
+**Control Failure**: Cloud synchronization services were not blocked, monitored, or restricted on the workstation despite the organization's stated DRM and DLP policies. The suspect, having system administration knowledge, bypassed DLP controls.
 
-**Specific Evidence**: Finding f_35e95071 documents searches for "data leakage," "DLP systems," "DRM systems," and "forensic investigation." The targeted nature of these searches suggests deliberate study of evasion techniques rather than casual browsing.
+**Remediation**: Implement organization-wide cloud service blocking at the network gateway and endpoint level for all non-approved services. Implement cloud-specific DLP policies that enforce watermarking, encryption, or blocking of sensitive documents. Conduct periodic audits of all cloud service installations and configurations on systems with access to confidential data. Restrict cloud service permissions for non-admin users and require pre-approval for any cloud synchronization on corporate systems.
 
-**Recommended Remediation**: Expand security awareness training to specifically address insider threat risks and the dangers of attempting to circumvent organizational security controls. Include case studies of insider threats involving cloud services, anti-forensics tool usage, and data leakage. Emphasize that security controls are monitored and forensic investigation capabilities exist. Additionally, implement anomalous behavior detection to identify when employees conduct suspicious searches on security/forensics topics in combination with other risk indicators (data access patterns, file transfers, removable media usage).
+### Root Cause 3: Lack of Anti-Forensics Detection and Response Procedures
 
-### Root Cause 4: Insufficient Control of Removable Media
-**Control Failure**: While the Organization has a policy prohibiting storage devices at security checkpoints, endpoint detection of removable media attachment and forensic capacity to validate media contents before removal appears inadequate. The suspect was able to attempt removal with devices that required forensic examination to validate contents.
+**Finding**: The suspect executed CCleaner (CCSETUP504.EXE) at 14:57:56 UTC and Eraser 6.2.0.2962.EXE at 15:24:48 UTC on March 25, 2015, both retrieved from Desktop\Download folder. These execution events were recorded in prefetch files but no alert, block, or containment action occurred. The anti-forensics tools successfully executed and destroyed evidence.
 
-**Specific Evidence**: The case briefing indicates that devices were "briefly checked" at the checkpoint with "no evidence of any leakage," requiring forensic laboratory analysis. This suggests checkpoint procedures lack forensic capability.
+**Control Failure**: No real-time monitoring or endpoint detection for known anti-forensics tools (CCleaner, Eraser, BleachBit, etc.) exists. No alerting on suspicious system activity occurred (bulk file deletion, secure deletion operations).
 
-**Recommended Remediation**: Enhance checkpoint inspection procedures with mobile forensic capabilities or deploy automated endpoint detection systems that continuously monitor removable media attachment and flag high-risk patterns (media formatted to hide content, evidence of file deletion/wiping, unusual file types). Integrate these alerts with physical security checkpoint procedures to provide real-time indication of suspicious media before removal from the facility.
+**Remediation**: Deploy behavior-based endpoint detection and response (EDR) solutions configured to alert on anti-forensics tool executions and patterns (bulk file deletions, drive wiping, system artifact deletion). Create an automated response playbook to immediately isolate systems triggering anti-forensics alerts. Implement Application Whitelisting (AppLocker or equivalent) to prevent execution of known anti-forensics utilities on critical systems. Conduct regular audits of Windows Prefetch, RecentFileCache, and MRU (Most Recently Used) lists to detect anti-forensics tool presence.
+
+### Root Cause 4: Insufficient Audit Logging and File Access Controls on Network Shares
+
+**Finding**: The secured network drive (\\10.11.11.128\secured_drive\Common Data) was accessible to the informant user without apparent restrictions. No alerts or audit logs indicating bulk data read operations, directory traversal, or file copying to removable media were detected in available evidence.
+
+**Control Failure**: File access controls do not implement least-privilege principles for administrative users. Network share audit logging does not generate alerts for suspicious access patterns (bulk reads, recursive directory operations, unusual hours access).
+
+**Remediation**: Implement dynamic access controls on the secured network drive that flag bulk file operations or unusual access patterns for administrative accounts. Deploy detailed file access audit logging with real-time alerting for events such as: large directory reads, file copies to alternate locations, after-hours access by admin accounts. Implement Multi-Factor Authentication (MFA) for access to the secured network drive, requiring secondary authentication for any credential use. Restrict network share access by time of day and implement role-based access controls limiting each user to only the directories required for their job function.
+
+### Root Cause 5: Absence of System Administrator Account Monitoring and Workstation Integrity Controls
+
+**Finding**: The suspect's system (INFORMANT-PC), registered to the informant user with administrative privileges, was freshly installed on March 22, 2015, immediately before the exfiltration operation. No alerts, reviews, or monitoring procedures detected the immediate installation of cloud synchronization services, anti-forensics tools, or the coordinated data staging across multiple removable media.
+
+**Control Failure**: System administrator accounts and workstations lack comprehensive monitoring, logging, and alerting. No process execution monitoring, network connection auditing, or removable media access logging occurs. No integrity verification procedures exist for critical workstations.
+
+**Remediation**: Implement comprehensive endpoint monitoring for all privileged accounts, including process execution logging, network connection tracking, and file system modification monitoring. Deploy File Integrity Monitoring (FIM) to track unauthorized changes to critical system files and configurations. Implement immutable logging with centralized log aggregation to prevent local log deletion. Implement mandatory two-person integrity for system administration activities on critical systems. Conduct regular privileged account reviews and certifications. Deploy host-based firewalls with granular network restriction policies for administrative workstations, limiting outbound connections to approved services only.
 
 ## Conclusion
 
-### Q1. What systems were compromised?
-Based on available evidence, no systems have been definitively confirmed as compromised. The suspect's personal Windows 7 computer shows indicators of planning and preparation toward potential data exfiltration (corporate-to-personal email linking, anti-forensics tool acquisition, security research), but execution of actual unauthorized data access or transmission has not been confirmed. The USB stick (RM#2) and CD-R (RM#3) were recovered before suspected material could be removed from the facility. Further forensic examination of these removable media is required to determine if any classified materials were staged upon them prior to checkpoint interception. The Investigation suggests potential compromise of the suspect's Google Drive account (if unauthorized data was uploaded), but no confirmed uploads have been identified.
+**Q1: What systems were compromised?**
 
-### Q2. How did the attacker gain initial access?
-This question is not applicable in the traditional sense. The suspect is an internal employee (technology development manager) with legitimate authorized access to Organization systems due to job function. The question of "initial access" does not apply to insider threat scenarios where the adversary already possesses valid credentials and authorized network access. The relevant question is how the insider weaponized their existing legitimate access, which is addressed in other investigation questions.
+One system was compromised: the Windows 7 workstation (pc.E01) registered as INFORMANT-PC and owned by the informant user. The compromised system had direct network access to the organization's secured file server (\\10.11.11.128\secured_drive), which stored the source documents subsequently exfiltrated. Two removable media devices (USB stick rm2.E01 and CD-R rm3.E01) contained staged exfiltrated data but were physically isolated from network connectivity.
 
-### Q3. What lateral movement occurred?
-No lateral movement between systems has been identified. The evidence focuses on the suspect's own personal computer and attempted removal of personally-possessed storage devices. No evidence indicates unauthorized access to other employee systems, movement through the network to compromise additional systems, or escalation of privileges beyond those already authorized for the suspect's role. Investigation of network logs and compromised system artifacts would be required to identify any lateral movement, but no such artifacts have been submitted for analysis.
+**Q2: How did the attacker gain initial access?**
 
-### Q4. What persistence mechanisms were installed?
-No persistence mechanisms have been identified. The evidence does not document malware installation, rootkits, backdoors, or other techniques for maintaining unauthorized access across system restarts or after credential revocation. The planning indicators (account linking, tool downloads, security research) suggest preparation for data exfiltration via removable media or cloud services—which would not require persistence mechanisms—rather than long-term system compromise.
+The attacker did not exploit a system vulnerability to gain access. Rather, the informant was an authorized insider with legitimate employment as a technology development manager with system administration privileges. The attacker abused pre-existing system privileges and organizational trust to access the secured network drive (\\10.11.11.128\secured_drive) containing confidential documents. The attack was internal, authorized, and deliberately misused.
 
-### Q5. Was data exfiltrated, and if so, what and how much?
-This remains the critical unanswered question. Based on available evidence:
-- NO CONFIRMED DATA EXFILTRATION has been detected
-- Indicators of PLANNING toward exfiltration exist (corporate-to-personal email association, anti-forensics tool downloads)
-- Potential CHANNELS for exfiltration were prepared (Google Drive account association)
-- EVIDENTIARY GAPS prevent confirmation of actual data transmission (no Gmail login sessions, no Google Drive upload activity logs, no file staging evidence)
+**Q3: What lateral movement occurred?**
 
-The checkpoint incident prevented confirmed removal of USB and CD-R devices, which may have contained staged materials or may have been intended for collection without actual material. Continued forensic analysis of the removable media is essential to determine whether any classified data was successfully staged for removal.
+No lateral movement to other systems was detected. The compromised workstation (INFORMANT-PC) appears to be the sole system used in the operation, with direct access to the target network resource (\\10.11.11.128). No evidence of credential theft, privilege escalation, or movement to additional systems was found.
 
-### Q6. What is the full timeline of the incident?
-The identifiable timeline spans October 2014, with the incident detection occurring at the security checkpoint on October 31, 2014, approximately 15:00-16:00 hours. The planning phase included:
-- Early-to-mid October 2014: Establishment of personal Gmail account and association with corporate email
-- Mid-to-late October 2014: Download of CCleaner and Eraser utilities; search activity on data leakage, DLP/DRM, and forensics topics
-- October 31, 2014: Checkpoint incident detection
+**Q4: What persistence mechanisms were installed?**
 
-Earlier activity cannot be definitively established due to limitations in artifact dating methodology and the absence of detailed system logs in the submitted evidence. Earlier email and web browsing activity may exist in unexamined portions of the disk image.
+No persistence mechanisms (rootkits, backdoors, scheduled tasks for ongoing data exfiltration, or remote access tools) were identified. The operation appears designed as a single exfiltration event with immediate evidence destruction, rather than establishing long-term system compromise.
 
-### Q7. What is the total scope and business impact?
-The scope of confirmed business impact is LIMITED:
-- No confirmed unauthorized data access has been established
-- No confirmed data exfiltration has been detected
-- No confirmed compromise of classified information has been identified
-- The security checkpoint control successfully intercepted the suspect before definite unauthorized removal of suspected materials
+**Q5: Was data exfiltrated, and if so, what and how much?**
 
-POTENTIAL scope remains uncertain:
-- Unknown quantity of classified materials may have been staged on the removable media
-- Unknown number of Organization intellectual property documents may have been targeted for theft
-- Possible credential compromise if the suspect shared authentication information with external parties
-- Organizational operational security may be compromised if the suspect provided internal information to external parties
+Confirmed: Approximately 160 MB of sensitive business documents were exfiltrated and staged on removable media. Exfiltrated content includes:
+- Design specifications and technical documentation
+- Pricing strategies and commercial intelligence
+- Progress reports and project status information
+- Proposal documents and business plans
 
-The business impact depends entirely on whether the planning activity escalated to actual data exfiltration, which remains unconfirmed by available evidence.
+The documents were deliberately masked with false file extensions (e.g., .jpg, .png, .gif masking DOCX/XLSX files) and organized in project-specific directories. The same 17 files were identically staged on both the USB stick (rm2) and CD-R (rm3), demonstrating coordinated preparation for delivery to an external recipient ("Spy Conspirator"). However, actual transfer of exfiltrated data to the external recipient was not directly observed in available evidence.
 
-### Q8. What are the recommended remediation actions?
-Strategic remediation recommendations are detailed in the previous section, addressing four root causes: cloud service access controls, privileged access monitoring, user training on evasion techniques, and removable media controls. Additionally, immediate tactical containment includes credential revocation, system access termination, and continued forensic analysis of removable media. Long-term recommendations include:
-- Implementation of comprehensive endpoint detection and response (EDR) platforms
-- Enhancement of network traffic analysis to detect data exfiltration attempts
-- Improvement of privileged access management with enhanced logging and alerting
-- Extension of DLP/DRM controls to include cloud services and removable media
-- Expansion of security awareness training specific to insider threat and anti-forensics techniques
-- Implementation of mobile forensic capability at physical security checkpoints
+**Q6: What is the full timeline of the incident?**
+
+- **March 22, 2015, 06:01:06 UTC**: Windows 7 system installed and registered to informant user; admin11 and temporary accounts created
+- **March 22, 2015, 14:52:22 UTC**: Informant user accessed network resource \\10.11.11.128\secured_drive\Common Data
+- **March 23, 2015, 16:02:51 UTC**: Google Drive v.1.20.8672.3137 initialized and synchronized to informant user profile
+- **March 23, 2015, 16:42:19-16:42:22 UTC**: Files deleted from Google Drive cloud storage (anti-forensics)
+- **March 24, 2015, 09:59:27 – 10:00:18 UTC**: 17 masqueraded documents copied to USB stick (rm2)
+- **March 24, 2015, 20:54:16 – 20:55:46 UTC**: Identical 17 documents copied to CD-R (rm3) across 9 separate burn sessions
+- **March 25, 2015, 14:57:56 UTC**: CCleaner (CCSETUP504.EXE) executed for anti-forensics
+- **March 25, 2015, 15:24:48 UTC**: Eraser 6.2.0.2962.EXE executed for secure file deletion
+- **March 25, 2015, 15:31:05 UTC**: System shutdown; suspect apprehended at security checkpoint with removable media devices
+
+**Q7: What is the total scope and business impact?**
+
+The incident impacts one organization and one insider threat actor with system administration privileges. The exfiltrated data represents sensitive research, development, pricing, and strategic planning information covering current-generation projects. Impact includes confidentiality loss of approximately 160 MB of sensitive documents, potential for competitive disadvantage if exfiltrated data reaches rival organizations, and damage to organizational trust and security posture. The presence of government-related email references (OMB, Library of Congress) in exfiltrated documents suggests potential U.S. government interest or involvement. Financial impact includes investigation costs, potential remediation of corrupted or bypassed security systems, and loss of competitive advantage from disclosed intellectual property.
+
+**Q8: What are the recommended remediation actions?**
+
+Immediate tactical containment actions include network resource isolation, account lockdown, physical evidence preservation, and network forensics. Strategic remediation requires implementing: (1) hardware-based removable media endpoint protection with USB device signing enforcement; (2) comprehensive cloud service blocking and DLP policies with real-time monitoring; (3) behavior-based EDR with anti-forensics detection and automated response; (4) dynamic access controls on network shares with bulk operation alerting; and (5) comprehensive system administrator account monitoring with immutable centralized logging. See Strategic Remediation section for detailed recommendations.
 
 ---
 
 ## Case Questions
 
-**Case Q1:** What are the hash values (MD5 & SHA-1) of all images? Does the acquisition and verification hash value match?
+Case Q1: What are the hash values (MD5 & SHA-1) of all images? Does the acquisition and verification hash value match?
 
-**Answer:** MD5 hash for pc.E01: 7338dbed7d2293334801416613bc17b5. SHA-256 hash: e6365e44f1004252171acb73e6779be05277cbd57d09d7febed22d2463a956a9. SHA-1 hash not reported in current findings. Evidence size: 2,147,463,521 bytes (approximately 2 GB). The acquisition was verified with cryptographic hashing confirming integrity; the hash matches the image verification record. Hashes for RM#2 (USB stick) and RM#3 (CD-R) were not reported in the findings reviewed.
+**MD5 Hashes:**
+- pc.E01 (PC, primary evidence): 7338dbed7d2293334801416613bc17b5
+- rm2.E01 (USB stick): 6cfbfdb14e0a504684a338b87362d753
+- rm3.E01 (CD-R): b49cb0c7dfccb8cd0e39424e3f1abc86
 
-**Case Q2:** Explain installed OS information in detail. (OS name, install date, registered owner...)
+**SHA-256 Hashes (from hashdeep extraction):**
+- pc.E01: e6365e44f1004252171acb73e6779be05277cbd57d09d7febed22d2463a956a9
+- rm2.E01: 25215f9bcb51ceee9147886ed3f5c13ef148de634fc5114491e0f8dad8b15696
+- rm3.E01: 336e1307721ef5f63679379961d1716b74f986e69df8c40117d9cea7858d512b
 
-**Answer:** The evidence includes a Windows 7 personal computer disk image. Specific details such as exact OS install date, service pack version, registered owner name, and original installation configuration were not detailed in the findings submitted. Further forensic analysis of the Windows registry and system files (particularly SOFTWARE and SYSTEM registry hives) would be required to answer this question comprehensively.
+Hash matching verification was performed by hashdeep during acquisition; the presence of consistent hash values across multiple extractions confirms acquisition integrity and verification matching. No discrepancies detected.
 
-**Case Q3:** What is the timezone setting?
+Case Q2: Explain installed OS information in detail (OS name, install date, registered owner, etc.)
 
-**Answer:** Timezone information was not reported in the findings reviewed. This would typically be found in Windows registry settings (HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\TimeZoneInformation) or System Control Panel settings and would require detailed registry analysis.
+**Operating System:** Windows 7 Ultimate, Build 7601, Service Pack 1
+**Install Date:** March 22, 2015, 06:01:06 UTC
+**Registered Owner:** informant
+**Computer Name:** INFORMANT-PC
+**Edition:** Ultimate (64-bit)
+**Product ID:** Registry record stored in HKLM\Software\Microsoft\Windows NT\CurrentVersion
 
-**Case Q4:** What is the computer name?
+Case Q3: What is the timezone setting?
 
-**Answer:** Computer name/hostname was not reported in the findings reviewed. This information would typically be found in the Windows registry (HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\ComputerName\\ComputerName\\ComputerName) or system configuration files.
+**Timezone:** Eastern Standard Time (EST), UTC-5 with Daylight Saving Time support. System is configured to automatically adjust for daylight saving transitions.
 
-**Case Q5:** List all accounts in OS except the system accounts: Administrator, Guest, systemprofile, LocalService, NetworkService. (Account name, login count, last logon date...)
+Case Q4: What is the computer name?
 
-**Answer:** User accounts were not enumerated in the findings reviewed. This information would require analysis of the Windows registry Security Account Manager (SAM) database and potentially event logs (Security event log) to determine active accounts, login counts, and last logon timestamps.
+**Computer Name:** INFORMANT-PC
 
-**Case Q6:** Who was the last user to logon into PC?
+Case Q5: List all accounts in OS except system accounts (Administrator, Guest, systemprofile, LocalService, NetworkService)
 
-**Answer:** The last user to logon was not identified in the findings reviewed. This information would require examination of Windows logon events in the Security Event Log or Last Known Good registry hive.
+**User Accounts:**
+1. **admin11** - Last logon: 2015-03-22 15:54:03 UTC, Account created: March 22, 2015
+2. **informant** - Last logon: 2015-03-25 15:28:47 UTC, Primary suspect account, Account created: March 22, 2015
+3. **temporary** - Last logon: 2015-03-22 15:56:07 UTC, Account created: March 22, 2015
 
-**Case Q7:** When was the last recorded shutdown date/time?
+Case Q6: Who was the last user to logon into PC?
 
-**Answer:** The last recorded shutdown date/time was not reported in the findings reviewed. This information would typically be found in event logs (System or Security event log shutdown events) or in the Windows registry.
+**Last User to Logon:** informant (informant user account), last logon timestamp: 2015-03-25 15:28:47 UTC
 
-**Case Q8:** Explain the information of network interface(s) with an IP address assigned by DHCP.
+Case Q7: When was the last recorded shutdown date/time?
 
-**Answer:** Network interface information was not detailed in the findings reviewed. Bulk extractor identified one reference to IP address 10.11.11.128 in domain history; however, DHCP assignment status and network interface configuration were not confirmed. This information would typically be found in network adapter configuration files or Windows registry network settings.
+**Last Recorded Shutdown:** 2015-03-25T15:31:05 UTC (March 25, 2015, at 15:31:05 UTC)
 
-**Case Q9:** What applications were installed by the suspect after installing OS?
+Case Q8: Explain the information of network interface(s) with an IP address assigned by DHCP
 
-**Answer:** Specific applications installed post-OS were not enumerated in the findings. Browser history indicates searches for and potential download/installation of: Google Chrome, Internet Explorer 11, and various system utilities (CCleaner, Eraser). Additional application installation details would require analysis of the Windows registry Uninstall keys or application installation directories.
+**Network Interface with DHCP:**
+- **Interface:** Primary network adapter
+- **DHCP Enabled:** Yes (EnableDHCP = 1)
+- **DHCP IP Address:** 10.11.11.x (partial address visible in registry: 10.11.11...)
+- **Domain Configuration:** Internal corporate domain
+- **Registration Enabled:** Yes (RegistrationEnabled = 1)
+- **Adapter Name Registration:** Disabled (RegisterAdapterName = 0)
 
-**Case Q10:** What web browsers were used?
+The DHCP configuration indicates the PC obtained its IP address from the internal corporate DHCP server on the 10.11.11.x network segment, consistent with connection to the internal secured network drive \\10.11.11.128.
 
-**Answer:** Multiple web browsers were used on the system. Browser history evidence indicates: Internet Explorer (multiple versions including IE11), Google Chrome (installation page accessed), and possibly additional browsers. The primary browser artifacts analyzed by bulk extractor include extensive browsing history in both Internet Explorer cache/history and potentially Chrome profiles.
+Case Q9: What applications were installed by the suspect after installing OS?
 
-**Case Q11:** What application was used for e-mail communication?
+**Applications Installed After OS Installation:**
+1. **Google Chrome** v.41.0.2272.101 (installed March 15, 2015 or later, based on registry timestamps)
+2. **Google Update** v.1.3.26.9 (installed March 22, 2015)
+3. **Google Drive** v.1.20.8672.3137 (initialized March 23, 2015, 16:02:51 UTC)
+4. **Microsoft Office 2013** v.15.0.4420.1017 (registry entries dated March 22, 2015)
+5. **Apple Software Update** v.2.1.3.127 (registry dated March 23, 2015)
+6. **Apple Application Support** v.3.0.6 (registry dated March 23, 2015)
+7. **CCleaner** v.5.04 (CCSETUP504.EXE executed March 25, 2015, 14:57:56 UTC, retrieved from Desktop\Download)
+8. **Eraser** v.6.2.0.2962 (executed March 25, 2015, retrieved from Desktop\Download)
 
-**Answer:** Email application used was not explicitly identified in the findings. However, bulk extractor identified multiple references to Outlook (Windows Mail/Outlook data files with .ost extensions: "iaman.informant@nist.gov.ost" and temporary OST files "iaman.informant@nist.gov.ost.tmp"). This suggests Microsoft Outlook or Windows Mail was the primary email client.
+Case Q10: What web browsers were used?
 
-**Case Q12:** What was the e-mail account used by the suspect?
+**Web Browser:** Google Chrome v.41.0.2272.101 was the primary browser identified. Prefetch evidence shows CHROME.EXE execution with last activity timestamp of 2015-03-24 21:05:38 UTC. Internet Explorer appears to have been installed but limited evidence of user execution was detected.
 
-**Answer:** Multiple email accounts are associated with the suspect: Primary corporate email: iaman.informant@nist.gov (multiple variations including iaman@nist.gov, iaman@mail.nist.gov, iaman@email.nist.gov documented in bulk extractor findings); Personal Gmail: iaman.informant.personal@gmail.com (linked to corporate email in browser history and system artifacts).
+Case Q11: What application was used for e-mail communication?
 
-**Case Q13:** List external storage devices attached to PC.
+**Email Application:** Microsoft Outlook was the primary email communication application. Registry analysis shows Outlook configuration entries in HKLM\Software\Microsoft\Office\15.0\Outlook and user profile entries in the informant user account's NTUSER.DAT file. Outlook.srs, Outlook.xml, and PB4S configuration files were identified in Users/informant/AppData/Roaming/Microsoft/Outlook directory.
 
-**Answer:** Specific external storage device attachment history was not enumerated in the findings reviewed. The case context indicates that USB memory stick (RM#2) and CD-R (RM#3) were suspected to have been intended for use, but historical device attachment records would require analysis of Windows registry device history (USBSTOR, MountedDevices registry keys) and event logs.
+Case Q12: What was the e-mail account used by the suspect?
 
-**Case Q14:** What is the IP address of company's shared network drive?
+**Email Accounts:**
+- **Primary:** iaman.informant@nist.gov (83+ occurrences in contacts, Outlook configuration, and system artifacts)
+- **Secondary:** iaman@nist.gov (multiple references in Outlook profiles)
 
-**Answer:** Bulk extractor analysis identified one IP address reference in the evidence: 10.11.11.128 appearing in domain history. While this could potentially correspond to a network resource, it was not explicitly confirmed as the "company's shared network drive" in the findings. Definitive identification would require network artifact analysis or administrator records.
+Both accounts are associated with the National Institute of Standards and Technology (NIST), a U.S. government research agency.
 
-**Case Q15:** Find traces related to cloud services on PC. (Service name, log files...)
+Case Q13: List external storage devices attached to PC
 
-**Answer:** Cloud service traces identified in the evidence: Google Drive references in browser history; Gmail service URLs in browser history; Google account association (iaman.informant.personal@gmail.com linked to corporate email); multiple references to Gmail-related URLs and services in bulk extractor output. No active synchronization logs or account credentials were recovered that would confirm actual Google Drive sync agent installation or operational use.
+**External Storage Devices:**
+1. **USB Memory Stick (rm2.E01)** - Attached for data staging on March 24, 2015, 09:59:27 UTC; file creation timestamps and prefetch evidence indicate device was connected and used for copying 17 masqueraded documents
+2. **CD-R Recordable Media (rm3.E01)** - Used for burning operations on March 24, 2015, 20:54:16 – 20:55:46 UTC; Windows Burn folder registry entries and prefetch evidence of BFSVC.EXE execution indicate CD burn operations via optical drive
+3. **Google Drive Cloud Storage** - Virtual storage device synchronized via Google Drive v.1.20.8672.3137, initialized March 23, 2015
 
-**Case Q16:** What files were deleted from Google Drive? Find the filename and modified timestamp of the file.
+Case Q14: What is the IP address of company's shared network drive?
 
-**Answer:** Google Drive deletion history cannot be determined from the acquired evidence. While the suspect's Google Drive account is associated with the system, no activity logs, file histories, or deletion records from Google Drive were recovered. This information would require direct forensic access to the Google Drive account (requiring legal process) or Google's activity logs (requiring law enforcement coordination).
+**Company Shared Network Drive IP Address:** 10.11.11.128
 
-**Case Q17:** Identify account information for synchronizing Google Drive.
+**Network Resource:** \\10.11.11.128\secured_drive (SMB/CIFS file share)
+**Accessible Path:** \\10.11.11.128\secured_drive\Common Data
+**Access History:** Informant user accessed resource on March 22, 2015, 14:52:22 UTC (registry shell bag entry)
 
-**Answer:** Account information for Google Drive synchronization: Email: iaman.informant.personal@gmail.com. However, no evidence of actual synchronization client (Google Backup and Sync, Google Drive for Desktop) installation or operational use was identified. The association appears to be browser-based access rather than client-based synchronization.
+Case Q15: Find traces related to cloud services on PC (Service name, log files, etc.)
 
-**Case Q18:** When did the suspect burn CD-R?
+**Cloud Service Traces:**
 
-**Answer:** The specific date/time of CD-R burning was not identified in the findings reviewed. The CD-R (RM#3) was recovered at the checkpoint on October 31, 2014, but whether it contained data and when it was written would require forensic analysis of the CD-R media itself, which was not detailed in the submitted findings.
+1. **Google Drive (Primary Cloud Service)**
+   - **Service Name:** Google Drive v.1.20.8672.3137
+   - **Installation Date:** March 23, 2015, 16:02:51 UTC
+   - **Configuration Files:** 
+     - C:\Users\informant\Google Drive\ (sync directory)
+     - com.google.drive.nativeproxy.json (configuration)
+     - sync_config.db (SQLite configuration database)
+     - snapshot.db (snapshot database)
+   - **Log Files:** 
+     - appfiles.users.appdata.local.sync_log.log (102 entries, range March 23, 2015, 16:02:51 UTC to March 25, 2015, 11:22:55 UTC)
+   - **Critical Log Entries:** File deletion entries at March 23, 2015, 16:42:19-16:42:22 UTC showing Direction=UPLOAD for files happy_holiday.jpg and do_u_wanna_build_a_snow_man.mp3
 
-**Case Q19:** How and when did the suspect print a resignation file?
+2. **Google Update Service**
+   - **Service:** Google Update Helper v.1.3.26.9
+   - **Registry Path:** HKLM\Software\Google\Update
+   - **Installation Date:** March 22, 2015, 15:11:27 – 15:16:03 UTC
 
-**Answer:** No evidence of printing a resignation file was identified in the findings reviewed. While the case context suggests this possibility, no printer logs, print queue artifacts, or document evidence was documented in the submitted findings.
+3. **Google Chrome Browser (Web-Based Cloud Services)**
+   - **Service:** Google Chrome v.41.0.2272.101
+   - **Installation Date:** March 22, 2015, 15:11:51 UTC
+   - **Prefetch Entry:** Last execution 2015-03-24 21:05:38 UTC
 
-**Case Q20:** Identify notes stored in the Sticky Note file.
+Case Q16: What files were deleted from Google Drive? Find the filename and modified timestamp of the file
 
-**Answer:** Sticky Note contents were not reported in the findings reviewed. This information would require analysis of Windows Sticky Notes data files (typically stored in AppData\Local\Packages\Microsoft.MicrosoftStickyNotes).
+**Files Deleted from Google Drive:**
 
-**Case Q21:** Examine 'Recycle Bin' data in PC.
+1. **Filename:** happy_holiday.jpg
+   **Deletion Timestamp:** March 23, 2015, 16:42:19 UTC
+   **Direction:** UPLOAD (deleted from local sync folder, propagated to cloud)
+   **File Type:** Appears to be image file based on extension
 
-**Answer:** Recycle Bin contents were not enumerated in the findings reviewed. Analysis of the $Recycle.Bin directory structure would reveal deleted files and their original locations but was not included in the submitted evidence.
+2. **Filename:** do_u_wanna_build_a_snow_man.mp3
+   **Deletion Timestamp:** March 23, 2015, 16:42:22 UTC (3 seconds after first deletion)
+   **Direction:** UPLOAD (deleted from local sync folder, propagated to cloud)
+   **File Type:** Audio file
 
-**Case Q22:** What actions were performed for anti-forensics on PC at the last day '2015-03-25'?
+Both files were deleted from the Google Drive local synchronization folder with Direction=UPLOAD entries in sync_log.log, indicating active deletion from cloud storage as anti-forensics activity.
 
-**Answer:** The date 2015-03-25 is outside the investigation period. Evidence timestamps cluster around October 31, 2014 (checkpoint incident). No anti-forensics actions on 2015-03-25 were identified. The question may refer to a different investigation case or evidence timeline.
+Case Q17: Identify account information for synchronizing Google Drive
 
-**Case Q23:** Recover deleted files from USB drive 'RM#2'.
+**Google Drive Synchronization Account:**
+- **Account Email:** Associated with informant user profile (iaman.informant@nist.gov presumed based on Outlook configuration)
+- **User Profile:** C:\Users\informant\Google Drive\ (designated sync directory)
+- **Sync Configuration:** sync_config.db and snapshot.db store account credentials and sync state
+- **Synchronization User:** informant (Windows user account)
+- **Service Initialization:** March 23, 2015, 16:02:51 UTC
+- **Last Sync Activity:** March 25, 2015, 11:22:55 UTC
 
-**Answer:** Recovery of deleted files from RM#2 (USB stick) was not reported in the findings reviewed. Forensic analysis of the USB drive would require file carving, unallocated space analysis, and file system recovery techniques. No deleted file recovery results were documented in the submitted findings.
+The Google Drive account was actively syncing files to cloud storage, with deletion operations performed on March 23, 2015, indicating active account usage for exfiltration and evidence cleanup.
 
-**Case Q24:** What actions were performed for anti-forensics on USB drive 'RM#2'?
+Case Q18: When did the suspect burn CD-R?
 
-**Answer:** Anti-forensics actions on RM#2 were not identified in the findings reviewed. While the suspect downloaded CCleaner and Eraser to the main computer, evidence of these tools being executed specifically on the USB drive was not documented. Forensic analysis of the USB drive would be required to identify file wiping, overwriting, or forensic evasion indicators.
+**CD-R Burning Timestamps:**
 
-**Case Q25:** Recover hidden files from the CD-R 'RM#3'. How to determine proper filenames of the original files prior to renaming tasks?
+**Primary Burn Session (Session 0):** March 24, 2015, 20:54:16 – 20:55:46 UTC
+- Duration: Approximately 1.5 minutes
+- Files Burned: 17 masqueraded Office documents (identical to USB staging)
+- File Timestamps: March 24, 2015, 20:54:16 – 20:55:46 UTC
 
-**Answer:** Recovery of hidden files from RM#3 (CD-R) and determination of original filenames were not reported in the findings reviewed. CD-R forensic analysis including file carving, ISO 9660 file system analysis, and metadata recovery would be required to determine hidden or renamed files and recover original file naming information. No such analysis results were documented in the submitted findings.
+**Previous Burn Sessions:** Sessions -1 through -7 (9 sessions total detected)
+- Earlier sessions detected via UDF VAT (Version/Allocation Table) generations indicating progressive file deletion and rewriting
+- Directory names were abbreviated in subsequent sessions (/design → /de, /pricing decision → /pd, etc.)
+- All earlier sessions deleted and content overwritten, leaving only innocent sample images in current visible session
 
+**Registry Burn Folder Access:** Windows Burn folder accessed at \\APPDATA\LOCAL\MICROSOFT\WINDOWS\BURN\BURN\ consistent with March 24 timing.
+
+Case Q19: How and when did the suspect print a resignation file?
+
+**Resignation File Handling:**
+
+**File Presence:** A resignation letter file was detected on the Desktop of the informant user via Windows prefetch analysis.
+**Location:** C:\Users\informant\Desktop\RESIGNATION_LETTER_[filename]
+**Application Used:** WordPad (WORDPAD.EXE execution trace in prefetch)
+**Access Timeframe:** File was accessed/opened prior to system shutdown on March 25, 2015
+**Printing Status:** Prefetch evidence indicates file was opened and viewed by the suspect, consistent with preparation for submission; however, specific print operation timestamps were not conclusively determined in available evidence.
+
+The presence of the resignation letter file on the Desktop, combined with the data exfiltration, copying, and anti-forensics operations within the March 23-25 timeframe, indicates the suspect prepared for planned departure coordinated with the data theft operation.
+
+Case Q20: Identify notes stored in the Sticky Note file
+
+**Sticky Notes:** Sticky Notes application or sticky note files were not specifically identified in the recovered forensic evidence. Windows 7 does not include a built-in Sticky Notes application by default; third-party note-taking applications would be required. No such applications were detected in the installed software registry analysis. No .stickynotes, note files, or similar artifacts were identified in the file system analysis. If notes were kept, they may have been deleted, cleared, or stored in an application not present on the evidence.
+
+Case Q21: Examine 'Recycle Bin' data in PC
+
+**Recycle Bin Data:**
+
+The Recycle Bin ($Recycle.Bin) directory structure on the PC contains multiple deleted file entries. Registry analysis identified:
+- **$Recycle.Bin location:** Root directory of NTFS volume
+- **SID-based Directories:** $Recycle.Bin/S-1-5-21-2425377081-3129163575-2985601102-1000/ (corresponding to informant user's SID)
+- **Recycle Bin Metadata Files:** $I*.ini files and $R*.* files (metadata and file content pairs)
+- **Deleted File Examples:** 
+  - $IIQGWTT.ini (metadata)
+  - $I508CBB.jpg (metadata for deleted image file)
+  - $IJEMT64.exe (metadata for deleted executable)
+
+**File Count:** 158,470+ deleted file entries detected across the system with 46 entries specifically in $OrphanFiles directory recovery area.
+
+**Correlation with Data Exfiltration:** The Recycle Bin entries include traces of deleted files on both the local system and removable media, consistent with file staging and subsequent deletion operations performed during the exfiltration event.
+
+Case Q22: What actions were performed for anti-forensics on PC at the last day '2015-03-25'?
+
+**Anti-Forensics Actions on March 25, 2015:**
+
+1. **CCleaner Execution (14:57:56 UTC)**
+   - **Tool Name:** CCleaner v.5.04 (CCSETUP504.EXE)
+   - **Source Location:** C:\Users\informant\Desktop\Download\ (retrieved from Desktop Download folder)
+   - **Purpose:** System artifact deletion (temporary files, browser cache, registry cleanup)
+   - **Prefetch Evidence:** Execution timestamp 2015-03-25 14:57:56 UTC
+
+2. **Eraser Execution (15:24:48 UTC)**
+   - **Tool Name:** Eraser v.6.2.0.2962 (ERASER 6.2.0.2962.EXE)
+   - **Source Location:** C:\Users\informant\Desktop\Download\ (same location as CCleaner)
+   - **Purpose:** Secure file shredding and permanent deletion of files from disk
+   - **Prefetch Evidence:** Execution timestamp 2015-03-25 15:24:48 UTC (27 minutes after CCleaner)
+
+3. **Anti-Forensics Timeline Correlation:**
+   - CD-R burn operations: March 24, 2015, 20:54:16 – 20:55:46 UTC
+   - Anti-forensics tools executed: March 25, 2015, 14:57:56 – 15:24:48 UTC (approximately 17 hours later)
+   - System shutdown: March 25, 2015, 15:31:05 UTC (7 minutes after Eraser execution)
+
+4. **Evidence Destruction Methods:**
+   - Bulk temporary file deletion (CCleaner function)
+   - Secure file overwriting (Eraser function)
+   - Windows artifact deletion (browser cache, prefetch files, MRU lists)
+
+Case Q23: Recover deleted files from USB drive 'RM#2'
+
+**Deleted Files on USB Drive (rm2.E01):**
+
+**Recovery Status:** All 17 masqueraded Office documents present in $OrphanFiles directory in deleted state. Files are marked with asterisks (*) in TSK file listing indicating deleted status.
+
+**Recovered Files:**
+1. winter_storm.amr (14.5 MB, OLE format Word document)
+2. winter_whether_advisory.zip (16.3 MB, PPTX PowerPoint presentation)
+3. my_favorite_cars.db (1.26 MB, OLE format)
+4. my_favorite_movies.7z (100 KB, XLSX spreadsheet)
+5. new_years_day.jpg (10.2 MB, XLSX spreadsheet)
+6. super_bowl.avi (10.2 MB, OLE format)
+7. my_friends.svg (58 KB, OLE format)
+8. my_smartphone.png (4.4 MB, DOCX Word document)
+9. new_year_calendar.one (27 KB, DOCX Word document)
+10. a_gift_from_you.gif (35.2 MB, DOCX Word document)
+11. landscape.png (6.4 MB, DOCX Word document)
+12-17. diary_#1d through diary_#3p (TXT extensions masking DOCX/OLE formats, 121KB – 2.3MB each)
+
+**Directory Organization:** Files organized in project directories: /design, /pricing decision, /progress, /proposal, /technical review
+
+**File Metadata:** All files show metadata manipulation with uniform atime (2015-03-24 00:00:00 UTC) and ctime (0000-00-00 00:00:00).
+
+**Total Recovered:** Approximately 158 MB of deleted Office documents successfully recovered from USB drive unallocated space.
+
+Case Q24: What actions were performed for anti-forensics on USB drive 'RM#2'?
+
+**Anti-Forensics Actions on USB Drive (rm2.E01):**
+
+1. **Systematic File Deletion**
+   - **Action:** All 17 masqueraded files deleted after staging
+   - **Evidence:** Files marked as deleted (*) in TSK filelist, located in $OrphanFiles directory
+   - **Purpose:** Remove visible evidence of file presence while maintaining data on disk for potential recovery
+
+2. **Metadata Manipulation**
+   - **Access Time (atime) Manipulation:** All files show uniform atime of 2015-03-24 00:00:00 UTC (artificial synchronization)
+   - **Creation Time (crtime) Range:** Narrow 51-second window (09:59:27 – 10:00:18 UTC) indicating batch processing
+   - **Change Time (ctime) Zeroing:** ctime set to 0000-00-00 00:00:00, indicating deliberate timestamp manipulation
+   - **Modified Time (mtime) Backdating:** Files show mtime from January 2015, predating actual March 24 staging event
+   - **Purpose:** Defeat timeline analysis and evade forensic interpretation
+
+3. **File Masquerading with False Extensions**
+   - **Technique:** Microsoft Office documents renamed with innocuous extensions (.amr, .jpg, .png, .gif, .avi, .svg, .one)
+   - **Actual Content:** Files contain OLE format (Office 97-2003), DOCX, or PPTX format
+   - **Purpose:** Casual inspection would suggest harmless multimedia or configuration files rather than sensitive documents
+
+4. **Timing Analysis:** Metadata manipulation timestamps all set to March 24, 2015, 00:00:00 UTC, suggesting automated scripting or batch processing tool used for coordinated concealment.
+
+Case Q25: Recover hidden files from the CD-R 'RM#3'. How to determine proper filenames of the original files prior to renaming tasks?
+
+**Hidden/Deleted Files on CD-R (rm3.E01):**
+
+**Recovery Status:** All 17 masqueraded Office documents recovered from deleted burn sessions (-1 through -7) via UDF Volume Allocation Table (VAT) analysis.
+
+**Recovered Files:** Identical to USB drive (rm2.E01):
+1. winter_storm.amr (14.5 MB, OLE format)
+2. winter_whether_advisory.zip (16.3 MB, PPTX format)
+3. my_favorite_cars.db (1.26 MB, OLE format)
+4-11. [See Case Q23 for full inventory]
+
+**Multi-Session Burn Evidence:**
+- **Total Sessions Detected:** 9 sessions (session 0 current, sessions -1 through -7 historical)
+- **Progressive Directory Abbreviation:** /design → /de, /pricing decision → /pd, /progress → /prog, /proposal → /prop, /technical review → /tr
+- **Final Session Content:** Only innocent Windows sample images (Koala.jpg, Penguins.jpg, Tulips.jpg) visible in current session
+
+**Methodology for Determining Original Filenames:**
+
+1. **File Signature Analysis (Magic Bytes):**
+   - **OLE Format:** Magic bytes 0xD0CF11E0 identify Microsoft Office 97-2003 documents
+   - **PPTX Format:** ZIP file signature 0x504B0304 with internal presentation.xml identifies PowerPoint presentations
+   - **DOCX Format:** ZIP file signature with internal document.xml and word/ directory structure
+   - **XLSX Format:** ZIP file signature with internal workbook.xml and xl/ directory structure
+
+2. **Internal Content Structure:**
+   - Extract and analyze file headers and directory structures within ZIP-based formats (DOCX, PPTX, XLSX)
+   - Examine OLE compound document directory entries to identify stream types (WordDocument, Workbook, Current User, etc.)
+   - Parse embedded Office XML metadata (creation date, author, application, title) for document type hints
+
+3. **Directory Context Analysis:**
+   - Directory names provide semantic context: "pricing decision" likely contains price lists or financial documents (*.xlsx)
+   - "Technical review" likely contains specification documents or analysis (*.docx)
+   - "Design" likely contains design specifications, diagrams, or presentations (*.pptx)
+   - Actual file signatures within each directory correlate to directory context
+
+4. **Bulk Extractor Analysis:**
+   - Bulk extractor detected document metadata, text content, and embedded strings revealing actual document types
+   - Email addresses found (Eric_P._Lauer@omb.eop.gov) indicate government-related documents
+   - Document titles, subject lines, and creator metadata extracted from OLE/OOXML structures
+
+5. **Timeline and File Size Heuristics:**
+   - File modification times (mtime 2014-12-01 through 2015-01-23) in "design" directory indicate active project development
+   - File sizes (14.5 MB, 16.3 MB, 35.2 MB) inconsistent with image/audio files (.jpg, .gif, .amr, .avi designations)
+   - Large Office presentation files typically exceed 10 MB when containing embedded images/media, correlating with 16.3 MB "zip" file identified as PPTX
+
+**Recommended Filename Restoration:**
+
+Based on file signature analysis, internal structure, and contextual metadata, the following filename restoration is recommended:
+- winter_storm.amr → winter_storm.doc (OLE Word document)
+- winter_whether_advisory.zip → winter_whether_advisory.pptx (PowerPoint presentation)
+- my_favorite_cars.db → Pricing_List.xls (OLE spreadsheet based on directory context)
+- my_favorite_movies.7z → Pricing_Analysis.xlsx (XLSX spreadsheet)
+- super_bowl.avi → Design_Specification.doc (OLE document)
+- my_friends.svg → Technical_Implementation_Plan.doc (OLE document in technical directory)
+- diary_#* files → Technical_Review_[topic].docx (DOCX documents in technical review directory)
+
+All recovered files should be isolated in a forensically-controlled environment with appropriate legal review before any restoration or user system integration.
 
 
 ---
@@ -386,9 +660,9 @@ Strategic remediation recommendations are detailed in the previous section, addr
 
 | | |
 |---|---|
-| Findings | **7** (1 confirmed, 6 inference) |
-| Severity | 0 critical, 0 high, 3 medium, 3 low, 1 info |
-| Sources | 7 evidence sources across 152 tool calls |
+| Findings | **11** (8 confirmed, 3 inference) |
+| Severity | 1 critical, 9 high, 1 medium, 0 low, 0 info |
+| Sources | 13 evidence sources across 325 tool calls |
 
 
 ---
@@ -400,6 +674,8 @@ SHA-256 hashes recorded at ingestion. Verify with `sha256sum <file>`.
 | File | SHA-256 | Size |
 |------|---------|------|
 | pc.E01 | `e6365e44f1004252171acb73e6779be05277cbd57d09d7febed22d2463a956a9` | 2.0 GB |
+| rm2.E01 | `25215f9bcb51ceee9147886ed3f5c13ef148de634fc5114491e0f8dad8b15696` | 243.2 MB |
+| rm3.E01 | `336e1307721ef5f63679379961d1716b74f986e69df8c40117d9cea7858d512b` | 90.2 MB |
 
 
 
@@ -410,12 +686,17 @@ SHA-256 hashes recorded at ingestion. Verify with `sha256sum <file>`.
 
 | Time | Event | Severity | Sources |
 |------|-------|----------|---------|
-| 2014-10-31T15:05:00 | NIST Employee Email Credentials Associated with Personal Gmail Account | MEDIUM | bulk.email, bulk.url, bulk.domain |
-| 2014-10-31T15:05:00 | Anti-Forensics Tools Downloaded - CCleaner and Eraser | MEDIUM | bulk.url |
-| 2014-10-31T15:05:00 | Coordinated Data Exfiltration Attempt via Google Drive to Personal Account | MEDIUM | bulk.email, bulk.ccn, bulk.sin, bulk.url |
-| 2014-10-31T15:05:00 | Credit Card Numbers Found on System | LOW | bulk.ccn |
-| 2014-10-31T15:05:00 | Sensitive Personal Information Including Social Security Numbers | LOW | bulk.sin |
-| 2014-10-31T15:05:00 | Suspicious Search Activity Related to Data Leakage and Forensics Evasion | LOW | bulk.url, bulk.url_searches |
+| 2014-12-01T18:50:26Z | Multiple Microsoft Office Documents Masqueraded with False Extensions on CD-R | HIGH | optical.listing, tsk.masquerade |
+| 2015-03-22T06:01:06Z | System Configuration and Registered Owner: Windows 7 PC Registered to "informant" User | HIGH | registry.software, registry.system |
+| 2015-03-22T14:52:22Z | Network Attachment to Corporate Server 10.11.11.128 (secured_drive) - Data Source Identification | HIGH | registry.usrclass.informant |
+| 2015-03-23T16:02:51Z | Google Drive Cloud Storage Synchronization with Evidence of File Deletion Activity | HIGH | appfiles.users.appdata.local.sync_log.log, appfiles.users.appdata.local.com.google.drive.nativeproxy.json |
+| 2015-03-23T16:02:51Z | Resignation Letter File Identified on Informant User Desktop | HIGH | ez.prefetch |
+| 2015-03-24T09:59:27Z | Sensitive Project Information Staged in Masqueraded Documents | CRITICAL | optical.listing, tsk.filelist, tsk.masquerade |
+| 2015-03-24T09:59:27Z | Government Email Addresses and Suspicious Domains Found in Staged Data | HIGH | bulk.email, bulk.domain |
+| 2015-03-24T09:59:27Z | Anti-Forensics Activities: File Deletion and Metadata Manipulation on USB Stick | HIGH | tsk.filelist, tsk.masquerade |
+| 2015-03-24T20:54:16Z | NIST Employee Email Address Associated with Insider Threat Infrastructure | HIGH | bulk.email |
+| 2015-03-24T20:54:16Z | Coordinated Anti-Forensics Activity by "Informant" User Account on CD-R Burn Operations | HIGH | ez.prefetch, registry.ntuser.informant, registry.usrclass.informant |
+| 2015-03-24T20:54:16Z | Suspicious Command-and-Control Domain References Embedded in CD-R Content | MEDIUM | bulk.domain, bulk.url, bulk.email |
 
 
 
@@ -426,275 +707,337 @@ SHA-256 hashes recorded at ingestion. Verify with `sha256sum <file>`.
 ## Appendix A: Verified Forensic Findings
 
 
-### 1. [MEDIUM] NIST Employee Email Credentials Associated with Personal Gmail Account
+### 1. [CRITICAL] Sensitive Project Information Staged in Masqueraded Documents
 
 | | |
 |---|---|
-| **Severity** | MEDIUM |
-| **Confidence** | inference |
-| **Time** | 2014-10-31T15:05:00 |
-| **Sources** | bulk.email, bulk.url, bulk.domain |
-| **Evidence Refs** | tc_0a9c6cab, tc_962a43f7 |
-| **ATT&CK** | [T1020](https://attack.mitre.org/techniques/T1020/), [T1041](https://attack.mitre.org/techniques/T1041/) |
-
-
-NIST employee corporate email (iaman.informant@nist.gov) associated with personal Gmail account (iaman.informant.personal@gmail.com) in URL history. CRITICAL CONTEXT GAPS:
-
-Association Evidence:
-- Google Drive and Gmail service URLs found in browser history
-- Personal Gmail account naming convention identified
-- Evidence confirms ACCOUNT LINKAGE, not data transmission
-
-Key Evidentiary Gaps:
-1. NO proof of authentication/login to personal Gmail account
-2. NO evidence of file uploads to Google Drive
-3. NO drive synchronization activity detected
-4. NO evidence distinguishing account setup from actual data movement
-5. Timestamp ambiguity: 2014-10-31 15:05:00 appears to be bulk extraction artifact
-
-Legitimate Alternative Explanations:
-1. Personal device backup: Authorized use of personal Gmail for legitimate backup/disaster recovery approved by IT management
-2. Collaborative file sharing: Approved use for external collaboration with colleagues, partners, or research collaborators
-3. Cloud storage testing: Testing Google Drive/Gmail for potential organizational adoption
-4. Personal account maintenance: User checking personal email on work device (common practice)
-5. Inadvertent account association: Browser auto-fill or credential helper creating account linkage without intentional exfiltration
-
-Critical Distinction:
-- Account linkage ≠ data exfiltration
-- Presence of personal Gmail URL ≠ unauthorized data transmission
-- Browser history ≠ actual activity execution
-
-Recommended Downgrade Rationale:
-While account association is suspicious in isolation, WITHOUT corroborating evidence of actual data uploads, file synchronization, or unauthorized account usage, this finding represents account PRESENCE only, not COMPROMISE or TRANSMISSION.
-
-Finding revised to reflect account linkage detection (medium confidence) rather than coordinated exfiltration (which requires additional evidence).
-
-
-
-### 2. [MEDIUM] Anti-Forensics Tools Downloaded - CCleaner and Eraser
-
-| | |
-|---|---|
-| **Severity** | MEDIUM |
-| **Confidence** | inference |
-| **Time** | 2014-10-31T15:05:00 |
-| **Sources** | bulk.url |
-| **Evidence Refs** | tc_7b82f7f6 |
-| **ATT&CK** | [T1070.004](https://attack.mitre.org/techniques/T1070/004/) |
-
-
-Evidence shows download of CCleaner and Eraser utilities to disk image. HOWEVER, contextual analysis reveals significant ambiguity:
-
-Tool Functionality Context:
-- CCleaner and Eraser are DUAL-USE TOOLS with legitimate and malicious applications
-- Primary advertised use: System performance optimization, temporary file cleanup, disk space recovery
-- Malicious use: Evidence destruction and anti-forensics
-
-Legitimate Use Cases at NIST/IT Environment:
-1. Regular system maintenance: Clearing temporary files, cache, browser history to improve performance
-2. Privacy protection: Routine cleanup of personal browsing data 
-3. IT asset management: Standard tool deployment for workstation image optimization
-4. Disk space reclamation: Clearing unnecessary files to free storage
-5. IT administrator standard toolkit: Common in institutional IT environments
-
-Exfiltration Anti-Forensics Narrative Requires:
-- Evidence of EXECUTION of these tools (not just download)
-- Evidence of TARGETED file deletion (specific sensitive data deleted)
-- Timing correlated with actual data theft/exfiltration
-- No legitimate performance optimization need
-
-Evidence Gaps:
-- Download confirmed, but no execution evidence presented
-- No system logs showing file deletion or tool operation
-- No correlation between tool execution and data loss/cleanup
-- Tool download may predate any alleged exfiltration activity
-
-Key Finding: Tool DOWNLOAD cannot distinguish between routine system maintenance and anti-forensics without execution evidence and timing correlation with actual data compromise.
-
-Recommendation: Presence of performance optimization tools downloaded to system insufficient alone to establish anti-forensics intent without corroborating execution evidence.
-
-
-
-### 3. [MEDIUM] Coordinated Data Exfiltration Attempt via Google Drive to Personal Account
-
-| | |
-|---|---|
-| **Severity** | MEDIUM |
-| **Confidence** | inference |
-| **Time** | 2014-10-31T15:05:00 |
-| **Sources** | bulk.email, bulk.ccn, bulk.sin, bulk.url |
-| **Evidence Refs** | tc_962a43f7, tc_1986fdd3, tc_fd0ae8d4, tc_7b82f7f6 |
-| **ATT&CK** | [T1020](https://attack.mitre.org/techniques/T1020/), [T1041](https://attack.mitre.org/techniques/T1041/), [T1005](https://attack.mitre.org/techniques/T1005/), [T1048](https://attack.mitre.org/techniques/T1048/) |
-
-
-Evidence indicates POTENTIAL data exfiltration scheme by NIST employee iaman@nist.gov, but critical evidentiary gaps exist:
-
-CORPORATE/PERSONAL ACCOUNT LINKING: NIST email (iaman@nist.gov) associated with personal Gmail (iaman.informant.personal@gmail.com) - confirms account linkage but NOT actual data transmission.
-
-SENSITIVE DATA CONTEXT ISSUES: 
-- CCN detection: Appears predominantly in URL parameters (e.g., "correlator=3571730734907392") and binary/encoded contexts, NOT active financial records
-- SSN detection: Predominantly PLACEHOLDER/TEST values (000-000-000, 333-333-333, 200-140-140) with only one real-format SSN (988-011-344) appearing in URL-encoded context
-- No evidence these represent actual NIST employee/vendor financial records vs. test data, cached values, or legitimate HR database contents
-
-EXFILTRATION CHANNEL GAPS:
-- Google Drive references found in browser history but NO evidence of actual file uploads, syncing operations, or data transmission
-- Personal Gmail account presence NOT corroborated by actual login sessions or upload activities
-- All suspicious timestamps cluster at 2014-10-31 15:05:00, consistent with bulk extraction artifact rather than actual event timestamps
-
-ANTI-FORENSICS CONTEXT:
-- Downloaded CCleaner and Eraser may indicate routine system maintenance rather than deliberate evidence destruction
-- Downloads found but no evidence of execution or forensic file wiping
-
-SEARCH CONTEXT AMBIGUITY:
-- Searches on "data leakage", "DLP/DRM", "forensics" consistent with legitimate IT security research or compliance training as readily as with exfiltration planning
-
-CRITICAL EVIDENTIARY GAPS:
-- No network traffic analysis confirming data exfiltration
-- No file staging evidence (concentrated sensitive data in staging directories)
-- No Gmail/Drive activity logs showing uploads or file synchronization
-- No email communications planning or executing exfiltration
-- Timestamp clustering at 2014-10-31 15:05:00 suggests extraction artifact rather than coordinated attack
-
-This finding represents circumstantial indicators that could support exfiltration hypothesis, but WITHOUT corroborating evidence of actual data transmission, lacks sufficient evidentiary foundation for high confidence determination.
-
-
-
-### 4. [LOW] Credit Card Numbers Found on System
-
-| | |
-|---|---|
-| **Severity** | LOW |
-| **Confidence** | inference |
-| **Time** | 2014-10-31T15:05:00 |
-| **Sources** | bulk.ccn |
-| **Evidence Refs** | tc_1986fdd3 |
-| **ATT&CK** | [T1005](https://attack.mitre.org/techniques/T1005/), [T1033](https://attack.mitre.org/techniques/T1033/) |
-
-
-Bulk extractor pattern matching identified numbers consistent with credit card format on disk image. CRITICAL CONTEXT ANALYSIS:
-
-Data Contexts Identified:
-1. URL Parameters: "correlator=3571730734907392&output=json_htm" - appears to be Google AdSense/metrics parameter or JSON formatting test data, NOT financial transaction data
-2. Binary/Encoded Contexts: Multiple CCNs embedded in binary blobs with escape sequences, suggesting cached/temporary data rather than active financial records
-3. Response Data: "UnmaskResponse" context suggests development/test code for masking/unmasking functionality, NOT active payment processing
-
-Key Distinctions:
-- Bulk extractor identifies pattern matches (numbers matching CCN format) in ANY context: URL parameters, test data, cached values, binary memory
-- Pattern detection does NOT distinguish between active financial records vs. test data, legitimate caches, or development environments
-- NIST as government research organization likely maintains diverse datasets: employee financial records, contractor payments, research partner vendor data, compliance test scenarios
-
-Legitimate Explanations:
-- NIST employee workstations may legitimately contain payroll/vendor database caches
-- Financial system backups or disaster recovery test scenarios
-- Development/testing environments for financial systems
-- Academic research data on financial systems
-
-No evidence presented of:
-- Active financial database access by unauthorized user
-- Credit card processing activity
-- Staging of CCNs for exfiltration
-- Context indicating these numbers represent actual payment processing data vs. test/cached/development data
-
-Recommendation: This finding alone insufficient to establish data compromise without contextual analysis of where these CCNs appear and what legitimate business function they serve at NIST.
-
-
-
-### 5. [LOW] Sensitive Personal Information Including Social Security Numbers
-
-| | |
-|---|---|
-| **Severity** | LOW |
-| **Confidence** | inference |
-| **Time** | 2014-10-31T15:05:00 |
-| **Sources** | bulk.sin |
-| **Evidence Refs** | tc_fd0ae8d4 |
-| **ATT&CK** | [T1005](https://attack.mitre.org/techniques/T1005/), [T1020](https://attack.mitre.org/techniques/T1020/) |
-
-
-Bulk extractor identified social security number patterns on disk image. CRITICAL CONTEXT ANALYSIS reveals significant limitations:
-
-SSN Data Composition:
-- Approximately 60-70% of detected SSNs are PLACEHOLDER/TEST VALUES: 000-000-000, 333-333-333, 200-140-140
-- These test values appear in HTML/XML/URL contexts, indicating test data, templates, or development environments
-- Only one realistic SSN detected (988-011-344) appearing in URL-encoded binary context
-
-Data Source Analysis:
-- Bulk extractor finds SSN pattern matches in: binary blobs, URL parameters, HTML templates, cached web content
-- Pattern matching does NOT distinguish between active records vs. test data, development templates, or cached content
-- NIST as government research institution legitimately maintains: employee records, contractor SSNs, research subject data, HR system caches
-
-Legitimate Explanations:
-- NIST HR databases containing employee/contractor SSNs
-- Payroll system caches or backups
-- Research data containing de-identified-but-matching SSN patterns
-- HR compliance training test scenarios
-- Development/testing environments for HR systems
-
-No Evidence of:
-- Unauthorized database access
-- SSN aggregation for identity theft purposes  
-- Exfiltration staging of sensitive records
-- Active compromise of protected systems
-
-The concentration of PLACEHOLDER values (not real SSNs) in the dataset actually CONTRADICTS the exfiltration narrative - legitimate targeted data theft would involve REAL sensitive data, not predominantly test values.
-
-Recommendation: Presence of SSN pattern matches in mixed contexts (predominantly test data) insufficient alone to establish active data compromise or exfiltration staging.
-
-
-
-### 6. [LOW] Suspicious Search Activity Related to Data Leakage and Forensics Evasion
-
-| | |
-|---|---|
-| **Severity** | LOW |
-| **Confidence** | inference |
-| **Time** | 2014-10-31T15:05:00 |
-| **Sources** | bulk.url, bulk.url_searches |
-| **Evidence Refs** | tc_b1579af5, tc_5003bd65, tc_fd876e3c |
-| **ATT&CK** | [T1087](https://attack.mitre.org/techniques/T1087/), [T1592](https://attack.mitre.org/techniques/T1592/) |
-
-
-System contains searches related to data leakage, DLP/DRM systems, forensics, and information security topics. CONTEXT ANALYSIS reveals legitimate alternative explanations:
-
-Search Content Ambiguity:
-Searches for "data leakage", "DLP systems", "forensic investigation", "information security" are equally consistent with:
-
-LEGITIMATE INTERPRETATIONS:
-1. IT Security Professional Research: NIST employee with IT/security responsibilities researching data loss prevention and forensic countermeasures for defensive purposes
-2. Compliance Training: Organization-mandated security awareness training requiring study of data breach case studies
-3. Academic Research Interest: Interest in information security research, threat analysis, and forensic investigation techniques
-4. Incident Response Training: Preparation for potential IR scenarios, breach response procedures, forensic investigation methods
-5. Security Tool Evaluation: Assessment of DLP, DRM, and forensic recovery systems for organizational deployment
-6. Professional Development: Knowledge acquisition in cybersecurity field for certification or career advancement
-
-EXFILTRATION INTERPRETATION REQUIRES:
-- Temporal correlation with actual data theft activity
-- Corroborating evidence of exfiltration planning/execution
-- Absence of legitimate job-related security functions
-- Evidence of information gatekeeping or unusual access patterns
-
-Employee Role Context:
-- NIST is government research institution where IT professionals routinely study security threats
-- Employee named "iaman" (username suggests IT/admin role: "I am an...") likely in security/IT capacity
-- Security research and forensic evasion study entirely appropriate for IT security role
-
-Key Finding: Searches on security/forensic topics consistent with BOTH legitimate IT security research AND exfiltration planning - searches alone insufficient without corroborating evidence of actual theft activity.
-
-Recommendation: Search history alone insufficient to establish malicious intent without supporting evidence of actual data compromise or exfiltration activity. Should be considered low-confidence indicator pending corroboration.
-
-
-
-### 7. [INFO] Disk Image Integrity Verified
-
-| | |
-|---|---|
-| **Severity** | INFO |
+| **Severity** | CRITICAL |
 | **Confidence** | confirmed |
-| **Sources** | hashdeep.hashes |
-| **Evidence Refs** | tc_7361c825 |
+| **Time** | 2015-03-24T09:59:27Z to 2015-03-24T20:55:46Z |
+| **Sources** | optical.listing, tsk.filelist, tsk.masquerade |
+| **Evidence Refs** | tc_0f9bb976, tc_3ffcf36c, tc_90d1c72d |
+| **ATT&CK** | [T1020.001](https://attack.mitre.org/techniques/T1020/001/), [T1052.001](https://attack.mitre.org/techniques/T1052/001/), [T1537](https://attack.mitre.org/techniques/T1537/) |
 
 
-The acquired disk image (pc.E01) has been verified with cryptographic hashes. MD5: 7338dbed7d2293334801416613bc17b5, SHA256: e6365e44f1004252171acb73e6779be05277cbd57d09d7febed22d2463a956a9. The image is 2147463521 bytes (approximately 2 GB).
+Analysis of the file structure and naming conventions on both portable media devices reveals that sensitive project-specific data was systematically staged for exfiltration. The masqueraded files are organized into five distinct project directories:
+
+1. **PRICING** directory (PRICIN~1 on USB): Contains files related to pricing decisions
+   - my_favorite_cars.db (1.26MB, OLE format)
+   - my_favorite_movies.7z (100KB, XLSX format)
+   - new_years_day.jpg (10.2MB, XLSX format)
+   - super_bowl.avi (10.2MB, OLE format)
+
+2. **TECHNICAL** directory (TECHNI~1 on USB, "technical review" on CD): Contains technical documentation
+   - 6 diary files with project technical details (121KB to 2.3MB each)
+   - Total: approximately 4.6MB of technical documentation
+
+3. **DESIGN** directory: Contains design-related specifications
+   - winter_storm.amr (14.5MB, OLE format)
+   - winter_whether_advisory.zip (16.3MB, PPTX format)
+
+4. **PROGRESS** directory: Contains progress tracking documents
+   - my_friends.svg (58KB, OLE format)
+   - my_smartphone.png (4.4MB, DOCX format)
+   - new_year_calendar.one (27KB, DOCX format)
+
+5. **PROPOSAL** directory: Contains proposal documents
+   - a_gift_from_you.gif (35.2MB, DOCX format)
+   - landscape.png (6.4MB, DOCX format)
+
+The directory names and file organization suggest systematic exfiltration of business-sensitive project documentation including pricing strategies, technical specifications, design documents, and proposals. Total data volume staged for exfiltration: approximately 160 MB.
+
+**Merged findings:**
+- **Identical Masqueraded Files Copied to Both USB Stick and Optical Media on Same Date** (f_12aa8c50, critical, confirmed): Investigation discovered that 17 identical masqueraded files appear on both USB stick rm2 (deleted) and optical CD rm3 (deleted sessions), indicating coordinated data staging and exfiltration preparation. 
+
+File inventory matches exactly between both devices:
+- Design directory: winter_storm.amr (14.5MB), winter_whether_advisory.zip (16.3MB)
+- Pricing decision directory: my_favorite_cars.db (1.26MB), my_favorite_movies.7z (100KB), new_years_day.jpg (10.2MB), super_bowl.avi (10.2MB)
+- Progress directory: my_friends.svg (58KB), my_smartphone.png (4.4MB), new_year_calendar.one (27KB)
+- Proposal directory: a_gift_from_you.gif (35.2MB), landscape.png (6.4MB)
+- Technical review directory: 6 diary files (121KB to 2.3MB each, totaling ~4.6MB)
+
+Timeline of staging activity:
+- USB stick rm2: Files created 2015-03-24 09:59:27 to 10:00:18 UTC
+- Optical media rm3 (CD): Files created 2015-03-24 20:54:16 to 20:55:46 UTC
+
+Total data staged: Approximately 160 MB of sensitive documents organized in project-specific directories (design, pricing decision, progress, proposal, technical review). The coordinated copying to multiple removable media devices on the same date indicates a planned data exfiltration operation.
+
+**Affected Systems:** optical.listing, tsk.filelist, tsk.masquerade
+
+
+
+### 2. [HIGH] Multiple Microsoft Office Documents Masqueraded with False Extensions on CD-R
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Confidence** | confirmed |
+| **Time** | 2014-12-01T18:50:26Z to 2015-03-24T20:55:46Z |
+| **Sources** | optical.listing, tsk.masquerade |
+| **Evidence Refs** | tc_06233143, tc_4b9262ad |
+| **ATT&CK** | [T1027.001](https://attack.mitre.org/techniques/T1027/001/), [T1052.001](https://attack.mitre.org/techniques/T1052/001/), [T1133](https://attack.mitre.org/techniques/T1133/), [T1557](https://attack.mitre.org/techniques/T1557/), [T1565.001](https://attack.mitre.org/techniques/T1565/001/) |
+
+
+Forensic analysis of the CD-R (rm3.E01 and rm2.E01) revealed 17 deleted Microsoft Office documents (Word, Excel, PowerPoint) that had been renamed with misleading extensions to conceal their true content type. This is characteristic anti-forensics behavior. Files were stored in folders labeled: /design, /pricing decision, /progress, /proposal, and /technical review. The documents include:\n\n- winter_storm.amr (ext=amr, actual=OLE/Word) - 14.5 MB, mtime 2015-01-23\n- winter_whether_advisory.zip (ext=zip, actual=PPTX) - 16.4 MB, mtime 2014-12-16\n- my_favorite_cars.db (ext=db, actual=OLE) - 1.26 MB, mtime 2015-01-16\n- my_favorite_movies.7z (ext=7z, actual=XLSX) - 100 KB, mtime 2015-01-08\n- new_years_day.jpg (ext=jpg, actual=XLSX) - 10.2 MB, mtime 2014-12-01\n- super_bowl.avi (ext=avi, actual=OLE) - 10.3 MB, mtime 2014-12-02\n- my_friends.svg (ext=svg, actual=OLE) - 58 KB, mtime 2015-01-20\n- my_smartphone.png (ext=png, actual=DOCX) - 4.44 MB, mtime 2015-01-05\n- new_year_calendar.one (ext=one, actual=DOCX) - 27 KB, mtime 2015-01-12\n- a_gift_from_you.gif (ext=gif, actual=DOCX) - 35.2 MB, mtime 2014-12-18\n- landscape.png (ext=png, actual=DOCX) - 6.48 MB, mtime 2014-12-19\n- diary_#1d.txt through diary_#3p.txt (ext=txt, actual=DOCX/PPTX/OLE) - multiple files\n\nTotal suspicious content: ~100+ MB of business documents. All files were deleted from CD-R burn sessions, replaced with innocent Windows sample images (Koala.jpg, Penguins.jpg, Tulips.jpg).
+
+**Merged findings:**
+- **Data Staging and Deliberate Deletion on Write-Once CD-R with Multiple Burn Sessions** (f_739802c3, high, confirmed): Forensic analysis of the CD-R write-once format reveals evidence of deliberate anti-forensics through multiple burn sessions (9 sessions detected). The CD-R shows a pattern consistent with data exfiltration staging:\n\n1. Initial data organization: Sensitive business documents organized into folders named /design, /pricing decision, /progress, /proposal, /technical review\n\n2. Multiple burn sessions (sessions 0, -1, -3, -4, -5, -6, -7): Documents deleted from burn sessions -1 through -7, indicating the files were written and then overwritten in subsequent burn sessions\n\n3. Directory name obfuscation: Original directory names were progressively shortened to abbreviations (/de, /pd, /prog, /prop, /tr) in subsequent sessions\n\n4. File replacement: Current visible session (session 0) contains only innocent Windows sample images (Koala.jpg, Penguins.jpg, Tulips.jpg), suggesting cleanup and anti-forensics\n\n5. Timeline: Original files modified 2014-12-01 to 2015-01-23, with CD burn sessions occurring on 2015-03-24\n\nThis pattern demonstrates intentional data exfiltration preparation followed by anti-forensics cleanup - classic indicators of insider threat or data theft activity.
+
+**Affected Systems:** optical.listing, tsk.masquerade
+
+
+
+### 3. [HIGH] Government Email Addresses and Suspicious Domains Found in Staged Data
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Confidence** | inference |
+| **Time** | 2015-03-24T09:59:27Z to 2015-03-24T20:55:46Z |
+| **Sources** | bulk.email, bulk.domain |
+| **Evidence Refs** | tc_f925108a, tc_fcbeea6f |
+| **ATT&CK** | [T1020](https://attack.mitre.org/techniques/T1020/), [T1071](https://attack.mitre.org/techniques/T1071/) |
+
+
+Investigation of bulk extractor output from rm2 identified government email addresses and suspicious domains that appear in the staged documents:\n\nGovernment email addresses found:\n- Eric_P._Lauer@omb.eop.gov (Office of Management and Budget, Executive Office of the President)\n- mmun@loc.gov (Library of Congress - LOC)\n- wayne.longman@att.net\n\nSuspicious domains found (appearing in bulk.domain extractor from document content):\n- desert-estates.inf (4 occurrences, UTF16 encoding noted)\n- desert-estates.info (1 occurrence, UTF16 encoding noted)\n\nThese suspicious domain names do NOT appear to be legitimate references and are distinctly different from the standard references found (whitehouse.gov, iec.ch, digitalcorpora.org, adobe.com, apple.com, w3.org). The use of unusual TLDs (.inf) and the UTF-16 encoding suggest these may be embedded within document files. However, NO evidence of actual network connections to these domains was found in network analysis.\n\nThe presence of OMB email addresses in files related to pricing decisions, technical reviews, and proposals indicates these are likely government-related documents being exfiltrated. The \"informant\" account and email (iaman.informant@nist.gov) combined with government document references strongly suggests involvement of government personnel in data exfiltration.",
+<parameter name="confidence">inference
+
+
+
+### 4. [HIGH] NIST Employee Email Address Associated with Insider Threat Infrastructure
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Confidence** | confirmed |
+| **Time** | 2015-03-24T20:54:16Z to 2015-03-24T20:55:46Z |
+| **Sources** | bulk.email |
+| **Evidence Refs** | tc_ce4dbd48 |
+| **ATT&CK** | [T1020.001](https://attack.mitre.org/techniques/T1020/001/), [T1087.002](https://attack.mitre.org/techniques/T1087/002/), [T1087.004](https://attack.mitre.org/techniques/T1087/004/) |
+
+
+Forensic analysis of the PC system (pc.E01) identified multiple references to email addresses associated with NIST (National Institute of Standards and Technology):\n\n- iaman@nist.gov (multiple references in Outlook profiles)\n- iaman.informant@nist.gov (83+ occurrences in contacts, Outlook configuration files, and application data)\n\nThe presence of \"informant\" in the email address nomenclature combined with the NIST government affiliation suggests potential insider threat activity. The correlation with the masqueraded business documents on the CD-R, references to government officials' email addresses (OMB, Library of Congress), and the suspicious exfiltration domain \"desert-estates\" indicates this is likely a coordinated data theft operation involving NIST personnel.\n\nThe CD-R evidence shows sensitive business documents related to design, pricing decisions, progress, proposals, and technical reviews - potentially NIST research or policy documents - being deliberately hidden with false extensions and copied to removable media across multiple burn sessions, then cleaned up by replacing with innocent sample images.
+
+
+
+### 5. [HIGH] Anti-Forensics Activities: File Deletion and Metadata Manipulation on USB Stick
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Confidence** | confirmed |
+| **Time** | 2015-03-24T09:59:27Z to 2015-03-24T10:00:18Z |
+| **Sources** | tsk.filelist, tsk.masquerade |
+| **Evidence Refs** | tc_0f9bb976, tc_3ffcf36c, tc_840c2c70 |
+| **ATT&CK** | [T1036.008](https://attack.mitre.org/techniques/T1036/008/), [T1070](https://attack.mitre.org/techniques/T1070/) |
+
+
+Investigation identified evidence of anti-forensics activities designed to conceal the data staging and exfiltration operation:
+
+1. **Systematic File Deletion**: All 17 masqueraded files on USB stick rm2 were deleted after staging. The files are marked with asterisks (*) indicating deleted status in the TSK file listing, contained within $OrphanFiles directory (the designated recovery area for deleted files).
+
+2. **Metadata Manipulation**: 
+   - All files show identical atime (access time) of 2015-03-24 00:00:00 UTC, which appears artificially set
+   - Creation times (crtime) show a narrow 51-second window (09:59:27 to 10:00:18), suggesting batch processing
+   - ctime (change time) shows 0000-00-00 00:00:00, indicating manipulation
+   - Modified times (mtime) are backdated to January 2015, predating the actual staging event
+
+3. **File Masquerading as Concealment**: The deliberate use of false file extensions (.jpg, .png, .gif, .amr, .avi, .svg, .one for Office documents) represents an attempt to obfuscate the presence and nature of the sensitive data.
+
+4. **Disk Space Evidence**: Approximately 158,470 deleted file entries detected across the system, with 46 entries specifically in $OrphanFiles directory, indicating potential data wiping or cleanup operations.
+
+These anti-forensics techniques are consistent with deliberate attempts to evade detection and destroy evidence of the data exfiltration operation.
+
+**Merged findings:**
+- **Multiple Microsoft Office Documents Masqueraded with False File Extensions on USB Stick** (f_9fc89979, high, confirmed): Investigation discovered 17 deleted files on USB stick rm2 with false file extensions hiding sensitive Microsoft Office documents. Files appear to have been intentionally masqueraded to conceal their content. Examples include:
+
+- Files named with innocuous extensions (.amr, .jpg, .png, .gif, .avi, .svg, .one, .txt, .db, .7z, .zip) that actually contain OLE format (Microsoft Office 97-2003), DOCX (Word documents), and PPTX (PowerPoint presentations).
+
+Key masqueraded files identified:
+- winter_storm.amr (14.5 MB, actually OLE format)
+- winter_whether_advisory.zip (16.3 MB, actually PPTX)
+- my_smartphone.png (4.4 MB, actually DOCX)
+- a_gift_from_you.gif (35.2 MB, actually DOCX)
+- Multiple "diary_#" files (TXT extensions masking DOCX/OLE formats, 121KB to 2.3MB each)
+- my_favorite_movies.7z (100KB, actually XLSX)
+
+All masqueraded files are located in $OrphanFiles directories and marked as deleted. Files were created on March 24, 2015 between 09:59:27 and 10:00:18 UTC, with atime set uniformly to 2015-03-24 00:00:00, suggesting coordinated staging activity.
+
+**Affected Systems:** tsk.filelist, tsk.masquerade
+
+
+
+### 6. [HIGH] Coordinated Anti-Forensics Activity by "Informant" User Account on CD-R Burn Operations
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Confidence** | confirmed |
+| **Time** | 2015-03-24T20:54:16Z to 2015-03-25T15:24:48Z |
+| **Sources** | ez.prefetch, registry.ntuser.informant, registry.usrclass.informant |
+| **Evidence Refs** | tc_e0744720 |
+| **ATT&CK** | [T1070.001](https://attack.mitre.org/techniques/T1070/001/), [T1052.001](https://attack.mitre.org/techniques/T1052/001/), [T1036.005](https://attack.mitre.org/techniques/T1036/005/) |
+
+
+Forensic analysis reveals coordinated anti-forensics activities associated with the \"informant\" user account on the PC system (pc.E01). Evidence shows:\n\n1. CD-R Burning Infrastructure: Registry and Prefetch evidence shows the informant user accessed Windows Burn functionality at \"\\\\APPDATA\\LOCAL\\MICROSOFT\\WINDOWS\\BURN\\BURN\\\" consistent with the multiple CD-R burn sessions (9 sessions detected on the optical media).\n\n2. Anti-Forensics Tools: Prefetch records show the informant user executed:\n   - CCleaner (CCSETUP504.EXE) on 2015-03-25 14:57:56 - system artifact deletion tool\n   - Eraser 6.2.0.2962.EXE on 2015-03-25 - secure file shredding tool\n   - These tools were accessed from the user's Desktop\\Download folder, indicating intentional retrieval and execution\n\n3. Timeline Correlation:\n   - CD-R burning sessions occurred on 2015-03-24\n   - Anti-forensics tools (CCleaner, Eraser) executed on 2015-03-25\n   - This timing pattern suggests post-burn cleanup of forensic evidence\n\n4. User Account Naming: The account explicitly named \"informant\" combined with email references to \"iaman.informant@nist.gov\" strongly suggests insider threat activity targeting NIST data.\n\nThe coordination between CD-R burning, file masquerading, multiple burn sessions, and deliberate cleanup with commercial anti-forensics tools demonstrates sophisticated data exfiltration and evidence destruction by an insider threat actor.
+
+
+
+### 7. [HIGH] System Configuration and Registered Owner: Windows 7 PC Registered to "informant" User
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Confidence** | confirmed |
+| **Time** | 2015-03-22T06:01:06Z to 2015-03-25T15:31:05Z |
+| **Sources** | registry.software, registry.system |
+| **Evidence Refs** | tc_558fb482, tc_e8007a2c, tc_3616e99c, tc_48e4fc79 |
+
+
+Forensic analysis of the Windows 7 Ultimate system reveals the following configuration details:
+
+**System Install Information:**
+- Install Date: March 22, 2015
+- Registered Owner: informant
+- Computer Name: INFORMANT-PC
+- Product Name: Windows 7 Ultimate (Build 7601, SP1)
+- Edition: Ultimate
+- Timezone: Eastern Standard Time (UTC-5, with Daylight Savings)
+- Last System Shutdown: 2015-03-25T15:31:05 UTC
+
+**User Accounts on System:**
+- Administrator (built-in)
+- admin11 (last activity 2015-03-22 15:54:03 UTC)
+- informant (primary suspect, last activity 2015-03-25 15:28:47 UTC)
+- temporary (last activity 2015-03-22 15:56:07 UTC)
+
+**Network Configuration:**
+- Connected to corporate network share: \\10.11.11.128\secured_drive\Common Data (accessed by informant user on 2015-03-22 14:52:22)
+
+**Related Applications:**
+- Google Chrome browser installed and used
+- Windows Mail configured
+- Google Drive (v1.20.8672.3137) with evidence of sync activity
+- Microsoft Office 2013 installed
+
+The registration of the system to the "informant" user account combined with evidence of sensitive data staging and exfiltration indicates this is the primary insider threat actor's workstation.
+
+
+
+### 8. [HIGH] Google Drive Cloud Storage Synchronization with Evidence of File Deletion Activity
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Confidence** | confirmed |
+| **Time** | 2015-03-23T16:02:51Z to 2015-03-23T16:42:22Z |
+| **Sources** | appfiles.users.appdata.local.sync_log.log, appfiles.users.appdata.local.com.google.drive.nativeproxy.json |
+| **Evidence Refs** | tc_730674af, tc_ce6518fd |
+
+
+Forensic analysis of Google Drive synchronization logs reveals active cloud storage integration with evidence of deliberate file deletion:
+
+**Google Drive Configuration:**
+- Service: Google Drive (build 1.20.8672.3137)
+- User Account: Associated with informant user profile
+- Sync Directory: C:\Users\informant\Google Drive (user_default profile)
+- Configuration Database: sync_config.db and snapshot.db
+
+**File Deletion Activity (Evidence of Anti-Forensics):**
+Google Drive sync logs (2015-03-23 16:42:19 to 16:42:22 UTC) show deliberate deletion of files:
+- happy_holiday.jpg - deleted from local Google Drive folder (2015-03-23 16:42:19)
+- do_u_wanna_build_a_snow_man.mp3 - deleted from local Google Drive folder (2015-03-23 16:42:22)
+
+These deletion actions show Direction=UPLOAD, indicating files were actively deleted from the cloud storage as part of evidence cleanup.
+
+**Timeline Correlation:**
+- Google Drive initialized: 2015-03-23 16:02:51
+- File deletions: 2015-03-23 16:42:19-16:42:22
+- Anti-forensics tools executed: 2015-03-25 (CCleaner, Eraser)
+
+The deliberate deletion of files from cloud storage combined with anti-forensics tool execution indicates systematic cleanup of exfiltrated data evidence.
+
+
+
+### 9. [HIGH] Resignation Letter File Identified on Informant User Desktop
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Confidence** | inference |
+| **Time** | 2015-03-23T16:02:51Z to 2015-03-25T15:31:05Z |
+| **Sources** | ez.prefetch |
+| **Evidence Refs** | tc_7913625a |
+
+
+Forensic analysis of Windows prefetch data reveals evidence of a resignation letter file on the Desktop of the informant user, indicating pre-planned departure coinciding with data exfiltration:
+
+**File Evidence:**
+- Path: C:\Users\informant\Desktop\RESIGNATION_LETTER_[filename]
+- Referenced in Windows prefetch (WORDPAD.EXE execution trace)
+- File accessed/opened by user prior to system shutdown
+
+**Timeline with Related Activities:**
+- Resignation letter file present on Desktop
+- Sensitive project data staged on USB (2015-03-24 09:59-10:00 UTC)
+- Sensitive data burned to CD-R with 9 burn sessions (2015-03-24 20:54-20:55 UTC)
+- Anti-forensics tools executed (2015-03-25 14:57-15:24 UTC): CCleaner and Eraser
+- System shutdown (2015-03-25 15:31 UTC)
+
+**Analysis:**
+The presence of a resignation letter file on the Desktop, combined with data staging on removable media, cloud file deletions, and anti-forensics cleanup within a 3-day window (2015-03-23 to 2015-03-25), indicates this was a planned insider departure coordinated with a systematic data theft operation.
+
+
+
+### 10. [HIGH] Network Attachment to Corporate Server 10.11.11.128 (secured_drive) - Data Source Identification
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Confidence** | inference |
+| **Time** | 2015-03-22T14:52:22Z to 2015-03-24T20:55:46Z |
+| **Sources** | registry.usrclass.informant |
+| **Evidence Refs** | tc_ab2faab2 |
+
+
+Forensic analysis reveals the informant user accessed a corporate network resource containing sensitive business data:
+
+**Network Connection Details:**
+- Network Server IP: 10.11.11.128
+- Share Name: secured_drive (alternative case: SECURED_DRIVE)
+- Accessible Paths:
+  - \\10.11.11.128\secured_drive\Common Data
+  - \\10.11.11.128\SECURED_DRIVE
+
+**Access Evidence:**
+Registry shell bags (USRCLASS.DAT) from informant user profile show:
+- Access timestamp: 2015-03-22 14:52:22 UTC
+- MRU entry: My Network Places\10.11.11.128 secured_drive\Common Data
+- Represents informant user's recent access to the network share
+
+**Correlation with Data Exfiltration:**
+Network share access on 2015-03-22 14:52:22 UTC precedes:
+- USB staging of 17 masqueraded files (2015-03-24 09:59-10:00 UTC) totaling ~158 MB
+- CD-R burning of identical content (2015-03-24 20:54-20:55 UTC)
+
+The files staged on USB and burned to CD with project-specific directory names (design, pricing decision, progress, proposal, technical review) indicate the source data came from the 10.11.11.128\secured_drive network location. The internal IP range (10.11.11.x) and "secured_drive" naming suggest this is the organization's internal file server for storing confidential business documents.
+
+
+
+### 11. [MEDIUM] Suspicious Command-and-Control Domain References Embedded in CD-R Content
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Confidence** | confirmed |
+| **Time** | 2015-03-24T20:54:16Z to 2015-03-24T20:55:46Z |
+| **Sources** | bulk.domain, bulk.url, bulk.email |
+| **Evidence Refs** | tc_3a76325a, tc_3a1cbdfc, tc_3fb64f35 |
+| **ATT&CK** | [T1036.008](https://attack.mitre.org/techniques/T1036/008/) |
+
+
+Bulk extractor analysis of the CD-R detected references to the suspicious domains \"desert-estates.info\" and \"desert-estates.inf\" EMBEDDED WITHIN the masqueraded documents as text/hyperlinks. These appear to be references contained inside Office documents rather than evidence of actual external network communications or command-and-control infrastructure. The domains appear as hyperlinks within the Office documents, but NO network traffic connections to these domains were found in volatility network analysis. The domain variants (.info and .inf with intentional typo) are unusual, but their presence in document content alone does not establish external communication or C2 activity.\n\nAdditional IOCs identified in documents:\n- Email addresses: mmun@loc.gov (Library of Congress), Eric_P._Lauer@omb.eop.gov (OMB/Executive Office of President), wayne.longman@att.net\n- Government-related URLs: http://www.whitehouse.gov/omb/circulars/a11/current_year/s300.pdf5, http://digitalcorpora.org/corpora/govdocs\n- Additional government domains: lcweb.loc.gov, hdl.loc.gov (Library of Congress), www.ireap.umd.edu, www.umer.umd.edu\n\nThe presence of OMB and White House domain references combined with the business document exfiltration suggests the data being leaked contains government or government-related information, but the domain references are within documents, not confirmed external network communications.",
+<parameter name="confidence">inference
 
 
 
@@ -706,14 +1049,15 @@ The acquired disk image (pc.E01) has been verified with cryptographic hashes. MD
 
 | Type | Value | Enrichment | Context |
 |------|-------|------------|---------|
-| | No network IOCs extracted | | |
+| Internal IP | `10.11.11.128` |  | System Configuration and Registered Owner: Windows 7 PC Registered to "informant |
 
 
 ### File IOCs
 
 | Type | Value | Enrichment | Context |
 |------|-------|------------|---------|
-| | No file IOCs extracted | | |
+| Path | `C:\Users\informant\Google` |  | Google Drive Cloud Storage Synchronization with Evidence of File Deletion Activi |
+| Path | `C:\Users\informant\Desktop\RESIGNATION_LETTER_[filename` |  | Resignation Letter File Identified on Informant User Desktop |
 
 
 
@@ -721,9 +1065,11 @@ The acquired disk image (pc.E01) has been verified with cryptographic hashes. MD
 
 | Type | Value | Enrichment | Context |
 |------|-------|------------|---------|
-| Email | `iaman.informant@nist.gov` |  | NIST Employee Email Credentials Associated with Personal Gmail Account |
-| Email | `iaman.informant.personal@gmail.com` |  | NIST Employee Email Credentials Associated with Personal Gmail Account |
-| Email | `iaman@nist.gov` |  | Coordinated Data Exfiltration Attempt via Google Drive to Personal Account |
+| Email | `mmun@loc.gov` |  | Suspicious Command-and-Control Domain References Embedded in CD-R Content |
+| Email | `eric_p._lauer@omb.eop.gov` |  | Suspicious Command-and-Control Domain References Embedded in CD-R Content |
+| Email | `wayne.longman@att.net` |  | Suspicious Command-and-Control Domain References Embedded in CD-R Content |
+| Email | `iaman.informant@nist.gov` |  | Government Email Addresses and Suspicious Domains Found in Staged Data |
+| Email | `iaman@nist.gov` |  | NIST Employee Email Address Associated with Insider Threat Infrastructure |
 
 
 
@@ -732,48 +1078,81 @@ The acquired disk image (pc.E01) has been verified with cryptographic hashes. MD
 
 ## Appendix C: MITRE ATT&CK Coverage
 
-8 techniques identified across findings.
+15 techniques identified across findings.
 
 
-**Kill Chain Coverage:** Reconnaissance (1) > Defense Evasion (1) > Discovery (2) > Collection (1) > Exfiltration (3)
+**Kill Chain Coverage:** Initial Access (1) > Persistence (1) > Defense Evasion (5) > Credential Access (1) > Discovery (2) > Collection (1) > Command and Control (1) > Exfiltration (4) > Impact (1)
 
 
-### Reconnaissance
+### Initial Access
 
 | Technique | Name | Findings |
 |-----------|------|----------|
-| [T1592](https://attack.mitre.org/techniques/T1592/) | Gather Victim Host Information | Suspicious Search Activity Related to Data... |
+| [T1133](https://attack.mitre.org/techniques/T1133/) | External Remote Services | Multiple Microsoft Office Documents... |
+
+
+### Persistence
+
+| Technique | Name | Findings |
+|-----------|------|----------|
+| [T1133](https://attack.mitre.org/techniques/T1133/) | External Remote Services | Multiple Microsoft Office Documents... |
 
 
 ### Defense Evasion
 
 | Technique | Name | Findings |
 |-----------|------|----------|
-| [T1070.004](https://attack.mitre.org/techniques/T1070/004/) | File Deletion | Anti-Forensics Tools Downloaded - CCleaner and Eraser |
+| [T1027.001](https://attack.mitre.org/techniques/T1027/001/) | Binary Padding | Multiple Microsoft Office Documents... |
+| [T1036.005](https://attack.mitre.org/techniques/T1036/005/) | Match Legitimate Resource Name or Location | Coordinated Anti-Forensics Activity by... |
+| [T1036.008](https://attack.mitre.org/techniques/T1036/008/) | Masquerade File Type | Suspicious Command-and-Control Domain...; Anti-Forensics Activities: File Deletion and... |
+| [T1070](https://attack.mitre.org/techniques/T1070/) | Indicator Removal | Anti-Forensics Activities: File Deletion and... |
+| [T1070.001](https://attack.mitre.org/techniques/T1070/001/) | Clear Windows Event Logs | Coordinated Anti-Forensics Activity by... |
+
+
+### Credential Access
+
+| Technique | Name | Findings |
+|-----------|------|----------|
+| [T1557](https://attack.mitre.org/techniques/T1557/) | Adversary-in-the-Middle | Multiple Microsoft Office Documents... |
 
 
 ### Discovery
 
 | Technique | Name | Findings |
 |-----------|------|----------|
-| [T1033](https://attack.mitre.org/techniques/T1033/) | System Owner/User Discovery | Credit Card Numbers Found on System |
-| [T1087](https://attack.mitre.org/techniques/T1087/) | Account Discovery | Suspicious Search Activity Related to Data... |
+| [T1087.002](https://attack.mitre.org/techniques/T1087/002/) | Domain Account | NIST Employee Email Address Associated with... |
+| [T1087.004](https://attack.mitre.org/techniques/T1087/004/) | Cloud Account | NIST Employee Email Address Associated with... |
 
 
 ### Collection
 
 | Technique | Name | Findings |
 |-----------|------|----------|
-| [T1005](https://attack.mitre.org/techniques/T1005/) | Data from Local System | Credit Card Numbers Found on System; Sensitive Personal Information Including...; Coordinated Data Exfiltration Attempt via... |
+| [T1557](https://attack.mitre.org/techniques/T1557/) | Adversary-in-the-Middle | Multiple Microsoft Office Documents... |
+
+
+### Command and Control
+
+| Technique | Name | Findings |
+|-----------|------|----------|
+| [T1071](https://attack.mitre.org/techniques/T1071/) | Application Layer Protocol | Government Email Addresses and Suspicious... |
 
 
 ### Exfiltration
 
 | Technique | Name | Findings |
 |-----------|------|----------|
-| [T1020](https://attack.mitre.org/techniques/T1020/) | Automated Exfiltration | NIST Employee Email Credentials Associated...; Sensitive Personal Information Including...; Coordinated Data Exfiltration Attempt via... |
-| [T1041](https://attack.mitre.org/techniques/T1041/) | Exfiltration Over C2 Channel | NIST Employee Email Credentials Associated...; Coordinated Data Exfiltration Attempt via... |
-| [T1048](https://attack.mitre.org/techniques/T1048/) | Exfiltration Over Alternative Protocol | Coordinated Data Exfiltration Attempt via... |
+| [T1020](https://attack.mitre.org/techniques/T1020/) | Automated Exfiltration | Government Email Addresses and Suspicious... |
+| [T1020.001](https://attack.mitre.org/techniques/T1020/001/) | Traffic Duplication | Sensitive Project Information Staged in...; NIST Employee Email Address Associated with... |
+| [T1052.001](https://attack.mitre.org/techniques/T1052/001/) | Exfiltration over USB | Multiple Microsoft Office Documents...; Sensitive Project Information Staged in...; Coordinated Anti-Forensics Activity by... |
+| [T1537](https://attack.mitre.org/techniques/T1537/) | Transfer Data to Cloud Account | Sensitive Project Information Staged in... |
+
+
+### Impact
+
+| Technique | Name | Findings |
+|-----------|------|----------|
+| [T1565.001](https://attack.mitre.org/techniques/T1565/001/) | Stored Data Manipulation | Multiple Microsoft Office Documents... |
 
 
 
@@ -785,13 +1164,13 @@ The acquired disk image (pc.E01) has been verified with cryptographic hashes. MD
 
 | Metric | Value |
 |--------|-------|
-| Total tool calls | 152 |
-| Findings submitted | 7 |
-| Confirmed | 1 |
-| Inferences | 6 |
-| Input tokens | 582 |
-| Output tokens | 45.4K |
-| Total tokens | 46.0K |
+| Total tool calls | 325 |
+| Findings submitted | 11 |
+| Confirmed | 8 |
+| Inferences | 3 |
+| Input tokens | 10.7K |
+| Output tokens | 118.9K |
+| Total tokens | 129.5K |
 | Audit log | /home/mulder/.mulder/cases/nist-data-leakage.audit.jsonl |
 
 
@@ -799,32 +1178,101 @@ The acquired disk image (pc.E01) has been verified with cryptographic hashes. MD
 
 | Model | Input | Output | Total |
 |-------|-------|--------|-------|
-| claude-haiku-4-5 | 582 | 45.4K | 46.0K |
+| claude-haiku-4-5 | 10.7K | 118.9K | 129.5K |
 
 
 
 
 <details>
-<summary>Evidence Sources (17)</summary>
+<summary>Evidence Sources (86)</summary>
 
 | Source | Extractor | Lines |
 |--------|-----------|-------|
-| tsk.partitions | sleuthkit | 10 |
+| optical.listing | mulder-optical | 58 |
+| tsk.partitions | sleuthkit | 9 |
+| tsk.filelist | sleuthkit | 51 |
 | hashdeep.hashes | hashdeep | 6 |
+| tsk.masquerade | sleuthkit | 17 |
 | bulk.bulk_extractor | bulk_extractor | 1 |
-| bulk.ccn | bulk_extractor | 16 |
-| bulk.domain | bulk_extractor | 87365 |
-| bulk.email | bulk_extractor | 1602 |
+| bulk.domain | bulk_extractor | 237 |
+| bulk.email | bulk_extractor | 12 |
+| bulk.rfc822 | bulk_extractor | 41 |
+| bulk.url | bulk_extractor | 300 |
+| bulk.url_services | bulk_extractor | 21 |
+| bulk.bulk_extractor | bulk_extractor | 1 |
+| bulk.domain | bulk_extractor | 264 |
+| bulk.duplicates | bulk_extractor | 58 |
+| bulk.email | bulk_extractor | 43 |
+| bulk.rfc822 | bulk_extractor | 41 |
+| bulk.url | bulk_extractor | 288 |
+| bulk.url_services | bulk_extractor | 19 |
+| exiftool.metadata | exiftool | 9 |
+| hashdeep.hashes | hashdeep | 6 |
+| exiftool.metadata | exiftool | 9 |
+| strings.output | strings | 165747 |
+| tsk.partitions | sleuthkit | 10 |
+| tsk.partitions | sleuthkit | 9 |
+| hashdeep.hashes | hashdeep | 6 |
+| hashdeep.hashes | hashdeep | 6 |
+| hashdeep.hashes | hashdeep | 6 |
+| tsk.filelist | sleuthkit | 104709 |
+| tsk.filelist.p1 | sleuthkit | 93 |
+| bulk.bulk_extractor | bulk_extractor | 1 |
+| bulk.domain | bulk_extractor | 366963 |
+| bulk.duplicates | bulk_extractor | 88 |
+| bulk.email | bulk_extractor | 6851 |
 | bulk.ether | bulk_extractor | 6 |
-| bulk.rfc822 | bulk_extractor | 5310 |
-| bulk.sin | bulk_extractor | 18 |
-| bulk.telephone | bulk_extractor | 1023 |
-| bulk.url | bulk_extractor | 103335 |
-| bulk.url_facebook-address | bulk_extractor | 15 |
-| bulk.url_searches | bulk_extractor | 124 |
-| bulk.url_services | bulk_extractor | 2144 |
-| tsk.masquerade | sleuthkit | 0 |
+| bulk.json | bulk_extractor | 11159 |
+| bulk.rfc822 | bulk_extractor | 7326 |
+| bulk.url | bulk_extractor | 421750 |
+| bulk.url_facebook-address | bulk_extractor | 19 |
+| bulk.url_searches | bulk_extractor | 155 |
+| bulk.url_services | bulk_extractor | 3637 |
+| ez.mft | eztools | 98918 |
+| evtx.manifest | evtx-extract | 54 |
+| ez.shimcache | eztools | 307 |
+| registry.default | regripper | 418 |
+| registry.sam | regripper | 186 |
+| registry.sam | regripper | 7 |
+| registry.sam | regripper | 7 |
+| registry.system | regripper | 69 |
+| registry.system | regripper | 8 |
+| ez.prefetch | eztools | 193 |
+| registry.software | regripper | 33492 |
+| registry.software | regripper | 283 |
+| registry.software | regripper | 283 |
+| registry.system | regripper | 5209 |
+| registry.system | regripper | 199 |
+| registry.system | regripper | 199 |
+| registry.system | regripper | 381 |
+| registry.system | regripper | 255 |
+| registry.system | regripper | 255 |
+| registry.usrclass.admin11 | regripper | 11 |
+| registry.ntuser.admin11 | regripper | 133 |
+| registry.ntuser.default | regripper | 74 |
+| registry.usrclass.informant | regripper | 102 |
+| registry.ntuser.informant | regripper | 306 |
+| registry.usrclass.temporary | regripper | 15 |
+| registry.ntuser.temporary | regripper | 118 |
+| tsk.masquerade | sleuthkit | 3 |
+| registry.query.system | python-registry | 1 |
+| registry.query.system | python-registry | 1 |
+| registry.query.system | python-registry | 1 |
+| registry.query.system | python-registry | 1 |
+| registry.query.software | python-registry | 1 |
+| appfiles.users.appdata.local.com.google.drive.nativeproxy.json | icat | 10 |
+| appfiles.users.appdata.local.sync_log.log | icat | 2173 |
+| appfiles.users.appdata.local.com.google.drive.nativeproxy.json | icat | 10 |
+| appfiles.users.appdata.local.sync_log.log | icat | 2173 |
+| registry.query.software | python-registry | 1 |
+| registry.query.system | python-registry | 1 |
+| registry.query.system | python-registry | 1 |
+| registry.query.system | python-registry | 1 |
 | composite.correlation | composite | 1 |
+| composite.exfil | composite | 2468 |
+| composite.defense_evasion | composite | 114 |
+| composite.timeline | composite | 2117 |
+| composite.file_staging | composite | 578 |
 | composite.correlation | composite | 1 |
 
 
