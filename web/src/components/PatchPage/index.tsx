@@ -66,6 +66,18 @@ export default function PatchPage({data}: {data: PatchData}) {
             </span>
             <p>{data.summary || '—'}</p>
           </div>
+          {data.changes.length > 0 && (
+            <div className={styles.overviewRow}>
+              <span>
+                <Translate id="patchPage.changes">Changes</Translate>
+              </span>
+              <ul className={diffStyles.changes}>
+                {data.changes.map(c => (
+                  <li key={c}>{c}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           {data.knownIssues && (
             <div className={styles.overviewRow}>
               <span>

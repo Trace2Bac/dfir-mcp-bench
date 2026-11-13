@@ -53,6 +53,16 @@ export default function Patches() {
                       {'{n} files'}
                     </Translate>
                   </div>
+                  {p.variants.length > 0 && (
+                    <div className={styles.muted}>
+                      <Translate id="patches.variants">Variants:</Translate>{' '}
+                      {p.variants.map(v => (
+                        <code key={v} className={styles.variantName}>
+                          {v}
+                        </code>
+                      ))}
+                    </div>
+                  )}
                 </td>
                 <td className={styles.colCase}>
                   +{p.added} −{p.removed}

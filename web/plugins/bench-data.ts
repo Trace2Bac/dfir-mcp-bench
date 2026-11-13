@@ -97,6 +97,7 @@ export type PatchData = {
   name: string; // file name
   title: string;
   summary: string;
+  changes: string[]; // one line per change
   knownIssues: string;
   diff: string;
   files: {path: string; added: number; removed: number}[];
@@ -106,6 +107,10 @@ export type PatchData = {
   experiments: {code: string; id: string; title: string; labels: string[]}[];
 };
 export type PatchSummary = Omit<PatchData, 'diff' | 'summary' | 'knownIssues'> & {experimentCodes: string[]};
+const localizedList = (obj: any, key: string, locale: string): string[] => {
+  const value = (locale !== 'en' && obj?.[`${key}_${locale}`]) || obj?.[key];
+  return Array.isArray(value) ? value.map(String) : [];
+};
 export type CaseSummary = {id: string; name: string; title: string; questions: number; experiments: string[]};
 
 const readJson = (p: string) => JSON.parse(fs.readFileSync(p, 'utf8'));
@@ -366,6 +371,7 @@ function readPatches(root: string, locale: string, experiments: ExperimentData[]
         name,
         title: localized(m, 'title', locale) || name,
         summary: localized(m, 'summary', locale),
+        changes: localizedList(m, 'changes', locale),
         knownIssues: localized(m, 'known_issues', locale),
         diff,
         files,
