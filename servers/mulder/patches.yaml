@@ -2,8 +2,8 @@
 # patches/ so that editing it does not change the image build. Shown on the
 # site's patch pages next to the diff. Patches apply in the order a variant
 # lists them (PATCHES in servers/mulder/variants/*.env), each on top of the
-# ones before it: tool-improvements, system-profile, recycle-bin,
-# limit-display. None of them is upstream yet.
+# ones before it: tool-improvements, system-profile, recycle-bin, then
+# strip-limits or limit-display. None of them is upstream yet.
 
 tool-improvements.patch:
   title: "Existing tools find more, and batch results name their sources"
@@ -79,7 +79,8 @@ limit-display.patch:
   title: "Tools state what they did not check, and the limit reaches the analyst"
   title_ko: "도구가 확인하지 않은 범위를 알리고, 그 한계를 analyst까지 전달"
   summary: >
-    The only difference between the two variants. The limit is a sentence in
+    Applied in the variant with interpretation limits (the one without them
+    applies strip-limits instead). The limit is a sentence in
     the tool's message, nothing else: analyze_disk_pcaps says how many files
     it searched, on which partitions, by which extensions and how many it
     opened by header, and that files with other extensions were not opened;
@@ -93,7 +94,8 @@ limit-display.patch:
     it. This path carries any tool's message, including those mulder's own
     tools already had.
   summary_ko: >
-    두 variant의 유일한 차이입니다. 한계는 도구 메시지 안의 문장으로만 알립니다. analyze_disk_pcaps는 몇
+    해석 한계가 있는 variant에 적용합니다(없는 variant는 대신 strip-limits를 적용합니다). 한계는 도구
+    메시지 안의 문장으로만 알립니다. analyze_disk_pcaps는 몇
     개 파일을 어느 파티션에서 어떤 확장자로 찾았고 몇 개를 헤더로 열어 봤는지, 다른 확장자 파일은
     열지 않았다는 것을 적습니다. run_hashdeep은 파일 해시가 매체 해시가 아니라고 적습니다. run_clamav는
     이미지 안에서 무엇을 검사했고 무엇을 검사하지 않았는지 적습니다(색인 텍스트에도).
@@ -101,3 +103,26 @@ limit-display.patch:
     analyst까지 갑니다. tool_response가 미리보기 밖에 두고, get_completed_results가 넘기고, executor
     프롬프트가 보고서의 "message" 칸에 그대로 옮기며, tool·status·source만 받던 analyst가 그것도
     받습니다. 이 통로는 mulder의 원래 도구들이 갖고 있던 메시지도 함께 전달합니다.
+
+strip-limits.patch:
+  title: "Remove the interpretation limits mulder already had (bench only)"
+  title_ko: "mulder에 원래 있던 해석 한계 제거 (벤치 전용)"
+  summary: >
+    For the baseline with no interpretation limits, not for upstream.
+    Removes the sentences in the analyst prompts that say what evidence does
+    not prove ("absence of evidence in one source is not conclusive", "string
+    presence in carved output does not prove execution", "a single detection
+    is not enough for high confidence"), the YARA caveat that rule names do
+    not confirm malware, the malfind caveat on RWX memory, and the warning
+    text of a partial ClamAV or bulk_extractor run (the partial flag stays).
+    Tool descriptions, error messages, the general rule that every claim
+    must be supported by its source, and operational warnings are kept. The
+    ClamAV tests that checked the warning text are adjusted.
+  summary_ko: >
+    해석 한계가 없는 기준선을 위한 것이고, upstream용이 아닙니다. analyst 프롬프트에서 증거가 무엇을
+    증명하지 않는지 말하는 문장("한 출처에 증거가 없다고 결론을 낼 수는 없다", "카빙 결과에 문자열이
+    있다고 실행된 것은 아니다", "탐지 하나로는 높은 확신을 줄 수 없다")을 지우고, YARA의 "규칙 이름이
+    악성코드를 확정하지 않는다" 주의 문구, malfind의 RWX 메모리 주의 문구, ClamAV와 bulk_extractor가
+    일부만 검사했을 때의 경고 문장(partial 표시는 남김)을 지웁니다. 도구 설명, 오류 메시지, "모든
+    주장은 인용한 출처로 뒷받침해야 한다"는 일반 원칙, 운영상의 경고는 남깁니다. 경고 문장을 확인하던
+    ClamAV 테스트는 맞게 고쳤습니다.

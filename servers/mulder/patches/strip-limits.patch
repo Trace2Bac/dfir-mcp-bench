@@ -1,0 +1,144 @@
+diff --git a/src/mulder/orchestrator/prompts/cross_system_analyst.md b/src/mulder/orchestrator/prompts/cross_system_analyst.md
+index 0f9faa4..60094ac 100644
+--- a/src/mulder/orchestrator/prompts/cross_system_analyst.md
++++ b/src/mulder/orchestrator/prompts/cross_system_analyst.md
+@@ -74,8 +74,7 @@ PERSISTENCE COVERAGE VERIFICATION:
+ When persistence searches return no results, verify that all
+ relevant log sources were indexed. Cross-check service, driver,
+ and scheduled task events from system-level logs against registry
+-and memory artifacts. Absence of evidence in one source is not
+-conclusive without confirming that source was actually searched.
++and memory artifacts.
+ 
+ FILESYSTEM STAGING CORRELATION:
+ Cross-correlate filesystem metadata across systems for evidence of
+diff --git a/src/mulder/orchestrator/prompts/extract_analyst.md b/src/mulder/orchestrator/prompts/extract_analyst.md
+index 87c11d1..882168a 100644
+--- a/src/mulder/orchestrator/prompts/extract_analyst.md
++++ b/src/mulder/orchestrator/prompts/extract_analyst.md
+@@ -162,9 +162,6 @@ DATA STAGING DETECTION:
+ When assessing exfiltration, search filesystem metadata (MFT,
+ file listings) for recently created archive or compressed files in
+ temporary directories, user profile paths, and staging locations.
+-The absence of archiving tools in execution artifacts does not rule
+-out data staging; check the filesystem for the output files
+-themselves.
+ 
+ EXTENSION/CONTENT MISMATCHES:
+ Never take a file's extension at face value. A file whose content
+@@ -175,9 +172,7 @@ deleted, and its timestamps, and treat renamed documents on removable
+ media as candidate stolen files rather than as archives or media.
+ 
+ SOURCE ACCURACY:
+-Every claim must be directly supported by the cited source. String
+-presence in carved output does not prove execution or authentication.
+-Match claims to the capability of the tool that produced the evidence.
++Every claim must be directly supported by the cited source.
+ 
+ FOLLOW-UP REQUESTS:
+ Only if you need additional tools run that were not in the original plan,
+diff --git a/src/mulder/orchestrator/prompts/narrative_analyst.md b/src/mulder/orchestrator/prompts/narrative_analyst.md
+index 8ac798b..2485345 100644
+--- a/src/mulder/orchestrator/prompts/narrative_analyst.md
++++ b/src/mulder/orchestrator/prompts/narrative_analyst.md
+@@ -55,12 +55,6 @@ WHEN NO COUNTER-EVIDENCE EXISTS:
+ ATTRIBUTION REVIEW:
+ - Challenge attribution claims that rest on fewer than 3 independent
+   evidence sources.
+-- A single detection from one tool is not sufficient for "high
+-  confidence" attribution. Downgrade to "inference" and note the
+-  limitation.
+-- Detections from the same tool that contradict each other or paint
+-  an implausible picture may reflect tool noise or over-matching.
+-  Investigate before dismissing or accepting them.
+ 
+ CONTRADICTION CHECKS:
+ - If an artifact is called legitimate in one finding but malicious in
+diff --git a/src/mulder/server/tools/extract/carving.py b/src/mulder/server/tools/extract/carving.py
+index c3c8f35..7b83fff 100644
+--- a/src/mulder/server/tools/extract/carving.py
++++ b/src/mulder/server/tools/extract/carving.py
+@@ -484,10 +484,6 @@ def run_bulk_extractor(
+     }
+     if timed_out:
+         response_data["partial"] = True
+-        response_data["warning"] = (
+-            f"bulk_extractor timed out after {timeout}s; "
+-            f"indexed {len(results)} partial feature file(s)"
+-        )
+ 
+     return tool_response(
+         tc_id,
+diff --git a/src/mulder/server/tools/extract/misc.py b/src/mulder/server/tools/extract/misc.py
+index 8f85da3..49d3fd3 100644
+--- a/src/mulder/server/tools/extract/misc.py
++++ b/src/mulder/server/tools/extract/misc.py
+@@ -828,11 +828,7 @@ def run_clamav(target_path: str) -> dict[str, object]:
+     if content_scans:
+         summary["image_contents"] = content_scans
+     if proc.returncode not in (0, 1) or unscanned_lines:
+-        detail = ("; ".join(unscanned_lines) or (proc.stderr or "").strip())[:_PREVIEW_CHAR_LIMIT]
+         summary["partial"] = True
+-        summary["warning"] = (
+-            f"clamscan exited {proc.returncode}; not every file was scanned: {detail}"
+-        )
+     elapsed = (time.monotonic() - t0) * 1000
+     return tool_response(tc_id, "run_clamav", params, summary, "clamav.scan", elapsed)
+ 
+diff --git a/src/mulder/server/tools/extract/volatility.py b/src/mulder/server/tools/extract/volatility.py
+index 1f6b137..d1c834c 100644
+--- a/src/mulder/server/tools/extract/volatility.py
++++ b/src/mulder/server/tools/extract/volatility.py
+@@ -209,11 +209,6 @@ def _run_single_vol_plugin(
+         extractor_name="volatility3",
+     )
+     summary["plugin"] = plugin
+-    if short == "malfind":
+-        summary["caveat"] = (
+-            "RWX memory is expected in AV engines, JIT compilers, and "
+-            ".NET CLR. Verify hex dump content before concluding injection."
+-        )
+     return summary
+ 
+ 
+diff --git a/src/mulder/server/tools/yara.py b/src/mulder/server/tools/yara.py
+index 70a5849..c050a7d 100644
+--- a/src/mulder/server/tools/yara.py
++++ b/src/mulder/server/tools/yara.py
+@@ -606,11 +606,6 @@ def _run_yara_scan(
+             f"Use search(query, source='{source_name}') or "
+             f"get_raw_output('{source_name}') to retrieve match details."
+         ),
+-        "caveat": (
+-            "Rule names do not confirm malware. Inspect the matched "
+-            "strings/bytes to determine if they are malware-specific or "
+-            "generic content found in legitimate software."
+-        ),
+     }
+     return response
+ 
+diff --git a/tests/test_clamav_exit_code.py b/tests/test_clamav_exit_code.py
+index 50551c6..2a0699d 100644
+--- a/tests/test_clamav_exit_code.py
++++ b/tests/test_clamav_exit_code.py
+@@ -99,7 +99,6 @@ def test_output_produced_before_a_non_zero_exit_is_kept(evidence: Path) -> None:
+     assert indexed == [f"{evidence}/locked.txt: Access denied\n{evidence}/a.txt: OK"]
+     preview = str(result["preview"])
+     assert '"partial": true' in preview
+-    assert "locked.txt: Access denied" in preview
+ 
+ 
+ def test_a_file_that_was_not_scanned_next_to_a_detection_is_flagged(evidence: Path) -> None:
+@@ -121,7 +120,6 @@ def test_a_file_that_was_not_scanned_next_to_a_detection_is_flagged(evidence: Pa
+     preview = str(result["preview"])
+     assert '"detections": 1' in preview
+     assert '"partial": true' in preview
+-    assert "locked.txt: Access denied" in preview
+ 
+ 
+ def test_a_failure_reported_only_on_stderr_is_flagged(evidence: Path) -> None:
+@@ -136,4 +134,3 @@ def test_a_failure_reported_only_on_stderr_is_flagged(evidence: Path) -> None:
+ 
+     preview = str(result["preview"])
+     assert '"partial": true' in preview
+-    assert "read error" in preview
