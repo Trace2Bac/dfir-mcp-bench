@@ -115,11 +115,7 @@ function Conditions({data}: {data: ExperimentData}) {
   const settings = [...new Map(data.groups.filter(g => g.model !== 'scripted').map(g => [g.model, g.runs[0].info])).entries()];
   return (
     <Section
-      title={translate({id: 'case.conditions', message: 'Conditions'})}
-      note={translate({
-        id: 'case.conditions.note',
-        message: 'Everything below is the same for every label except the server version.',
-      })}>
+      title={translate({id: 'case.conditions', message: 'Conditions'})}>
       <table className={styles.table}>
         <thead>
           <tr>
@@ -376,12 +372,7 @@ function Comparison({data}: {data: ExperimentData}) {
   const labels = data.variants.map(v => v.label);
   return (
     <Section
-      title={translate({id: 'case.comparison', message: 'Comparison'})}
-      note={translate({
-        id: 'case.comparison.note',
-        message:
-          'scripted makes fixed tool calls without a model, so it shows what the tools return. Model runs are judged by a reviewer: full match, detection and false positives over the questions, median of the reviewed runs; the other rows are means per run.',
-      })}>
+      title={translate({id: 'case.comparison', message: 'Comparison'})}>
       {models.map(model => {
         const groups = labels.map(l => data.groups.find(g => g.label === l && g.model === model));
         const scripted = model === 'scripted';
@@ -460,12 +451,7 @@ function Questions({data}: {data: ExperimentData}) {
   const labels = data.variants.map(v => v.label);
   return (
     <Section
-      title={translate({id: 'case.questions', message: 'Questions'})}
-      note={translate({
-        id: 'case.questions.note',
-        message:
-          "scripted: whether the tool output holds every expected fact. Model runs: one square per reviewed run, coloured by the reviewer's verdict.",
-      })}>
+      title={translate({id: 'case.questions', message: 'Questions'})}>
       <VerdictLegend />
       <div className={styles.tableScroll}>
         <table className={clsx(styles.table, styles.questionTable)}>
@@ -558,10 +544,6 @@ function ScriptedSideBySide({data}: {data: ExperimentData}) {
       title={translate({
         id: 'case.sideBySide',
         message: 'Tool output by version',
-      })}
-      note={translate({
-        id: 'case.sideBySide.note',
-        message: 'The scripted calls are identical for every label, so any difference in what they return comes from the server version.',
       })}>
       {Array.from({length: rows}, (_, i) => {
         const first = calls.find(c => c[i])?.[i];
@@ -872,11 +854,7 @@ function RunExplorer({data}: {data: ExperimentData}) {
   const repoTree = useRepoTree();
   return (
     <Section
-      title={translate({id: 'case.runs', message: 'Runs'})}
-      note={translate({
-        id: 'case.runs.note',
-        message: 'Pick a run on each side to compare what the model did, turn by turn. Tool output opens on click.',
-      })}>
+      title={translate({id: 'case.runs', message: 'Runs'})}>
       <div className={styles.columns}>
         {data.variants.map((_, i) => (
           <RunPanel key={i} data={data} side={i} repoTree={repoTree} />
