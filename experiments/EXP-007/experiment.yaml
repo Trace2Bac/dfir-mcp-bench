@@ -1,0 +1,43 @@
+# EXP-007: one verification. The folder name is its permanent identifier;
+# the title may change.
+title: "Does stating a tool's limits change Haiku's conclusions?"
+title_ko: "도구의 해석 한계를 알리면 Haiku의 결론이 달라질까?"
+server: mulder
+status: planned                  # planned | in-progress | done
+change: >
+  Both labels run the same improved tools (tool-improvements,
+  system-profile and recycle-bin patches); the only difference is
+  limit-display. With it, tools state in their message what they did not
+  check (analyze_disk_pcaps: which files it searched and that files with
+  other extensions were not opened; run_hashdeep: that the file hashes are
+  not the media hash; run_clamav: what it scanned inside the image and what
+  it did not; the new tools: what they could not read), and that message
+  reaches the analyst through get_completed_results and the executor's
+  report. Without it, tools report only what they found and the analyst
+  never sees a tool's message. The path also carries any message mulder's
+  own tools already had. Compared, five runs per label: false positives
+  (claims the evidence contradicts, such as "no capture exists" or "no
+  virus"), then full match and detection.
+change_ko: >
+  두 라벨 모두 같은 개선 도구(tool-improvements, system-profile, recycle-bin 패치)를 쓰고, 차이는
+  limit-display 하나다. 이 패치가 있으면 도구가 확인하지 않은 범위를 메시지에 적고
+  (analyze_disk_pcaps: 어떤 파일을 찾았고 다른 확장자 파일은 열지 않았다는 것, run_hashdeep: 파일
+  해시는 매체 해시가 아니라는 것, run_clamav: 이미지 안에서 무엇을 검사했고 무엇을 하지 않았는지,
+  새 도구: 읽지 못한 것), 그 메시지가 get_completed_results와 executor 보고를 거쳐 analyst까지
+  간다. 패치가 없으면 도구는 찾은 것만 알리고, analyst는 도구 메시지를 보지 못한다. 이 통로는
+  mulder의 원래 도구들이 갖고 있던 메시지도 함께 전달한다. 라벨당 5회로 오탐(증거와 반대되는 단정,
+  예: "캡처가 없다", "바이러스가 없다")을 먼저 보고, 완전 일치와 탐지를 함께 비교한다.
+links:
+  - https://cfreds-archive.nist.gov/Hacking_Case.html
+  - https://cfreds-archive.nist.gov/images/TestAnswers.pdf
+
+case: nist-hacking-case
+harness: mulder-investigate
+harness_options:
+  models: {planner: claude-haiku-4-5, executor: claude-haiku-4-5, analyst: claude-haiku-4-5}
+  # No effort: the effort setting is for Opus and Sonnet models.
+  answer_section: true
+
+variants:
+  before: mulder-1.5.10-tool-assists           # improved tools, no limit display
+  after: mulder-1.5.10-tool-assists-limits     # the same, with limit display
