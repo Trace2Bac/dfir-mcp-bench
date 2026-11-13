@@ -14,16 +14,25 @@ RAW=data/raw/nist-data-leakage
 EVD=data/evidence/nist-data-leakage
 BASE=https://cfreds-archive.nist.gov/data_leakage_case
 mkdir -p "$RAW" "$EVD"
+# Marks the evidence as incomplete until every check below has passed;
+# `./bench.sh investigate` refuses to start while it exists.
+touch "$EVD/.preparing"
 
 [ -f "$RAW/leakage-answers.pdf" ] || curl -fL -o "$RAW/leakage-answers.pdf" "$BASE/leakage-answers.pdf"
 
 # published name (URL path under images/), local name, SHA-1
 while read -r src dst sum; do
     raw="$RAW/$(basename "$src" | sed 's/%23/#/g')"
-    [ -f "$raw" ] || curl -fL -o "$raw" "$BASE/images/$src"
+    if [ ! -f "$raw" ]; then
+        # Download under a temporary name so an interrupted download is not
+        # taken for a finished one.
+        curl -fL --retry 3 -C - -o "$raw.part" "$BASE/images/$src"
+        mv "$raw.part" "$raw"
+    fi
     got=$(sha1sum "$raw" | cut -d' ' -f1)
     if [ "$got" != "$(echo "$sum" | tr 'A-F' 'a-f')" ]; then
-        echo "SHA-1 mismatch for $raw: $got (expected $sum)" >&2; exit 1
+        rm -f "$raw" "$EVD/$dst"
+        echo "SHA-1 mismatch for $raw: $got (expected $sum); removed it, run prepare again" >&2; exit 1
     fi
     [ -f "$EVD/$dst" ] || cp "$raw" "$EVD/$dst"
     echo "ok   $dst"
@@ -42,7 +51,7 @@ if command -v ewfinfo >/dev/null; then
         if [ "$stored" = "$md5" ]; then
             echo "ok   image MD5 in $img matches NIST's answers"
         else
-            echo "note image MD5 in $img is '${stored:-not found}', the answers say $md5" >&2
+            echo "image MD5 in $img is '${stored:-not found}', the answers say $md5" >&2; exit 1
         fi
     done <<'MD5'
 pc.E01 a49d1254c873808c58e6f1bcd60b5bde
@@ -50,4 +59,5 @@ rm2.E01 b4644902acab4583a1d0f9f1a08faa77
 rm3.E01 df914108fb3d86744eb688eba482fbdf
 MD5
 fi
+rm -f "$EVD/.preparing"
 echo "evidence ready in $EVD"

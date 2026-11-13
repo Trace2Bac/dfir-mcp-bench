@@ -277,6 +277,7 @@ investigate)
     c=$(yaml_field "$yaml" case)
     folder=$(yaml_field "cases/$c/case.yaml" evidence)
     [ -d "data/evidence/$folder" ] || { echo "no evidence in data/evidence/$folder; run ./bench.sh prepare first" >&2; exit 1; }
+    [ ! -e "data/evidence/$folder/.preparing" ] || { echo "data/evidence/$folder is incomplete (prepare did not finish); run ./bench.sh prepare again" >&2; exit 1; }
     load_env
     if [ "$harness" = claude-code ]; then
         # Model and effort from harness_options (model: .., effort: ..).
