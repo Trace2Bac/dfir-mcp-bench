@@ -1,0 +1,177 @@
+diff --git a/src/mulder/orchestrator/roles.py b/src/mulder/orchestrator/roles.py
+index d790695..a49ca7c 100644
+--- a/src/mulder/orchestrator/roles.py
++++ b/src/mulder/orchestrator/roles.py
+@@ -199,6 +199,12 @@ def _add_baseline_tasks(tasks: list[dict[str, Any]], executor_allowed: list[str]
+     return added
+ 
+ 
++def _tool_messages_suffix(prompt_vars: dict[str, str] | None) -> str:
++    """The extraction tool messages a later phase passes in, set off from the prompt."""
++    block = (prompt_vars or {}).get("tool_messages", "")
++    return f"\n\n{block}" if block else ""
++
++
+ class RoleRunner:
+     """Runs planner, executor, and analyst roles within split-mode phases.
+ 
+@@ -240,6 +246,16 @@ class RoleRunner:
+         self._env = env
+         self._cwd = cwd
+         self._max_compactions = max_compactions
++        # Tool messages from the extraction phase, in order and without
++        # repeats; later phases receive them as tool_messages_block().
++        self._tool_messages: dict[str, None] = {}
++
++    def tool_messages_block(self) -> str:
++        """The extraction phase's tool messages, for the later phases' prompts."""
++        if not self._tool_messages:
++            return ""
++        lines = "\n".join(f"- {m}" for m in self._tool_messages)
++        return f"TOOL MESSAGES FROM THE EXTRACTION PHASE (as each tool reported them):\n{lines}\n"
+ 
+     async def run_planner(
+         self,
+@@ -287,6 +303,7 @@ class RoleRunner:
+                     effective_vars[fname] = ""
+             prompt = phase.planner_prompt_template.format(**effective_vars)
+ 
++        prompt += _tool_messages_suffix(prompt_vars)
+         prompt += executor_tools_section(phase)
+ 
+         if follow_up_context:
+@@ -477,6 +494,10 @@ class RoleRunner:
+             }
+             for r in exec_results.results
+         ]
++        if phase.name == "extraction":
++            for r in sanitized_results:
++                if r.get("message"):
++                    self._tool_messages[f"{r['tool']}: {r['message']}"] = None
+ 
+         context: dict[str, str] = {
+             "execution_results": json.dumps(sanitized_results),
+@@ -492,6 +513,7 @@ class RoleRunner:
+                 f"Execution results:\n{context['execution_results']}\n\n"
+                 f"Investigation questions:\n{context['investigation_questions']}"
+             )
++        prompt += _tool_messages_suffix(prompt_vars)
+ 
+         return await self._analyst_session(phase, prompt, model, log_prefix, task_system)
+ 
+diff --git a/src/mulder/orchestrator/runner.py b/src/mulder/orchestrator/runner.py
+index 74a63aa..2d4d182 100644
+--- a/src/mulder/orchestrator/runner.py
++++ b/src/mulder/orchestrator/runner.py
+@@ -328,6 +328,7 @@ class Orchestrator:
+             "consistency_report": consistency_report or "",
+             "case_briefing": self._case_briefing,
+             "case_id": self._case_id,
++            "tool_messages": self._roles.tool_messages_block(),
+         }
+         alt_result = await self._run_split_phase(ALTERNATIVE_NARRATIVE, prompt_vars=narrative_vars)
+         result.phases.append(alt_result)
+@@ -340,7 +341,10 @@ class Orchestrator:
+         # Phase 5: Report (single-mode)
+         report_result = await self._run_single_phase(
+             REPORT,
+-            prompt_vars={"case_briefing": self._case_briefing},
++            prompt_vars={
++                "case_briefing": self._case_briefing,
++                "tool_messages": self._roles.tool_messages_block(),
++            },
+         )
+         result.phases.append(report_result)
+         self._accumulate(result, report_result)
+@@ -465,6 +469,8 @@ class Orchestrator:
+                 if fname is not None and fname not in effective_vars:
+                     effective_vars[fname] = ""
+             prompt = phase.single_prompt_template.format(**effective_vars)
++        if effective_vars.get("tool_messages"):
++            prompt += f"\n\n{effective_vars['tool_messages']}"
+ 
+         model = self.model_config.resolve(phase.name, phase.single_role)
+         accumulated_turns = 0
+diff --git a/tests/test_tool_messages_carry.py b/tests/test_tool_messages_carry.py
+new file mode 100644
+index 0000000..7f5c29e
+--- /dev/null
++++ b/tests/test_tool_messages_carry.py
+@@ -0,0 +1,77 @@
++"""Extraction tool messages reach the later phases' prompts."""
++
++from __future__ import annotations
++
++from typing import Any
++from unittest.mock import AsyncMock, MagicMock
++
++import pytest
++
++from mulder.orchestrator.models import ModelConfig
++from mulder.orchestrator.phases import ALTERNATIVE_NARRATIVE, EXTRACTION
++from mulder.orchestrator.roles import RoleRunner
++from mulder.orchestrator.types import ExecutionResults, Plan
++
++PCAP_MESSAGE = (
++    "No packet capture files found in the TSK file listing. Files without an "
++    "extension were not opened."
++)
++
++
++def _roles() -> tuple[RoleRunner, AsyncMock]:
++    roles = RoleRunner(MagicMock(), MagicMock(), ModelConfig(), "c", {}, "/tmp", max_compactions=0)
++    session = AsyncMock(return_value=MagicMock())
++    roles._analyst_session = session  # type: ignore[method-assign]
++    return roles, session
++
++
++def _results(*results: dict[str, Any]) -> ExecutionResults:
++    return ExecutionResults("p", list(results), 1, False)
++
++
++def _plan() -> Plan:
++    return Plan("p", [], [], [], "", 0)
++
++
++async def test_extraction_messages_are_kept_once_in_order() -> None:
++    roles, _ = _roles()
++    results = _results(
++        {"tool": "analyze_disk_pcaps", "status": "ok", "message": PCAP_MESSAGE},
++        {"tool": "run_fls", "status": "ok"},
++        {"tool": "analyze_disk_pcaps", "status": "ok", "message": PCAP_MESSAGE},
++    )
++    await roles.run_analyst(EXTRACTION, _plan(), results, {"case_id": "c", "system_name": "s"})
++
++    block = roles.tool_messages_block()
++    assert block.count(PCAP_MESSAGE) == 1
++    assert "run_fls" not in block
++
++
++async def test_later_phase_analyst_prompt_ends_with_the_messages() -> None:
++    roles, session = _roles()
++    extraction = _results({"tool": "analyze_disk_pcaps", "status": "ok", "message": PCAP_MESSAGE})
++    await roles.run_analyst(EXTRACTION, _plan(), extraction, {"case_id": "c", "system_name": "s"})
++
++    later = {"case_id": "c", "tool_messages": roles.tool_messages_block()}
++    await roles.run_analyst(ALTERNATIVE_NARRATIVE, _plan(), _results(), later)
++
++    prompt = session.call_args_list[-1].args[1]
++    assert prompt.rstrip().endswith(f"analyze_disk_pcaps: {PCAP_MESSAGE}")
++
++
++async def test_later_phase_messages_are_not_collected() -> None:
++    roles, _ = _roles()
++    narrative = _results({"tool": "search", "status": "ok", "message": "3 hits"})
++    await roles.run_analyst(ALTERNATIVE_NARRATIVE, _plan(), narrative, {"case_id": "c"})
++
++    assert roles.tool_messages_block() == ""
++
++
++@pytest.mark.parametrize("prompt_vars", [None, {}, {"tool_messages": ""}])
++async def test_no_messages_leave_the_prompt_unchanged(
++    prompt_vars: dict[str, str] | None,
++) -> None:
++    roles, session = _roles()
++    await roles.run_analyst(ALTERNATIVE_NARRATIVE, _plan(), _results(), prompt_vars)
++
++    assert "TOOL MESSAGES" not in session.call_args_list[-1].args[1]

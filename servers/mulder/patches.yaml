@@ -197,16 +197,16 @@ message-channel.patch:
     the source name, the job status and the message (it dropped all three, a
     bug), the executor prompts copy the message word for word into their
     report, and the analyst receives it. When the first extraction plan for a
-    disk image leaves out analyze_disk_pcaps, it is added in code. Used by
-    EXP-002 in both labels, so that the pcap tool runs and its message reaches
-    the analyst either way.
+    disk image leaves out analyze_disk_pcaps, it is added in code. Used in
+    every label of EXP-002 and EXP-003, so that the pcap tool runs and its
+    message reaches the analyst either way.
   summary_ko: >
     tool-improvements의 메시지 전달과 일괄 결과 수정만 upstream mulder에 넣은 것이고, 다른 도구
     변경은 없습니다. tool_response가 도구 메시지를 미리보기 밖에 두고, get_completed_results가
     source 이름, 작업 상태, 메시지를 돌려주며(셋 다 버리던 버그), executor 프롬프트가 메시지를 보고서에
     그대로 옮기고, analyst가 받습니다. 디스크 이미지의 첫 추출 계획에 analyze_disk_pcaps가 빠지면
-    코드가 추가합니다. EXP-002의 두 라벨이 함께 써서, 어느 쪽이든 pcap 도구가 실행되고 그 메시지가
-    analyst까지 갑니다.
+    코드가 추가합니다. EXP-002와 EXP-003의 모든 라벨이 함께 써서, 어느 쪽이든 pcap 도구가 실행되고 그
+    메시지가 analyst까지 갑니다.
   changes:
     - "get_completed_results: returns the source name, the job status and the tool's message (bug fix)"
     - "Message channel: tool_response, executor report and analyst pass the tool's message on"
@@ -262,3 +262,28 @@ strip-limits-upstream.patch:
   changes_ko:
     - "analyst와 보고서 프롬프트: 일반 해석 규칙 제거"
     - "mulder 도구: YARA, malfind, ClamAV, bulk_extractor, timestomping, submit_finding, DNS 터널 주의 문구 제거"
+
+message-carry.patch:
+  title: "Tool messages reach the later phases of mulder investigate"
+  title_ko: "도구 메시지가 mulder investigate의 뒤 단계까지 전달됨"
+  summary: >
+    Applied on message-channel. mulder investigate gave the tools' messages
+    only to the extraction analyst; the alternative-narrative phase and the
+    report worked from the findings, so a tool's own statement of what it did
+    not check was lost after extraction. The extraction phase's tool messages,
+    as the tools reported them and without repeats, are now added at the end
+    of the alternative-narrative planner and analyst prompts and of the report
+    prompt. No instruction is added with them. Tested in
+    tests/test_tool_messages_carry.py.
+  summary_ko: >
+    message-channel 위에 적용합니다. mulder investigate는 도구 메시지를 추출 단계 analyst에게만
+    줬습니다. 반론 검토 단계와 보고서는 발견 사항을 보고 일했기 때문에, 도구가 스스로 알린 "확인하지 않은
+    범위"가 추출 단계 뒤로는 사라졌습니다. 이제 추출 단계의 도구 메시지를 도구가 보고한 그대로, 중복 없이
+    반론 검토 단계의 planner와 analyst 프롬프트, 보고서 프롬프트 끝에 붙입니다. 따로 지시를 덧붙이지는
+    않습니다. tests/test_tool_messages_carry.py로 확인합니다.
+  changes:
+    - "Extraction analyst: the tool messages it receives are kept, once each, in order"
+    - "Alternative-narrative planner and analyst, report: the kept messages are appended to their prompts"
+  changes_ko:
+    - "추출 analyst: 받은 도구 메시지를 순서대로, 중복 없이 보관"
+    - "반론 검토 planner·analyst와 보고서: 보관한 메시지를 프롬프트 끝에 추가"

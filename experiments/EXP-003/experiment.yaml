@@ -1,0 +1,45 @@
+# EXP-003: one verification. The folder name is its permanent identifier;
+# the title may change.
+title: "Does an interpretation limit survive mulder investigate's later phases?"
+title_ko: "해석 한계가 mulder investigate의 뒤 단계까지 살아남을까?"
+server: mulder
+status: in-progress              # planned | in-progress | done
+change: >
+  The question and the two tool versions of EXP-002, run with mulder
+  investigate (planner, executor and analyst roles, all Haiku) instead of one
+  agent. In the first runs (before, after) the pcap tool's limit reached the
+  extraction analyst, which wrote that the capture's file name was not
+  located; the alternative-narrative phase and the report did not see it,
+  searched again by extension and concluded that no capture file exists.
+  message-carry passes the extraction phase's tool messages, as the tools
+  reported them, to the alternative-narrative and report phases. Four labels:
+  before and after as in EXP-002 (messages stop at the extraction analyst),
+  and before-carried and after-carried, the same with message-carry. The
+  limit's effect is after-carried against before-carried; the carry's is
+  after-carried against after. Five runs per label; compared as in EXP-002.
+change_ko: >
+  EXP-002와 같은 질문과 같은 두 도구 버전을, 에이전트 하나가 아니라 mulder investigate(planner,
+  executor, analyst 역할, 모두 Haiku)로 돌립니다. 처음 돌린 결과(before, after)에서는 pcap 도구의
+  해석 한계가 추출 단계 analyst까지는 갔고, analyst는 캡처 파일 이름을 찾지 못했다고 적었습니다. 그런데
+  반론 검토 단계와 보고서는 이 한계를 보지 못하고, 확장자로 다시 찾은 뒤 캡처 파일이 없다고 결론
+  냈습니다. message-carry는 추출 단계의 도구 메시지를 도구가 보고한 그대로 반론 검토와 보고서 단계에도
+  넘깁니다. 라벨은 네 개입니다. before와 after는 EXP-002와 같고(메시지가 추출 analyst에서 멈춤),
+  before-carried와 after-carried는 여기에 message-carry를 더한 것입니다. 해석 한계의 효과는
+  after-carried와 before-carried의 비교로, 전달의 효과는 after-carried와 after의 비교로 봅니다. 라벨당
+  5회로, EXP-002와 같은 방식으로 비교합니다.
+links:
+  - https://cfreds-archive.nist.gov/Hacking_Case.html
+  - https://cfreds-archive.nist.gov/images/TestAnswers.pdf
+
+case: nist-hacking-case-q23
+harness: mulder-investigate
+harness_options:
+  models: {planner: claude-haiku-4-5, executor: claude-haiku-4-5, analyst: claude-haiku-4-5}
+  # No effort: the effort setting is for Opus and Sonnet models.
+  answer_section: true
+
+variants:
+  before: mulder-1.5.10-messages-no-limits                 # no interpretation limit; messages stop at the extraction analyst
+  after: mulder-1.5.10-messages-pcap-limit                 # mulder's limits and the pcap limit; messages stop there too
+  before-carried: mulder-1.5.10-messages-carry-no-limits   # no limit; messages reach the later phases
+  after-carried: mulder-1.5.10-messages-carry-pcap-limit   # the limits, reaching the later phases
