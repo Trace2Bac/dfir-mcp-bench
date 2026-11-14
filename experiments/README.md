@@ -30,8 +30,9 @@ next to it holds the reviewer's verdicts.
 | `harness_options` | for `mulder-investigate`: `models` per role, `effort`, how it authenticated, and `answer_section` (ask the report for a "Case Questions" section with `Case Q<n>:` lines, which `review` shows per question); for `claude-code`: `model`, `effort`, `answer_section`, `instruction`, one line added to the end of the prompt for every label, and `tools`, the only mulder tools the agent may use (the others are removed from its tool list) |
 | `variants` | label to server variant (`servers/mulder/variants/<name>.env`) |
 | `scripted_expect` | scripted scores per label; `./bench.sh check` fails when they change |
+| `criteria` | how the answers are judged, written before the runs, so that the rules cannot be fitted to the results |
 | `conclusion` | what the results show, and their limits |
-| `title_ko`, `change_ko`, `conclusion_ko` | optional Korean text for the site's Korean pages; the plain fields are English and the default |
+| `title_ko`, `change_ko`, `criteria_ko`, `conclusion_ko` | optional Korean text for the site's Korean pages; the plain fields are English and the default |
 
 ## Files of a run
 

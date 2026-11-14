@@ -1,0 +1,75 @@
+id: nist-hacking-case-av
+title: NIST CFReDS Hacking Case, the anti-virus question with two control questions
+title_ko: NIST CFReDS Hacking Case, 백신 검사 질문과 대조 질문 두 개
+name: "NIST Hacking Case, anti-virus with controls"   # short name for lists
+name_ko: "NIST Hacking Case, 백신 검사와 대조 질문"
+dataset: nist-hacking-case
+evidence: nist-hacking-case
+purpose: >
+  Three of NIST's Hacking Case questions. The anti-virus question (NIST's
+  Q31, answer yes) is the one an interpretation limit is meant for: clamscan
+  does not open a disk image, so a scan of the EnCase image reports no
+  detection although 18 files inside it are detected. The other two, the
+  operating system (Q2) and the registered owner (Q5), are controls: mulder's
+  registry tool answers them directly, so an answer that hedges on them
+  would show the limit made the model cautious in general rather than where
+  it applies. Q3 is yes/no and left to a reviewer.
+purpose_ko: >
+  NIST Hacking Case 질문 세 개를 묻습니다. 백신 검사 질문(NIST Q31, 정답 "있음")이 해석 한계가 겨냥하는
+  질문입니다. clamscan은 디스크 이미지를 열지 못해서, EnCase 이미지를 검사하면 안의 파일 18개가 탐지 대상인데도
+  0건이 나옵니다. 나머지 둘, 운영체제(Q2)와 등록된 소유자(Q5)는 대조 질문입니다. mulder의 레지스트리 도구가
+  바로 답해 주므로, 여기서 답을 미룬다면 해석 한계가 필요한 곳이 아니라 모델 전체를 소극적으로 만들었다는 뜻이
+  됩니다. Q3은 예/아니요 답이라 검토자가 판정합니다.
+answers_source: https://cfreds-archive.nist.gov/images/TestAnswers.pdf
+
+setup:
+  - tool: scan_evidence
+    args: {evidence_path: "${EVIDENCE}", case_id: "${CASE_ID}"}
+
+# For bench-runner runs. mulder investigate picks from all of mulder's tools.
+tools:
+  - get_tool_guide
+  - list_sources
+  - run_mmls
+  - run_fls
+  - list_files
+  - get_deleted_files
+  - get_file_metadata
+  - extract_file_by_inode
+  - run_regripper
+  - query_registry_value
+  - run_strings
+  - parse_browser_history
+  - run_clamav
+  - search
+  - get_raw_output
+
+# No scripted calls yet: the scripted ceiling for this case has not been measured.
+scripted: []
+
+# Any tool that reads the evidence: an answer with no tool call behind it
+# (the answer key is public) does not pass.
+x-reads-evidence: &reads_evidence
+  [run_fls, list_files, get_deleted_files, get_file_metadata, extract_file_by_inode, run_regripper,
+   run_registry_parser, query_registry_value, run_strings, search, get_raw_output, read_evidence_file,
+   parse_browser_history, run_clamav, run_mft_parser, parse_mft, run_plaso, start_extraction_batch]
+
+questions:
+  - id: Q1                       # NIST Q2
+    text: "What operating system was used on the computer?"
+    text_ko: "컴퓨터에서 쓰인 운영체제는?"
+    expect: {all: ["Windows XP"]}
+    requires_any_tool: *reads_evidence
+  - id: Q2                       # NIST Q5
+    text: "Who is the registered owner?"
+    text_ko: "등록된 소유자는?"
+    expect: {all: ["Schardt"]}
+    requires_any_tool: *reads_evidence
+  - id: Q3                       # NIST Q31
+    text: "Perform a Anti-Virus check. Are there any viruses on the computer?"
+    text_ko: "백신 검사를 하세요. 컴퓨터에 바이러스가 있나요?"
+    review_only: true            # yes/no answer; a reviewer decides. Answer key: Yes
+    requires_any_tool: *reads_evidence
+
+
+limits: {max_turns: 40, max_tool_chars: 4000, keep_tool_results: 4, context_budget_tokens: 24000}

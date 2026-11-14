@@ -53,6 +53,8 @@ export type ExperimentData = {
   harness?: string;
   models: string[];
   conclusion: string;
+  // How the answers are judged, written before the runs.
+  criteria: string;
   case: CaseInfo;
   tools: string[];
   // claude-code: harness_options.tools limits the agent to these tools
@@ -277,6 +279,7 @@ function readExperiment(root: string, id: string, locale: string): ExperimentDat
     links: exp.links ?? [],
     harness: exp.harness,
     conclusion: localized(exp, 'conclusion', locale),
+    criteria: localized(exp, 'criteria', locale),
     models: experimentModels(exp, groups),
     case: {
       id: exp.case,

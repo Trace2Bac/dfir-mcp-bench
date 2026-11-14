@@ -952,6 +952,14 @@ function Overview({data}: {data: ExperimentData}) {
           <span className={styles.small}>{data.case.purpose}</span>
         </p>
       </div>
+      {data.criteria && (
+        <div className={styles.overviewRow}>
+          <span>
+            <Translate id="exp.criteria">Judged by</Translate>
+          </span>
+          <p>{data.criteria}</p>
+        </div>
+      )}
       {data.conclusion && (
         <div className={clsx(styles.overviewRow, styles.conclusion)}>
           <span>
