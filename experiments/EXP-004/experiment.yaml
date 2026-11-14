@@ -19,7 +19,10 @@ change: >
   they are clean. The agent may use only the tools a disk examination needs
   for this question (listing, search, file extraction, run_clamav), and the
   prompt asks it to run run_clamav before it answers; both are the same in
-  both labels. Five runs per label. Compared: how many answers state that
+  both labels. A third label, after-partial, also changes the result itself:
+  on a disk image run_clamav returns status partial and no detection count
+  (null, not 0), and the indexed output that an agent may read again starts
+  with the same note. Compared: how many answers state that
   there is no virus, how many say it was not determined, how many find the
   detections, and which tools the agent used.
 change_ko: >
@@ -32,7 +35,9 @@ change_ko: >
   검사하면, clamscan이 이미지를 파일 하나로 읽었고 그 안의 파일은 검사하지 않았으며, 그래서 깨끗하다는
   뜻은 아니라는 것을 메시지로 알립니다. 에이전트는 이 질문에 필요한 도구(파일 목록, 검색, 파일 추출,
   run_clamav)만 쓸 수 있고, 프롬프트에서 답하기 전에 run_clamav를 실행하라고 요청합니다. 둘 다 두 라벨이
-  같습니다. 라벨당 5회로, 바이러스가 없다고 답한 수, 확인하지 못했다고 답한 수,
+  같습니다. 세 번째 라벨 after-partial은 결과 자체도 바꿉니다. 디스크 이미지를 검사하면 run_clamav가 상태를
+  partial로, 탐지 수를 0이 아닌 null로 돌려주고, 에이전트가 다시 읽을 수 있는 색인 출력 맨 앞에도 같은 안내를
+  넣습니다. 바이러스가 없다고 답한 수, 확인하지 못했다고 답한 수,
   탐지를 찾은 수를 비교하고, 에이전트가 어떤 도구를 썼는지도 봅니다.
 links:
   - https://cfreds-archive.nist.gov/Hacking_Case.html
@@ -55,6 +60,7 @@ harness_options:
 variants:
   before: mulder-1.5.10-messages-no-limits     # upstream tools, no interpretation limit
   after: mulder-1.5.10-messages-clamav-limit   # mulder's own limits, plus what a disk image scan does not show
+  after-partial: mulder-1.5.10-messages-clamav-partial   # the same, and the result itself says partial, with no count
 
 conclusion: >
   The interpretation limit stopped the wrong conclusion. Before, all five

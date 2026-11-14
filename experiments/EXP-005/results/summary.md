@@ -4,7 +4,19 @@ Model runs. Means are per run.
 
 | label | model | variant | runs | reviewed | turns | tool calls | tool errors | seconds | end reasons |
 |---|---|---|---|---|---|---|---|---|---|
-| before-carried | claude-haiku-4-5 | mulder-1.5.10-messages-carry-no-limits | 5 | 0/5 | 136.6 | 152.6 | - | 1607.6 | report 5 |
-| after-carried | claude-haiku-4-5 | mulder-1.5.10-messages-carry-clamav-limit | 5 | 0/5 | 130.4 | 148.8 | - | 781.0 | report 5 |
+| before-carried | claude-haiku-4-5 | mulder-1.5.10-messages-carry-no-limits | 5 | 5/5 | 136.6 | 152.6 | - | 1607.6 | report 5 |
+| after-carried | claude-haiku-4-5 | mulder-1.5.10-messages-carry-clamav-limit | 5 | 5/5 | 130.4 | 148.8 | - | 781.0 | report 5 |
 
-No run has been reviewed yet (`./bench.sh review`).
+Human review, on the scale mulder uses for its own runs: full match = found, detection = found or partial, false positives = contradicted claims stated as fact (inside or outside the questions), each over the number of questions. Mean of the reviewed runs, range in parentheses.
+
+| label | model | reviewed runs | full match | detection | false positives |
+|---|---|---|---|---|---|
+| before-carried | claude-haiku-4-5 | 5 | 0% | 0% | 100% |
+| after-carried | claude-haiku-4-5 | 5 | 0% | 0% | 60% (0 to 100) |
+
+Verdicts per question (F found, P partial, M missed, X false positive; count of reviewed runs):
+
+| label | model | Q1 |
+|---|---|---|
+| before-carried | claude-haiku-4-5 | X5 |
+| after-carried | claude-haiku-4-5 | M2 X3 |

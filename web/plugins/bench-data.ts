@@ -55,6 +55,9 @@ export type ExperimentData = {
   conclusion: string;
   case: CaseInfo;
   tools: string[];
+  // claude-code: harness_options.tools limits the agent to these tools
+  toolsLimited: boolean;
+  instruction: string;
   questions: Question[];
   variants: Variant[];
   groups: Group[];
@@ -115,7 +118,7 @@ export type CaseSummary = {id: string; name: string; title: string; questions: n
 
 const readJson = (p: string) => JSON.parse(fs.readFileSync(p, 'utf8'));
 
-function readVariant(root: string, label: string, name: string): Variant {
+function readVariant(root: string, label: string, name: string, locale = 'en'): Variant {
   const file = path.join(root, 'servers', 'mulder', 'variants', `${name}.env`);
   const text = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
   // KEY=value or KEY="value with spaces", as the shell reads the file.
@@ -123,11 +126,12 @@ function readVariant(root: string, label: string, name: string): Variant {
     const m = text.match(new RegExp(`^${key}=(?:"([^"]*)"|([^\\s#]*))`, 'm'));
     return m?.[1] ?? m?.[2] ?? '';
   };
-  const note = text
-    .split('\n')
-    .filter(l => l.startsWith('#'))
-    .map(l => l.replace(/^#\s?/, ''))
-    .join(' ');
+  // The comment lines are the note; lines starting "# ko:" are its Korean
+  // version, used on Korean pages when present.
+  const comments = text.split('\n').filter(l => l.startsWith('#'));
+  const ko = comments.filter(l => /^#\s?ko:/.test(l)).map(l => l.replace(/^#\s?ko:\s?/, ''));
+  const en = comments.filter(l => !/^#\s?ko:/.test(l)).map(l => l.replace(/^#\s?/, ''));
+  const note = (locale === 'ko' && ko.length ? ko : en).join(' ');
   return {label, name, note, baseImage: get('BASE_IMAGE'), ref: get('REF'), patches: get('PATCHES')};
 }
 
@@ -243,7 +247,7 @@ function experimentModels(exp: any, groups: Group[]): string[] {
 function readExperiment(root: string, id: string, locale: string): ExperimentData {
   const exp = YAML.parse(fs.readFileSync(path.join(root, 'experiments', id, 'experiment.yaml'), 'utf8'));
   const spec = YAML.parse(fs.readFileSync(path.join(root, 'cases', exp.case, 'case.yaml'), 'utf8'));
-  const variants = Object.entries<string>(exp.variants ?? {}).map(([label, name]) => readVariant(root, label, name));
+  const variants = Object.entries<string>(exp.variants ?? {}).map(([label, name]) => readVariant(root, label, name, locale));
   const groups: Group[] = [];
   const caseResults = path.join(root, 'experiments', id, 'results');
   for (const v of variants) {
@@ -282,7 +286,9 @@ function readExperiment(root: string, id: string, locale: string): ExperimentDat
       dataset: spec.dataset,
       answersSource: spec.answers_source,
     },
-    tools: spec.tools ?? [],
+    tools: exp.harness_options?.tools ?? spec.tools ?? [],
+    toolsLimited: Boolean(exp.harness_options?.tools),
+    instruction: String(exp.harness_options?.instruction ?? ''),
     questions: readQuestions(spec, locale),
     variants,
     groups,
@@ -322,8 +328,8 @@ function readCase(root: string, id: string, locale: string, experiments: Experim
       source: ds.source,
       contributor: ds.contributor,
       answers: ds.answers,
-      notes: String(ds.notes ?? '').trim(),
-      files: (ds.files ?? []).map((f: any) => ({name: String(f.name), note: String(f.note ?? '')})),
+      notes: localized(ds, 'notes', locale).trim(),
+      files: (ds.files ?? []).map((f: any) => ({name: String(f.name), note: localized(f, 'note', locale)})),
     },
     questions: readQuestions(spec, locale),
     experiments: experiments

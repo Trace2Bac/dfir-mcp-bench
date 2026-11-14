@@ -4,19 +4,19 @@ Model runs. Means are per run.
 
 | label | model | variant | runs | reviewed | turns | tool calls | tool errors | seconds | end reasons |
 |---|---|---|---|---|---|---|---|---|---|
-| before | claude-haiku-4-5 | mulder-1.5.10-messages-no-limits | 10 | 5/10 | 12.6 | 11.6 | 0.0 | 38.1 | success 10 |
-| after | claude-haiku-4-5 | mulder-1.5.10-messages-clamav-limit | 10 | 5/10 | 20.3 | 19.3 | 0.5 | 74.6 | success 10 |
+| before | claude-haiku-4-5 | mulder-1.5.10-messages-no-limits | 10 | 10/10 | 12.6 | 11.6 | 0.0 | 38.1 | success 10 |
+| after | claude-haiku-4-5 | mulder-1.5.10-messages-clamav-limit | 10 | 10/10 | 20.3 | 19.3 | 0.5 | 74.6 | success 10 |
 
-Human review, on the scale mulder uses for its own runs: full match = found, detection = found or partial, false positives = contradicted claims stated as fact (inside or outside the questions), each over the number of questions. Median of the reviewed runs, range in parentheses.
+Human review, on the scale mulder uses for its own runs: full match = found, detection = found or partial, false positives = contradicted claims stated as fact (inside or outside the questions), each over the number of questions. Mean of the reviewed runs, range in parentheses.
 
 | label | model | reviewed runs | full match | detection | false positives |
 |---|---|---|---|---|---|
-| before | claude-haiku-4-5 | 5 | 0% | 0% | 100% |
-| after | claude-haiku-4-5 | 5 | 0% | 0% | 0% (0 to 100) |
+| before | claude-haiku-4-5 | 10 | 0% | 0% | 100% |
+| after | claude-haiku-4-5 | 10 | 0% | 0% | 30% (0 to 100) |
 
 Verdicts per question (F found, P partial, M missed, X false positive; count of reviewed runs):
 
 | label | model | Q1 |
 |---|---|---|
-| before | claude-haiku-4-5 | X5 |
-| after | claude-haiku-4-5 | M4 X1 |
+| before | claude-haiku-4-5 | X10 |
+| after | claude-haiku-4-5 | M7 X3 |

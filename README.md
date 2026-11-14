@@ -64,7 +64,7 @@ needs.
   key or the evidence contradicts, stated as fact; hedged claims do not
   count). Contradicted claims outside the questions count too. Results are
   full match, detection (found or partial) and false positives over the
-  questions, as the median of the reviewed runs with the range.
+  questions, as the mean of the reviewed runs with the range.
 - Model runs vary, so a fix to what the model reads needs repeated runs
   (`--repeat N`) on both labels.
 - Answer keys of public cases may be in a model's training data; the review

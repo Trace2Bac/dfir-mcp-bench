@@ -309,3 +309,30 @@ clamav-limit.patch:
     - "run_clamav: on a disk image, the message says the files inside were not scanned and that this does not show they are clean"
   changes_ko:
     - "run_clamav: 디스크 이미지를 검사하면 그 안의 파일은 검사하지 않았고, 깨끗하다는 뜻은 아니라는 것을 메시지에 표시"
+
+clamav-partial.patch:
+  title: "run_clamav does not report a count for what it did not scan"
+  title_ko: "run_clamav가 검사하지 않은 것에 탐지 수를 보고하지 않음"
+  summary: >
+    Applied on clamav-limit. A sentence on the result was not always enough:
+    the response still said success with 0 detections, and the indexed
+    output (clamav.scan) held only "OK" lines, so an agent that read it again
+    before answering saw no limit. When run_clamav scans a disk image, the
+    response status is now partial, the detection count is null instead of 0
+    (unless something was found), the result lists the images under
+    not_scanned, and the indexed output starts with a NOTE line saying the
+    files inside were not scanned and that an OK is for the image file only.
+    Tested in tests/test_clamav_image_limit.py.
+  summary_ko: >
+    clamav-limit 위에 적용합니다. 결과에 붙인 문장만으로는 늘 충분하지 않았습니다. 응답은 여전히 성공에 탐지
+    0건이었고, 색인되는 출력(clamav.scan)에는 "OK" 줄뿐이라, 답하기 전에 이를 다시 읽은 에이전트는 한계를 보지
+    못했습니다. 이제 run_clamav가 디스크 이미지를 검사하면 응답 상태가 partial이고, 탐지 수는 0이 아니라
+    null이며(무언가 찾았을 때는 제외), 결과의 not_scanned에 이미지를 적고, 색인되는 출력 맨 앞에 안의 파일은
+    검사하지 않았고 OK는 이미지 파일에 대한 것이라는 NOTE 줄을 넣습니다. tests/test_clamav_image_limit.py로
+    확인합니다.
+  changes:
+    - "run_clamav: on a disk image, status partial and detections null instead of success and 0"
+    - "run_clamav: the indexed output starts with a NOTE that the files inside were not scanned"
+  changes_ko:
+    - "run_clamav: 디스크 이미지를 검사하면 success와 0 대신 partial과 null"
+    - "run_clamav: 색인되는 출력 맨 앞에 안의 파일은 검사하지 않았다는 NOTE"

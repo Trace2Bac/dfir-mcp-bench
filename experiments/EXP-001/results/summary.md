@@ -14,7 +14,7 @@ Model runs. Means are per run.
 | before | qwen3.5-9b | mulder-1040615 | 5 | 5/5 | 12.0 | 12.0 | 0.0 | 70.0 | max_turns 5 |
 | after | qwen3.5-9b | mulder-e74ae6d | 5 | 5/5 | 5.0 | 4.0 | 0.0 | 34.6 | final_answer 5 |
 
-Human review, on the scale mulder uses for its own runs: full match = found, detection = found or partial, false positives = contradicted claims stated as fact (inside or outside the questions), each over the number of questions. Median of the reviewed runs, range in parentheses.
+Human review, on the scale mulder uses for its own runs: full match = found, detection = found or partial, false positives = contradicted claims stated as fact (inside or outside the questions), each over the number of questions. Mean of the reviewed runs, range in parentheses.
 
 | label | model | reviewed runs | full match | detection | false positives |
 |---|---|---|---|---|---|

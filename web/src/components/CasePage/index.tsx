@@ -193,7 +193,7 @@ function Experiments({data}: {data: CaseData}) {
                   <Link to={`/experiments/${e.id}`}>{e.title}</Link>
                 </td>
                 <td className={styles.small}>{e.models.join(', ') || 'scripted'}</td>
-                <td className={styles.small}>{e.status}</td>
+                <td className={styles.small}>{statusText(e.status)}</td>
               </tr>
             ))}
           </tbody>
@@ -201,6 +201,14 @@ function Experiments({data}: {data: CaseData}) {
       )}
     </Section>
   );
+}
+
+// An experiment's status, in the page's language.
+function statusText(status: string): string {
+  if (status === 'done') return translate({id: 'status.done', message: 'done'});
+  if (status === 'in-progress') return translate({id: 'status.inProgress', message: 'in progress'});
+  if (status === 'planned') return translate({id: 'status.planned', message: 'planned'});
+  return status;
 }
 
 export default function CasePage({data}: {data: CaseData}) {

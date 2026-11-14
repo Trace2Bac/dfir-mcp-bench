@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from collections import Counter
 from pathlib import Path
-from statistics import mean, median
+from statistics import mean
 from typing import Any
 
 from .review import VERDICTS, load_review, review_counts, verdict
@@ -32,11 +32,15 @@ def _load_runs(case_results: Path) -> dict[tuple[str, str], list[dict[str, Any]]
 
 
 def _rate(values: list[float]) -> str:
-    """Median and range of per-run percentages, as mulder publishes them."""
+    """Mean and range of per-run percentages.
+
+    The mean, not the median: with one question a run scores 0% or 100%, and
+    the median of 0, 0, 0, 0 and 100 would hide the one run that differs.
+    """
     pct = [round(v * 100) for v in values]
     if min(pct) == max(pct):
         return f"{pct[0]}%"
-    return f"{round(median(pct))}% ({min(pct)} to {max(pct)})"
+    return f"{round(mean(pct))}% ({min(pct)} to {max(pct)})"
 
 
 def _avg(values: list[float | None]) -> str:
@@ -107,7 +111,7 @@ def summarize(case_results: Path, label_order: list[str] | None = None) -> str:
                 (
                     "Human review, on the scale mulder uses for its own runs: full match = found, detection ="
                     " found or partial, false positives = contradicted claims stated as fact (inside or outside"
-                    " the questions), each over the number of questions. Median of the reviewed runs, range in"
+                    " the questions), each over the number of questions. Mean of the reviewed runs, range in"
                     " parentheses."
                 ),
                 "",

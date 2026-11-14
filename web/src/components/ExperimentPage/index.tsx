@@ -14,10 +14,6 @@ import styles from './styles.module.css';
 const MULDER_COMMIT = 'https://github.com/calebevans/mulder/commit/';
 
 const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
-const median = (xs: number[]) => {
-  const s = [...xs].sort((a, b) => a - b);
-  return s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2;
-};
 
 // Review verdicts on the four-level scale mulder uses for its own runs; pass and
 // fail come from reviews written before it.
@@ -80,20 +76,22 @@ function reviewRates(r: Run): {
   };
 }
 
-// Median of the reviewed runs, with the range when there are several.
+// Mean of the reviewed runs, with the range when they differ. Not the median:
+// with one question a run scores 0% or 100%, and the median would hide a
+// single run that differs.
 function rateText(g: Group, pick: (x: ReturnType<typeof reviewRates>) => number): string {
   const xs = g.runs.filter(r => r.review).map(r => Math.round(pick(reviewRates(r)) * 100));
   if (!xs.length) return '-';
-  return Math.min(...xs) === Math.max(...xs) ? `${xs[0]}%` : `${Math.round(median(xs))}% (${Math.min(...xs)}–${Math.max(...xs)})`;
+  return Math.min(...xs) === Math.max(...xs) ? `${xs[0]}%` : `${Math.round(mean(xs))}% (${Math.min(...xs)}–${Math.max(...xs)})`;
 }
 
 function rateValue(g: Group, pick: (x: ReturnType<typeof reviewRates>) => number): number {
   const xs = g.runs.filter(r => r.review).map(r => pick(reviewRates(r)));
-  return xs.length ? median(xs) : 0;
+  return xs.length ? mean(xs) : 0;
 }
 const fmt = (x: number, digits = 1) => (Number.isInteger(x) ? String(x) : x.toFixed(digits));
-// One colour per label: the first (before), the second (after), any third.
-const sideClass = (i: number) => [styles.sideA, styles.sideB, styles.sideC][Math.min(i, 2)];
+// One colour per label: the first (before), the second (after), a third, any fourth.
+const sideClass = (i: number) => [styles.sideA, styles.sideB, styles.sideC, styles.sideD][Math.min(i, 3)];
 
 function useRepoTree(): string {
   const {siteConfig} = useDocusaurusContext();
@@ -113,6 +111,23 @@ function Section({title, children, note}: {title: string; children: ReactNode; n
 function Conditions({data}: {data: ExperimentData}) {
   // bench-runner runs record model settings; other harnesses (mulder investigate) record theirs under harness.
   const settings = [...new Map(data.groups.filter(g => g.model !== 'scripted').map(g => [g.model, g.runs[0].info])).entries()];
+  // Token use and API price summed over every run of a model, all labels.
+  const totals = (model: string) => {
+    const runs = data.groups.filter(g => g.model === model).flatMap(g => g.runs);
+    const usage = new Map<string, any>();
+    for (const r of runs)
+      for (const u of r.info.token_usage ?? []) {
+        const t = usage.get(u.model) ?? {model: u.model, input_tokens: 0, output_tokens: 0, cache_read_tokens: 0, cache_write_tokens: 0};
+        for (const k of ['input_tokens', 'output_tokens', 'cache_read_tokens', 'cache_write_tokens']) t[k] += u[k] ?? 0;
+        usage.set(u.model, t);
+      }
+    const priced = runs.filter(r => r.info.api_cost_usd != null);
+    return {
+      runs: runs.length,
+      usage: [...usage.values()],
+      cost: priced.length ? priced.reduce((a, r) => a + r.info.api_cost_usd, 0) : null,
+    };
+  };
   return (
     <Section
       title={translate({id: 'case.conditions', message: 'Conditions'})}>
@@ -169,7 +184,7 @@ function Conditions({data}: {data: ExperimentData}) {
       </table>
       <div className={styles.facts}>
         {/* The case's tool list applies to bench-runner; the other harnesses get all of mulder's tools. */}
-        {(data.harness ?? 'bench-runner') === 'bench-runner' && (
+        {((data.harness ?? 'bench-runner') === 'bench-runner' || data.toolsLimited) && (
           <div>
             <span>
               <Translate id="case.tools">Tools shown to the model</Translate>
@@ -177,6 +192,14 @@ function Conditions({data}: {data: ExperimentData}) {
             {data.tools.map(t => (
               <code key={t}>{t}</code>
             ))}
+          </div>
+        )}
+        {data.instruction && (
+          <div>
+            <span>
+              <Translate id="case.instruction">Added to the prompt</Translate>
+            </span>{' '}
+            {data.instruction}
           </div>
         )}
         {settings.map(([model, info]) =>
@@ -211,24 +234,31 @@ function Conditions({data}: {data: ExperimentData}) {
                 .join(' · ')}
               {info.harness?.claude_code_version && `Claude Code ${info.harness.claude_code_version} · ${info.harness.model}`}
               {info.harness?.effort && ` · effort ${info.harness.effort}`}
-              {info.token_usage?.length > 0 && info.api_cost_usd == null && (
-                <div className={styles.small}>
-                  <Translate id="case.tokens">Tokens reported by the harness (cache not included):</Translate>{' '}
-                  {info.token_usage.map((u: any) => `${u.model} in ${u.input_tokens} / out ${u.output_tokens}`).join(' · ')}
-                </div>
-              )}
-              {info.api_cost_usd != null && (
-                <div className={styles.small}>
-                  <Translate id="case.tokensCache">Tokens reported by the harness (with cache):</Translate>{' '}
-                  {info.token_usage
-                    .map(
-                      (u: any) =>
-                        `${u.model} in ${u.input_tokens} / out ${u.output_tokens} / cache read ${u.cache_read_tokens} / cache write ${u.cache_write_tokens}`,
-                    )
-                    .join(' · ')}{' '}
-                  · <Translate id="case.apiCost">API price</Translate> ${info.api_cost_usd.toFixed(2)}
-                </div>
-              )}
+              {(() => {
+                const t = totals(model);
+                if (!t.usage.length) return null;
+                return t.cost == null ? (
+                  <div className={styles.small}>
+                    <Translate id="case.tokensRuns" values={{n: t.runs}}>
+                      {'Tokens over {n} runs, reported by the harness (cache not included):'}
+                    </Translate>{' '}
+                    {t.usage.map(u => `${u.model} in ${u.input_tokens} / out ${u.output_tokens}`).join(' · ')}
+                  </div>
+                ) : (
+                  <div className={styles.small}>
+                    <Translate id="case.tokensCacheRuns" values={{n: t.runs}}>
+                      {'Tokens over {n} runs, reported by the harness (with cache):'}
+                    </Translate>{' '}
+                    {t.usage
+                      .map(
+                        u =>
+                          `${u.model} in ${u.input_tokens} / out ${u.output_tokens} / cache read ${u.cache_read_tokens} / cache write ${u.cache_write_tokens}`,
+                      )
+                      .join(' · ')}{' '}
+                    · <Translate id="case.apiCost">API price</Translate> ${t.cost.toFixed(2)}
+                  </div>
+                );
+              })()}
             </div>
           ),
         )}
@@ -370,6 +400,8 @@ function endReasons(g: Group): string {
 function Comparison({data}: {data: ExperimentData}) {
   const models = [...new Set(data.groups.map(g => g.model))];
   const labels = data.variants.map(v => v.label);
+  // Nothing to compare before the first run.
+  if (!models.length) return null;
   return (
     <Section
       title={translate({id: 'case.comparison', message: 'Comparison'})}>
@@ -554,7 +586,7 @@ function ScriptedSideBySide({data}: {data: ExperimentData}) {
             </div>
             <div className={styles.columns}>
               {calls.map((c, j) => (
-                <div key={j} className={clsx(styles.column, [styles.columnA, styles.columnB, styles.columnC][Math.min(j, 2)])}>
+                <div key={j} className={clsx(styles.column, [styles.columnA, styles.columnB, styles.columnC, styles.columnD][Math.min(j, 3)])}>
                   <div className={clsx(styles.columnLabel, sideClass(j))}>{labels[j]}</div>
                   <pre className={styles.pre}>{String(c[i]?.result ?? '')}</pre>
                 </div>
@@ -777,24 +809,26 @@ function RunPanel({data, side, repoTree}: {data: ExperimentData; side: number; r
   const run: Run | undefined = group?.runs.find(r => r.run === runNo) ?? group?.runs[0];
   if (!label) return null;
   return (
-    <div className={clsx(styles.column, [styles.columnA, styles.columnB, styles.columnC][Math.min(side, 2)])}>
+    <div className={clsx(styles.column, [styles.columnA, styles.columnB, styles.columnC, styles.columnD][Math.min(side, 3)])}>
       <div className={clsx(styles.columnLabel, sideClass(side))}>{label}</div>
-      <div className={styles.pickers}>
-        <select value={model} onChange={e => (setModel(e.target.value), setRunNo(1))}>
-          {groups.map(g => (
-            <option key={g.model} value={g.model}>
-              {g.model}
-            </option>
-          ))}
-        </select>
-        <select value={run?.run} onChange={e => setRunNo(Number(e.target.value))}>
-          {group?.runs.map(r => (
-            <option key={r.run} value={r.run}>
-              {translate({id: 'run.option', message: 'run {run}'}, {run: r.run})} · {r.info.end_reason}
-            </option>
-          ))}
-        </select>
-      </div>
+      {groups.length > 0 && (
+        <div className={styles.pickers}>
+          <select value={model} onChange={e => (setModel(e.target.value), setRunNo(1))}>
+            {groups.map(g => (
+              <option key={g.model} value={g.model}>
+                {g.model}
+              </option>
+            ))}
+          </select>
+          <select value={run?.run} onChange={e => setRunNo(Number(e.target.value))}>
+            {group?.runs.map(r => (
+              <option key={r.run} value={r.run}>
+                {translate({id: 'run.option', message: 'run {run}'}, {run: r.run})} · {r.info.end_reason}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       {run ? (
         <>
           <div className={styles.runMeta}>
