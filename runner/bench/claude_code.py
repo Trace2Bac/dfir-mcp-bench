@@ -64,6 +64,10 @@ def prepare(case_yaml: Path, experiment_yaml: Path, work: Path, evidence_in_cont
         "already know about this dataset. Your last message is the final report.\n\n"
         + briefing_text(case_yaml, evidence_in_container, answer_section)
     )
+    # An experiment can add one instruction, the same for every label.
+    instruction = _options(experiment_yaml).get("instruction")
+    if instruction:
+        prompt += f"\n{str(instruction).strip()}\n"
     (out / PROMPT).write_text(prompt)
     config = {"mcpServers": {SERVER: {"command": "mulder", "args": ["serve"]}}}
     (out / MCP_CONFIG).write_text(json.dumps(config, indent=2) + "\n")

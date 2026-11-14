@@ -27,7 +27,7 @@ next to it holds the reviewer's verdicts.
 | `links` | issues, pull requests, dataset pages |
 | `case` | the test in `cases/`; the case names its dataset |
 | `harness` | what ran it: `bench-runner` (`runner/` with a local model or scripted calls, `./bench.sh run`), `mulder-investigate` (mulder's orchestrator) or `claude-code` (Claude Code with `mulder serve`), both with `./bench.sh investigate` |
-| `harness_options` | for `mulder-investigate`: `models` per role, `effort`, how it authenticated, and `answer_section` (ask the report for a "Case Questions" section with `Case Q<n>:` lines, which `review` shows per question) |
+| `harness_options` | for `mulder-investigate`: `models` per role, `effort`, how it authenticated, and `answer_section` (ask the report for a "Case Questions" section with `Case Q<n>:` lines, which `review` shows per question); for `claude-code`: `model`, `effort`, `answer_section`, and `instruction`, one line added to the end of the prompt for every label |
 | `variants` | label to server variant (`servers/mulder/variants/<name>.env`) |
 | `scripted_expect` | scripted scores per label; `./bench.sh check` fails when they change |
 | `conclusion` | what the results show, and their limits |

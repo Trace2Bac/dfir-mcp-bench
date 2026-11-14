@@ -17,7 +17,11 @@ change: >
   has mulder's own and one more, on that empty result: what was searched (by
   name only, for five extensions), that files with another extension or none
   were not opened, and that this does not show the image holds no packet
-  captures. Five runs per label. Compared: how many answers state that there
+  captures. The prompt asks the agent to run analyze_disk_pcaps before it
+  answers, the same in both labels; without that, the agents searched the
+  file listing for .cap files in My Documents, as the question's hint
+  suggests, and only 1 of 10 runs called the tool. Five runs per label.
+  Compared: how many answers state that there
   is no such file or name a wrong one, how many say it was not determined,
   and how many find the file, and which tools the agent used to get there.
 change_ko: >
@@ -29,7 +33,9 @@ change_ko: >
   라벨의 차이는 도구의 해석 한계입니다. before에는 없습니다(mulder 도구의 주의 문구를 지움). after에는
   mulder 원래의 한계와, 빈 결과에 대한 한계 하나가 더 있습니다. 무엇을 찾았는지(파일 이름으로만, 확장자
   다섯 개), 다른 확장자나 확장자 없는 파일은 열지 않았다는 것, 그래서 이미지에 캡처가 없다는 뜻은
-  아니라는 것입니다. 라벨당 5회로, 그런 파일이 없다거나 틀린 파일을 답한 수, 확인하지 못했다고 답한 수,
+  아니라는 것입니다. 두 라벨 모두 프롬프트에서 답하기 전에 analyze_disk_pcaps를 실행하라고 요청합니다.
+  이 요청이 없을 때는 에이전트들이 질문의 힌트대로 파일 목록에서 My Documents의 .cap 파일만 찾았고,
+  10회 중 1회만 이 도구를 썼습니다. 라벨당 5회로, 그런 파일이 없다거나 틀린 파일을 답한 수, 확인하지 못했다고 답한 수,
   파일을 찾은 수를 비교하고, 에이전트가 어떤 도구로 답에 이르렀는지도 봅니다.
 links:
   - https://cfreds-archive.nist.gov/Hacking_Case.html
@@ -41,6 +47,10 @@ harness_options:
   model: claude-haiku-4-5
   # No effort: the effort setting is for Opus and Sonnet models.
   answer_section: true
+  # Without it, 1 of 10 runs called analyze_disk_pcaps: the agents searched
+  # the file listing for .cap files in My Documents, as the question's hint
+  # suggests, and never saw the tool's result or its limit.
+  instruction: "Before you answer, run analyze_disk_pcaps on the disk image and read its result."
 
 variants:
   before: mulder-1.5.10-messages-no-limits    # upstream tools, no interpretation limit
