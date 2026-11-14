@@ -1,0 +1,61 @@
+id: nist-hacking-case-q31
+title: NIST CFReDS Hacking Case, the anti-virus question only
+title_ko: NIST CFReDS Hacking Case, 백신 검사 질문 하나
+name: "NIST Hacking Case, Q31 only"   # short name for lists
+name_ko: "NIST Hacking Case, Q31만"
+dataset: nist-hacking-case
+evidence: nist-hacking-case
+purpose: >
+  One question from the NIST Hacking Case (NIST's Q31): perform an
+  anti-virus check, are there viruses on the computer? NIST's answer is yes;
+  ClamAV detects 18 files inside the image. clamscan does not open a disk
+  image, so a scan of the EnCase image as it is reports no detection. The
+  question is asked alone, so that the run is short and the answer shows how
+  the investigation read that result. It is yes/no and left to a reviewer.
+purpose_ko: >
+  NIST Hacking Case의 질문 하나(NIST Q31)만 묻습니다. 백신 검사를 하고, 컴퓨터에 바이러스가 있는지입니다.
+  NIST 정답은 "있음"이고, 이미지 안의 파일 18개를 ClamAV가 탐지합니다. clamscan은 디스크 이미지를 열지
+  못해서, EnCase 이미지를 그대로 검사하면 탐지가 0건으로 나옵니다. 질문을 하나만 물어 실행이 짧고, 답에서
+  그 결과를 조사가 어떻게 읽었는지 볼 수 있습니다. 예/아니요 답이라 검토자가 판정합니다.
+answers_source: https://cfreds-archive.nist.gov/images/TestAnswers.pdf
+
+setup:
+  - tool: scan_evidence
+    args: {evidence_path: "${EVIDENCE}", case_id: "${CASE_ID}"}
+
+# For bench-runner runs. mulder investigate picks from all of mulder's tools.
+tools:
+  - get_tool_guide
+  - list_sources
+  - run_mmls
+  - run_fls
+  - list_files
+  - get_deleted_files
+  - get_file_metadata
+  - extract_file_by_inode
+  - run_regripper
+  - query_registry_value
+  - run_strings
+  - parse_browser_history
+  - run_clamav
+  - search
+  - get_raw_output
+
+# No scripted calls yet: the scripted ceiling for this case has not been measured.
+scripted: []
+
+# Any tool that reads the evidence: an answer with no tool call behind it
+# (the answer key is public) does not pass.
+x-reads-evidence: &reads_evidence
+  [run_fls, list_files, get_deleted_files, get_file_metadata, extract_file_by_inode, run_regripper,
+   run_registry_parser, query_registry_value, run_strings, search, get_raw_output, read_evidence_file,
+   parse_browser_history, run_clamav, run_mft_parser, parse_mft, run_plaso, start_extraction_batch]
+
+questions:
+  - id: Q1                       # NIST Q31
+    text: "Perform a Anti-Virus check. Are there any viruses on the computer?"
+    text_ko: "백신 검사를 하세요. 컴퓨터에 바이러스가 있나요?"
+    review_only: true            # yes/no answer; a reviewer decides. Answer key: Yes
+    requires_any_tool: *reads_evidence
+
+limits: {max_turns: 40, max_tool_chars: 4000, keep_tool_results: 4, context_budget_tokens: 24000}

@@ -1,0 +1,37 @@
+# EXP-005: one verification. The folder name is its permanent identifier;
+# the title may change.
+title: "Does the anti-virus limit reach mulder investigate's report?"
+title_ko: "백신 검사의 해석 한계가 mulder investigate의 보고서까지 갈까?"
+server: mulder
+status: planned                  # planned | in-progress | done
+change: >
+  The question and the tool versions of EXP-004, run with mulder
+  investigate (planner, executor and analyst roles, all Haiku), with
+  message-carry in both labels so that the extraction tool messages also
+  reach the alternative-narrative and report phases (EXP-003 showed they
+  stop at the extraction analyst otherwise). before-carried has no
+  interpretation limit, in mulder's tools or in its prompts; after-carried
+  has all of mulder's and run_clamav's limit on a disk image scan. As in
+  EXP-003, the labels differ in mulder's general rules in the prompts as well
+  as in the tool's limit. Five runs per label; compared as in EXP-004.
+change_ko: >
+  EXP-004와 같은 질문과 도구 버전을 mulder investigate(planner, executor, analyst 역할, 모두 Haiku)로
+  돌립니다. 두 라벨 모두 message-carry를 넣어, 추출 단계의 도구 메시지가 반론 검토와 보고서 단계에도
+  갑니다(EXP-003에서 이게 없으면 추출 analyst에서 멈춘다는 것을 확인했습니다). before-carried에는 해석 한계가
+  없습니다(mulder 도구와 프롬프트 모두). after-carried에는 mulder의 해석 한계 전부와, 디스크 이미지 검사에
+  대한 run_clamav의 한계가 있습니다. EXP-003과 마찬가지로 두 라벨은 도구의 한계뿐 아니라 프롬프트의 mulder 일반
+  규칙에서도 다릅니다. 라벨당 5회로, EXP-004와 같은 방식으로 비교합니다.
+links:
+  - https://cfreds-archive.nist.gov/Hacking_Case.html
+  - https://cfreds-archive.nist.gov/images/TestAnswers.pdf
+
+case: nist-hacking-case-q31
+harness: mulder-investigate
+harness_options:
+  models: {planner: claude-haiku-4-5, executor: claude-haiku-4-5, analyst: claude-haiku-4-5}
+  # No effort: the effort setting is for Opus and Sonnet models.
+  answer_section: true
+
+variants:
+  before-carried: mulder-1.5.10-messages-carry-no-limits     # no limit; messages reach the later phases
+  after-carried: mulder-1.5.10-messages-carry-clamav-limit   # the limits, reaching the later phases

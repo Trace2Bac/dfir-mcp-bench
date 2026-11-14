@@ -287,3 +287,25 @@ message-carry.patch:
   changes_ko:
     - "추출 analyst: 받은 도구 메시지를 순서대로, 중복 없이 보관"
     - "반론 검토 planner·analyst와 보고서: 보관한 메시지를 프롬프트 끝에 추가"
+
+clamav-limit.patch:
+  title: "run_clamav says what a disk image scan does not show"
+  title_ko: "run_clamav가 디스크 이미지 검사의 한계를 알림"
+  summary: >
+    One interpretation limit on upstream's run_clamav. clamscan does not open
+    a disk image: it reads an EnCase or raw image as one file and reports no
+    detection, which mulder returns as a success. When the target is a disk
+    image, or a folder holding one, the message now says that clamscan read
+    it as one file, that the files inside were not scanned, and that this
+    does not show they are clean. The scan itself does not change. Tested in
+    tests/test_clamav_image_limit.py.
+  summary_ko: >
+    upstream run_clamav에 해석 한계 하나를 붙입니다. clamscan은 디스크 이미지를 열지 못합니다. EnCase나
+    raw 이미지를 파일 하나로 읽고 탐지 0건을 보고하며, mulder는 이를 성공으로 돌려줍니다. 검사 대상이 디스크
+    이미지이거나 이미지가 든 폴더이면, 메시지에 clamscan이 이미지를 파일 하나로 읽었고 그 안의 파일은 검사하지
+    않았으며, 그래서 깨끗하다는 뜻은 아니라는 것을 적습니다. 검사 자체는 바뀌지 않습니다.
+    tests/test_clamav_image_limit.py로 확인합니다.
+  changes:
+    - "run_clamav: on a disk image, the message says the files inside were not scanned and that this does not show they are clean"
+  changes_ko:
+    - "run_clamav: 디스크 이미지를 검사하면 그 안의 파일은 검사하지 않았고, 깨끗하다는 뜻은 아니라는 것을 메시지에 표시"
