@@ -6,6 +6,7 @@ Model runs. Means are per run.
 |---|---|---|---|---|---|---|---|---|---|
 | before | claude-haiku-4-5 | mulder-1.5.10-messages-no-limits | 10 | 10/10 | 12.6 | 11.6 | 0.0 | 38.1 | success 10 |
 | after | claude-haiku-4-5 | mulder-1.5.10-messages-clamav-limit | 10 | 10/10 | 20.3 | 19.3 | 0.5 | 74.6 | success 10 |
+| after-partial | claude-haiku-4-5 | mulder-1.5.10-messages-clamav-partial | 10 | 0/10 | 21.0 | 20.0 | 1.5 | 81.8 | success 10 |
 
 Human review, on the scale mulder uses for its own runs: full match = found, detection = found or partial, false positives = contradicted claims stated as fact (inside or outside the questions), each over the number of questions. Mean of the reviewed runs, range in parentheses.
 
