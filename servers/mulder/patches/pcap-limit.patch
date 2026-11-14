@@ -1,0 +1,31 @@
+diff --git a/src/mulder/server/tools/extract/disk_pcap.py b/src/mulder/server/tools/extract/disk_pcap.py
+index 3ae6e14..29f89f3 100644
+--- a/src/mulder/server/tools/extract/disk_pcap.py
++++ b/src/mulder/server/tools/extract/disk_pcap.py
+@@ -386,6 +386,10 @@ def analyze_disk_pcaps(
+ 
+     if not all_pcaps:
+         elapsed = (time.monotonic() - t0) * 1000
++        # What was searched, so an empty result is not read as "no capture".
++        files_listed = sum(
++            len(fls_file_entries(chunk)) for chunks, _ in chunk_groups for chunk in chunks
++        )
+         return tool_response(
+             tc_id,
+             "analyze_disk_pcaps",
+@@ -393,7 +397,14 @@ def analyze_disk_pcaps(
+             {
+                 "pcaps_discovered": 0,
+                 "pcaps_analyzed": 0,
+-                "message": "No packet capture files found in the TSK file listing.",
++                "message": (
++                    "No packet capture files found in the TSK file listing. "
++                    f"Searched the {files_listed} files in the listing by name only, for "
++                    f"{', '.join(sorted(_PCAP_EXTENSIONS))}. Files with another extension "
++                    "or without one were not opened, so a capture saved under another "
++                    "name or without an extension would not be found. This does not "
++                    "show that the image holds no packet captures."
++                ),
+             },
+             source=None,
+             elapsed_ms=elapsed,

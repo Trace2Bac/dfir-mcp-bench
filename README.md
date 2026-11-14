@@ -87,8 +87,8 @@ needs.
 4. Run `mulder investigate` with Claude (costs money on every run):
    ```
    export ANTHROPIC_API_KEY=...          # this shell only, never in a file
-   ./bench.sh investigate EXP-004 --dry-run
-   ./bench.sh investigate EXP-004
+   ./bench.sh investigate EXP-002 --dry-run
+   ./bench.sh investigate EXP-002
    ```
 5. Run with a local model: load it in LM Studio (context 32K or more), start
    its server (port 1234), `cp .env.example .env` and set `MODEL_NAME`, then
@@ -132,9 +132,9 @@ are Linux. What else you need depends on what you run:
 4. `mulder investigate` with Claude:
    ```
    export ANTHROPIC_API_KEY=...               # this shell only, never in a file
-   ./bench.sh investigate EXP-004 --dry-run   # prepares and prints the command, starts nothing
-   ./bench.sh investigate EXP-004             # runs it and imports the result
-   ./bench.sh investigate EXP-004 after --repeat 5   # one label, five runs
+   ./bench.sh investigate EXP-002 --dry-run   # prepares and prints the command, starts nothing
+   ./bench.sh investigate EXP-002             # runs it and imports the result
+   ./bench.sh investigate EXP-002 after --repeat 5   # one label, five runs
    ```
    Every run costs money; runs with Opus as planner and analyst cost far
    more than runs with Haiku in every role.
@@ -153,7 +153,7 @@ are Linux. What else you need depends on what you run:
    `MODEL_REASONING_EFFORT=none ./bench.sh run EXP-001 --repeat 3`. Containers
    reach LM Studio at `host.docker.internal:1234`; if they cannot, turn on
    *Serve on Local Network* in LM Studio.
-6. Review the answers (`./bench.sh review EXP-004`), update the experiment's
+6. Review the answers (`./bench.sh review EXP-002`), update the experiment's
    `status` and `conclusion`, and commit `experiments/`.
 
 

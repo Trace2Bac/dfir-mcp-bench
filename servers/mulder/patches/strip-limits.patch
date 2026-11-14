@@ -245,26 +245,12 @@ index c3c8f35..7b83fff 100644
      return tool_response(
          tc_id,
 diff --git a/src/mulder/server/tools/extract/misc.py b/src/mulder/server/tools/extract/misc.py
-index 6b429a8..71d072a 100644
+index 5f47859..56014ae 100644
 --- a/src/mulder/server/tools/extract/misc.py
 +++ b/src/mulder/server/tools/extract/misc.py
-@@ -765,10 +765,9 @@ def run_clamav(target_path: str) -> dict[str, object]:
-     """Scan files for malware signatures using ClamAV.
- 
-     Runs clamscan recursively on the target path and indexes any
--    detections found. A disk image is one opaque file to clamscan, so for
--    each disk image at the target path the files inside it (allocated and
--    deleted, up to 50 MB each, without the paging and hibernation files)
--    are also copied out with tsk_recover and scanned. This takes minutes.
-+    detections found. For each disk image at the target path the files
-+    inside it are also copied out with tsk_recover and scanned. This takes
-+    minutes.
- 
-     Args:
-         target_path: Path to the file or directory to scan.
-@@ -837,11 +836,7 @@ def run_clamav(target_path: str) -> dict[str, object]:
-     if content_scans:
-         summary["image_contents"] = content_scans
+@@ -694,11 +694,7 @@ def run_clamav(target_path: str) -> dict[str, object]:
+     summary = extract_and_index(summary_text, "clamav.scan", target_path, "clamav")
+     summary["detections"] = len(infected_lines)
      if proc.returncode not in (0, 1) or unscanned_lines:
 -        detail = ("; ".join(unscanned_lines) or (proc.stderr or "").strip())[:_PREVIEW_CHAR_LIMIT]
          summary["partial"] = True
@@ -274,7 +260,7 @@ index 6b429a8..71d072a 100644
      elapsed = (time.monotonic() - t0) * 1000
      return tool_response(tc_id, "run_clamav", params, summary, "clamav.scan", elapsed)
  
-@@ -853,10 +848,9 @@ def run_hashdeep(target_path: str) -> dict[str, object]:
+@@ -710,10 +706,9 @@ def run_hashdeep(target_path: str) -> dict[str, object]:
  
      Generates MD5 and SHA256 hashes for all files under the target path,
      for IOC matching and for recording the evidence files as received.
@@ -288,7 +274,7 @@ index 6b429a8..71d072a 100644
  
      Args:
          target_path: Path to the file or directory to hash.
-@@ -923,10 +917,8 @@ def _ewfverify(image: Path, timeout: int) -> dict[str, object]:
+@@ -780,10 +775,8 @@ def _ewfverify(image: Path, timeout: int) -> dict[str, object]:
      unreadable = re.search(r"Sector validation errors:\s*total number:\s*(\d+)", proc.stdout)
      if unreadable or "Unable to verify input" in proc.stdout:
          check["status"] = "failed"
@@ -301,7 +287,7 @@ index 6b429a8..71d072a 100644
          )
          return check
      for line in proc.stdout.splitlines():
-@@ -971,7 +963,7 @@ def _acquisition_hash_line(check: dict[str, object]) -> str:
+@@ -828,7 +821,7 @@ def _acquisition_hash_line(check: dict[str, object]) -> str:
          )
      if status == "no_stored_hash":
          return (

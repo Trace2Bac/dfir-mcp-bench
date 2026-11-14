@@ -1,0 +1,61 @@
+id: nist-hacking-case-q23
+title: NIST CFReDS Hacking Case, the intercepted-data question only
+title_ko: NIST CFReDS Hacking Case, 가로챈 데이터 질문 하나
+name: "NIST Hacking Case, Q23 only"   # short name for lists
+name_ko: "NIST Hacking Case, Q23만"
+dataset: nist-hacking-case
+evidence: nist-hacking-case
+purpose: >
+  One question from the NIST Hacking Case (NIST's Q23): the name of the file
+  that holds the intercepted traffic. The file, Documents and Settings/Mr.
+  Evil/interception, is a packet capture with no extension, so a search for
+  captures by file extension does not find it. The question is asked alone,
+  so that the run is short and the answer shows how the investigation read
+  that empty search result.
+purpose_ko: >
+  NIST Hacking Case의 질문 하나(NIST Q23)만 묻습니다. 가로챈 트래픽이 든 파일의 이름입니다. 이 파일
+  (Documents and Settings/Mr. Evil/interception)은 확장자가 없는 패킷 캡처라서, 확장자로 캡처를
+  찾으면 나오지 않습니다. 질문을 하나만 물어 실행이 짧고, 답에서 그 빈 검색 결과를 조사가 어떻게
+  읽었는지 볼 수 있습니다.
+answers_source: https://cfreds-archive.nist.gov/images/TestAnswers.pdf
+
+setup:
+  - tool: scan_evidence
+    args: {evidence_path: "${EVIDENCE}", case_id: "${CASE_ID}"}
+
+# For bench-runner runs. mulder investigate picks from all of mulder's tools.
+tools:
+  - get_tool_guide
+  - list_sources
+  - run_mmls
+  - run_fls
+  - list_files
+  - get_deleted_files
+  - get_file_metadata
+  - extract_file_by_inode
+  - run_regripper
+  - query_registry_value
+  - run_strings
+  - parse_browser_history
+  - run_clamav
+  - search
+  - get_raw_output
+
+# No scripted calls yet: the scripted ceiling for this case has not been measured.
+scripted: []
+
+# Any tool that reads the evidence: an answer with no tool call behind it
+# (the answer key is public) does not pass.
+x-reads-evidence: &reads_evidence
+  [run_fls, list_files, get_deleted_files, get_file_metadata, extract_file_by_inode, run_regripper,
+   run_registry_parser, query_registry_value, run_strings, search, get_raw_output, read_evidence_file,
+   parse_browser_history, run_clamav, run_mft_parser, parse_mft, run_plaso, start_extraction_batch]
+
+questions:
+  - id: Q1                       # NIST Q23
+    text: "Ethereal, a popular \"sniffing\" program that can be used to intercept wired and wireless internet packets was also found to be installed. When TCP packets are collected and re-assembled, the default save directory is that users \\My Documents directory. What is the name of the file that contains the intercepted data?"
+    text_ko: "유무선 패킷을 가로챌 수 있는 스니핑 프로그램 Ethereal도 설치돼 있었습니다. TCP 패킷을 모아 재조립하면 기본 저장 위치는 사용자의 \\My Documents입니다. 가로챈 데이터가 든 파일 이름은?"
+    expect: {all: ["Interception"]}
+    requires_any_tool: *reads_evidence
+
+limits: {max_turns: 40, max_tool_chars: 4000, keep_tool_results: 4, context_budget_tokens: 24000}

@@ -45,49 +45,10 @@ index 8442544..355f29c 100644
      return tool_response(
          tc_id,
 diff --git a/src/mulder/server/tools/extract/misc.py b/src/mulder/server/tools/extract/misc.py
-index 6b429a8..980da68 100644
+index 5f47859..9d8fbb1 100644
 --- a/src/mulder/server/tools/extract/misc.py
 +++ b/src/mulder/server/tools/extract/misc.py
-@@ -823,6 +823,30 @@ def run_clamav(target_path: str) -> dict[str, object]:
-         if isinstance(detections, list):
-             infected_lines.extend(f"{scan['image']} (file in image): {d}" for d in detections)
-     summary_text = "\n".join(infected_lines) if infected_lines else output
-+    # What was scanned inside each image and what was not, in the message and
-+    # in the indexed text.
-+    scanned = []
-+    for scan in content_scans:
-+        if scan.get("status") == "not_scanned":
-+            scanned.append(
-+                f"{scan['image']}: the files inside the image were NOT scanned "
-+                f"({scan.get('reason')}); no detection does not mean the image is clean."
-+            )
-+        else:
-+            scanned.append(
-+                f"{scan['image']}: {scan.get('files_scanned')} files inside the image "
-+                f"(partition offset {scan.get('partition_offset')}, allocated and deleted, "
-+                f"up to {_IMAGE_SCAN_MAX_FILESIZE}B each) were copied out and scanned"
-+                + (f"; incomplete: {scan.get('reason')}" if scan.get("reason") else "")
-+                + "."
-+            )
-+    caveat = " ".join(scanned)
-+    if caveat:
-+        caveat += (
-+            " Only files with a known signature are detected; files that could not be "
-+            "recovered and other partitions were not scanned."
-+        )
-+        summary_text = f"NOTE: {caveat}\n{summary_text}"
-     summary = extract_and_index(summary_text, "clamav.scan", target_path, "clamav")
-     summary["detections"] = len(infected_lines)
-     in_images = 0
-@@ -833,6 +857,7 @@ def run_clamav(target_path: str) -> dict[str, object]:
-         f"{len(infected_lines)} ClamAV detections"
-         + (f", {in_images} of them in files inside the image" if content_scans else "")
-         + "; listed in clamav.scan."
-+        + (f" {caveat}" if caveat else "")
-     )
-     if content_scans:
-         summary["image_contents"] = content_scans
-@@ -883,7 +908,19 @@ def run_hashdeep(target_path: str) -> dict[str, object]:
+@@ -740,7 +740,19 @@ def run_hashdeep(target_path: str) -> dict[str, object]:
          # The second source, so a batch caller can name it (get_completed_results
          # lists it under "sources").
          results["acquisition"] = {"source_name": "hashdeep.acquisition", "checks": checks}
