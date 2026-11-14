@@ -16,7 +16,10 @@ change: >
   tools are removed), after has mulder's own and one more: when run_clamav
   scans a disk image, its message says that clamscan read the image as one
   file, that the files inside were not scanned, and that this does not show
-  they are clean. Five runs per label. Compared: how many answers state that
+  they are clean. The agent may use only the tools a disk examination needs
+  for this question (listing, search, file extraction, run_clamav), and the
+  prompt asks it to run run_clamav before it answers; both are the same in
+  both labels. Five runs per label. Compared: how many answers state that
   there is no virus, how many say it was not determined, how many find the
   detections, and which tools the agent used.
 change_ko: >
@@ -27,7 +30,9 @@ change_ko: >
   파일을 꺼내 검사하면 18개가 탐지됩니다. 두 라벨의 차이는 도구의 해석 한계입니다. before에는 없습니다(mulder
   도구의 주의 문구를 지움). after에는 mulder 원래의 한계와 하나가 더 있습니다. run_clamav가 디스크 이미지를
   검사하면, clamscan이 이미지를 파일 하나로 읽었고 그 안의 파일은 검사하지 않았으며, 그래서 깨끗하다는
-  뜻은 아니라는 것을 메시지로 알립니다. 라벨당 5회로, 바이러스가 없다고 답한 수, 확인하지 못했다고 답한 수,
+  뜻은 아니라는 것을 메시지로 알립니다. 에이전트는 이 질문에 필요한 도구(파일 목록, 검색, 파일 추출,
+  run_clamav)만 쓸 수 있고, 프롬프트에서 답하기 전에 run_clamav를 실행하라고 요청합니다. 둘 다 두 라벨이
+  같습니다. 라벨당 5회로, 바이러스가 없다고 답한 수, 확인하지 못했다고 답한 수,
   탐지를 찾은 수를 비교하고, 에이전트가 어떤 도구를 썼는지도 봅니다.
 links:
   - https://cfreds-archive.nist.gov/Hacking_Case.html
@@ -39,6 +44,13 @@ harness_options:
   model: claude-haiku-4-5
   # No effort: the effort setting is for Opus and Sonnet models.
   answer_section: true
+  # Fixed for both labels, so that the only difference is the tool's limit.
+  # In the first try (one run per label, deleted), before ran run_clamav on
+  # the evidence and answered that it holds no virus; after never called
+  # run_clamav and ran YARA on an empty folder instead.
+  instruction: "Before you answer, run run_clamav on the evidence and read its result."
+  tools: [scan_evidence, get_tool_guide, run_mmls, run_fls, list_files, search, get_raw_output,
+          extract_file_by_inode, run_clamav]
 
 variants:
   before: mulder-1.5.10-messages-no-limits     # upstream tools, no interpretation limit

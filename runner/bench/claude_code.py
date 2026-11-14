@@ -84,6 +84,11 @@ def claude_args(experiment_yaml: Path) -> str:
     return " ".join(flags)
 
 
+def tools(experiment_yaml: Path) -> str:
+    """The mulder tools the agent may use (harness_options.tools), space-separated; empty for all."""
+    return " ".join(str(t) for t in _options(experiment_yaml).get("tools") or [])
+
+
 def progress() -> None:
     """Read stream-json on stdin and print one line per step, for the terminal."""
     start = datetime.now()

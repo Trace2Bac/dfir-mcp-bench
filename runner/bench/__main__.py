@@ -87,6 +87,8 @@ def _parser() -> argparse.ArgumentParser:
     cprep.add_argument("case_id", help="case ID for scan_evidence")
     cargs = sub.add_parser("claude-args", help="print claude flags from an experiment")
     cargs.add_argument("experiment", type=Path, help="path to experiments/<id>/experiment.yaml")
+    ctools = sub.add_parser("claude-tools", help="print the mulder tools an experiment allows, if it limits them")
+    ctools.add_argument("experiment", type=Path, help="path to experiments/<id>/experiment.yaml")
     sub.add_parser("claude-progress", help="print a progress line per stream-json event on stdin")
     cimp = sub.add_parser("import-claude", help="import a claude-code run into an experiment")
     cimp.add_argument("experiment", type=Path, help="path to experiments/<id>/experiment.yaml")
@@ -166,6 +168,8 @@ def main() -> None:
         claude_code.prepare(args.case, args.experiment, args.work, args.container_path, args.case_id)
     elif args.command == "claude-args":
         print(claude_code.claude_args(args.experiment))
+    elif args.command == "claude-tools":
+        print(claude_code.tools(args.experiment))
     elif args.command == "claude-progress":
         claude_code.progress()
     elif args.command == "import-claude":

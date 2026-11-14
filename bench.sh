@@ -80,24 +80,41 @@ claude_investigate() {
     local e=$1 label=$2 v=$3 yaml=$4 c=$5 folder=$6 work=$7 opts=$8
     in_tools env PYTHONPATH=runner python3 -m bench claude-prepare "cases/$c/case.yaml" "$yaml" \
         "$work" "/evidence/$folder" "$c"
-    echo "== $e $label [$v]: claude -p <$work/claude/prompt.md> $opts, tools: mulder serve only"
+    # harness_options.tools: only these mulder tools are allowed, and the
+    # others are removed from the agent's tool list. Without it, all of them.
+    local tools access="--allowedTools mcp__mulder"
+    tools=$(in_tools env PYTHONPATH=runner python3 -m bench claude-tools "$yaml")
+    if [ -n "$tools" ]; then
+        local all t allow="" deny=""
+        all=$(docker run --rm --entrypoint python3 "dfir-mcp-bench/mulder:$v" -c \
+            'import asyncio; from mulder.server.app import mcp; print(" ".join(t.name for t in asyncio.run(mcp.list_tools())))')
+        for t in $tools; do
+            [[ " $all " == *" $t "* ]] || { echo "$yaml: no mulder tool named $t in $v" >&2; exit 1; }
+        done
+        for t in $all; do
+            if [[ " $tools " == *" $t "* ]]; then allow+="mcp__mulder__$t,"; else deny+="mcp__mulder__$t,"; fi
+        done
+        access="--allowedTools ${allow%,} --disallowedTools ${deny%,}"
+    fi
+    echo "== $e $label [$v]: claude -p <$work/claude/prompt.md> $opts, tools: ${tools:-all of mulder serve}"
     if [ "$dry" = 1 ]; then
         echo "   dry run: prepared $work (claude/prompt.md written); nothing started"
         return
     fi
-    # Built-in tools off (--tools ""), mulder's tools allowed without asking.
+    # Built-in tools off (--tools ""), mulder's tools (or the listed ones,
+    # in $access) allowed without asking.
     # The token is passed by name from this shell, not on the command line.
     # stream-json comes out on stdout: kept as is, and shown one line per step.
     # shellcheck disable=SC2016
     docker run --rm --privileged -e CLAUDE_CODE_OAUTH_TOKEN \
         -e CLAUDE_CONFIG_DIR="$CLAUDE_CONFIG" -v "$ROOT/data/claude:$CLAUDE_CONFIG" \
         -e CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 -e MCP_TIMEOUT=120000 -e MCP_TOOL_TIMEOUT=7200000 \
-        -e OPTS="$opts" \
+        -e OPTS="$opts $access" \
         -v "$ROOT/$work/evidence:/evidence:ro" \
         -v "$ROOT/$work/cases:/home/mulder/.mulder/cases" \
         -v "$ROOT/$work/claude:/work:ro" \
         "dfir-mcp-bench/mulder:$v" bash -c 'cd /tmp && '"$CLAUDE_BIN"' -p "$(cat /work/prompt.md)" $OPTS \
-            --mcp-config /work/mcp.json --strict-mcp-config --tools "" --allowedTools mcp__mulder \
+            --mcp-config /work/mcp.json --strict-mcp-config --tools "" \
             --no-session-persistence --output-format stream-json --verbose' \
         | tee "$work/claude/stream.jsonl" \
         | docker run --rm -i --entrypoint "" --user "$(id -u):$(id -g)" -e HOME=/tmp \
