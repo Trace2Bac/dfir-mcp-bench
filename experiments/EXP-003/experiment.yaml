@@ -43,3 +43,23 @@ variants:
   after: mulder-1.5.10-messages-pcap-limit                 # mulder's limits and the pcap limit; messages stop there too
   before-carried: mulder-1.5.10-messages-carry-no-limits   # no limit; messages reach the later phases
   after-carried: mulder-1.5.10-messages-carry-pcap-limit   # the limits, reaching the later phases
+
+conclusion: >
+  Interim, two runs per label. The limit side did worse: before 0/2 and
+  before-carried 1/2 stated that no capture file exists, after and
+  after-carried 2/2 each. The carried runs show the message reached the
+  report (one quotes "all 11,687 files", a number only that message has),
+  and the report read the stated scope as a thorough search. What separated
+  the labels was whether the analyst trusted bulk_extractor's single tcpdump
+  signature: the no-limit labels did, the limit labels did not. mulder's own
+  analyst rules, present only in the limit labels ("a single detection from
+  one tool is inference at most", signatures need content verification), are
+  the likely cause, and mulder has no tool to tie that disk offset to a file.
+conclusion_ko: >
+  중간 결과입니다(라벨당 2회). 해석 한계가 있는 쪽이 더 나빴습니다. 캡처 파일이 없다고 단정한 실행이
+  before 0/2, before-carried 1/2, after와 after-carried는 각각 2/2입니다. carried 실행을 보면 메시지는
+  보고서까지 갔고(한 실행이 그 메시지에만 있는 "11,687개 파일"을 인용), 보고서는 그 범위 설명을 철저히
+  찾았다는 뜻으로 읽었습니다. 라벨을 가른 것은 bulk_extractor가 찾은 tcpdump 서명 한 건을 analyst가
+  믿었느냐입니다. 한계가 없는 라벨은 믿었고, 있는 라벨은 믿지 않았습니다. 한계가 있는 라벨에만 있는 mulder
+  원래의 analyst 규칙("도구 하나의 탐지는 많아야 inference", 서명은 내용을 확인해야 함)이 원인일 가능성이
+  크고, mulder에는 그 디스크 위치를 파일로 이어 줄 도구가 없습니다.

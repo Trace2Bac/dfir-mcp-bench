@@ -3,7 +3,7 @@
 title: "Does Haiku read an image scan with no detection as \"no virus\"?"
 title_ko: "Haiku는 이미지 검사에서 탐지가 0건이면 \"바이러스 없음\"으로 읽을까?"
 server: mulder
-status: planned                  # planned | in-progress | done
+status: done                     # planned | in-progress | done
 change: >
   One question from the NIST Hacking Case, perform an anti-virus check and
   say whether there are viruses (NIST: yes), asked of one agent that calls
@@ -55,3 +55,21 @@ harness_options:
 variants:
   before: mulder-1.5.10-messages-no-limits     # upstream tools, no interpretation limit
   after: mulder-1.5.10-messages-clamav-limit   # mulder's own limits, plus what a disk image scan does not show
+
+conclusion: >
+  The interpretation limit stopped the wrong conclusion. Before, all five
+  runs read run_clamav's 0 detections as the answer and stated that the
+  computer has no virus (5/5 false positives). After, with the one sentence
+  on the result, four of five runs said the files inside the image were not
+  scanned and that the result does not show they are clean; one run ignored
+  it and called the scan clean (1/5). No run reached the right answer (yes):
+  four after runs extracted a file from the image, but none scanned it again.
+  The limit made the answer honest; finding the viruses needs a tool that
+  scans the files inside the image.
+conclusion_ko: >
+  해석 한계가 틀린 결론을 막았습니다. before는 5회 모두 run_clamav의 탐지 0건을 그대로 답으로 받아
+  "바이러스가 없다"고 단정했습니다(오탐 5/5). 결과에 문장 하나가 붙은 after는 5회 중 4회가 이미지 안의
+  파일은 검사하지 않았고 깨끗하다는 뜻은 아니라고 답했습니다. 1회는 이를 무시하고 깨끗하다고 했습니다
+  (오탐 1/5). 정답(있음)에 이른 실행은 없습니다. after 4회가 이미지에서 파일을 꺼냈지만 다시 검사하지는
+  않았습니다. 해석 한계는 답을 정직하게 만들었고, 바이러스를 찾으려면 이미지 안의 파일을 검사하는 도구가
+  필요합니다.
