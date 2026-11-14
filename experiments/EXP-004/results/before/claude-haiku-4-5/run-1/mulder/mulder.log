@@ -1,0 +1,69 @@
+2026-11-14 08:04:21,882 [MainThread] INFO mulder.server.app: Mulder MCP server ready (db_dir=/home/mulder/.mulder/cases)
+2026-11-14 08:04:24,462 [AnyIO worker thread] INFO mulder.server.app: Creating empty case database for 'nist-hacking-case-q31' ...
+2026-11-14 08:04:24,562 [AnyIO worker thread] INFO mulder.server.app: Server context ready for case 'nist-hacking-case-q31'
+2026-11-14 08:04:32,255 [AnyIO worker thread] INFO mulder.server.tools.extract.tsk: run_fls: offset 0 failed, retrying with mmls-detected offset 63
+2026-11-14 08:06:25,589 [MainThread] ERROR mcp.server.mcpserver.server: Tool 'run_foremost' raised an unexpected exception
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/dist-packages/mcp/server/mcpserver/tools/base.py", line 179, in run
+    result = await self.fn_metadata.call_fn(self.fn, self.is_async, validated, pass_directly)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/mcp/server/mcpserver/utilities/func_metadata.py", line 163, in call_fn
+    return await fn(**kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/app/src/mulder/server/app.py", line 72, in wrapper
+    return await anyio.to_thread.run_sync(call, limiter=_get_tool_limiter())
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/anyio/to_thread.py", line 65, in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/anyio/_backends/_asyncio.py", line 2779, in run_sync_in_worker_thread
+    return await future
+           ^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/anyio/_backends/_asyncio.py", line 1124, in run
+    result = context.run(func, *args)
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/src/mulder/server/tools/extract/carving.py", line 534, in run_foremost
+    subprocess.run(
+  File "/usr/lib/python3.12/subprocess.py", line 550, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1209, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 2153, in _communicate
+    stdout = self._translate_newlines(stdout,
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/subprocess.py", line 1086, in _translate_newlines
+    data = data.decode(encoding, errors)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeDecodeError: 'utf-8' codec can't decode byte 0x9d in position 1042: invalid start byte
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.12/dist-packages/mcp/server/mcpserver/server.py", line 442, in _handle_call_tool
+    return await self.call_tool(params.name, params.arguments or {}, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/mcp/server/mcpserver/server.py", line 548, in call_tool
+    return await self._tool_manager.call_tool(name, arguments, context, convert_result=True)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/mcp/server/mcpserver/tools/tool_manager.py", line 87, in call_tool
+    return await tool.run(arguments, context, convert_result=convert_result)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/mcp/server/mcpserver/tools/base.py", line 213, in run
+    raise UnexpectedToolError(f"Error executing tool {self.name}") from exc
+mcp.server.mcpserver.exceptions.UnexpectedToolError: Error executing tool run_foremost
+2026-11-14 08:06:52,973 [AnyIO worker thread] INFO mulder.server.jobs: Submitted batch bg_2795d177 with 6 jobs: ['run_registry_parser', 'run_prefetch_parser', 'run_amcache_parser', 'run_shimcache_parser', 'run_evtx_parser', 'run_mft_parser']
+2026-11-14 08:06:53,102 [mulder-job_2] INFO mulder.extractors.disk: Detected partition at sector 63 (byte offset 32256) in /evidence/nist-hacking-case/4Dell_Latitude_CPi.E01: ntfs / exfat (0x07)
+2026-11-14 08:06:53,112 [mulder-job_4] WARNING mulder.server.jobs: Job job_ef08872f (run_evtx_parser) returned error: No EVTX files found in disk image. Ensure run_fls has been called first, or run run_bulk_extractor which can carve EVTX fragments even when fls fails.
+2026-11-14 08:06:53,113 [mulder-job_4] INFO mulder.server.jobs: [JOB_COMPLETE] run_evtx_parser|failed|No EVTX files found in disk image. Ensure run_fls has been called first, or run run_bulk_extractor which can carve EVTX fragments even when fls fails.
+2026-11-14 08:06:53,208 [mulder-job_2] WARNING mulder.server.jobs: Job job_b2af25c4 (run_amcache_parser) returned error: Amcache.hve not found
+2026-11-14 08:06:53,209 [mulder-job_2] INFO mulder.server.jobs: [JOB_COMPLETE] run_amcache_parser|failed|Amcache.hve not found
+2026-11-14 08:06:53,888 [mulder-job_5] INFO mulder.server.jobs: Job job_74fafa56 (run_mft_parser) completed
+2026-11-14 08:06:53,889 [mulder-job_5] INFO mulder.server.jobs: [JOB_COMPLETE] run_mft_parser|completed|
+2026-11-14 08:06:55,560 [mulder-job_3] INFO mulder.server.jobs: Job job_3413b31c (run_shimcache_parser) completed
+2026-11-14 08:06:55,561 [mulder-job_3] INFO mulder.server.jobs: [JOB_COMPLETE] run_shimcache_parser|completed|
+2026-11-14 08:06:56,289 [mulder-job_1] INFO mulder.server.jobs: Job job_65274db7 (run_prefetch_parser) completed
+2026-11-14 08:06:56,290 [mulder-job_1] INFO mulder.server.jobs: [JOB_COMPLETE] run_prefetch_parser|completed|
+2026-11-14 08:07:10,890 [mulder-job_0] INFO mulder.server.jobs: Job job_1a078012 (run_registry_parser) completed
+2026-11-14 08:07:10,891 [mulder-job_0] INFO mulder.server.jobs: [JOB_COMPLETE] run_registry_parser|completed|
