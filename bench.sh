@@ -382,7 +382,7 @@ import)
 login)
     # Claude Code's own sign-in, in the image that runs it; it prints a URL to
     # open in a browser and asks for the code shown there.
-    v=mulder-1.5.10
+    v=mulder-1.5.10-messages-no-limits
     build "$v" -q >/dev/null
     mkdir -p data/claude
     docker run --rm -it -e CLAUDE_CONFIG_DIR="$CLAUDE_CONFIG" -v "$ROOT/data/claude:$CLAUDE_CONFIG" \

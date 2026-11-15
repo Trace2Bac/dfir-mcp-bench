@@ -1,0 +1,98 @@
+diff --git a/src/mulder/server/tools/tsk.py b/src/mulder/server/tools/tsk.py
+index 388c1a2..7e322b7 100644
+--- a/src/mulder/server/tools/tsk.py
++++ b/src/mulder/server/tools/tsk.py
+@@ -14,11 +14,12 @@ import shutil
+ import subprocess
+ import threading
+ import time
++from pathlib import Path
+ 
+ from mulder.models import WindowRow
+ from mulder.patterns import parse_mmls_rows
+ from mulder.server import source_names as _sn
+-from mulder.server.app import get_ctx, mcp
++from mulder.server.app import get_cfg, get_ctx, mcp
+ from mulder.server.extract_helpers import extract_and_index
+ from mulder.server.helpers import (
+     _PREVIEW_CHAR_LIMIT,
+@@ -398,7 +399,9 @@ def extract_file_by_inode(
+     """Extract a file from the disk image by inode number using TSK icat.
+ 
+     For text files the content is returned directly (capped at 1 MB).
+-    For binary files a SHA-256 hash and size are returned instead.
++    For binary files a SHA-256 hash and size are returned, and the file is
++    saved under the case's ``extracted`` folder; its ``path`` can be passed
++    to other tools, such as run_clamav or yara_scan_files.
+     Requires ``icat`` on PATH.  Read-only against the original image.
+ 
+     Args:
+@@ -491,11 +494,17 @@ def extract_file_by_inode(
+ 
+     if b"\x00" in raw[:8192]:
+         file_hash = hashlib.sha256(raw).hexdigest()
++        # Kept on disk so that other tools can read it; named by inode, since
++        # icat gives no file name.
++        dest = Path(get_cfg().db_dir) / "extracted" / "inodes" / f"inode_{inode}"
++        dest.parent.mkdir(parents=True, exist_ok=True)
++        dest.write_bytes(raw)
+         results: dict[str, object] = {
+             "type": "binary",
+             "inode": inode,
+             "size_bytes": len(raw),
+             "sha256": file_hash,
++            "path": str(dest),
+         }
+     else:
+         text = raw[:_MAX_TEXT_BYTES].decode("utf-8", errors="replace")
+diff --git a/tests/test_extract_inode_keeps_file.py b/tests/test_extract_inode_keeps_file.py
+new file mode 100644
+index 0000000..7facea1
+--- /dev/null
++++ b/tests/test_extract_inode_keeps_file.py
+@@ -0,0 +1,45 @@
++"""extract_file_by_inode keeps a binary file on disk so other tools can read it."""
++
++from __future__ import annotations
++
++import subprocess
++from pathlib import Path
++from typing import Any
++from unittest.mock import MagicMock, patch
++
++from mulder.server.tools.tsk import extract_file_by_inode
++
++BINARY = b"MZ\x90\x00\x03\x00\x00\x00" + b"\x00" * 64
++
++
++def _invoke(tmp_path: Path, stdout: bytes) -> Any:
++    proc = subprocess.CompletedProcess(args=["icat"], returncode=0, stdout=stdout, stderr=b"")
++    cfg = MagicMock(db_dir=tmp_path)
++    with (
++        patch("mulder.server.tools.tsk.get_ctx", return_value=MagicMock()),
++        patch("mulder.server.tools.tsk.get_cfg", return_value=cfg),
++        patch("mulder.server.tools.tsk.shutil.which", return_value="/usr/bin/icat"),
++        patch(
++            "mulder.server.tools.tsk._resolve_image_and_offset",
++            return_value=("img.E01", 63, "ntfs"),
++        ),
++        patch("mulder.server.tools.tsk.subprocess.run", return_value=proc),
++    ):
++        return extract_file_by_inode.__wrapped__(10273)  # type: ignore[attr-defined]
++
++
++def test_a_binary_file_is_saved_and_its_path_returned(tmp_path: Path) -> None:
++    result = _invoke(tmp_path, BINARY)
++
++    path = Path(result["results"]["path"])
++    assert path.is_relative_to(tmp_path / "extracted")
++    assert path.read_bytes() == BINARY
++    assert result["results"]["size_bytes"] == len(BINARY)
++
++
++def test_a_text_file_is_indexed_not_saved(tmp_path: Path) -> None:
++    with patch("mulder.server.tools.tsk.extract_and_index", return_value={"windows_indexed": 1}):
++        result = _invoke(tmp_path, b"plain text\n")
++
++    assert "path" not in result["results"]
++    assert not (tmp_path / "extracted").exists()

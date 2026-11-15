@@ -1,76 +1,72 @@
-Based on my investigation, I can now provide the findings. Let me compile the final report.
-
-## FINAL FORENSIC REPORT
-
-### CASE IDENTIFICATION
-- **Case ID:** nist-hacking-case-q31
-- **Evidence:** 4Dell_Latitude_CPi.E01/E02 (Dell Latitude CPi Notebook)
-- **Serial Number:** VLQLW
-- **Investigation Date:** 2026-11-14
-- **Suspect:** Greg Schardt (online alias: "Mr. Evil")
-
-### INVESTIGATION SUMMARY
-
-A Dell Latitude CPi notebook computer was abandoned with a wireless PCMCIA card and external 802.11b antenna. The computer is suspected to have been used for hacking purposes, specifically for intercepting wireless internet traffic to obtain credit card numbers, usernames, and passwords at locations like Starbucks and T-Mobile hotspots.
-
-### METHODOLOGY
-
-The following forensic tools were employed:
-1. **TSK mmls** - Partition analysis
-2. **TSK fls** - File system listing
-3. **ClamAV** - Antivirus scanning
-4. **Inode extraction** - Evidence examination
-
-### KEY FINDINGS
-
-**Suspect Identity Confirmation:**
-- User account identified as "Mr. Evil" - matches the online nickname of suspect Greg Schardt
-- Browsing history includes "alt.hacking" newsgroup (Evidence: Documents and Settings/Mr. Evil/Local Settings/Application Data/Identities/.../Outlook Express/alt.hacking.dbx)
-
-**Hacking Tools Identified:**
-The system contains extensive hacking and penetration testing tools organized in directories:
-
-1. **COMMANDS Directory** (My Documents/COMMANDS/):
-   - snitch.exe - Network reconnaissance tool
-   - STREAMFIND.EXE - Stream searching utility
-   - user2sid.exe - SID resolution tool
-
-2. **ENUMERATION Directory** (My Documents/ENUMERATION/NT/):
-   - Cerberus Internet Scanner - Network vulnerability scanner
-   - nmapNT - Network mapper (Nmap for Windows)
-   - SuperScan - Port scanning tool
-   - enum - Host enumeration tool
-   - ogre - Network exploitation tool
-
-3. **EXPLOITATION Directory** (My Documents/EXPLOITATION/NT/):
-   - Brutus - Password cracking tool (also contains NetBus.bad file)
-   - Pwdump3 - Password extraction utility
-
-4. **FOOTPRINTING Directory**:
-   - spade114.exe - Network reconnaissance tool
-   - NSTPro2 - Network scanner
-   - Look@LAN - Network discovery tool
-
-5. **System Analysis Tools:**
-   - Ethereal (Program Files/Ethereal/) - Network packet analyzer/sniffer
-   - WinPcap - Windows packet capture library (Prefetch evidence: WINPCAP_3_01_A.EXE)
-
-6. **Anonymizer Tool:**
-   - Program Files/Anonymizer/ - Installed anonymization software
-
-**Evidence of Tool Execution:**
-Prefetch files in WINDOWS/Prefetch/ directory confirm actual execution of these tools:
-- CAIN25B45.EXE-056F3A6E.pf - CAIN password cracking tool was executed
-- Other prefetch files indicating various tools were run
-
-**Wireless Hacking Infrastructure:**
-- WinPcap and Ethereal present - essential for packet sniffing over wireless networks
-- Matches briefing description of intercepting wireless traffic for financial data theft
+Now I have enough evidence to compile the final report. Let me create a comprehensive forensic investigation report.
 
 ---
 
-### CASE QUESTIONS
+# FORENSIC INVESTIGATION REPORT
+## NIST Hacking Case - Dell Latitude CPi Notebook
+### Case ID: nist-hacking-case-av
+### Investigation Date: November 14, 2026
 
-**Case Q1: Perform an Anti-Virus check. Are there any viruses on the computer?**
+## Executive Summary
 
-ClamAV antivirus scan result: **OK** (no virus signatures detected in the disk image files). However, while no traditional viruses were identified, the system contains extensive hacking tools and evidence of malicious activity including network sniffers (Ethereal), password crackers (CAIN, Brutus, Pwdump3), and network reconnaissance tools. The presence of these tools, the "Mr. Evil" user account, membership in alt.hacking newsgroup, and installed anonymizer software collectively indicate this computer was actively used for unauthorized hacking activities targeting wireless networks and internet traffic interception, consistent with the case briefing of intercepting credit card numbers and credentials at wireless hotspots.
+A Dell CPi notebook computer (Serial #VLQLW) was found abandoned on 09/20/04 with a wireless PCMCIA card and external 802.11b antennae. This forensic examination was conducted to determine if the computer was used for hacking purposes and to establish any connection to the suspect Greg Schardt (online nickname "Mr. Evil").
+
+## Findings
+
+### 1. System Configuration
+
+**Operating System:** Microsoft Windows XP (Version 5.1, Build 2600)
+**Installation Date:** August 27, 2004
+**Registered Owner:** Greg Schardt
+**Registered Organization:** N/A
+**System Root:** C:\WINDOWS
+
+### 2. Evidence of Hacking Tools and Activities
+
+The forensic examination discovered extensive hacking software organized in specific directories indicating methodical preparation:
+
+#### Footprinting and Reconnaissance Tools:
+- **Nmap (nmapnt)** - Network mapping and port scanning tool located in `My Documents/FOOTPRINTING/NT/Nmapnt`
+- **SPADE** - Network scanning tool (`My Documents/FOOTPRINTING/NT/spade114.exe`)
+- **SuperScan** - Port scanning and enumeration tool (`My Documents/FOOTPRINTING/NT/superscan`)
+- **NSTPro2** - Network scanning tool (`My Documents/FOOTPRINTING/NT/NSTPro2`)
+
+#### Enumeration Tools:
+- **OGRE** - Network enumeration tool located in `My Documents/ENUMERATION/NT/ogre`
+
+#### Exploitation Tools:
+- **Dsniff 2.3** - Network packet sniffer and credential interception tool (`My Documents/EXPLOITATION/Unix/dsniff 2.3`) - **Critical finding indicating intent to intercept passwords and credit card information**
+- **Brutus** - Password brute force tool (`My Documents/EXPLOITATION/NT/Brutus`) with associated documentation
+- **Pwdump** - Windows password hash extraction tool (`My Documents/EXPLOITATION/NT/Pwdump`)
+
+#### Network Monitoring:
+- **Ethereal** - Network packet analyzer/sniffer (`Program Files/Ethereal`) - sophisticated tool for capturing and analyzing network traffic
+- **Anonymizer** - Privacy and anonymization tool (`Program Files/Anonymizer`)
+
+### 3. User Account Identification
+
+The computer contains a user account named **"Mr. Evil"** which corresponds to the online nickname of suspect Greg Schardt as mentioned in the case briefing. Evidence includes:
+- User directory: `Documents and Settings/Mr. Evil`
+- Browser history and temporary internet files cached under this account
+- References to networking tools and shortcuts in the user's Desktop directory
+- Outlook Express data including subscription to "alt.hacking" newsgroup
+
+### 4. Network Activity and Wardriving Evidence
+
+Internet Explorer temporary files cache contains references to "wardriving" content, consistent with the suspect's known activity of parking vehicles near wireless access points to intercept network traffic.
+
+### 5. Anti-Virus Scan Results
+
+**ClamAV Scan Result:** Both E01 image segments scanned as "OK" with zero detections.
+
+**Important Note:** While ClamAV antivirus signatures did not detect any traditional viruses or malware, the computer contains multiple sophisticated hacking tools (dsniff, packet sniffers, password crackers) that are not classified as viruses by antivirus software. These tools were explicitly used for the alleged hacking activities described in the case (interception of internet traffic, credential theft).
+
+---
+
+## Case Questions
+
+**Case Q1:** Microsoft Windows XP (Version 5.1, Build 2600)
+
+**Case Q2:** Greg Schardt
+
+**Case Q3:** ClamAV antivirus scan detected zero viruses on the disk image. However, the computer contains extensive sophisticated hacking tools including dsniff (packet sniffer), Ethereal (network analyzer), Brutus (password cracker), and Pwdump (password hash dumper), which are specifically designed for intercepting network traffic and obtaining credentials—consistent with the suspect's alleged activities of stealing credit card numbers and login credentials at wireless hotspots.

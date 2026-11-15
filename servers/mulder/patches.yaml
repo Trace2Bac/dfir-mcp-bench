@@ -15,14 +15,14 @@ message-channel.patch:
     bug), the executor prompts copy the message word for word into their
     report, and the analyst receives it. When the first extraction plan for a
     disk image leaves out analyze_disk_pcaps, it is added in code. Used in
-    every label of EXP-002 to EXP-004, so that a tool's message reaches the
+    every label of EXP-002 and EXP-003, so that a tool's message reaches the
     agent or the analyst either way.
   summary_ko: >
     upstream mulder에 메시지 전달과 일괄 결과 수정만 넣은 것이고, 다른 도구
     변경은 없습니다. tool_response가 도구 메시지를 미리보기 밖에 두고, get_completed_results가
     source 이름, 작업 상태, 메시지를 돌려주며(셋 다 버리던 버그), executor 프롬프트가 메시지를 보고서에
     그대로 옮기고, analyst가 받습니다. 디스크 이미지의 첫 추출 계획에 analyze_disk_pcaps가 빠지면
-    코드가 추가합니다. EXP-002~004의 모든 라벨이 함께 써서, 어느 쪽이든 도구 메시지가 에이전트나
+    코드가 추가합니다. EXP-002와 EXP-003의 모든 라벨이 함께 써서, 어느 쪽이든 도구 메시지가 에이전트나
     analyst까지 갑니다.
   changes:
     - "get_completed_results: returns the source name, the job status and the tool's message (bug fix)"
@@ -60,31 +60,6 @@ strip-limits-upstream.patch:
     - "analyst와 보고서 프롬프트: 일반 해석 규칙 제거"
     - "mulder 도구: YARA, malfind, ClamAV, bulk_extractor, timestomping, submit_finding, DNS 터널 주의 문구 제거"
 
-message-carry.patch:
-  title: "Tool messages reach the later phases of mulder investigate"
-  title_ko: "도구 메시지가 mulder investigate의 뒤 단계까지 전달됨"
-  summary: >
-    Applied on message-channel. mulder investigate gave the tools' messages
-    only to the extraction analyst; the alternative-narrative phase and the
-    report worked from the findings, so a tool's own statement of what it did
-    not check was lost after extraction. The extraction phase's tool messages,
-    as the tools reported them and without repeats, are now added at the end
-    of the alternative-narrative planner and analyst prompts and of the report
-    prompt. No instruction is added with them. Tested in
-    tests/test_tool_messages_carry.py.
-  summary_ko: >
-    message-channel 위에 적용합니다. mulder investigate는 도구 메시지를 추출 단계 analyst에게만
-    줬습니다. 반론 검토 단계와 보고서는 발견 사항을 보고 일했기 때문에, 도구가 스스로 알린 "확인하지 않은
-    범위"가 추출 단계 뒤로는 사라졌습니다. 이제 추출 단계의 도구 메시지를 도구가 보고한 그대로, 중복 없이
-    반론 검토 단계의 planner와 analyst 프롬프트, 보고서 프롬프트 끝에 붙입니다. 따로 지시를 덧붙이지는
-    않습니다. tests/test_tool_messages_carry.py로 확인합니다.
-  changes:
-    - "Extraction analyst: the tool messages it receives are kept, once each, in order"
-    - "Alternative-narrative planner and analyst, report: the kept messages are appended to their prompts"
-  changes_ko:
-    - "추출 analyst: 받은 도구 메시지를 순서대로, 중복 없이 보관"
-    - "반론 검토 planner·analyst와 보고서: 보관한 메시지를 프롬프트 끝에 추가"
-
 clamav-limit.patch:
   title: "run_clamav says what a disk image scan does not show"
   title_ko: "run_clamav가 디스크 이미지 검사의 한계를 알림"
@@ -107,29 +82,24 @@ clamav-limit.patch:
   changes_ko:
     - "run_clamav: 디스크 이미지를 검사하면 그 안의 파일은 검사하지 않았고, 깨끗하다는 뜻은 아니라는 것을 메시지에 표시"
 
-clamav-partial.patch:
-  title: "run_clamav does not report a count for what it did not scan"
-  title_ko: "run_clamav가 검사하지 않은 것에 탐지 수를 보고하지 않음"
+extract-keep.patch:
+  title: "extract_file_by_inode keeps a binary file for other tools"
+  title_ko: "extract_file_by_inode가 꺼낸 바이너리 파일을 다른 도구가 쓸 수 있게 남김"
   summary: >
-    Applied on clamav-limit. A sentence on the result was not always enough:
-    the response still said success with 0 detections, and the indexed
-    output (clamav.scan) held only "OK" lines, so an agent that read it again
-    before answering saw no limit. When run_clamav scans a disk image, the
-    response status is now partial, the detection count is null instead of 0
-    (unless something was found), the result lists the images under
-    not_scanned, and the indexed output starts with a NOTE line saying the
-    files inside were not scanned and that an OK is for the image file only.
-    Tested in tests/test_clamav_image_limit.py.
+    Upstream's extract_file_by_inode returns only the SHA-256 and size of a
+    binary file and keeps nothing, so no other tool can read it: an agent that
+    knows the files inside a disk image were not scanned cannot scan one
+    after extracting it. The binary file is now saved under the case's
+    extracted folder (extracted/inodes/inode_<n>), as extract_optical_file
+    already does for optical discs, and its path is returned. Text files are
+    indexed as before. Tested in tests/test_extract_inode_keeps_file.py.
   summary_ko: >
-    clamav-limit 위에 적용합니다. 결과에 붙인 문장만으로는 늘 충분하지 않았습니다. 응답은 여전히 성공에 탐지
-    0건이었고, 색인되는 출력(clamav.scan)에는 "OK" 줄뿐이라, 답하기 전에 이를 다시 읽은 에이전트는 한계를 보지
-    못했습니다. 이제 run_clamav가 디스크 이미지를 검사하면 응답 상태가 partial이고, 탐지 수는 0이 아니라
-    null이며(무언가 찾았을 때는 제외), 결과의 not_scanned에 이미지를 적고, 색인되는 출력 맨 앞에 안의 파일은
-    검사하지 않았고 OK는 이미지 파일에 대한 것이라는 NOTE 줄을 넣습니다. tests/test_clamav_image_limit.py로
-    확인합니다.
+    upstream extract_file_by_inode는 바이너리 파일의 SHA-256과 크기만 돌려주고 아무것도 남기지 않아서, 다른
+    도구가 그 파일을 읽을 수 없습니다. 디스크 이미지 안의 파일을 검사하지 않았다는 것을 아는 에이전트도 파일을
+    꺼낸 뒤 검사할 수 없습니다. 이제 바이너리 파일을 사건의 extracted 폴더(extracted/inodes/inode_<n>)에
+    저장하고 경로를 돌려줍니다. 광학 디스크에서 extract_optical_file이 이미 하는 방식과 같습니다. 텍스트 파일은
+    전처럼 색인합니다. tests/test_extract_inode_keeps_file.py로 확인합니다.
   changes:
-    - "run_clamav: on a disk image, status partial and detections null instead of success and 0"
-    - "run_clamav: the indexed output starts with a NOTE that the files inside were not scanned"
+    - "extract_file_by_inode: a binary file is saved under the case's extracted folder and its path returned"
   changes_ko:
-    - "run_clamav: 디스크 이미지를 검사하면 success와 0 대신 partial과 null"
-    - "run_clamav: 색인되는 출력 맨 앞에 안의 파일은 검사하지 않았다는 NOTE"
+    - "extract_file_by_inode: 바이너리 파일을 사건의 extracted 폴더에 저장하고 경로를 돌려줌"

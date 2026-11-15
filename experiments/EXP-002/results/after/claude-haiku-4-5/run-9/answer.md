@@ -1,68 +1,81 @@
-Based on my investigation using the mulder forensic tools, I can now provide you with a comprehensive report:
+Now I have gathered sufficient evidence. Let me compile the final forensic report.
 
 ---
 
-## NIST HACKING CASE - FORENSIC INVESTIGATION REPORT
+# FORENSIC INVESTIGATION REPORT
+## NIST Hacking Case - Dell Latitude CPi Notebook (Serial # VLQLW)
+### Case ID: nist-hacking-case-av
+### Investigation Date: 2026-11-14
 
-### Case Information
-- **Case ID:** nist-hacking-case-q31
-- **Evidence:** Dell Latitude CPi notebook (serial VLQLW)
-- **Image:** 4Dell_Latitude_CPi.E01/E02
-- **Suspect:** Greg Schardt (alias "Mr. Evil")
-- **Date of Investigation:** September 20, 2004
+## Executive Summary
 
-### Investigation Summary
+A comprehensive digital forensic examination was conducted on the abandoned Dell Latitude CPi notebook (Serial # VLQLW) discovered on 09/20/04. The investigation examined the EnCase disk image (4Dell_Latitude_CPi.E01/E02) and identified significant evidence linking the computer to suspect Greg Schardt (aka "Mr. Evil") and confirming the presence of multiple hacking tools consistent with wireless network interception activities.
 
-The forensic examination of the abandoned Dell notebook reveals extensive evidence of hacking activities and specialized tools used for network reconnaissance, password attacks, and system exploitation.
+## Investigation Methodology
 
-### Key Findings
+1. **Case Creation and Evidence Intake**: Case created with case ID "nist-hacking-case-av" and evidence scanned from /evidence/nist-hacking-case/
+2. **Partition Analysis**: TSK mmls and fls tools used to analyze disk structure and file listing
+3. **Registry Analysis**: Windows registry hives queried to obtain OS and owner information
+4. **File System Search**: Comprehensive file listing analyzed to identify hacking software and suspicious tools
+5. **Antivirus Scanning**: ClamAV scan conducted on evidence
 
-**1. Suspect Identification**
-- User profile "Mr. Evil" identified on system, directly matching the suspect's known online nickname
-- Desktop shortcuts and personal configurations tied to hacking tools
+## Key Findings
 
-**2. Hacking Tools Discovered**
-The system contains a well-organized collection of hacking utilities stored in My Documents:
+### 1. System Configuration
+- **Filesystem**: Windows NTFS 
+- **Total Files Indexed**: 12,545 files across filesystem
+- **Deleted Files Identified**: Multiple deleted files marked in file listing
 
-**Exploitation Tools:**
-- Brutus (brute force password cracking) - with NetBus.bad configuration file
-- Pwdump3 (password hash dumping tool) - inode 10579
-- dsniff 2.3 (packet sniffing and network traffic analysis)
+### 2. Direct Suspect Link
+**Critical Finding**: User account "Mr. Evil" exists on the system at path:
+```
+Documents and Settings/Mr. Evil/
+```
 
-**Network Reconnaissance Tools:**
-- nmap (network mapper with NT source code)
-- SPADE 1.14 (network scanner) - inode 10646
-- NSTPro2 (port scanner)
-- SuperScan (network enumeration)
-- Cerberus Internet Scanner (with scan reports)
-- enum (network enumeration tool)
-- OGRE (network scanner)
+This directly corresponds to the suspect's online nickname "Mr. Evil," which was identified in the briefing as an alias for Greg Schardt. This provides a definitive link between the suspect and the abandoned computer.
 
-**Utility Tools:**
-- Ethereal/Wireshark (packet sniffer) - installed in Program Files
-- Anonymizer toolbar (for hiding browsing)
-- Cain & Abel password tools (evidence in Prefetch)
-- Various command-line utilities (snitch.exe, user2sid.exe, STREAMFIND.EXE)
+### 3. Hacking Software Identified
 
-**3. Evidence of Malicious Intent**
-- Internet cache files showing interest in "wardriving" techniques
-- Outlook Express mailbox subscribed to "alt.hacking" group
-- Network neighborhood shortcuts to target systems
-- Stored credential lists (users.txt files)
+The following tools indicative of hacking activities were discovered on the system:
 
-**4. Software Installation**
-- mIRC (internet relay chat) for communication
-- MSN Messenger
-- Multiple network testing and exploitation frameworks
+| Software | Location | Purpose |
+|----------|----------|---------|
+| **Ethereal** | Program Files/Ethereal/ | Network packet sniffer - captures and analyzes network traffic for interception of credentials |
+| **mIRC** | Documents and Settings/All Users/Start Menu/Programs/mIRC/ | IRC client for hacker communications |
+| **CAIN & Abel** | WINDOWS/Prefetch/CAIN25B45.EXE | Password recovery and cracking tool |
+| **Anonymizer** | Program Files/Anonymizer/ | Network anonymization tool to hide user activity |
+| **Look@LAN** | Program Files/Look@LAN/ | Network scanning and discovery tool |
+
+### 4. Suspect Modus Operandi Match
+The briefing indicated the suspect would "park his vehicle within range of Wireless Access Points (like Starbucks and other T-Mobile Hotspots) where he would then intercept internet traffic, attempting to get credit card numbers, usernames & passwords."
+
+The tools discovered perfectly align with this methodology:
+- **Ethereal** captures live network traffic from wireless networks
+- **CAIN & Abel** cracks captured password hashes
+- **Anonymizer** masks the attacker's identity while conducting these activities
+- **Look@LAN** identifies available wireless networks and connected hosts
+- **mIRC** enables communication with other hackers regarding stolen credentials
+
+## Case Questions
+
+**Case Q1: What operating system was used on the computer?**
+Microsoft Windows XP (Version 5.1, Build 2600). Confirmed via registry query of HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion showing ProductName="Microsoft Windows XP"
+
+**Case Q2: Who is the registered owner?**
+Greg Schardt. Confirmed via registry query of HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion showing RegisteredOwner="Greg Schardt". Additionally, the suspect's online nickname "Mr. Evil" is associated with a user profile on the system (Documents and Settings/Mr. Evil/), providing corroborating evidence.
+
+**Case Q3: Perform a Anti-Virus check. Are there any viruses on the computer?**
+ClamAV antivirus scan returned no detections on the disk image itself (result: OK). However, the presence of hacking software tools indicates intentional installation of utilities designed for malicious network interception and credential theft. While not traditional viruses or malware, these tools constitute evidence of hacking activity and malicious intent. The tools discovered (Ethereal, CAIN & Abel, Anonymizer, Look@LAN) are legitimate applications when used for authorized security testing but their presence on an individual's personal laptop, combined with the other evidence (suspect's user profile, briefing information), indicates use for unauthorized hacking activities.
+
+## Conclusion
+
+The digital forensic examination successfully:
+1. Confirmed the computer belonged to registered owner Greg Schardt
+2. Identified the suspect's online alias "Mr. Evil" as an active user profile
+3. Discovered multiple professional-grade hacking tools installed and ready for use
+4. Connected the tools to the suspect's known method of operation (wireless network interception)
+5. Provided strong evidence linking this abandoned computer to the suspected hacking activities
+
+The evidence supports the hypothesis that this computer was indeed used for unauthorized wireless network interception and credential theft activities as suspected in the case briefing.
 
 ---
-
-## CASE QUESTIONS
-
-**Case Q1: Perform an Anti-Virus check. Are there any viruses on the computer?**
-
-**Answer:** ClamAV anti-virus scan detected **NO VIRUSES** (0 detections). The scan of the disk image (4Dell_Latitude_CPi.E01 and E02 segments) returned OK status. However, it should be noted that while no virus signatures were identified by ClamAV, the scan was performed on the raw image files rather than with full filesystem access, which represents a limitation of the scanning methodology. No known malware signatures were detected in the file system based on file naming analysis and available detection methods. Despite the absence of detected viruses, the system is heavily contaminated with hacking tools and utilities used for network exploitation, which poses a significant security threat.
-
----
-
-**Conclusion:** While the computer is free of detected viruses based on ClamAV analysis, it is heavily compromised with sophisticated hacking and network exploitation tools. This evidence strongly supports the suspicion that the computer was used for hacking purposes, specifically for wireless network penetration testing and password attacks consistent with the suspect's known modus operandi (wardriving and credential theft at wireless hotspots).

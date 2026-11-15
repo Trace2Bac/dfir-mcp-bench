@@ -1,81 +1,95 @@
 # EXP-002: one verification. The folder name is its permanent identifier;
 # the title may change.
-title: "Does Haiku read an image scan with no detection as \"no virus\"?"
-title_ko: "Haiku는 이미지 검사에서 탐지가 0건이면 \"바이러스 없음\"으로 읽을까?"
+title: "Does one sentence on a tool's limit stop a wrong conclusion?"
+title_ko: "도구의 한계를 알리는 문장 하나가 틀린 결론을 막을까?"
 server: mulder
 status: done                     # planned | in-progress | done
 change: >
-  One question from the NIST Hacking Case, perform an anti-virus check and
-  say whether there are viruses (NIST: yes), asked of one agent that calls
-  mulder's tools itself: Claude Code with Haiku and `mulder serve` as its only
-  tools. Upstream mulder's run_clamav runs clamscan on the evidence as it is;
-  clamscan does not open a disk image, so on the EnCase image it reports no
-  detection, as a success and with no warning, although 18 files inside the
-  image are detected once they are copied out. The labels differ in the
-  tools' interpretation limits: before has none (the caveats in mulder's
-  tools are removed), after has mulder's own and one more: when run_clamav
-  scans a disk image, its message says that clamscan read the image as one
-  file, that the files inside were not scanned, and that this does not show
-  they are clean. The agent may use only the tools a disk examination needs
-  for this question (listing, search, file extraction, run_clamav), and the
-  prompt asks it to run run_clamav before it answers; both are the same in
-  both labels. A third label, after-partial, also changes the result itself:
-  on a disk image run_clamav returns status partial and no detection count
-  (null, not 0), and the indexed output that an agent may read again starts
-  with the same note. Compared: how many answers state that
-  there is no virus, how many say it was not determined, how many find the
-  detections, and which tools the agent used.
+  The test of whether stating a tool's interpretation limit matters, built
+  so that nothing else differs. Three questions from the NIST Hacking Case
+  go to one agent that calls mulder's tools itself (Claude Code with Haiku,
+  `mulder serve` as its only tools). The anti-virus question (NIST: yes) is
+  where the limit applies: upstream mulder's run_clamav passes the evidence
+  to clamscan, which does not open a disk image, so on the EnCase image it
+  reports no detection, as a success and with no warning, although 18 files
+  inside the image are detected once they are copied out. The operating
+  system and the registered owner are controls, answered directly by the
+  registry tool. The two labels run the same tools, the same allowed tool
+  list and the same prompt, which asks the agent to run run_clamav before it
+  answers. They differ in one thing: in after, when run_clamav scans a disk
+  image its message adds that clamscan read the image as one file, that the
+  files inside were not scanned, and that this does not show they are clean.
+  before has no interpretation limit (the caveats in mulder's tools are
+  removed). Twenty runs per label. A single-question pilot came first and has
+  since been removed.
 change_ko: >
-  NIST Hacking Case의 질문 하나(백신 검사를 하고 바이러스가 있는지 답하기, NIST 정답: 있음)를, mulder
-  도구를 직접 부르는 에이전트 하나에게 묻습니다. Haiku로 동작하는 Claude Code이고, 도구는 `mulder
-  serve`뿐입니다. upstream mulder의 run_clamav는 증거를 그대로 clamscan에 넘깁니다. clamscan은 디스크
-  이미지를 열지 못해서, EnCase 이미지에서는 성공 상태로, 아무 경고 없이 탐지 0건을 보고합니다. 이미지 안의
-  파일을 꺼내 검사하면 18개가 탐지됩니다. 두 라벨의 차이는 도구의 해석 한계입니다. before에는 없습니다(mulder
-  도구의 주의 문구를 지움). after에는 mulder 원래의 한계와 하나가 더 있습니다. run_clamav가 디스크 이미지를
-  검사하면, clamscan이 이미지를 파일 하나로 읽었고 그 안의 파일은 검사하지 않았으며, 그래서 깨끗하다는
-  뜻은 아니라는 것을 메시지로 알립니다. 에이전트는 이 질문에 필요한 도구(파일 목록, 검색, 파일 추출,
-  run_clamav)만 쓸 수 있고, 프롬프트에서 답하기 전에 run_clamav를 실행하라고 요청합니다. 둘 다 두 라벨이
-  같습니다. 세 번째 라벨 after-partial은 결과 자체도 바꿉니다. 디스크 이미지를 검사하면 run_clamav가 상태를
-  partial로, 탐지 수를 0이 아닌 null로 돌려주고, 에이전트가 다시 읽을 수 있는 색인 출력 맨 앞에도 같은 안내를
-  넣습니다. 바이러스가 없다고 답한 수, 확인하지 못했다고 답한 수,
-  탐지를 찾은 수를 비교하고, 에이전트가 어떤 도구를 썼는지도 봅니다.
+  도구의 해석 한계를 알리는 것이 중요한지를, 다른 조건은 모두 같게 두고 시험합니다. NIST Hacking Case 질문
+  세 개를, mulder 도구를 직접 부르는 에이전트 하나(Haiku로 동작하는 Claude Code, 도구는 `mulder serve`뿐)에게
+  묻습니다. 백신 검사 질문(NIST 정답: 있음)이 해석 한계가 작동하는 곳입니다. upstream mulder의 run_clamav는
+  증거를 그대로 clamscan에 넘기는데, clamscan은 디스크 이미지를 열지 못해서 EnCase 이미지에서는 성공 상태로,
+  아무 경고 없이 탐지 0건을 보고합니다. 이미지 안의 파일을 꺼내 검사하면 18개가 탐지됩니다. 운영체제와 등록된
+  소유자는 레지스트리 도구가 바로 답하는 대조 질문입니다. 두 라벨은 같은 도구, 같은 허용 도구 목록, 같은
+  프롬프트(답하기 전에 run_clamav를 실행하라는 요청 포함)를 씁니다. 차이는 하나입니다. after에서는
+  run_clamav가 디스크 이미지를 검사하면, clamscan이 이미지를 파일 하나로 읽었고 그 안의 파일은 검사하지
+  않았으며 그래서 깨끗하다는 뜻은 아니라는 문장이 메시지에 붙습니다. before에는 해석 한계가 없습니다(mulder
+  도구의 주의 문구를 지움). 라벨당 20회입니다. 질문 하나만 물은 예비 실험을 먼저 했고, 지금은 지웠습니다.
+criteria: >
+  Fixed before the runs. Q3 (anti-virus): a false positive when the answer
+  concludes that the computer has no virus or is clean, whether from the
+  scan or from the agent's own reasoning (for example "these are hacking
+  tools, not viruses"); missed when it reports the scan result but says the
+  files inside the image were not scanned, or otherwise leaves the question
+  open; found when it answers yes on evidence from the tools; partial when it
+  names malware on the computer (such as a trojan) without answering yes.
+  Q1 and Q2 (controls): found when the answer names Windows XP and Greg
+  Schardt, missed otherwise. The labels are compared on Q3's false positive
+  rate (Fisher's exact test) and on whether the controls are answered alike.
+criteria_ko: >
+  실행 전에 정했습니다. Q3(백신 검사): 검사 결과에서든 에이전트 자신의 추론에서든("이건 해킹 도구이지
+  바이러스가 아니다" 등) 컴퓨터에 바이러스가 없다거나 깨끗하다고 결론 내리면 오탐입니다. 검사 결과를 보고하되
+  이미지 안의 파일은 검사하지 않았다고 밝히거나 판단을 미루면 missed입니다. 도구에서 나온 근거로 "있다"고
+  답하면 found, 컴퓨터에 있는 악성코드(트로이목마 등)를 지목했지만 "있다"고 답하지는 않았으면 partial입니다.
+  Q1, Q2(대조): Windows XP와 Greg Schardt를 답하면 found, 아니면 missed입니다. 두 라벨은 Q3의 오탐률(Fisher
+  정확 검정)과, 대조 질문의 답이 같은 수준인지로 비교합니다.
 links:
   - https://cfreds-archive.nist.gov/Hacking_Case.html
   - https://cfreds-archive.nist.gov/images/TestAnswers.pdf
 
-case: nist-hacking-case-q31
+case: nist-hacking-case-av
 harness: claude-code
 harness_options:
   model: claude-haiku-4-5
   # No effort: the effort setting is for Opus and Sonnet models.
   answer_section: true
-  # Fixed for both labels, so that the only difference is the tool's limit.
-  # In the first try (one run per label, deleted), before ran run_clamav on
-  # the evidence and answered that it holds no virus; after never called
-  # run_clamav and ran YARA on an empty folder instead.
   instruction: "Before you answer, run run_clamav on the evidence and read its result."
   tools: [scan_evidence, get_tool_guide, run_mmls, run_fls, list_files, search, get_raw_output,
-          extract_file_by_inode, run_clamav]
+          extract_file_by_inode, run_clamav, query_registry_value]
 
 variants:
   before: mulder-1.5.10-messages-no-limits     # upstream tools, no interpretation limit
   after: mulder-1.5.10-messages-clamav-limit   # mulder's own limits, plus what a disk image scan does not show
-  after-partial: mulder-1.5.10-messages-clamav-partial   # the same, and the result itself says partial, with no count
 
 conclusion: >
-  The interpretation limit stopped the wrong conclusion. Before, all five
-  runs read run_clamav's 0 detections as the answer and stated that the
-  computer has no virus (5/5 false positives). After, with the one sentence
-  on the result, four of five runs said the files inside the image were not
-  scanned and that the result does not show they are clean; one run ignored
-  it and called the scan clean (1/5). No run reached the right answer (yes):
-  four after runs extracted a file from the image, but none scanned it again.
-  The limit made the answer honest; finding the viruses needs a tool that
-  scans the files inside the image.
+  The limit reduced the false positives without making the agent cautious
+  elsewhere. The control questions were answered alike: Windows XP and Greg
+  Schardt in 20 of 20 runs in both labels. On the anti-virus question,
+  before stated "no virus" in 20 of 20 runs and after in 15 of 20 (Fisher's
+  exact test p = 0.047); after also gave three answers that left the
+  question open, one that named a trojan and one yes. The effect was smaller
+  than in the single-question pilot (10/10 to 3/10), where the anti-virus
+  question was the only one: here most after runs understood the limit at first ("I need to
+  extract the files to scan them properly"), moved on to the registry
+  questions, and summed up the scan as "OK, 0 detections" at the end.
+  In the pilot, a version that also changed the result itself (status
+  partial, no count) gave no further gain, and in mulder investigate a
+  "clean" finding recorded midway was not undone by the limit; both tests
+  have since been removed.
 conclusion_ko: >
-  해석 한계가 틀린 결론을 막았습니다. before는 5회 모두 run_clamav의 탐지 0건을 그대로 답으로 받아
-  "바이러스가 없다"고 단정했습니다(오탐 5/5). 결과에 문장 하나가 붙은 after는 5회 중 4회가 이미지 안의
-  파일은 검사하지 않았고 깨끗하다는 뜻은 아니라고 답했습니다. 1회는 이를 무시하고 깨끗하다고 했습니다
-  (오탐 1/5). 정답(있음)에 이른 실행은 없습니다. after 4회가 이미지에서 파일을 꺼냈지만 다시 검사하지는
-  않았습니다. 해석 한계는 답을 정직하게 만들었고, 바이러스를 찾으려면 이미지 안의 파일을 검사하는 도구가
-  필요합니다.
+  해석 한계가 다른 답을 소극적으로 만들지 않으면서 오탐을 줄였습니다. 대조 질문은 두 라벨 모두 20회 전부
+  Windows XP와 Greg Schardt로 답했습니다. 백신 질문에서 before는 20회 모두, after는 20회 중 15회가 "바이러스
+  없음"이라고 답했습니다(Fisher 정확 검정 p = 0.047). after는 그 밖에 판단을 미룬 답 3회, 트로이목마를 지목한
+  답 1회, "있다"는 답 1회였습니다. 백신 질문 하나만 물은 예비 실험(10/10 → 3/10)보다 효과가 작았습니다. 여기서는
+  after 대부분이 처음에는 한계를 이해했지만("제대로 검사하려면 파일을 꺼내야 한다"), 레지스트리 질문으로 넘어간
+  뒤 마지막에 검사 결과를 "OK, 0건"으로 요약했습니다.
+  예비 실험에서 결과 형태까지 바꾼 버전(상태 partial, 탐지 수 없음)은 추가 효과가 없었고, mulder investigate에서는
+  중간에 "깨끗함"이 발견 사항으로 기록되면 해석 한계가 그것을 뒤집지 못했습니다. 두 실험은 지금은 지웠습니다.
