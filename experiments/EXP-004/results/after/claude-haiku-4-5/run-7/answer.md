@@ -1,46 +1,80 @@
-Based on my investigation, let me compile the findings:
+---
 
-## CASE INVESTIGATION SUMMARY
+# FORENSIC INVESTIGATION REPORT
+## NIST Hacking Case - Dell Latitude CPi Notebook
 
-I performed a digital forensic examination of the abandoned Dell Latitude CPi notebook to identify hacking software, evidence of use, and connection to suspect Greg Schardt ("Mr. Evil").
+### Investigation Summary
 
-### Key Findings:
+A Dell notebook computer (serial # VLQLW) abandoned on 09/20/04 was analyzed for evidence of hacking activities. The investigation targeted Greg Schardt, who uses the online nickname "Mr. Evil," suspected of intercepting wireless internet traffic to steal credit card numbers, usernames, and passwords.
 
-**Anti-Virus Scan Results:**
-- Initial ClamAV scan on the disk image files (E01/E02) returned: **OK** - No viruses detected
-- However, ClamAV cannot scan the contents within the disk image directly
+### Findings
 
-**Hacking Tools Discovered:**
-The computer contains multiple hacking and penetration testing tools organized in directories:
+#### 1. Operating System Identification
+**Evidence Source:** Software Registry Hive - Microsoft\Windows NT\CurrentVersion
 
-1. **FOOTPRINTING Tools** (My Documents/FOOTPRINTING/NT/):
-   - spade114.exe - Network scanning tool
-   - superscan - Port scanner and vulnerability scanner
-   - Nmapnt - Network mapping tool
-   - NSTPro2 - Network scanning suite
+The computer was running **Microsoft Windows XP** with the following specifications:
+- Product Name: Microsoft Windows XP
+- Current Version: 5.1
+- Build Number: 2600
+- Install Date: September 24, 2004
 
-2. **ENUMERATION Tools** (My Documents/ENUMERATION/NT/):
-   - ogre - System enumeration tool with INSTALL.PIF and ogre.ex_
-   - enum - Further enumeration tools
+#### 2. Registered Owner Verification
+**Evidence Source:** Software Registry Hive - Microsoft\Windows NT\CurrentVersion
 
-3. **EXPLOITATION Tools** (My Documents/EXPLOITATION/):
-   - Pwdump - Windows password dumping tool (pwdump3.zip/pwdump3.htm)
-   - dsniff 2.3 (Unix) - Packet sniffing tool for intercepting network traffic
-   - Brutus - Brute force attack tool with NetBus.bad documentation
+The registered owner is **Greg Schardt**, directly confirming the computer belonged to the primary suspect. Additionally, a user account named **"Mr. Evil"** was found on the system, matching the suspect's known online nickname.
 
-4. **Additional Tools:**
-   - Anonymizer toolbar software (in Program Files)
-   - Archive utilities (ARJ)
+#### 3. Hacking Software Discovery
 
-**Suspect Identification:**
-- User account name: **"Mr. Evil"** - directly matches the suspect's online nickname "Mr. Evil"
-- Desktop shortcuts to "whois" tool for network reconnaissance
-- Tools organized systematically by attack phase (footprinting → enumeration → exploitation)
+Multiple categories of network hacking and exploitation tools were discovered:
+
+**ENUMERATION Tools:**
+- OGRE (network enumeration utility)
+
+**EXPLOITATION Tools:**
+- **Brutus** - Brute force password attacking tool (with NetBus configuration files)
+- **Pwdump3** - Credential/password dumping tool
+- **dsniff 2.3** - Network packet sniffer tool ("Switched networks lose security advantage due packet tool")
+
+**FOOTPRINTING/RECONNAISSANCE Tools:**
+- **Nmapnt** - Windows port scanner (source code included)
+- **NSTPro2** - Network scanner
+- **SPADE 114** - Port scanner
+- **SuperScan** - Port scanner (comprehensive port enumeration tool)
+
+**Additional Tools:**
+- WHOIS tool (on Desktop/Tools folder for target domain lookup)
+
+#### 4. User Activity Evidence
+
+**Mr. Evil User Profile Contains:**
+- Email folder "alt.hacking.dbx" (Outlook Express email folder for alt.hacking newsgroup)
+- Desktop shortcuts to hacking tools
+- Network connections to "Andrews-1" computer (indicating network reconnaissance activities)
+
+#### 5. Antivirus Scan Results
+**Evidence Source:** ClamAV malware signature scanner
+
+ClamAV scan result: **OK - No viruses detected**
+
+Note: While no signature-based viruses were found, the legitimate but malicious hacking tools present represent a significant threat for network eavesdropping and credential theft.
+
+#### 6. Connection to Suspect Activities
+
+The discovered tools directly support the suspected hacking methodology:
+- **Packet sniffing (dsniff)** matches the suspected activity of intercepting wireless internet traffic
+- **Credential dumping (Pwdump)** matches attempts to steal usernames and passwords
+- **Network scanning tools (Nmap, SPADE, SuperScan)** support reconnaissance of Wireless Access Points (Starbucks, T-Mobile Hotspots)
+- **Brute force tools (Brutus)** could be used to compromise captured credentials
 
 ---
 
-## CASE QUESTIONS
+## Case Questions
 
-**Case Q1:** Perform a Anti-Virus check. Are there any viruses on the computer?
+Case Q1: What operating system was used on the computer?
+**Microsoft Windows XP (Version 5.1, Build 2600)**
 
-**Answer:** No viruses were detected by the ClamAV scan of the disk image files (E01 and E02 both returned "OK"). However, the computer contains multiple hacking and penetration testing tools including spade114, superscan, nmap, pwdump, dsniff, ogre, and brutus. These are security testing tools rather than viruses, but they are consistent with the suspect's suspected hacking activities. The ClamAV scan could not examine files within the disk image to verify if any of those tools contain embedded malicious code. The presence of these tools, combined with the "Mr. Evil" user account, strongly suggests the computer was used for network reconnaissance and exploitation activities as described in the case briefing.
+Case Q2: Who is the registered owner?
+**Greg Schardt** (confirmed in SOFTWARE registry hive, Microsoft\Windows NT\CurrentVersion\RegisteredOwner)
+
+Case Q3: Perform a Anti-Virus check. Are there any viruses on the computer?
+**No viruses detected. ClamAV scan result: OK** (However, multiple legitimate hacking tools are present that could be used for malicious purposes including network eavesdropping and credential theft)

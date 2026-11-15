@@ -23,7 +23,7 @@ The EnCase image of the abandoned computer is /evidence/nist-hacking-case/4Dell_
 
 Answer each of these questions in the report, citing the evidence:
 
-- Case Q1: Ethereal, a popular "sniffing" program that can be used to intercept wired and wireless internet packets was also found to be installed. When TCP packets are collected and re-assembled, the default save directory is that users \My Documents directory. What is the name of the file that contains the intercepted data?
+- Case Q1: Perform a Anti-Virus check. Are there any viruses on the computer?
 
 ## How to Answer
 

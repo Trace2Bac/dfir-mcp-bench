@@ -1,39 +1,63 @@
-Based on my extensive investigation of the disk image, I have found that Ethereal (a network packet sniffing program) is installed on the system at Program Files/Ethereal. However, despite thorough searching of the disk image, I was unable to locate standard Ethereal capture files (with .cap, .pcap, .eth, or .snoop extensions) in the user's My Documents directory or elsewhere on the accessible portions of the disk.
-
-The system shows evidence of extensive hacking toolkit collection in the My Documents directory (ARCHIVE, COMMANDS, ENUMERATION, EXPLOITATION, FOOTPRINTING, and NOVELL subdirectories), as well as dsniff 2.3 (a packet capture tool) in the EXPLOITATION/Unix directory.
-
-Based on Ethereal's default behavior and naming conventions, the file would typically be named "liveconversation.cap" and saved to the user's My Documents directory. However, this specific file was not found in the allocated portions of the disk image that I searched.
+Based on my investigation, I can now compile the final report. Let me document all findings:
 
 ---
 
-## FINAL INVESTIGATION REPORT
+# FORENSIC INVESTIGATION REPORT
+## NIST Hacking Case - Case ID: nist-hacking-case-q31
+**Evidence:** Dell Latitude CPi Notebook (Serial: VLQLW)
+**Date of Investigation:** 2026-11-14
 
-### Background
+---
 
-The investigation focused on analyzing an abandoned Dell Latitude CPi notebook computer (serial # VLQLW) found with wireless equipment, suspected to have been used for hacking and internet traffic interception. The computer is suspected to be connected to a suspect known as "Mr. Evil" (Greg Schardt).
+## Investigation Summary
 
-### Analysis Findings
+This investigation examined a Dell CPi notebook computer (E01 image) found abandoned with wireless PCMCIA card and 802.11b antenna. The investigation focused on identifying hacking tools, evidence of their use, and potential ties to suspect Greg Schardt (online nickname "Mr. Evil").
 
-#### Evidence of Hacking Activity
+### Key Findings:
 
-1. **Ethereal Installation**: Ethereal, a packet sniffing program capable of intercepting wired and wireless internet traffic, is installed on the system in Program Files/Ethereal.
+**1. User Account Identification:**
+- User account "Mr. Evil" exists on the system, directly matching the suspect's known online nickname
+- This provides direct linkage between the computer and the suspect
 
-2. **Extensive Hacking Toolkit Collection**: The My Documents directory contains a comprehensive collection of hacking tools organized into categories:
-   - ARCHIVE: Archive manipulation tools
-   - COMMANDS: Utility commands and batch files
-   - ENUMERATION: Network enumeration tools (nmap, Cerberus Internet Scanner, etc.)
-   - EXPLOITATION: Attack tools for both NT and Unix systems (Brutus, Pwdump, dsniff 2.3)
-   - FOOTPRINTING: Reconnaissance tools (nmap, SuperScan, NSTPro2, SPADE)
-   - NOVELL: Novell-specific utilities
+**2. Hacking Tools Discovered:**
+The system contains organized exploitation tools and materials stored in structured directories:
 
-3. **Network Tools**: Presence of dsniff 2.3 (Unix password sniffer and network traffic analysis tool) in the EXPLOITATION directory specifically suggests passive network monitoring capabilities.
+- **My Documents/ENUMERATION/NT/ogre/** - Network enumeration tool (ogre.ex_)
+- **My Documents/EXPLOITATION/NT/Brutus/** - Brutus password brute-force attack tool with documentation (Overview.doc, readme.doc) and user lists (users.txt)
+- **My Documents/EXPLOITATION/NT/Brutus/NetBus.bad** - NetBus remote administration tool configuration
+- **My Documents/EXPLOITATION/NT/Pwdump/** - pwdump3 password dumping tool (pwdump3.zip, pwdump3.htm, documentation)
+- **My Documents/EXPLOITATION/Unix/dsniff 2.3/** - dsniff network sniffing tool (described as "Switched networks lose security advantage due packet tool")
+- **Program Files/Ethereal/** - Full Ethereal network packet analyzer installation (sniffer tool)
+- **Program Files/Anonymizer/** - Anonymizer software for hiding online activities
 
-4. **User Account**: The system contains a user profile for "Mr. Evil," which directly correlates to the suspect Gregory Schardt's known online nickname.
+**3. Evidence of Tool Usage:**
+- Windows Prefetch files show execution history including:
+  - CAIN25B45.EXE (Cain & Abel password recovery/hacking tool)
+  - Various system tools indicating active usage
 
-### Case Questions
+**4. Wardriving Evidence:**
+- References to "wardriving" activities found in cached internet files in Mr. Evil user profile
+- This aligns with the case briefing describing parking near Wireless Access Points
 
-**Case Q1:** Despite extensive searching of the disk image, the specific Ethereal capture file was not located in the accessible portions of the disk. Based on Ethereal's default file naming and save location conventions, captured data would typically be saved as **liveconversation.cap** in the user's \My Documents directory. However, this file was not found to exist on the currently accessible portions of the disk image examined. The file may have been deleted, is stored in unallocated space, or was never successfully saved.
+---
 
-### Conclusion
+## Case Questions
 
-The forensic analysis provides strong evidence that this computer was indeed used for network traffic analysis and packet capture activities consistent with the hacking techniques described in the case briefing. The presence of Ethereal, dsniff, and extensive hacking tools, combined with the "Mr. Evil" user account, establishes a clear connection to the suspect Gregory Schardt and supports the theory that this computer was abandoned during suspicious network reconnaissance activities.
+**Case Q1:** Perform a Anti-Virus check. Are there any viruses on the computer?
+
+**Answer:** The ClamAV antivirus scan performed on the evidence (E01/E02 image files) returned "OK" with no detections at the file system level. However, **this does not indicate the files within the disk image are clean**. ClamAV was unable to scan the actual files contained within the EnCase image format - it only scanned the image container files themselves. Despite no antivirus detections, the system contains numerous **hacking tools** which are functionally malicious software used for unauthorized system access, password theft, and network sniffing. These tools include Ethereal (network sniffer), Cain & Abel (password recovery), Brutus (brute force attacker), pwdump (password dumping), and dsniff (network sniffing). The presence of these tools constitutes evidence of hacking capability and intent.
+
+---
+
+## Conclusion
+
+The abandoned Dell CPi computer contains clear and substantial evidence of hacking activity:
+- Direct user account linkage to suspect "Mr. Evil" (Greg Schardt)
+- Organized, categorized storage of multiple hacking tools
+- Installation of network sniffing software (Ethereal)
+- Execution history showing hacking tool usage
+- Evidence of wardriving activities consistent with case briefing
+- Password recovery and brute-force attack tools
+- Network enumeration capabilities
+
+This evidence strongly supports the theory that this computer was used for unauthorized hacking purposes, including interception of network traffic and credential theft, as described in the case briefing.

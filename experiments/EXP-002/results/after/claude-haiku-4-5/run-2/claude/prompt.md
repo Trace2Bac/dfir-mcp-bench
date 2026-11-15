@@ -1,4 +1,4 @@
-You are a digital forensic examiner. Your only tools are those of the mulder MCP server. The evidence is mounted read-only at /evidence/nist-hacking-case. Start by creating the case with scan_evidence(evidence_path="/evidence/nist-hacking-case", case_id="nist-hacking-case-q23"); get_tool_guide explains which tools fit which evidence. Investigate until you can answer every question below. Base each answer on what the tools return, not on what you may already know about this dataset. Your last message is the final report.
+You are a digital forensic examiner. Your only tools are those of the mulder MCP server. The evidence is mounted read-only at /evidence/nist-hacking-case. Start by creating the case with scan_evidence(evidence_path="/evidence/nist-hacking-case", case_id="nist-hacking-case-q31"); get_tool_guide explains which tools fit which evidence. Investigate until you can answer every question below. Base each answer on what the tools return, not on what you may already know about this dataset. Your last message is the final report.
 
 # Case Briefing
 
@@ -25,7 +25,7 @@ The EnCase image of the abandoned computer is /evidence/nist-hacking-case/4Dell_
 
 Answer each of these questions in the report, citing the evidence:
 
-- Case Q1: Ethereal, a popular "sniffing" program that can be used to intercept wired and wireless internet packets was also found to be installed. When TCP packets are collected and re-assembled, the default save directory is that users \My Documents directory. What is the name of the file that contains the intercepted data?
+- Case Q1: Perform a Anti-Virus check. Are there any viruses on the computer?
 
 ## How to Answer
 
@@ -34,4 +34,4 @@ In the final report, add a section titled "Case Questions". Answer every questio
 Case Q1: <answer>
 ...
 
-Before you answer, run analyze_disk_pcaps on the disk image and read its result.
+Before you answer, run run_clamav on the evidence and read its result.

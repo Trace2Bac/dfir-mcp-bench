@@ -1,37 +1,34 @@
 # EXP-003: one verification. The folder name is its permanent identifier;
 # the title may change.
-title: "Does an interpretation limit survive mulder investigate's later phases?"
-title_ko: "해석 한계가 mulder investigate의 뒤 단계까지 살아남을까?"
+title: "Does the anti-virus limit reach mulder investigate's report?"
+title_ko: "백신 검사의 해석 한계가 mulder investigate의 보고서까지 갈까?"
 server: mulder
-status: in-progress              # planned | in-progress | done
+status: planned                  # planned | in-progress | done
 change: >
-  The question and the two tool versions of EXP-002, run with mulder
-  investigate (planner, executor and analyst roles, all Haiku) instead of one
-  agent. In the first runs (before, after) the pcap tool's limit reached the
-  extraction analyst, which wrote that the capture's file name was not
-  located; the alternative-narrative phase and the report did not see it,
-  searched again by extension and concluded that no capture file exists.
-  message-carry passes the extraction phase's tool messages, as the tools
-  reported them, to the alternative-narrative and report phases. Four labels:
-  before and after as in EXP-002 (messages stop at the extraction analyst),
-  and before-carried and after-carried, the same with message-carry. The
-  limit's effect is after-carried against before-carried; the carry's is
-  after-carried against after. Five runs per label; compared as in EXP-002.
+  The question and the tool versions of EXP-002, run with mulder
+  investigate (planner, executor and analyst roles, all Haiku), with
+  message-carry in both labels so that the extraction tool messages also
+  reach the alternative-narrative and report phases (an earlier test, since removed, showed they
+  stop at the extraction analyst otherwise). before has no
+  interpretation limit, in mulder's tools or in its prompts; after
+  has all of mulder's and run_clamav's limit on a disk image scan. As in
+  that test, the labels differ in mulder's general rules in the prompts as well
+  as in the tool's limit. after-partial adds the result change of
+  EXP-002's after-partial (status partial, no count, the note in the
+  indexed output). Five runs per label; compared as in EXP-002.
 change_ko: >
-  EXP-002와 같은 질문과 같은 두 도구 버전을, 에이전트 하나가 아니라 mulder investigate(planner,
-  executor, analyst 역할, 모두 Haiku)로 돌립니다. 처음 돌린 결과(before, after)에서는 pcap 도구의
-  해석 한계가 추출 단계 analyst까지는 갔고, analyst는 캡처 파일 이름을 찾지 못했다고 적었습니다. 그런데
-  반론 검토 단계와 보고서는 이 한계를 보지 못하고, 확장자로 다시 찾은 뒤 캡처 파일이 없다고 결론
-  냈습니다. message-carry는 추출 단계의 도구 메시지를 도구가 보고한 그대로 반론 검토와 보고서 단계에도
-  넘깁니다. 라벨은 네 개입니다. before와 after는 EXP-002와 같고(메시지가 추출 analyst에서 멈춤),
-  before-carried와 after-carried는 여기에 message-carry를 더한 것입니다. 해석 한계의 효과는
-  after-carried와 before-carried의 비교로, 전달의 효과는 after-carried와 after의 비교로 봅니다. 라벨당
-  5회로, EXP-002와 같은 방식으로 비교합니다.
+  EXP-002와 같은 질문과 도구 버전을 mulder investigate(planner, executor, analyst 역할, 모두 Haiku)로
+  돌립니다. 두 라벨 모두 message-carry를 넣어, 추출 단계의 도구 메시지가 반론 검토와 보고서 단계에도
+  갑니다(지금은 지운 이전 실험에서, 이게 없으면 추출 analyst에서 멈춘다는 것을 확인했습니다). before에는 해석 한계가
+  없습니다(mulder 도구와 프롬프트 모두). after에는 mulder의 해석 한계 전부와, 디스크 이미지 검사에
+  대한 run_clamav의 한계가 있습니다. 그 실험과 마찬가지로 두 라벨은 도구의 한계뿐 아니라 프롬프트의 mulder 일반
+  규칙에서도 다릅니다. after-partial은 EXP-002의 after-partial과 같은 결과 변경(상태 partial, 탐지
+  수 없음, 색인 출력의 안내)을 더합니다. 라벨당 5회로, EXP-002와 같은 방식으로 비교합니다.
 links:
   - https://cfreds-archive.nist.gov/Hacking_Case.html
   - https://cfreds-archive.nist.gov/images/TestAnswers.pdf
 
-case: nist-hacking-case-q23
+case: nist-hacking-case-q31
 harness: mulder-investigate
 harness_options:
   models: {planner: claude-haiku-4-5, executor: claude-haiku-4-5, analyst: claude-haiku-4-5}
@@ -39,27 +36,6 @@ harness_options:
   answer_section: true
 
 variants:
-  before: mulder-1.5.10-messages-no-limits                 # no interpretation limit; messages stop at the extraction analyst
-  after: mulder-1.5.10-messages-pcap-limit                 # mulder's limits and the pcap limit; messages stop there too
-  before-carried: mulder-1.5.10-messages-carry-no-limits   # no limit; messages reach the later phases
-  after-carried: mulder-1.5.10-messages-carry-pcap-limit   # the limits, reaching the later phases
-
-conclusion: >
-  Interim, two runs per label. The limit side did worse: before 0/2 and
-  before-carried 1/2 stated that no capture file exists, after and
-  after-carried 2/2 each. The carried runs show the message reached the
-  report (one quotes "all 11,687 files", a number only that message has),
-  and the report read the stated scope as a thorough search. What separated
-  the labels was whether the analyst trusted bulk_extractor's single tcpdump
-  signature: the no-limit labels did, the limit labels did not. mulder's own
-  analyst rules, present only in the limit labels ("a single detection from
-  one tool is inference at most", signatures need content verification), are
-  the likely cause, and mulder has no tool to tie that disk offset to a file.
-conclusion_ko: >
-  중간 결과입니다(라벨당 2회). 해석 한계가 있는 쪽이 더 나빴습니다. 캡처 파일이 없다고 단정한 실행이
-  before 0/2, before-carried 1/2, after와 after-carried는 각각 2/2입니다. carried 실행을 보면 메시지는
-  보고서까지 갔고(한 실행이 그 메시지에만 있는 "11,687개 파일"을 인용), 보고서는 그 범위 설명을 철저히
-  찾았다는 뜻으로 읽었습니다. 라벨을 가른 것은 bulk_extractor가 찾은 tcpdump 서명 한 건을 analyst가
-  믿었느냐입니다. 한계가 없는 라벨은 믿었고, 있는 라벨은 믿지 않았습니다. 한계가 있는 라벨에만 있는 mulder
-  원래의 analyst 규칙("도구 하나의 탐지는 많아야 inference", 서명은 내용을 확인해야 함)이 원인일 가능성이
-  크고, mulder에는 그 디스크 위치를 파일로 이어 줄 도구가 없습니다.
+  before: mulder-1.5.10-messages-carry-no-limits             # no limit; messages reach the later phases
+  after: mulder-1.5.10-messages-carry-clamav-limit           # the limits, reaching the later phases
+  after-partial: mulder-1.5.10-messages-carry-clamav-partial # the same, and the result itself says partial, with no count
