@@ -110,8 +110,8 @@
 }
 
 .qCol {
-  min-width: 18rem;
-  width: 45%;
+  min-width: 16rem;
+  width: 34%;
 }
 
 .factsCol {
@@ -223,6 +223,13 @@
   font-weight: 600;
 }
 
+.hasHint {
+  cursor: help;
+  text-decoration: underline dotted;
+  text-decoration-color: var(--bench-muted);
+  text-underline-offset: 3px;
+}
+
 .bar {
   flex: 1;
   height: 8px;
@@ -253,6 +260,16 @@
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 0.75rem;
   align-items: start;
+}
+
+.columnsTwo {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 720px) {
+  .columnsTwo {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Side-by-side columns: a soft fill, the label's colour on its name only. */
@@ -402,33 +419,105 @@
   font-weight: 500;
 }
 
-/* Verdict squares: one per reviewed run */
-.marks {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 3px;
-  max-width: 140px; /* ten marks to a row */
-  vertical-align: middle;
+/* Questions table: a block of rows per question (one row per model), the
+   label groups split by a rule. */
+.questionTable tbody tr td {
+  background: none;
+  border-radius: 0;
 }
 
-/* Questions table with several models: one line per model in a cell. */
-.modelLine {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  padding: 0.15rem 0;
+.questionTable tbody.qBlock:nth-of-type(even) td {
+  background: color-mix(in srgb, var(--site-subtle) 60%, transparent);
 }
 
-.modelLine + .modelLine {
-  margin-top: 0.25rem;
+.questionTable tbody.qBlock tr:first-child td {
+  border-top: 1px solid var(--site-border);
+}
+
+.questionTable tbody tr:hover td {
+  background: inherit;
+}
+
+.groupHead {
+  text-align: center !important;
+  color: var(--ifm-font-color-base) !important;
+  font-weight: 600 !important;
+  border-bottom: 1px solid var(--site-border) !important;
+}
+
+.groupStart {
+  border-left: 1px solid var(--site-border) !important;
 }
 
 .modelTag {
-  min-width: 6.5rem;
   color: var(--bench-muted);
   font-size: 0.75rem;
   font-family: var(--ifm-font-family-monospace);
+  white-space: nowrap;
 }
+
+/* A label's group, short name and code, one under another. */
+.labelHead {
+  display: inline-flex;
+  flex-direction: column;
+  line-height: 1.35;
+}
+
+.labelGroup {
+  color: var(--bench-muted);
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+.labelName {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.labelCode {
+  padding: 0 !important;
+  background: none !important;
+  font-size: 0.72rem;
+  color: inherit;
+  opacity: 0.85;
+}
+
+/* Verdicts of a label as one bar with the counts under it. */
+.verdictBar {
+  min-width: 7rem;
+}
+
+.barTrack {
+  display: flex;
+  gap: 1px;
+  height: 10px;
+  margin: 0.2rem 0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.barTrack > span {
+  display: block;
+  flex-basis: 0;
+}
+
+.barCounts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 0.6rem;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Expected facts under the question text. */
+.factsInline {
+  margin-top: 0.3rem;
+  min-width: 0;
+  width: auto;
+}
+
+/* Verdict colours: the legend, the bars and the counts */
 
 .mark {
   display: inline-block;
@@ -444,6 +533,13 @@
 
 .markPartial {
   background: #d4a72c;
+}
+
+.barCounts .mark {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  vertical-align: 0;
 }
 
 .markMissed {
@@ -502,6 +598,12 @@
   margin-top: 0.2rem;
   color: var(--bench-muted);
   font-size: 0.78rem;
+}
+
+/* The answer picked from the questions table. */
+.answerFocus {
+  box-shadow: 0 0 0 2px var(--ifm-color-primary);
+  scroll-margin-top: calc(var(--ifm-navbar-height) + 1rem);
 }
 
 .turns > summary {
@@ -577,4 +679,76 @@
 
 .diagramError {
   fill: var(--bench-fail);
+}
+
+/* Run by run: numbered squares, ten to a row. */
+.runGrid {
+  display: grid;
+  grid-template-columns: repeat(10, 16px);
+  gap: 2px;
+  margin-top: 0.35rem;
+}
+
+.runSquare {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The missed colour is a light grey: dark digits on it. */
+.runSquare.markMissed {
+  color: var(--ifm-font-color-base);
+}
+
+.runSquare:hover {
+  outline: 2px solid var(--ifm-font-color-base);
+  outline-offset: 1px;
+}
+
+/* The run panel opened from the questions table. */
+.columnPicked {
+  box-shadow: 0 0 0 2px var(--ifm-color-primary);
+}
+
+/* Scrolled to below the sticky navbar. */
+.column {
+  scroll-margin-top: calc(var(--ifm-navbar-height) + 1rem);
+}
+
+/* Label colours on table headers (the header rule above sets a muted colour). */
+.table thead th.sideA {
+  color: var(--bench-side-a);
+}
+
+.table thead th.sideB {
+  color: var(--bench-side-b);
+}
+
+.table thead th.sideC {
+  color: var(--bench-side-c);
+}
+
+.table thead th.sideD {
+  color: var(--bench-side-d);
+}
+
+/* A run column's label picker, in the label's colour. */
+.labelSelect {
+  font: inherit;
+  font-weight: 700;
+  max-width: 100%;
+  padding: 0.15rem 0.3rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--ifm-background-color);
+  cursor: pointer;
 }

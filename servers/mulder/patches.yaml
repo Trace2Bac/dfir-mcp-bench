@@ -2,85 +2,38 @@
 # patches/ so that editing it does not change the image build. Shown on the
 # site's patch pages next to the diff. Patches apply in the order a variant
 # lists them (PATCHES in servers/mulder/variants/*.env), each on top of the
-# ones before it. None of them is upstream yet.
-
-message-channel.patch:
-  title: "A tool's message reaches the analyst"
-  title_ko: "도구 메시지가 analyst까지 전달됨"
-  summary: >
-    A message channel and a batch-result fix on upstream mulder, with no
-    other tool change. tool_response
-    keeps a tool's message outside the preview, get_completed_results returns
-    the source name, the job status and the message (it dropped all three, a
-    bug), the executor prompts copy the message word for word into their
-    report, and the analyst receives it. When the first extraction plan for a
-    disk image leaves out analyze_disk_pcaps, it is added in code. Used in
-    every label of EXP-002, so that a tool's message reaches the
-    agent or the analyst either way.
-  summary_ko: >
-    upstream mulder에 메시지 전달과 일괄 결과 수정만 넣은 것이고, 다른 도구
-    변경은 없습니다. tool_response가 도구 메시지를 미리보기 밖에 두고, get_completed_results가
-    source 이름, 작업 상태, 메시지를 돌려주며(셋 다 버리던 버그), executor 프롬프트가 메시지를 보고서에
-    그대로 옮기고, analyst가 받습니다. 디스크 이미지의 첫 추출 계획에 analyze_disk_pcaps가 빠지면
-    코드가 추가합니다. EXP-002의 모든 라벨이 함께 써서, 어느 쪽이든 도구 메시지가 에이전트나
-    analyst까지 갑니다.
-  changes:
-    - "get_completed_results: returns the source name, the job status and the tool's message (bug fix)"
-    - "Message channel: tool_response, executor report and analyst pass the tool's message on"
-    - "Planner: analyze_disk_pcaps is added to a disk image plan in code when left out"
-  changes_ko:
-    - "get_completed_results: source 이름, 작업 상태, 도구 메시지를 돌려줌(버그 수정)"
-    - "메시지 전달: tool_response, executor 보고, analyst가 도구 메시지를 넘김"
-    - "planner: 디스크 이미지 계획에 analyze_disk_pcaps가 빠지면 코드가 추가"
-
-strip-limits-upstream.patch:
-  title: "Remove mulder's own interpretation limits (bench only)"
-  title_ko: "mulder 원래의 해석 한계를 제거 (벤치 전용)"
-  summary: >
-    For a baseline on upstream tools with no interpretation limit at all. It
-    removes the
-    general rules in the analyst and report prompts (the evidence
-    interpretation rules, "absence of evidence in one source is not
-    conclusive", attribution caution and the rest) and the caveats in mulder's
-    tools (YARA, malfind, the ClamAV and bulk_extractor partial-scan warnings,
-    timestomping, a single-source "confirmed" finding, DNS tunnel analysis).
-    What a tool does, error messages, the rule that every claim needs a
-    source, and operational warnings stay. Not for upstream.
-  summary_ko: >
-    upstream 도구에서 해석 한계가 전혀 없는
-    기준선을 만들 때 씁니다. analyst와 보고서 프롬프트의 일반 규칙(증거 해석 규칙, "한 출처에 증거가
-    없다고 결론을 낼 수는 없다", 귀속 주의 등)과 mulder 도구의 주의 문구(YARA, malfind, ClamAV와
-    bulk_extractor의 일부 검사 경고, timestomping, 출처 하나인 "confirmed" 발견, DNS 터널 분석)를
-    지웁니다. 도구가 하는 일에 대한 설명, 오류 메시지, 모든 주장에 출처가 필요하다는 규칙, 운영상의 경고는
-    남깁니다. upstream용이 아닙니다.
-  changes:
-    - "Analyst and report prompts: removes the general interpretation rules"
-    - "mulder tools: removes the YARA, malfind, ClamAV, bulk_extractor, timestomping, submit_finding and DNS tunnel caveats"
-  changes_ko:
-    - "analyst와 보고서 프롬프트: 일반 해석 규칙 제거"
-    - "mulder 도구: YARA, malfind, ClamAV, bulk_extractor, timestomping, submit_finding, DNS 터널 주의 문구 제거"
+# ones before it. None of them is upstream yet. The patches hold no tests:
+# they change nothing in a run, and the regression tests go with the
+# upstream pull requests instead.
 
 clamav-limit.patch:
   title: "run_clamav says what a disk image scan does not show"
   title_ko: "run_clamav가 디스크 이미지 검사의 한계를 알림"
   summary: >
-    One interpretation limit on upstream's run_clamav. clamscan does not open
-    a disk image: it reads an EnCase or raw image as one file and reports no
-    detection, which mulder returns as a success. When the target is a disk
-    image, or a folder holding one, the message now says that clamscan read
-    it as one file, that the files inside were not scanned, and that this
-    does not show they are clean. The scan itself does not change. Tested in
-    tests/test_clamav_image_limit.py.
+    One interpretation limit on upstream's run_clamav, and a way for it to
+    reach the agent whole. clamscan does not open a disk image: it reads an
+    EnCase or raw image as one file and reports no detection, which mulder
+    returns as a success. When the target is a disk image, or a folder
+    holding one, the message now says that clamscan read it as one file,
+    that the files inside were not scanned, and that this does not show they
+    are clean. The scan itself does not change. To deliver it, tool_response
+    takes a tool's notes (warning, caveat, note, message) out of the result
+    and returns them whole under notes, outside the 500-character preview,
+    where a long result could cut them off. A result with no such note is
+    returned as before.
   summary_ko: >
-    upstream run_clamav에 해석 한계 하나를 붙입니다. clamscan은 디스크 이미지를 열지 못합니다. EnCase나
-    raw 이미지를 파일 하나로 읽고 탐지 0건을 보고하며, mulder는 이를 성공으로 돌려줍니다. 검사 대상이 디스크
-    이미지이거나 이미지가 든 폴더이면, 메시지에 clamscan이 이미지를 파일 하나로 읽었고 그 안의 파일은 검사하지
-    않았으며, 그래서 깨끗하다는 뜻은 아니라는 것을 적습니다. 검사 자체는 바뀌지 않습니다.
-    tests/test_clamav_image_limit.py로 확인합니다.
+    upstream run_clamav에 해석 한계 하나를 붙이고, 그것이 에이전트에게 잘리지 않고 닿게 합니다. clamscan은 디스크
+    이미지를 열지 못합니다. EnCase나 raw 이미지를 파일 하나로 읽고 탐지 0건을 보고하며, mulder는 이를 성공으로
+    돌려줍니다. 검사 대상이 디스크 이미지이거나 이미지가 든 폴더이면, 메시지에 clamscan이 이미지를 파일 하나로
+    읽었고 그 안의 파일은 검사하지 않았으며, 그래서 깨끗하다는 뜻은 아니라는 것을 적습니다. 검사 자체는 바뀌지
+    않습니다. 이 문구를 전달하기 위해 tool_response가 도구의 주의 문구(warning, caveat, note, message)를 결과에서
+    꺼내, 긴 결과에 잘릴 수 있는 500자 미리보기 밖의 notes에 그대로 싣습니다. 주의 문구가 없는 결과는 전과 같습니다.
   changes:
     - "run_clamav: on a disk image, the message says the files inside were not scanned and that this does not show they are clean"
+    - "tool_response: warning, caveat, note and message go to notes, outside the preview, whole"
   changes_ko:
     - "run_clamav: 디스크 이미지를 검사하면 그 안의 파일은 검사하지 않았고, 깨끗하다는 뜻은 아니라는 것을 메시지에 표시"
+    - "tool_response: warning, caveat, note, message를 미리보기 밖의 notes에 잘리지 않게 실음"
 
 extract-keep.patch:
   title: "extract_file_by_inode keeps a binary file for other tools"
@@ -92,13 +45,13 @@ extract-keep.patch:
     after extracting it. The binary file is now saved under the case's
     extracted folder (extracted/inodes/inode_<n>), as extract_optical_file
     already does for optical discs, and its path is returned. Text files are
-    indexed as before. Tested in tests/test_extract_inode_keeps_file.py.
+    indexed as before.
   summary_ko: >
     upstream extract_file_by_inode는 바이너리 파일의 SHA-256과 크기만 돌려주고 아무것도 남기지 않아서, 다른
     도구가 그 파일을 읽을 수 없습니다. 디스크 이미지 안의 파일을 검사하지 않았다는 것을 아는 에이전트도 파일을
     꺼낸 뒤 검사할 수 없습니다. 이제 바이너리 파일을 사건의 extracted 폴더(extracted/inodes/inode_<n>)에
     저장하고 경로를 돌려줍니다. 광학 디스크에서 extract_optical_file이 이미 하는 방식과 같습니다. 텍스트 파일은
-    전처럼 색인합니다. tests/test_extract_inode_keeps_file.py로 확인합니다.
+    전처럼 색인합니다.
   changes:
     - "extract_file_by_inode: a binary file is saved under the case's extracted folder and its path returned"
   changes_ko:

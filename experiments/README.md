@@ -31,6 +31,7 @@ next to it holds the reviewer's verdicts.
 | `variants` | label to server variant (`servers/mulder/variants/<name>.env`) |
 | `scripted_expect` | scripted scores per label; `./bench.sh check` fails when they change |
 | `criteria` | how the answers are judged, written before the runs, so that the rules cannot be fitted to the results |
+| `label_groups` | optional: groups of labels for the site's tables, each with a `name` and `labels` (label: short name), plus `name_ko` and `labels_ko` |
 | `conclusion` | what the results show, and their limits |
 | `title_ko`, `change_ko`, `criteria_ko`, `conclusion_ko` | optional Korean text for the site's Korean pages; the plain fields are English and the default |
 

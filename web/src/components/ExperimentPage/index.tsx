@@ -1,4 +1,4 @@
-import {useState, type ReactNode} from 'react';
+import {createContext, useContext, useEffect, useRef, useState, type ReactNode} from 'react';
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import Layout from '@theme/Layout';
@@ -32,18 +32,75 @@ function verdictName(v: string): string {
   }
 }
 
-// One small square per reviewed run, coloured by its verdict.
-// Grouped by verdict (found first), so the counts read at a glance.
 const VERDICT_ORDER = ['found', 'partial', 'missed', 'false positive'];
 
-function VerdictMarks({verdicts}: {verdicts: string[]}) {
-  const sorted = [...verdicts].sort((a, b) => VERDICT_ORDER.indexOf(a) - VERDICT_ORDER.indexOf(b));
+// A run picked in the questions table, opened in the run explorer below at
+// that question's answer. `n` changes on every pick, so picking the same run
+// again still scrolls.
+type Pick = {label: string; model: string; run: number; question: string; n: number};
+const PickContext = createContext<{pick: Pick | null; setPick: (p: Omit<Pick, 'n'>) => void}>({
+  pick: null,
+  setPick: () => {},
+});
+
+// One numbered square per reviewed run; a click opens that run below.
+function RunGrid({g, q}: {g: Group; q: Question}) {
+  const {setPick} = useContext(PickContext);
   return (
-    <span className={styles.marks}>
-      {sorted.map((v, i) => (
-        <span key={i} className={clsx(styles.mark, markClass(v))} title={verdictName(v)} />
-      ))}
-    </span>
+    <div className={styles.runGrid}>
+      {g.runs
+        .filter(r => r.review)
+        .map(r => {
+          const v = verdictOf(r.review!.questions[q.id]?.verdict);
+          return (
+            <button
+              key={r.run}
+              type="button"
+              className={clsx(styles.runSquare, markClass(v))}
+              title={`${translate({id: 'run.option', message: 'run {run}'}, {run: r.run})} · ${verdictName(v)}`}
+              onClick={() => setPick({label: g.label, model: g.model, run: r.run, question: q.id})}>
+              {r.run}
+            </button>
+          );
+        })}
+    </div>
+  );
+}
+
+// What a run's review says, for the run picker: the questions not found, or that all were.
+function runVerdicts(r: Run): string {
+  if (!r.review) return r.info.end_reason;
+  const off = Object.entries(r.review.questions)
+    .filter(([, x]) => verdictOf(x?.verdict) !== 'found')
+    .map(([id, x]) => `${id} ${verdictName(verdictOf(x?.verdict))}`);
+  return off.length ? off.join(', ') : translate({id: 'run.allFound', message: 'all found'});
+}
+
+// The same verdicts as one bar, a segment per verdict sized by its count,
+// with the counts under it: fits a narrow cell however many runs there are.
+function VerdictBar({verdicts}: {verdicts: string[]}) {
+  const counts = VERDICT_ORDER.map(v => [v, verdicts.filter(x => x === v).length] as const).filter(([, n]) => n > 0);
+  return (
+    <div className={styles.verdictBar}>
+      <div className={styles.barTrack}>
+        {counts.map(([v, n]) => (
+          <span
+            key={v}
+            className={markClass(v)}
+            style={{flexGrow: n}}
+            title={`${verdictName(v)} ${n}/${verdicts.length}`}
+          />
+        ))}
+      </div>
+      <div className={styles.barCounts}>
+        {counts.map(([v, n]) => (
+          <span key={v} title={verdictName(v)}>
+            <span className={clsx(styles.mark, markClass(v))} /> {n}
+          </span>
+        ))}
+        <span className={styles.small}>/ {verdicts.length}</span>
+      </div>
+    </div>
   );
 }
 
@@ -80,13 +137,21 @@ function reviewRates(r: Run): {
   };
 }
 
-// Mean of the reviewed runs, with the range when they differ. Not the median:
-// with one question a run scores 0% or 100%, and the median would hide a
-// single run that differs.
+// Mean of the reviewed runs; the range across runs, when they differ, is in
+// rateRange and shown on hover. Not the median: with one question a run
+// scores 0% or 100%, and the median would hide a single run that differs.
 function rateText(g: Group, pick: (x: ReturnType<typeof reviewRates>) => number): string {
   const xs = g.runs.filter(r => r.review).map(r => Math.round(pick(reviewRates(r)) * 100));
-  if (!xs.length) return '-';
-  return Math.min(...xs) === Math.max(...xs) ? `${xs[0]}%` : `${Math.round(mean(xs))}% (${Math.min(...xs)}–${Math.max(...xs)})`;
+  return xs.length ? `${Math.round(mean(xs))}%` : '-';
+}
+
+function rateRange(g: Group, pick: (x: ReturnType<typeof reviewRates>) => number): string | undefined {
+  const xs = g.runs.filter(r => r.review).map(r => Math.round(pick(reviewRates(r)) * 100));
+  if (!xs.length || Math.min(...xs) === Math.max(...xs)) return undefined;
+  return translate(
+    {id: 'metric.range', message: 'per run: {min}% to {max}%'},
+    {min: Math.min(...xs), max: Math.max(...xs)},
+  );
 }
 
 function rateValue(g: Group, pick: (x: ReturnType<typeof reviewRates>) => number): number {
@@ -283,6 +348,7 @@ type Metric = {
   key: string;
   value: (g: Group) => number;
   show: (g: Group) => string;
+  hint?: (g: Group) => string | undefined; // shown on hover
   max?: (g: Group) => number;
 };
 
@@ -344,18 +410,21 @@ const REVIEW_METRICS: Metric[] = [
     key: 'fullMatch',
     value: g => rateValue(g, x => x.found),
     show: g => rateText(g, x => x.found),
+    hint: g => rateRange(g, x => x.found),
     max: () => 1,
   },
   {
     key: 'detection',
     value: g => rateValue(g, x => x.detection),
     show: g => rateText(g, x => x.detection),
+    hint: g => rateRange(g, x => x.detection),
     max: () => 1,
   },
   {
     key: 'falsePositives',
     value: g => rateValue(g, x => x.falsePositives),
     show: g => rateText(g, x => x.falsePositives),
+    hint: g => rateRange(g, x => x.falsePositives),
     max: () => 1,
   },
 ];
@@ -405,7 +474,7 @@ function Comparison({data}: {data: ExperimentData}) {
   // The experiment's own model first, then any other model with runs.
   const order = (m: string) => (data.models.includes(m) ? data.models.indexOf(m) : data.models.length);
   const models = [...new Set(data.groups.map(g => g.model))].sort((a, b) => order(a) - order(b));
-  const labels = data.variants.map(v => v.label);
+  const labels = shownLabels(data);
   // Nothing to compare before the first run.
   if (!models.length) return null;
   return (
@@ -415,7 +484,7 @@ function Comparison({data}: {data: ExperimentData}) {
         // Only the labels this model ran; each keeps its colour.
         const shown = labels.filter(l => data.groups.some(g => g.label === l && g.model === model));
         const groups = shown.map(l => data.groups.find(g => g.label === l && g.model === model));
-        const side = (i: number) => sideClass(labels.indexOf(shown[i]));
+        const side = (i: number) => sideOf(data, shown[i]);
         const scripted = model === 'scripted';
         const metrics = scripted ? SCRIPTED_METRICS : [REVIEWED_METRIC, ...REVIEW_METRICS, ...METRICS];
         return (
@@ -436,7 +505,7 @@ function Comparison({data}: {data: ExperimentData}) {
                   <th />
                   {shown.map((l, i) => (
                     <th key={l} className={side(i)}>
-                      {l}
+                      <LabelHead data={data} label={l} />
                     </th>
                   ))}
                 </tr>
@@ -457,7 +526,9 @@ function Comparison({data}: {data: ExperimentData}) {
                       return (
                         <td key={i}>
                           <div className={styles.metric}>
-                            <span className={styles.metricValue}>{m.show(g)}</span>
+                            <span className={clsx(styles.metricValue, m.hint?.(g) && styles.hasHint)} title={m.hint?.(g)}>
+                              {m.show(g)}
+                            </span>
                             <span className={styles.bar}>
                               <span className={clsx(styles.barFill, side(i))} style={{width: `${width}%`}} />
                             </span>
@@ -488,11 +559,47 @@ function Comparison({data}: {data: ExperimentData}) {
   );
 }
 
-// One column per label; with several models, one line per model in each cell.
+// Labels in the order the site shows them: by label_groups when given.
+function shownLabels(data: ExperimentData): string[] {
+  const grouped = data.labelGroups.flatMap(lg => lg.labels.map(x => x.label));
+  const all = data.variants.map(v => v.label);
+  return [...grouped.filter(l => all.includes(l)), ...all.filter(l => !grouped.includes(l))];
+}
+
+// A label as the site names it: the group and short name from label_groups, and the label itself.
+function LabelHead({data, label, group = true}: {data: ExperimentData; label: string; group?: boolean}) {
+  const lg = data.labelGroups.find(x => x.labels.some(y => y.label === label));
+  const name = lg?.labels.find(y => y.label === label)?.name;
+  return (
+    <span className={styles.labelHead}>
+      {group && lg && <span className={styles.labelGroup}>{lg.name}</span>}
+      {name && <span className={styles.labelName}>{name}</span>}
+      <code className={styles.labelCode}>{label}</code>
+    </span>
+  );
+}
+
+// The same as text, for a select: "Upstream tools · No limit (no-limit)".
+function labelText(data: ExperimentData, label: string): string {
+  const lg = data.labelGroups.find(x => x.labels.some(y => y.label === label));
+  const name = lg?.labels.find(y => y.label === label)?.name;
+  return lg && name ? `${lg.name} · ${name} (${label})` : label;
+}
+
+const sideOf = (data: ExperimentData, label: string) => sideClass(data.variants.findIndex(v => v.label === label));
+
+// One row per question and model, one column per label; label_groups adds a
+// header row with the group names. Verdicts show as a bar with counts and
+// run by run (a click opens the run).
 function Questions({data}: {data: ExperimentData}) {
-  const labels = data.variants.map(v => v.label).filter(l => data.groups.some(g => g.label === l));
+  const labels = shownLabels(data).filter(l => data.groups.some(g => g.label === l));
   const order = (m: string) => (data.models.includes(m) ? data.models.indexOf(m) : data.models.length);
   const models = [...new Set(data.groups.map(g => g.model))].sort((a, b) => order(a) - order(b));
+  const groups = data.labelGroups
+    .map(lg => ({name: lg.name, labels: lg.labels.map(x => x.label).filter(l => labels.includes(l))}))
+    .filter(lg => lg.labels.length);
+  const firstOfGroup = new Set(groups.slice(1).map(lg => lg.labels[0]));
+  const several = models.length > 1;
   const cell = (g: Group, q: Question) => {
     if (g.model === 'scripted') {
       const s = g.runs[0].score?.questions.find((x: any) => x.id === q.id);
@@ -508,7 +615,10 @@ function Questions({data}: {data: ExperimentData}) {
         <Translate id="case.notReviewed">not reviewed</Translate>
       </span>
     ) : (
-      <VerdictMarks verdicts={reviewed.map(r => verdictOf(r.review!.questions[q.id]?.verdict))} />
+      <>
+        <VerdictBar verdicts={reviewed.map(r => verdictOf(r.review!.questions[q.id]?.verdict))} />
+        <RunGrid g={g} q={q} />
+      </>
     );
   };
   return (
@@ -533,62 +643,81 @@ function Questions({data}: {data: ExperimentData}) {
       <div className={styles.tableScroll}>
         <table className={clsx(styles.table, styles.questionTable)}>
           <thead>
+            {groups.length > 0 && (
+              <tr>
+                <th rowSpan={2} className={styles.qCol}>
+                  <Translate id="case.col.question">question</Translate>
+                </th>
+                {several && <th rowSpan={2} />}
+                {groups.map((lg, i) => (
+                  <th key={lg.name} colSpan={lg.labels.length} className={clsx(styles.groupHead, i > 0 && styles.groupStart)}>
+                    {lg.name}
+                  </th>
+                ))}
+              </tr>
+            )}
             <tr>
-              <th className={styles.qCol}>
-                <Translate id="case.col.question">question</Translate>
-              </th>
-              <th className={styles.factsCol}>
-                <Translate id="case.col.expected">expected facts</Translate>
-              </th>
+              {groups.length === 0 && (
+                <>
+                  <th className={styles.qCol}>
+                    <Translate id="case.col.question">question</Translate>
+                  </th>
+                  {several && <th />}
+                </>
+              )}
               {labels.map(l => (
-                <th key={l} className={clsx(styles.verdictCol, sideClass(data.variants.findIndex(v => v.label === l)))}>
-                  {l}
-                  {models.length === 1 && <div className={styles.small}>{models[0]}</div>}
+                <th key={l} className={clsx(styles.verdictCol, sideOf(data, l), firstOfGroup.has(l) && styles.groupStart)}>
+                  <LabelHead data={data} label={l} group={false} />
+                  {!several && <div className={styles.small}>{models[0]}</div>}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody>
-            {data.questions.map(q => (
-              <tr key={q.id}>
-                <td className={styles.qCol}>
-                  <strong>{q.id}</strong> {q.text}
-                  {q.source && <div className={styles.small}>{q.source}</div>}
-                </td>
-                <td className={clsx(styles.small, styles.factsCol)}>
-                  {(q.expect.all ?? []).map(f => (
-                    <code key={f}>{f}</code>
-                  ))}
-                  {q.expect.any && (
-                    <>
-                      {' '}
-                      <Translate id="case.anyOf" values={{n: (q.expect as any).min ?? 1}}>
-                        {'at least {n} of'}
-                      </Translate>{' '}
-                      {q.expect.any.map(f => (
-                        <code key={f}>{f}</code>
-                      ))}
-                    </>
+          {data.questions.map(q => (
+            <tbody key={q.id} className={styles.qBlock}>
+              {models.map((m, i) => (
+                <tr key={m}>
+                  {i === 0 && (
+                    <td rowSpan={models.length} className={styles.qCol}>
+                      <strong>{q.id}</strong> {q.text}
+                      {q.source && <div className={styles.small}>{q.source}</div>}
+                      <div className={clsx(styles.small, styles.factsCol, styles.factsInline)}>
+                        {(q.expect.all ?? []).map(f => (
+                          <code key={f}>{f}</code>
+                        ))}
+                        {q.expect.any && (
+                          <>
+                            {' '}
+                            <Translate id="case.anyOf" values={{n: (q.expect as any).min ?? 1}}>
+                              {'at least {n} of'}
+                            </Translate>{' '}
+                            {q.expect.any.map(f => (
+                              <code key={f}>{f}</code>
+                            ))}
+                          </>
+                        )}
+                      </div>
+                    </td>
                   )}
-                </td>
-                {labels.map(l => (
-                  <td key={l} className={styles.verdictCol}>
-                    {models.map(m => {
-                      const g = data.groups.find(x => x.label === l && x.model === m);
-                      if (!g) return null;
-                      if (models.length === 1) return <div key={m}>{cell(g, q)}</div>;
-                      return (
-                        <div key={m} className={styles.modelLine}>
-                          <span className={styles.modelTag}>{m.replace(/^claude-/, '')}</span>
-                          {cell(g, q)}
-                        </div>
-                      );
-                    })}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
+                  {several && <td className={styles.modelTag}>{m.replace(/^claude-/, '')}</td>}
+                  {labels.map(l => {
+                    const g = data.groups.find(x => x.label === l && x.model === m);
+                    return (
+                      <td key={l} className={clsx(styles.verdictCol, firstOfGroup.has(l) && styles.groupStart)}>
+                        {g ? (
+                          cell(g, q)
+                        ) : (
+                          <span className={styles.small}>
+                            <Translate id="common.notRun">not run</Translate>
+                          </span>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          ))}
         </table>
       </div>
     </Section>
@@ -772,8 +901,13 @@ function ToolDiagram({run}: {run: Run}) {
 
 // The run's answer to each question, with the reviewer's verdict and note, so a
 // run can be read question by question before its turns.
-function RunAnswers({data, run}: {data: ExperimentData; run: Run}) {
+function RunAnswers({data, run, focus}: {data: ExperimentData; run: Run; focus?: {question: string; n: number}}) {
   const split = Object.keys(run.answers).length > 0;
+  const rows = useRef<Record<string, HTMLDivElement | null>>({});
+  // Picked from the questions table: bring that question's answer into view.
+  useEffect(() => {
+    if (focus) rows.current[focus.question]?.scrollIntoView({behavior: 'smooth', block: 'center'});
+  }, [focus?.n, run.run]);
   return (
     <div className={styles.answers}>
       {run.review && (
@@ -798,7 +932,12 @@ function RunAnswers({data, run}: {data: ExperimentData; run: Run}) {
         const v = run.review?.questions[q.id];
         const verdict = verdictOf(v?.verdict);
         return (
-          <div key={q.id} className={styles.answerRow}>
+          <div
+            key={q.id}
+            ref={el => {
+              rows.current[q.id] = el;
+            }}
+            className={clsx(styles.answerRow, focus?.question === q.id && styles.answerFocus)}>
             <div className={styles.answerHead}>
               <code>{q.id}</code>
               <span className={styles.questionText}>{q.text}</span>
@@ -833,32 +972,66 @@ function RunAnswers({data, run}: {data: ExperimentData; run: Run}) {
   );
 }
 
-function RunPanel({data, side, repoTree}: {data: ExperimentData; side: number; repoTree: string}) {
-  const label = data.variants[side]?.label;
+// One of the two run columns: a label, a model and a run, each picked here.
+function RunPanel({
+  data,
+  label,
+  onLabel,
+  repoTree,
+}: {
+  data: ExperimentData;
+  label: string;
+  onLabel: (label: string) => void;
+  repoTree: string;
+}) {
+  const side = data.variants.findIndex(v => v.label === label);
   const groups = data.groups.filter(g => g.label === label);
-  const defaultGroup = groups.find(g => g.model !== 'scripted') ?? groups[0];
+  // The experiment's own model first, as in the comparison.
+  const defaultGroup = groups.find(g => g.model === data.models[0]) ?? groups.find(g => g.model !== 'scripted') ?? groups[0];
   const [model, setModel] = useState(defaultGroup?.model);
   const [runNo, setRunNo] = useState(1);
   const [tab, setTab] = useState<'answers' | 'turns' | 'tools'>('answers');
+  const {pick} = useContext(PickContext);
+  // The question picked in the questions table; cleared when the run is changed here.
+  const [focus, setFocus] = useState<{question: string; n: number}>();
+  useEffect(() => {
+    if (!pick || pick.label !== label) return;
+    setModel(pick.model);
+    setRunNo(pick.run);
+    setTab('answers');
+    setFocus({question: pick.question, n: pick.n});
+  }, [pick, label]);
   const group = groups.find(g => g.model === model);
   const run: Run | undefined = group?.runs.find(r => r.run === runNo) ?? group?.runs[0];
   if (!label) return null;
   return (
-    <div className={clsx(styles.column, [styles.columnA, styles.columnB, styles.columnC, styles.columnD][Math.min(side, 3)])}>
-      <div className={clsx(styles.columnLabel, sideClass(side))}>{label}</div>
+    <div className={clsx(styles.column, [styles.columnA, styles.columnB, styles.columnC, styles.columnD][Math.min(side, 3)], pick?.label === label && styles.columnPicked)}>
+      <div className={styles.columnLabel}>
+        {data.variants.length > 2 ? (
+          <select className={clsx(styles.labelSelect, sideClass(side))} value={label} onChange={e => onLabel(e.target.value)}>
+            {shownLabels(data).map(l => (
+              <option key={l} value={l}>
+                {labelText(data, l)}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span className={sideClass(side)}>{labelText(data, label)}</span>
+        )}
+      </div>
       {groups.length > 0 && (
         <div className={styles.pickers}>
-          <select value={model} onChange={e => (setModel(e.target.value), setRunNo(1))}>
+          <select value={model} onChange={e => (setModel(e.target.value), setRunNo(1), setFocus(undefined))}>
             {groups.map(g => (
               <option key={g.model} value={g.model}>
                 {g.model}
               </option>
             ))}
           </select>
-          <select value={run?.run} onChange={e => setRunNo(Number(e.target.value))}>
+          <select value={run?.run} onChange={e => (setRunNo(Number(e.target.value)), setFocus(undefined))}>
             {group?.runs.map(r => (
               <option key={r.run} value={r.run}>
-                {translate({id: 'run.option', message: 'run {run}'}, {run: r.run})} · {r.info.end_reason}
+                {translate({id: 'run.option', message: 'run {run}'}, {run: r.run})} · {runVerdicts(r)}
               </option>
             ))}
           </select>
@@ -894,7 +1067,7 @@ function RunPanel({data, side, repoTree}: {data: ExperimentData; side: number; r
               </button>
             ))}
           </div>
-          {tab === 'answers' && <RunAnswers data={data} run={run} />}
+          {tab === 'answers' && <RunAnswers data={data} run={run} focus={focus} />}
           {tab === 'turns' && (
             <>
               {run.events.map((e, i) => (
@@ -919,14 +1092,31 @@ function RunPanel({data, side, repoTree}: {data: ExperimentData; side: number; r
   );
 }
 
+// Two runs side by side, each column with its own label. A run picked in the
+// questions table replaces the column showing its label, else the right one.
 function RunExplorer({data}: {data: ExperimentData}) {
   const repoTree = useRepoTree();
+  const [slots, setSlots] = useState(() => shownLabels(data).slice(0, 2));
+  const {pick} = useContext(PickContext);
+  useEffect(() => {
+    if (pick) setSlots(s => (s.includes(pick.label) ? s : [s[0], pick.label]));
+  }, [pick]);
   return (
     <Section
-      title={translate({id: 'case.runs', message: 'Runs'})}>
-      <div className={styles.columns}>
-        {data.variants.map((_, i) => (
-          <RunPanel key={i} data={data} side={i} repoTree={repoTree} />
+      title={translate({id: 'case.runs', message: 'Runs'})}
+      note={
+        data.variants.length > 2 &&
+        translate({id: 'runs.note', message: 'Two runs side by side; pick the label, model and run of each column.'})
+      }>
+      <div className={clsx(styles.columns, styles.columnsTwo)}>
+        {slots.map((l, i) => (
+          <RunPanel
+            key={`${i}-${l}`}
+            data={data}
+            label={l}
+            onLabel={nl => setSlots(s => s.map((x, j) => (j === i ? nl : x)))}
+            repoTree={repoTree}
+          />
         ))}
       </div>
     </Section>
@@ -1008,25 +1198,29 @@ function Overview({data}: {data: ExperimentData}) {
 }
 
 export default function ExperimentPage({data}: {data: ExperimentData}) {
+  const [pick, setPickState] = useState<Pick | null>(null);
+  const setPick = (p: Omit<Pick, 'n'>) => setPickState(prev => ({...p, n: (prev?.n ?? 0) + 1}));
   return (
-    <Layout title={data.id} description={data.title}>
-      <main className={styles.main}>
-        <div className={styles.crumb}>
-          <Link to="/">
-            <Translate id="home.title">Results</Translate>
-          </Link>{' '}
-          / <code>{data.code}</code>
-        </div>
-        <h1>
-          <span className={styles.code}>{data.code}</span> {data.title}
-        </h1>
-        <Overview data={data} />
-        <Conditions data={data} />
-        <Comparison data={data} />
-        <Questions data={data} />
-        <ScriptedSideBySide data={data} />
-        <RunExplorer data={data} />
-      </main>
-    </Layout>
+    <PickContext.Provider value={{pick, setPick}}>
+      <Layout title={data.id} description={data.title}>
+        <main className={styles.main}>
+          <div className={styles.crumb}>
+            <Link to="/">
+              <Translate id="home.title">Results</Translate>
+            </Link>{' '}
+            / <code>{data.code}</code>
+          </div>
+          <h1>
+            <span className={styles.code}>{data.code}</span> {data.title}
+          </h1>
+          <Overview data={data} />
+          <Conditions data={data} />
+          <Comparison data={data} />
+          <Questions data={data} />
+          <ScriptedSideBySide data={data} />
+          <RunExplorer data={data} />
+        </main>
+      </Layout>
+    </PickContext.Provider>
   );
 }

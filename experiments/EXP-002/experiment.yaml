@@ -81,41 +81,34 @@ harness_options:
   tools: [scan_evidence, get_tool_guide, run_mmls, run_fls, list_files, search, get_raw_output,
           extract_file_by_inode, run_clamav, query_registry_value]
 
-# Two pairs; within a pair only the limit differs.
+# Two pairs; within a pair only the limit differs. no-limit is upstream
+# mulder 1.5.10 as released; limit adds clamav-limit; the -fix labels add
+# extract-keep to either.
 variants:
-  no-limit: mulder-1.5.10-messages-no-limits                    # upstream tools, no interpretation limit
-  limit: mulder-1.5.10-messages-clamav-limit                    # the same, plus what a disk image scan does not show
-  no-limit-fix: mulder-1.5.10-messages-no-limits-extract        # no limit; extracted files are kept so they can be scanned
-  limit-fix: mulder-1.5.10-messages-clamav-limit-extract        # the limit and the same tool fix
+  no-limit: mulder-1.5.10-no-limit
+  limit: mulder-1.5.10-limit
+  no-limit-fix: mulder-1.5.10-no-limit-fix
+  limit-fix: mulder-1.5.10-limit-fix
+
+# How the site groups and names the labels (optional).
+label_groups:
+  - name: Upstream tools
+    name_ko: 도구 그대로
+    labels: {no-limit: No limit, limit: Limit}
+    labels_ko: {no-limit: 한계 없음, limit: 한계 있음}
+  - name: Tool fixed (extract-keep)
+    name_ko: 도구 수정 (extract-keep)
+    labels: {no-limit-fix: No limit, limit-fix: Limit}
+    labels_ko: {no-limit-fix: 한계 없음, limit-fix: 한계 있음}
 
 conclusion: >
-  The limit removed every "no virus" answer, with or without the tool fix.
-  With upstream's tools, Opus answered "no virus" in 10 of 10 no-limit runs
-  and in 0 of 10 limit runs (Fisher's exact test p = 0.00001). With the tool
-  fix, it did in 7 of 20 no-limit-fix runs and 0 of 20 limit-fix runs
-  (p = 0.008). The control questions were answered correctly in every run
-  of every label. Without the limit, Opus did not notice on its own that
-  clamscan had not opened the image: the wrong runs stopped after the first
-  scan, in about 40 to 46 seconds. With the limit and no means to check,
-  every answer said the files inside were not scanned, and eight of ten
-  named the NetBus trojan from the file listing. With the limit and the
-  means to check, all 20 runs extracted files, scanned them and answered
-  yes on ClamAV's detections (such as Win.Trojan.Lsadump-1 and
-  Win.Trojan.Netbus-2). The tool fix alone brought 13 right answers in 20,
-  but the limit was what removed the remaining wrong ones. Haiku, on the
-  first pair, answered "no virus" in 20 of 20 no-limit runs and 15 of 20
-  limit runs (p = 0.047): the limit helped, but far less than with Opus,
-  since most Haiku runs understood it at first and then summed up the scan
-  as "0 detections" at the end.
+  Being rerun. The first runs also had two bench patches made for mulder
+  investigate (a message channel, and on the no-limit side the removal of
+  mulder's own caveats). Over MCP neither changed what the agent saw, apart
+  from repeating the limit message; both are gone, so that no-limit is
+  upstream as released and limit adds only clamav-limit.
 conclusion_ko: >
-  도구 수정 여부와 상관없이, 해석 한계가 "바이러스 없음"이라는 오답을 모두 없앴습니다. upstream 도구에서 Opus는
-  no-limit 10회 중 10회, limit 10회 중 0회가 "바이러스 없음"이라고 답했습니다(Fisher 정확 검정 p = 0.00001).
-  도구 수정 후에는 no-limit-fix 20회 중 7회, limit-fix 20회 중 0회였습니다(p = 0.008). 대조 질문은 모든 라벨에서
-  전부 맞혔습니다. 한계가 없으면 Opus도 clamscan이 이미지를 열지 못했다는 것을 스스로 알아채지 못했고, 틀린
-  실행은 첫 검사 뒤 40~46초 안팎에 멈췄습니다. 한계는 있지만 확인할 수단이 없으면, 모든 답이 이미지 안의 파일은
-  검사하지 않았다고 밝혔고 10회 중 8회는 파일 목록에서 NetBus 트로이목마를 지목했습니다. 한계와 확인 수단이
-  모두 있으면 20회 모두 파일을 꺼내 검사했고, ClamAV의 탐지(Win.Trojan.Lsadump-1, Win.Trojan.Netbus-2 등)를
-  근거로 "있다"고 답했습니다. 도구 수정만으로도 20회 중 13회가 정답이었지만, 남은 오답을 없앤 것은 해석
-  한계였습니다. Haiku는 첫 번째 쌍에서 no-limit 20회 중 20회, limit 20회 중 15회가 "바이러스 없음"이었습니다
-  (p = 0.047). 한계가 도움은 됐지만 Opus보다 효과가 훨씬 작았습니다. Haiku는 대부분 처음에는 한계를
-  이해했지만, 마지막에 검사 결과를 "탐지 0건"으로 요약했습니다.
+  다시 돌리는 중입니다. 처음 실행에는 mulder investigate용으로 만든 벤치 패치 두 개(메시지 전달, 그리고 한계 없는
+  쪽에서 mulder 자체 주의 문구 제거)도 들어 있었습니다. MCP에서는 해석 한계 메시지를 한 번 더 보여 준 것 말고는
+  에이전트가 보는 내용을 바꾸지 않았습니다. 두 패치를 모두 빼서, no-limit은 upstream 그대로이고 limit은 clamav-limit
+  하나만 더합니다.

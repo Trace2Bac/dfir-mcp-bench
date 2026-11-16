@@ -1,3 +1,45 @@
+diff --git a/src/mulder/server/helpers.py b/src/mulder/server/helpers.py
+index 63bab95..b9172d9 100644
+--- a/src/mulder/server/helpers.py
++++ b/src/mulder/server/helpers.py
+@@ -230,6 +230,10 @@ def audited_tool(
+ 
+ 
+ _PREVIEW_CHAR_LIMIT = 500
++
++# Result keys that say how to read the output rather than what it holds. They
++# are returned whole, outside the preview, so a long result cannot cut them off.
++_NOTE_KEYS = ("warning", "caveat", "note", "message")
+ _HINT_CHAR_LIMIT = 200
+ _DEFAULT_SEARCH_LIMIT = 50
+ _FILE_LIST_CAP = 500
+@@ -384,9 +388,15 @@ def tool_response(
+         if isinstance(wi, int):
+             windows_indexed = wi
+ 
++    notes: dict[str, str] = {}
++    body: dict[str, object] | list[object] = results
++    if isinstance(results, dict):
++        notes = {k: v for k in _NOTE_KEYS if isinstance(v := results.get(k), str)}
++        body = {k: v for k, v in results.items() if k not in notes}
++
+     preview = ""
+-    if isinstance(results, dict | list):
+-        preview = json.dumps(results, default=str)[:_PREVIEW_CHAR_LIMIT]
++    if isinstance(body, dict | list):
++        preview = json.dumps(body, default=str)[:_PREVIEW_CHAR_LIMIT]
+     elif isinstance(results, str):
+         preview = results[:_PREVIEW_CHAR_LIMIT]
+ 
+@@ -405,6 +415,8 @@ def tool_response(
+         resp["line_count"] = line_count
+     if windows_indexed is not None:
+         resp["windows_indexed"] = windows_indexed
++    if notes:
++        resp["notes"] = notes
+     return resp
+ 
+ 
 diff --git a/src/mulder/server/tools/extract/misc.py b/src/mulder/server/tools/extract/misc.py
 index 87ac5d8..6b9f3ee 100644
 --- a/src/mulder/server/tools/extract/misc.py
@@ -39,62 +81,3 @@ index 87ac5d8..6b9f3ee 100644
      if proc.returncode not in (0, 1) or unscanned_lines:
          detail = ("; ".join(unscanned_lines) or (proc.stderr or "").strip())[:_PREVIEW_CHAR_LIMIT]
          summary["partial"] = True
-diff --git a/tests/test_clamav_image_limit.py b/tests/test_clamav_image_limit.py
-new file mode 100644
-index 0000000..c03d305
---- /dev/null
-+++ b/tests/test_clamav_image_limit.py
-@@ -0,0 +1,53 @@
-+"""A ClamAV scan of a disk image says that the files inside it were not scanned."""
-+
-+from __future__ import annotations
-+
-+import subprocess
-+from pathlib import Path
-+from typing import Any
-+from unittest.mock import patch
-+
-+from mulder.server.tools.extract.misc import run_clamav
-+
-+CLEAN = subprocess.CompletedProcess(args=["clamscan"], returncode=0, stdout="", stderr="")
-+
-+
-+def _invoke(target: Path) -> Any:
-+    def _index(raw: str, *args: object, **kwargs: object) -> dict[str, object]:
-+        return {"source_name": "clamav.scan", "windows_indexed": 0, "line_count": 0}
-+
-+    with (
-+        patch("mulder.server.tools.extract.misc.require_binary", return_value=True),
-+        patch("mulder.server.tools.extract.misc.subprocess.run", return_value=CLEAN),
-+        patch("mulder.server.tools.extract.misc.extract_and_index", side_effect=_index),
-+    ):
-+        return run_clamav.__wrapped__(str(target))  # type: ignore[attr-defined]
-+
-+
-+def test_scanning_a_disk_image_says_its_files_were_not_scanned(tmp_path: Path) -> None:
-+    image = tmp_path / "disk.E01"
-+    image.write_bytes(b"EVF")
-+
-+    message = str(_invoke(image)["message"])
-+
-+    assert "disk.E01" in message
-+    assert "files inside were not scanned" in message
-+    assert "does not show" in message
-+
-+
-+def test_a_folder_with_images_names_them(tmp_path: Path) -> None:
-+    (tmp_path / "case").mkdir()
-+    (tmp_path / "case" / "pc.E01").write_bytes(b"EVF")
-+    (tmp_path / "case" / "pc.E02").write_bytes(b"EVF")
-+    (tmp_path / "case" / "notes.txt").write_text("x\\n")
-+
-+    message = str(_invoke(tmp_path / "case")["message"])
-+
-+    assert "pc.E01" in message
-+    assert "notes.txt" not in message
-+
-+
-+def test_a_folder_of_plain_files_has_no_message(tmp_path: Path) -> None:
-+    (tmp_path / "a.exe").write_bytes(b"MZ")
-+
-+    assert "message" not in _invoke(tmp_path)

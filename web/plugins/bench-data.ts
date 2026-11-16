@@ -63,6 +63,8 @@ export type ExperimentData = {
   instruction: string;
   questions: Question[];
   variants: Variant[];
+  // label_groups: how the site groups and names the labels; empty when not given.
+  labelGroups: {name: string; labels: {label: string; name: string}[]}[];
   groups: Group[];
 };
 export type ExperimentSummary = {
@@ -298,6 +300,13 @@ function readExperiment(root: string, id: string, locale: string): ExperimentDat
     instruction: String(exp.harness_options?.instruction ?? ''),
     questions: readQuestions(spec, locale, readDataset(root, spec)),
     variants,
+    labelGroups: (exp.label_groups ?? []).map((lg: any) => {
+      const names = (locale !== 'en' && lg[`labels_${locale}`]) || lg.labels || {};
+      return {
+        name: localized(lg, 'name', locale),
+        labels: Object.keys(lg.labels ?? {}).map(l => ({label: l, name: String(names[l] ?? l)})),
+      };
+    }),
     groups,
   };
 }
