@@ -10,30 +10,26 @@ clamav-limit.patch:
   title: "run_clamav says what a disk image scan does not show"
   title_ko: "run_clamav가 디스크 이미지 검사의 한계를 알림"
   summary: >
-    One interpretation limit on upstream's run_clamav, and a way for it to
-    reach the agent whole. clamscan does not open a disk image: it reads an
-    EnCase or raw image as one file and reports no detection, which mulder
-    returns as a success. When the target is a disk image, or a folder
-    holding one, the message now says that clamscan read it as one file,
-    that the files inside were not scanned, and that this does not show they
-    are clean. The scan itself does not change. To deliver it, tool_response
-    takes a tool's notes (warning, caveat, note, message) out of the result
-    and returns them whole under notes, outside the 500-character preview,
-    where a long result could cut them off. A result with no such note is
-    returned as before.
+    One interpretation limit on upstream's run_clamav. clamscan does not open
+    a disk image: it reads an EnCase or raw image as one file and reports no
+    detection, which mulder returns as a success. When the target is a disk
+    image, or a folder holding one, the result now carries a message, next to
+    the detection count, that clamscan read it as one file, that the files
+    inside were not scanned, and that this does not show they are clean. The
+    scan itself does not change. The message stays in the result: a run that
+    moved it to a separate notes field, away from the count, answered "no
+    virus" far more often (EXP-002).
   summary_ko: >
-    upstream run_clamav에 해석 한계 하나를 붙이고, 그것이 에이전트에게 잘리지 않고 닿게 합니다. clamscan은 디스크
-    이미지를 열지 못합니다. EnCase나 raw 이미지를 파일 하나로 읽고 탐지 0건을 보고하며, mulder는 이를 성공으로
-    돌려줍니다. 검사 대상이 디스크 이미지이거나 이미지가 든 폴더이면, 메시지에 clamscan이 이미지를 파일 하나로
-    읽었고 그 안의 파일은 검사하지 않았으며, 그래서 깨끗하다는 뜻은 아니라는 것을 적습니다. 검사 자체는 바뀌지
-    않습니다. 이 문구를 전달하기 위해 tool_response가 도구의 주의 문구(warning, caveat, note, message)를 결과에서
-    꺼내, 긴 결과에 잘릴 수 있는 500자 미리보기 밖의 notes에 그대로 싣습니다. 주의 문구가 없는 결과는 전과 같습니다.
+    upstream run_clamav에 해석 한계 하나를 붙입니다. clamscan은 디스크 이미지를 열지 못합니다. EnCase나 raw
+    이미지를 파일 하나로 읽고 탐지 0건을 보고하며, mulder는 이를 성공으로 돌려줍니다. 검사 대상이 디스크
+    이미지이거나 이미지가 든 폴더이면, 결과에 탐지 수와 나란히 메시지가 붙습니다. clamscan이 이미지를 파일
+    하나로 읽었고 그 안의 파일은 검사하지 않았으며, 그래서 깨끗하다는 뜻은 아니라는 내용입니다. 검사 자체는
+    바뀌지 않습니다. 메시지는 결과 안에 둡니다. 탐지 수와 떨어진 별도 notes 칸으로 옮겼던 실행은 "바이러스
+    없음"이라고 답한 경우가 훨씬 많았습니다(EXP-002).
   changes:
-    - "run_clamav: on a disk image, the message says the files inside were not scanned and that this does not show they are clean"
-    - "tool_response: warning, caveat, note and message go to notes, outside the preview, whole"
+    - "run_clamav: on a disk image, the result says the files inside were not scanned and that this does not show they are clean"
   changes_ko:
-    - "run_clamav: 디스크 이미지를 검사하면 그 안의 파일은 검사하지 않았고, 깨끗하다는 뜻은 아니라는 것을 메시지에 표시"
-    - "tool_response: warning, caveat, note, message를 미리보기 밖의 notes에 잘리지 않게 실음"
+    - "run_clamav: 디스크 이미지를 검사하면 그 안의 파일은 검사하지 않았고, 깨끗하다는 뜻은 아니라는 것을 결과에 표시"
 
 extract-keep.patch:
   title: "extract_file_by_inode keeps a binary file for other tools"
