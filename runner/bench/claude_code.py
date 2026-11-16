@@ -73,12 +73,12 @@ def prepare(case_yaml: Path, experiment_yaml: Path, work: Path, evidence_in_cont
     (out / MCP_CONFIG).write_text(json.dumps(config, indent=2) + "\n")
 
 
-def claude_args(experiment_yaml: Path) -> str:
-    """`claude` flags from the experiment's harness_options (model, effort)."""
+def claude_args(experiment_yaml: Path, model: str | None = None) -> str:
+    """`claude` flags from the experiment's harness_options (model, effort); `model` overrides its model."""
     options = _options(experiment_yaml)
     flags = []
-    if options.get("model"):
-        flags.append(f"--model {options['model']}")
+    if model or options.get("model"):
+        flags.append(f"--model {model or options['model']}")
     if options.get("effort"):
         flags.append(f"--effort {options['effort']}")
     return " ".join(flags)
@@ -143,7 +143,13 @@ def _slug(text: str) -> str:
 
 
 def import_run(
-    experiment_yaml: Path, label: str, work: Path, case_id: str, image_id: str | None, run_id: int | None = None
+    experiment_yaml: Path,
+    label: str,
+    work: Path,
+    case_id: str,
+    image_id: str | None,
+    run_id: int | None = None,
+    model: str | None = None,
 ) -> Path:
     """Import into experiments/<id>/results/<label>/<model>/run-<n> (effort and harness are in run.json)."""
     exp = yaml.safe_load(experiment_yaml.read_text())
@@ -153,7 +159,7 @@ def import_run(
     variant = exp["variants"][label]
     env = (root / "servers" / "mulder" / "variants" / f"{variant}.env").read_text()
     ref = re.search(r"^REF=(\S+)", env, re.MULTILINE)
-    folder = options.get("model", "default")
+    folder = model or options.get("model", "default")
     out = run_dir(experiment_yaml.parent / "results" / label / _slug(folder), run_id)
     if out.exists():
         shutil.rmtree(out)

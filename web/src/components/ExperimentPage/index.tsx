@@ -4,7 +4,7 @@ import Link from '@docusaurus/Link';
 import Layout from '@theme/Layout';
 import Translate, {translate} from '@docusaurus/Translate';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
-import type {ExperimentData, Event, Group, Run} from '../../../plugins/bench-data';
+import type {ExperimentData, Event, Group, Question, Run} from '../../../plugins/bench-data';
 import styles from './styles.module.css';
 
 // One experiment: what changed and what it showed, the test and conditions,
@@ -33,10 +33,14 @@ function verdictName(v: string): string {
 }
 
 // One small square per reviewed run, coloured by its verdict.
+// Grouped by verdict (found first), so the counts read at a glance.
+const VERDICT_ORDER = ['found', 'partial', 'missed', 'false positive'];
+
 function VerdictMarks({verdicts}: {verdicts: string[]}) {
+  const sorted = [...verdicts].sort((a, b) => VERDICT_ORDER.indexOf(a) - VERDICT_ORDER.indexOf(b));
   return (
     <span className={styles.marks}>
-      {verdicts.map((v, i) => (
+      {sorted.map((v, i) => (
         <span key={i} className={clsx(styles.mark, markClass(v))} title={verdictName(v)} />
       ))}
     </span>
@@ -398,7 +402,9 @@ function endReasons(g: Group): string {
 }
 
 function Comparison({data}: {data: ExperimentData}) {
-  const models = [...new Set(data.groups.map(g => g.model))];
+  // The experiment's own model first, then any other model with runs.
+  const order = (m: string) => (data.models.includes(m) ? data.models.indexOf(m) : data.models.length);
+  const models = [...new Set(data.groups.map(g => g.model))].sort((a, b) => order(a) - order(b));
   const labels = data.variants.map(v => v.label);
   // Nothing to compare before the first run.
   if (!models.length) return null;
@@ -406,7 +412,10 @@ function Comparison({data}: {data: ExperimentData}) {
     <Section
       title={translate({id: 'case.comparison', message: 'Comparison'})}>
       {models.map(model => {
-        const groups = labels.map(l => data.groups.find(g => g.label === l && g.model === model));
+        // Only the labels this model ran; each keeps its colour.
+        const shown = labels.filter(l => data.groups.some(g => g.label === l && g.model === model));
+        const groups = shown.map(l => data.groups.find(g => g.label === l && g.model === model));
+        const side = (i: number) => sideClass(labels.indexOf(shown[i]));
         const scripted = model === 'scripted';
         const metrics = scripted ? SCRIPTED_METRICS : [REVIEWED_METRIC, ...REVIEW_METRICS, ...METRICS];
         return (
@@ -425,8 +434,8 @@ function Comparison({data}: {data: ExperimentData}) {
               <thead>
                 <tr>
                   <th />
-                  {labels.map((l, i) => (
-                    <th key={l} className={sideClass(i)}>
+                  {shown.map((l, i) => (
+                    <th key={l} className={side(i)}>
                       {l}
                     </th>
                   ))}
@@ -450,7 +459,7 @@ function Comparison({data}: {data: ExperimentData}) {
                           <div className={styles.metric}>
                             <span className={styles.metricValue}>{m.show(g)}</span>
                             <span className={styles.bar}>
-                              <span className={clsx(styles.barFill, sideClass(i))} style={{width: `${width}%`}} />
+                              <span className={clsx(styles.barFill, side(i))} style={{width: `${width}%`}} />
                             </span>
                           </div>
                         </td>
@@ -479,11 +488,47 @@ function Comparison({data}: {data: ExperimentData}) {
   );
 }
 
+// One column per label; with several models, one line per model in each cell.
 function Questions({data}: {data: ExperimentData}) {
-  const labels = data.variants.map(v => v.label);
+  const labels = data.variants.map(v => v.label).filter(l => data.groups.some(g => g.label === l));
+  const order = (m: string) => (data.models.includes(m) ? data.models.indexOf(m) : data.models.length);
+  const models = [...new Set(data.groups.map(g => g.model))].sort((a, b) => order(a) - order(b));
+  const cell = (g: Group, q: Question) => {
+    if (g.model === 'scripted') {
+      const s = g.runs[0].score?.questions.find((x: any) => x.id === q.id);
+      return !s || s.review_only ? (
+        <span className={styles.small}>-</span>
+      ) : (
+        <span className={s.passed ? styles.pass : styles.fail}>{s.passed ? 'found' : 'missed'}</span>
+      );
+    }
+    const reviewed = g.runs.filter(r => r.review);
+    return reviewed.length === 0 ? (
+      <span className={styles.small}>
+        <Translate id="case.notReviewed">not reviewed</Translate>
+      </span>
+    ) : (
+      <VerdictMarks verdicts={reviewed.map(r => verdictOf(r.review!.questions[q.id]?.verdict))} />
+    );
+  };
   return (
     <Section
-      title={translate({id: 'case.questions', message: 'Questions'})}>
+      title={translate({id: 'case.questions', message: 'Questions'})}
+      note={
+        data.questions.some(q => q.source) && (
+          <Translate
+            id="exp.questions.borrowed"
+            values={{
+              case: (
+                <Link to={`/cases/${data.case.id}`}>
+                  <Translate id="exp.questions.casePage">the case page</Translate>
+                </Link>
+              ),
+            }}>
+            {'Taken from the questions published with the dataset; all of them are on {case}.'}
+          </Translate>
+        )
+      }>
       <VerdictLegend />
       <div className={styles.tableScroll}>
         <table className={clsx(styles.table, styles.questionTable)}>
@@ -495,10 +540,10 @@ function Questions({data}: {data: ExperimentData}) {
               <th className={styles.factsCol}>
                 <Translate id="case.col.expected">expected facts</Translate>
               </th>
-              {data.groups.map(g => (
-                <th key={g.label + g.model} className={clsx(styles.verdictCol, sideClass(labels.indexOf(g.label)))}>
-                  {g.label}
-                  <div className={styles.small}>{g.model}</div>
+              {labels.map(l => (
+                <th key={l} className={clsx(styles.verdictCol, sideClass(data.variants.findIndex(v => v.label === l)))}>
+                  {l}
+                  {models.length === 1 && <div className={styles.small}>{models[0]}</div>}
                 </th>
               ))}
             </tr>
@@ -508,6 +553,7 @@ function Questions({data}: {data: ExperimentData}) {
               <tr key={q.id}>
                 <td className={styles.qCol}>
                   <strong>{q.id}</strong> {q.text}
+                  {q.source && <div className={styles.small}>{q.source}</div>}
                 </td>
                 <td className={clsx(styles.small, styles.factsCol)}>
                   {(q.expect.all ?? []).map(f => (
@@ -525,32 +571,21 @@ function Questions({data}: {data: ExperimentData}) {
                     </>
                   )}
                 </td>
-                {data.groups.map(g => {
-                  if (g.model === 'scripted') {
-                    const s = g.runs[0].score?.questions.find((x: any) => x.id === q.id);
-                    return (
-                      <td key={g.label + g.model} className={styles.verdictCol}>
-                        {!s || s.review_only ? (
-                          <span className={styles.small}>-</span>
-                        ) : (
-                          <span className={s.passed ? styles.pass : styles.fail}>{s.passed ? 'found' : 'missed'}</span>
-                        )}
-                      </td>
-                    );
-                  }
-                  const reviewed = g.runs.filter(r => r.review);
-                  return (
-                    <td key={g.label + g.model} className={styles.verdictCol}>
-                      {reviewed.length === 0 ? (
-                        <span className={styles.small}>
-                          <Translate id="case.notReviewed">not reviewed</Translate>
-                        </span>
-                      ) : (
-                        <VerdictMarks verdicts={reviewed.map(r => verdictOf(r.review!.questions[q.id]?.verdict))} />
-                      )}
-                    </td>
-                  );
-                })}
+                {labels.map(l => (
+                  <td key={l} className={styles.verdictCol}>
+                    {models.map(m => {
+                      const g = data.groups.find(x => x.label === l && x.model === m);
+                      if (!g) return null;
+                      if (models.length === 1) return <div key={m}>{cell(g, q)}</div>;
+                      return (
+                        <div key={m} className={styles.modelLine}>
+                          <span className={styles.modelTag}>{m.replace(/^claude-/, '')}</span>
+                          {cell(g, q)}
+                        </div>
+                      );
+                    })}
+                  </td>
+                ))}
               </tr>
             ))}
           </tbody>

@@ -147,6 +147,7 @@ function Questions({data}: {data: CaseData}) {
               <tr key={q.id}>
                 <td className={styles.qCol}>
                   <strong>{q.id}</strong> {q.text}
+                  {q.source && <div className={styles.small}>{q.source}</div>}
                 </td>
                 <td className={clsx(styles.small, styles.factsCol)}>
                   {q.reviewOnly && <Translate id="casePage.reviewOnly">judged by a reviewer</Translate>}
@@ -165,6 +166,49 @@ function Questions({data}: {data: CaseData}) {
                     </>
                   )}
                 </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Section>
+  );
+}
+
+// Every question the dataset publishes, with the ones this case asks marked.
+function SourceQuestions({data}: {data: CaseData}) {
+  const ds = data.dataset;
+  if (!ds?.questions.length) return null;
+  const used = ds.questions.filter(q => q.used).length;
+  return (
+    <Section
+      title={translate({id: 'casePage.sourceQuestions', message: 'Original questions'})}
+      note={translate(
+        {
+          id: 'casePage.sourceQuestions.note',
+          message: 'The {total} questions published with the dataset. This case asks {used} of them, marked with the case question they became.',
+        },
+        {total: ds.questions.length, used},
+      )}>
+      <div className={styles.tableScroll}>
+        <table className={clsx(styles.table, styles.questionTable)}>
+          <thead>
+            <tr>
+              <th className={styles.verdictCol} />
+              <th className={styles.qCol}>
+                <Translate id="case.col.question">question</Translate>
+              </th>
+              <th className={styles.verdictCol}>
+                <Translate id="casePage.col.usedAs">in this case</Translate>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {ds.questions.map(q => (
+              <tr key={q.source} className={q.used ? undefined : styles.unused}>
+                <td className={clsx(styles.small, styles.verdictCol)}>{q.source}</td>
+                <td className={styles.qCol}>{q.text}</td>
+                <td className={styles.verdictCol}>{q.used && <strong>{q.used}</strong>}</td>
               </tr>
             ))}
           </tbody>
@@ -227,6 +271,7 @@ export default function CasePage({data}: {data: CaseData}) {
         <Evidence data={data} />
         <Briefing data={data} />
         <Questions data={data} />
+        <SourceQuestions data={data} />
       </main>
     </Layout>
   );

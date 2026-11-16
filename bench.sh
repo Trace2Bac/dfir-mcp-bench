@@ -11,12 +11,14 @@
 #                                                     run every label (or the ones named), N times each
 #   ./bench.sh summary <experiment>                   compare labels and models over all runs
 #   ./bench.sh review  <experiment> [model]           review unreviewed model runs, question by question
-#   ./bench.sh investigate <experiment> [label...] [--repeat N] [--dry-run]
+#   ./bench.sh investigate <experiment> [label...] [--repeat N] [--model M] [--dry-run]
 #                                                     run a whole investigation on each label and import it:
 #                                                     `mulder investigate` (harness mulder-investigate; needs
 #                                                     ANTHROPIC_API_KEY for Claude models) or Claude Code with
 #                                                     `mulder serve` as its tools (harness claude-code; needs
-#                                                     `./bench.sh login` once, or CLAUDE_CODE_OAUTH_TOKEN)
+#                                                     `./bench.sh login` once, or CLAUDE_CODE_OAUTH_TOKEN);
+#                                                     --model runs claude-code with another model than
+#                                                     harness_options.model, filed under that model
 #   ./bench.sh login                                  sign Claude Code in to a Claude subscription for the
 #                                                     claude-code harness; kept in data/claude/, never committed
 #   ./bench.sh import  <experiment> <label> <mulder-cases-dir> <case-id> [n]
@@ -126,7 +128,7 @@ claude_investigate() {
         local image_id
         image_id=$(docker image inspect -f '{{.Id}}' "dfir-mcp-bench/mulder:$v" 2>/dev/null || true)
         in_tools env PYTHONPATH=runner python3 -m bench import-claude "$yaml" "$label" "$work" "$c" \
-            ${image_id:+--image-id "$image_id"}
+            ${image_id:+--image-id "$image_id"} ${model:+--model "$model"}
         summarize "$e"
     else
         echo "no finished result in $work/claude/stream.jsonl; nothing imported" >&2
@@ -274,11 +276,12 @@ review)
     ;;
 investigate)
     e=$(experiment_id "${1:?experiment}"); shift
-    dry=0; repeat=1; labels=()
+    dry=0; repeat=1; model=""; labels=()
     while [ $# -gt 0 ]; do
         case "$1" in
         --dry-run) dry=1 ;;
         --repeat) repeat=${2:?--repeat needs a number}; shift ;;
+        --model) model=${2:?--model needs a model name}; shift ;;
         *) labels+=("$1") ;;
         esac
         shift
@@ -291,6 +294,7 @@ investigate)
     mulder-investigate | claude-code) ;;
     *) echo "$yaml: harness '$harness' is not mulder-investigate or claude-code" >&2; exit 1 ;;
     esac
+    [ -z "$model" ] || [ "$harness" = claude-code ] || { echo "--model is for the claude-code harness" >&2; exit 1; }
     c=$(yaml_field "$yaml" case)
     folder=$(yaml_field "cases/$c/case.yaml" evidence)
     [ -d "data/evidence/$folder" ] || { echo "no evidence in data/evidence/$folder; run ./bench.sh prepare first" >&2; exit 1; }
@@ -298,7 +302,7 @@ investigate)
     load_env
     if [ "$harness" = claude-code ]; then
         # Model and effort from harness_options (model: .., effort: ..).
-        opts=$(in_tools env PYTHONPATH=runner python3 -m bench claude-args "$yaml")
+        opts=$(in_tools env PYTHONPATH=runner python3 -m bench claude-args "$yaml" ${model:+--model "$model"})
         if [ "$dry" = 0 ] && [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ ! -f data/claude/.credentials.json ]; then
             echo "Claude Code is not signed in; run ./bench.sh login (or export CLAUDE_CODE_OAUTH_TOKEN)" >&2; exit 1
         fi
@@ -321,7 +325,8 @@ investigate)
         v=$(echo "$pairs" | awk -v l="$label" '$1 == l {print $2}')
         [ -n "$v" ] || { echo "no label '$label' in $yaml" >&2; exit 1; }
         build "$v" -q >/dev/null
-        work="data/investigate/$e/$label"
+        # Another model gets its own working copy, so both can run at once.
+        work="data/investigate/$e/$label${model:+-$model}"
         # One investigation per experiment and label at a time: a second one
         # would delete the working copy the first is reading.
         mkdir -p "data/investigate/$e"

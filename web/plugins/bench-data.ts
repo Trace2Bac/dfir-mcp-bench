@@ -17,6 +17,7 @@ export type Question = {
   text: string;
   expect: {all?: string[]; any?: string[]; none?: string[]; min?: number};
   reviewOnly?: boolean; // left to a reviewer: no expected facts
+  source?: string; // the dataset question it is taken from, e.g. "NIST Q31"
 };
 export type Variant = {label: string; name: string; note: string; baseImage: string; ref: string; patches: string};
 export type Event = {t: number; kind: string; [key: string]: unknown};
@@ -93,6 +94,9 @@ export type CaseData = {
     answers?: string;
     notes: string;
     files: {name: string; note: string}[];
+    // The dataset's own questions, when it publishes some; `used` names the
+    // case question taken from one.
+    questions: {source: string; text: string; used?: string}[];
   } | null;
   questions: Question[];
   experiments: {code: string; id: string; title: string; status: string; models: string[]}[];
@@ -237,13 +241,13 @@ function localized(obj: any, key: string, locale: string): string {
 }
 
 // The models an experiment uses: those its harness options name (planner,
-// executor, analyst, or one model), else the model folders of its runs.
-// Empty when it only has scripted runs.
+// executor, analyst, or one model) and the model folders of its runs, which
+// may hold runs made with another model. Empty when it only has scripted runs.
 function experimentModels(exp: any, groups: Group[]): string[] {
   const options = exp.harness_options ?? {};
   const named: string[] = options.models ? Object.values<string>(options.models) : options.model ? [options.model] : [];
-  const used = groups.map(g => g.model).filter(m => m !== 'scripted');
-  return [...new Set(named.length ? named : used)];
+  const used = groups.map(g => g.model).filter(m => m !== 'scripted' && m !== 'default');
+  return [...new Set([...named, ...used])];
 }
 
 function readExperiment(root: string, id: string, locale: string): ExperimentData {
@@ -292,18 +296,28 @@ function readExperiment(root: string, id: string, locale: string): ExperimentDat
     tools: exp.harness_options?.tools ?? spec.tools ?? [],
     toolsLimited: Boolean(exp.harness_options?.tools),
     instruction: String(exp.harness_options?.instruction ?? ''),
-    questions: readQuestions(spec, locale),
+    questions: readQuestions(spec, locale, readDataset(root, spec)),
     variants,
     groups,
   };
 }
 
-function readQuestions(spec: any, locale: string): Question[] {
+// A case question's `source` is the number of a dataset question; the
+// dataset names the set (questions_name, e.g. NIST).
+function readDataset(root: string, spec: any): any {
+  const file = spec.dataset ? path.join(root, 'datasets', spec.dataset, 'dataset.yaml') : '';
+  return file && fs.existsSync(file) ? YAML.parse(fs.readFileSync(file, 'utf8')) : null;
+}
+
+const sourceName = (ds: any, n: unknown) => `${ds?.questions_name ? `${ds.questions_name} ` : ''}Q${n}`;
+
+function readQuestions(spec: any, locale: string, ds: any): Question[] {
   return (spec.questions ?? []).map((q: any) => ({
     id: q.id,
     text: localized(q, 'text', locale),
     expect: q.expect ?? {},
     reviewOnly: Boolean(q.review_only),
+    source: q.source != null ? sourceName(ds, q.source) : undefined,
   }));
 }
 
@@ -315,8 +329,7 @@ function readCase(root: string, id: string, locale: string, experiments: Experim
   const briefing = fs.existsSync(briefingFile)
     ? fs.readFileSync(briefingFile, 'utf8').split('${EVIDENCE}').join(`/evidence/${evidence}`).trim()
     : '';
-  const dsFile = spec.dataset ? path.join(root, 'datasets', spec.dataset, 'dataset.yaml') : '';
-  const ds = dsFile && fs.existsSync(dsFile) ? YAML.parse(fs.readFileSync(dsFile, 'utf8')) : null;
+  const ds = readDataset(root, spec);
   return {
     id,
     name: localized(spec, 'name', locale) || localized(spec, 'title', locale) || id,
@@ -333,8 +346,13 @@ function readCase(root: string, id: string, locale: string, experiments: Experim
       answers: ds.answers,
       notes: localized(ds, 'notes', locale).trim(),
       files: (ds.files ?? []).map((f: any) => ({name: String(f.name), note: localized(f, 'note', locale)})),
+      questions: (ds.questions ?? []).map((q: any) => ({
+        source: sourceName(ds, q.n),
+        text: localized(q, 'text', locale),
+        used: (spec.questions ?? []).find((c: any) => c.source === q.n)?.id,
+      })),
     },
-    questions: readQuestions(spec, locale),
+    questions: readQuestions(spec, locale, ds),
     experiments: experiments
       .filter(e => e.case.id === id)
       .map(e => ({code: e.code, id: e.id, title: e.title, status: e.status, models: e.models})),

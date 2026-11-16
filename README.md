@@ -134,7 +134,8 @@ are Linux. What else you need depends on what you run:
    export ANTHROPIC_API_KEY=...               # this shell only, never in a file
    ./bench.sh investigate EXP-002 --dry-run   # prepares and prints the command, starts nothing
    ./bench.sh investigate EXP-002             # runs it and imports the result
-   ./bench.sh investigate EXP-002 after --repeat 5   # one label, five runs
+   ./bench.sh investigate EXP-002 limit --repeat 5   # one label, five runs
+   ./bench.sh investigate EXP-002 --model claude-haiku-4-5   # another model than harness_options.model
    ```
    Every run costs money; runs with Opus as planner and analyst cost far
    more than runs with Haiku in every role.

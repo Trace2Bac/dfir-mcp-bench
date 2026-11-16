@@ -55,17 +55,20 @@ x-reads-evidence: &reads_evidence
    parse_browser_history, run_clamav, run_mft_parser, parse_mft, run_plaso, start_extraction_batch]
 
 questions:
-  - id: Q1                       # NIST Q2
+  - id: Q1
+    source: 2                    # NIST question number (datasets/nist-hacking-case)
     text: "What operating system was used on the computer?"
     text_ko: "컴퓨터에서 쓰인 운영체제는?"
     expect: {all: ["Windows XP"]}
     requires_any_tool: *reads_evidence
-  - id: Q2                       # NIST Q5
+  - id: Q2
+    source: 5
     text: "Who is the registered owner?"
     text_ko: "등록된 소유자는?"
     expect: {all: ["Schardt"]}
     requires_any_tool: *reads_evidence
-  - id: Q3                       # NIST Q31
+  - id: Q3
+    source: 31
     text: "Perform a Anti-Virus check. Are there any viruses on the computer?"
     text_ko: "백신 검사를 하세요. 컴퓨터에 바이러스가 있나요?"
     review_only: true            # yes/no answer; a reviewer decides. Answer key: Yes

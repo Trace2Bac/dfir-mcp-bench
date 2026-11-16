@@ -87,6 +87,7 @@ def _parser() -> argparse.ArgumentParser:
     cprep.add_argument("case_id", help="case ID for scan_evidence")
     cargs = sub.add_parser("claude-args", help="print claude flags from an experiment")
     cargs.add_argument("experiment", type=Path, help="path to experiments/<id>/experiment.yaml")
+    cargs.add_argument("--model", help="use this model instead of harness_options.model")
     ctools = sub.add_parser("claude-tools", help="print the mulder tools an experiment allows, if it limits them")
     ctools.add_argument("experiment", type=Path, help="path to experiments/<id>/experiment.yaml")
     sub.add_parser("claude-progress", help="print a progress line per stream-json event on stdin")
@@ -97,6 +98,7 @@ def _parser() -> argparse.ArgumentParser:
     cimp.add_argument("case_id", help="the case ID given to scan_evidence")
     cimp.add_argument("--image-id", help="ID of the image the run used")
     cimp.add_argument("--run", type=int, help="run-<n> to write (default: the next free number)")
+    cimp.add_argument("--model", help="the model the run used, when not harness_options.model")
     return parser
 
 
@@ -167,13 +169,15 @@ def main() -> None:
     elif args.command == "claude-prepare":
         claude_code.prepare(args.case, args.experiment, args.work, args.container_path, args.case_id)
     elif args.command == "claude-args":
-        print(claude_code.claude_args(args.experiment))
+        print(claude_code.claude_args(args.experiment, args.model))
     elif args.command == "claude-tools":
         print(claude_code.tools(args.experiment))
     elif args.command == "claude-progress":
         claude_code.progress()
     elif args.command == "import-claude":
-        out = claude_code.import_run(args.experiment, args.label, args.work, args.case_id, args.image_id, args.run)
+        out = claude_code.import_run(
+            args.experiment, args.label, args.work, args.case_id, args.image_id, args.run, args.model
+        )
         print(f"{args.label}: imported -> {out}; judge it with ./bench.sh review")
     elif args.command == "import-investigate":
         out = import_from_experiment(
