@@ -13,23 +13,29 @@ clamav-limit.patch:
     One interpretation limit on upstream's run_clamav. clamscan does not open
     a disk image: it reads an EnCase or raw image as one file and reports no
     detection, which mulder returns as a success. When the target is a disk
-    image, or a folder holding one, the result now carries a message, next to
-    the detection count, that clamscan read it as one file, that the files
-    inside were not scanned, and that this does not show they are clean. The
-    scan itself does not change. The message stays in the result: a run that
-    moved it to a separate notes field, away from the count, answered "no
-    virus" far more often (EXP-002).
+    image, or a folder holding one (every segment, .E01, .E02, ...), the
+    result carries a message, next to the detection count, that clamscan
+    read the image as one file, that the files inside were not scanned, and
+    that this does not show they are clean. The same sentence is added as a
+    NOTE line to the indexed output, so an agent that reads the output again
+    with get_raw_output or search before it answers still sees it. In
+    EXP-002, agents that saw the message only in the first response did read
+    it, then re-read the output ("E01: OK") before the final answer and often
+    answered "no virus". The scan itself does not change.
   summary_ko: >
     upstream run_clamav에 해석 한계 하나를 붙입니다. clamscan은 디스크 이미지를 열지 못합니다. EnCase나 raw
     이미지를 파일 하나로 읽고 탐지 0건을 보고하며, mulder는 이를 성공으로 돌려줍니다. 검사 대상이 디스크
-    이미지이거나 이미지가 든 폴더이면, 결과에 탐지 수와 나란히 메시지가 붙습니다. clamscan이 이미지를 파일
-    하나로 읽었고 그 안의 파일은 검사하지 않았으며, 그래서 깨끗하다는 뜻은 아니라는 내용입니다. 검사 자체는
-    바뀌지 않습니다. 메시지는 결과 안에 둡니다. 탐지 수와 떨어진 별도 notes 칸으로 옮겼던 실행은 "바이러스
-    없음"이라고 답한 경우가 훨씬 많았습니다(EXP-002).
+    이미지이거나 이미지가 든 폴더이면(조각 .E01, .E02 ... 모두), 결과에 탐지 수와 나란히 메시지가 붙습니다.
+    clamscan이 이미지를 파일 하나로 읽었고 그 안의 파일은 검사하지 않았으며, 그래서 깨끗하다는 뜻은 아니라는
+    내용입니다. 같은 문장을 색인되는 출력에도 NOTE 줄로 넣어서, 답하기 전에 get_raw_output이나 search로 출력을
+    다시 읽어도 보이게 합니다. EXP-002에서 처음 응답에만 메시지를 받은 에이전트는 메시지를 읽고도, 최종 답 전에
+    출력("E01: OK")을 다시 읽은 뒤 "바이러스 없음"이라고 답하는 경우가 많았습니다. 검사 자체는 바뀌지 않습니다.
   changes:
     - "run_clamav: on a disk image, the result says the files inside were not scanned and that this does not show they are clean"
+    - "run_clamav: the same sentence goes into the indexed output as a NOTE line, so re-reading the output shows it"
   changes_ko:
     - "run_clamav: 디스크 이미지를 검사하면 그 안의 파일은 검사하지 않았고, 깨끗하다는 뜻은 아니라는 것을 결과에 표시"
+    - "run_clamav: 같은 문장을 색인되는 출력에 NOTE 줄로 넣어, 출력을 다시 읽어도 보이게 함"
 
 extract-keep.patch:
   title: "extract_file_by_inode keeps a binary file for other tools"

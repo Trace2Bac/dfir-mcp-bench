@@ -1,15 +1,15 @@
 diff --git a/src/mulder/server/tools/extract/misc.py b/src/mulder/server/tools/extract/misc.py
-index 87ac5d8..6b9f3ee 100644
+index 87ac5d8..621519d 100644
 --- a/src/mulder/server/tools/extract/misc.py
 +++ b/src/mulder/server/tools/extract/misc.py
 @@ -644,6 +644,20 @@ def run_strings(target_path: str, min_length: int = 8) -> dict[str, object]:
      )
  
  
-+# Disk image formats that clamscan reads as one opaque file.
-+_DISK_IMAGE_SUFFIXES = frozenset(
-+    {".e01", ".ex01", ".s01", ".l01", ".aff", ".dd", ".raw", ".img", ".001"}
-+    | {".vmdk", ".vhd", ".vhdx"}
++# Disk image files that clamscan reads as one opaque file: EnCase and other
++# segmented images (every segment, .E01, .E02, ...), raw and virtual disks.
++_DISK_IMAGE_SUFFIX = re.compile(
++    r"\.(e\d{2}|ex\d{2}|s\d{2}|l\d{2}|\d{3}|aff|dd|raw|img|vmdk|vhd|vhdx)$", re.IGNORECASE
 +)
 +
 +
@@ -17,25 +17,33 @@ index 87ac5d8..6b9f3ee 100644
 +    """Names of the disk images at *target_path*: the file, or files under the folder."""
 +    path = Path(target_path)
 +    candidates = [path] if path.is_file() else sorted(p for p in path.rglob("*") if p.is_file())
-+    return [p.name for p in candidates if p.suffix.lower() in _DISK_IMAGE_SUFFIXES]
++    return [p.name for p in candidates if _DISK_IMAGE_SUFFIX.search(p.name)]
 +
 +
  @mcp.tool()
  @tool_access(Role.EXTRACT_EXECUTOR)
  def run_clamav(target_path: str) -> dict[str, object]:
-@@ -693,6 +707,15 @@ def run_clamav(target_path: str) -> dict[str, object]:
+@@ -691,8 +705,23 @@ def run_clamav(target_path: str) -> dict[str, object]:
+     ]
+     summary_text = "\n".join(infected_lines) if infected_lines else output
  
-     summary = extract_and_index(summary_text, "clamav.scan", target_path, "clamav")
-     summary["detections"] = len(infected_lines)
 +    # clamscan does not open a disk image, so a scan of one is not a scan of
-+    # the files inside it.
++    # the files inside it. The note goes into the indexed output too, so that
++    # reading the output again (get_raw_output, search) shows it.
 +    images = _disk_image_names(target_path)
++    note = ""
 +    if images:
-+        summary["message"] = (
++        note = (
 +            f"clamscan read {', '.join(images)} as one file each: it does not open a disk "
 +            "image, so the files inside were not scanned. This does not show that the "
 +            "files in the image are clean."
 +        )
++        summary_text += f"\nNOTE: {note}"
++
+     summary = extract_and_index(summary_text, "clamav.scan", target_path, "clamav")
+     summary["detections"] = len(infected_lines)
++    if note:
++        summary["message"] = note
      if proc.returncode not in (0, 1) or unscanned_lines:
          detail = ("; ".join(unscanned_lines) or (proc.stderr or "").strip())[:_PREVIEW_CHAR_LIMIT]
          summary["partial"] = True

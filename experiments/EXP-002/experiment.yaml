@@ -103,13 +103,15 @@ label_groups:
 
 conclusion: >
   Being rerun. no-limit and no-limit-fix are done (10 runs per model). The
-  limit labels are run again with the limit message inside run_clamav's
-  result, next to the detection count. With it moved to a separate notes
-  field instead, Opus answered "no virus" in 7 of 10 limit runs, against 2
-  of 20 when the message sat in the result; all ten had noted the limit
-  right after the scan, and lost it by the final answer.
+  limit labels are run again with the limit sentence both in run_clamav's
+  result and in its indexed output. Before the final answer the agents read
+  the indexed output again (get_raw_output, search), which showed only
+  "E01: OK": with the sentence only in the first response, in a separate
+  notes field, Opus answered "no virus" in 7 of 10 limit runs (2 of 20 when
+  the sentence appeared twice in that response, and 2 of 3 when once).
 conclusion_ko: >
   다시 돌리는 중입니다. no-limit과 no-limit-fix는 끝났습니다(모델마다 10회). 한계 있는 라벨은 해석 한계 문장을
-  run_clamav 결과 안, 탐지 수 옆에 두고 다시 돌립니다. 이 문장을 별도 notes 칸으로 떼어 놓았을 때는 Opus limit
-  10회 중 7회가 "바이러스 없음"이라고 답했습니다. 문장이 결과 안에 있었을 때는 20회 중 2회였습니다. 10회 모두
-  검사 직후에는 한계를 짚었지만, 최종 답에서는 놓쳤습니다.
+  run_clamav 결과와 색인되는 출력 양쪽에 넣고 다시 돌립니다. 에이전트는 최종 답 전에 색인된 출력을 다시
+  읽었는데(get_raw_output, search), 거기에는 "E01: OK"만 있었습니다. 문장이 첫 응답에만, 별도 notes 칸에 있었을
+  때 Opus limit은 10회 중 7회가 "바이러스 없음"이었습니다(첫 응답에 두 번 있었을 때는 20회 중 2회, 한 번
+  있었을 때는 3회 중 2회).
