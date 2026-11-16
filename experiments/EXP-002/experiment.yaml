@@ -102,16 +102,27 @@ label_groups:
     labels_ko: {no-limit-fix: 한계 없음, limit-fix: 한계 있음}
 
 conclusion: >
-  Being rerun. no-limit and no-limit-fix are done (10 runs per model). The
-  limit labels are run again with the limit sentence both in run_clamav's
-  result and in its indexed output. Before the final answer the agents read
-  the indexed output again (get_raw_output, search), which showed only
-  "E01: OK": with the sentence only in the first response, in a separate
-  notes field, Opus answered "no virus" in 7 of 10 limit runs (2 of 20 when
-  the sentence appeared twice in that response, and 2 of 3 when once).
+  The limit cut the "no virus" answers in every pair, for both models; the
+  control questions were answered correctly in all 60 runs. Opus answered
+  "no virus" in 10 of 10 no-limit runs and 0 of 5 limit runs (Fisher's exact
+  test p = 0.0003); with the tool fix, 3 of 10 and 0 of 5, and all five
+  limit-fix runs answered yes on ClamAV's detections in extracted files
+  (Win.Trojan.Lsadump-1, Win.Trojan.Netbus-2 and others). Haiku answered
+  "no virus" in 9 of 10 and 2 of 5 (p = 0.08); with the tool fix, 9 of 10
+  and 1 of 5 (p = 0.02), and three limit-fix runs answered yes. The tool fix
+  alone changed little for Haiku. The limit runs are five per model so far.
+  Where the limit sits mattered: agents read ClamAV's output again before
+  answering, and that output said only "E01: OK". With the sentence only in
+  the first response, Opus answered "no virus" in 7 of 10 limit runs when it
+  stood apart from the result (a notes field) and in 2 of 3 when it sat in
+  the result; with the sentence also in the indexed output, in 0 of 5.
 conclusion_ko: >
-  다시 돌리는 중입니다. no-limit과 no-limit-fix는 끝났습니다(모델마다 10회). 한계 있는 라벨은 해석 한계 문장을
-  run_clamav 결과와 색인되는 출력 양쪽에 넣고 다시 돌립니다. 에이전트는 최종 답 전에 색인된 출력을 다시
-  읽었는데(get_raw_output, search), 거기에는 "E01: OK"만 있었습니다. 문장이 첫 응답에만, 별도 notes 칸에 있었을
-  때 Opus limit은 10회 중 7회가 "바이러스 없음"이었습니다(첫 응답에 두 번 있었을 때는 20회 중 2회, 한 번
-  있었을 때는 3회 중 2회).
+  모든 쌍에서, 두 모델 모두 해석 한계가 "바이러스 없음"이라는 오답을 줄였습니다. 대조 질문은 60회 모두
+  맞혔습니다. Opus는 no-limit 10회 중 10회, limit 5회 중 0회가 "바이러스 없음"이었습니다(Fisher 정확 검정
+  p = 0.0003). 도구 수정 후에는 10회 중 3회와 5회 중 0회였고, limit-fix 5회는 모두 꺼낸 파일에서 ClamAV가 탐지한
+  것(Win.Trojan.Lsadump-1, Win.Trojan.Netbus-2 등)을 근거로 "있다"고 답했습니다. Haiku는 10회 중 9회와 5회 중
+  2회(p = 0.08), 도구 수정 후에는 10회 중 9회와 5회 중 1회(p = 0.02)였고, limit-fix 3회가 "있다"고 답했습니다.
+  Haiku에게는 도구 수정만으로는 거의 달라지지 않았습니다. 한계 있는 라벨은 아직 모델마다 5회입니다. 한계의
+  위치도 결과를 바꿨습니다. 에이전트는 답하기 전에 ClamAV 출력을 다시 읽는데, 그 출력에는 "E01: OK"만 있었습니다.
+  문장이 첫 응답에만 있을 때 Opus limit은, 결과와 떨어진 notes 칸에 있으면 10회 중 7회, 결과 안에 있으면 3회 중
+  2회가 "바이러스 없음"이었습니다. 색인되는 출력에도 문장을 넣자 5회 중 0회였습니다.

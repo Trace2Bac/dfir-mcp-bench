@@ -4,12 +4,14 @@ Model runs. Means are per run.
 
 | label | model | variant | runs | reviewed | turns | tool calls | tool errors | seconds | end reasons |
 |---|---|---|---|---|---|---|---|---|---|
-| no-limit | claude-haiku-4-5 | mulder-1.5.10-no-limit | 10 | 10/10 | 16.7 | 15.7 | 0.2 | 48.0 | success 10 |
+| no-limit | claude-haiku-4-5 | mulder-1.5.10-no-limit | 20 | 10/20 | 16.3 | 15.3 | 0.2 | 51.6 | success 20 |
 | no-limit | claude-opus-4-6 | mulder-1.5.10-no-limit | 10 | 10/10 | 9.0 | 8.0 | 0.0 | 41.6 | success 10 |
-| limit | claude-haiku-4-5 | mulder-1.5.10-limit | 10 | 0/10 | 20.6 | 19.6 | 0.5 | 69.8 | success 10 |
-| no-limit-fix | claude-haiku-4-5 | mulder-1.5.10-no-limit-fix | 10 | 10/10 | 18.4 | 17.4 | 0.3 | 68.8 | success 10 |
+| limit | claude-haiku-4-5 | mulder-1.5.10-limit | 20 | 5/20 | 22.4 | 21.4 | 0.4 | 76.8 | success 20 |
+| limit | claude-opus-4-6 | mulder-1.5.10-limit | 5 | 5/5 | 29.2 | 28.2 | 0.0 | 193.0 | success 5 |
+| no-limit-fix | claude-haiku-4-5 | mulder-1.5.10-no-limit-fix | 20 | 10/20 | 18.7 | 17.7 | 0.4 | 63.1 | success 20 |
 | no-limit-fix | claude-opus-4-6 | mulder-1.5.10-no-limit-fix | 10 | 10/10 | 23.5 | 22.5 | 0.0 | 114.8 | success 10 |
-| limit-fix | claude-haiku-4-5 | mulder-1.5.10-limit-fix | 10 | 0/10 | 27.9 | 26.9 | 0.3 | 89.1 | success 10 |
+| limit-fix | claude-haiku-4-5 | mulder-1.5.10-limit-fix | 20 | 5/20 | 26.7 | 25.7 | 0.5 | 91.1 | success 20 |
+| limit-fix | claude-opus-4-6 | mulder-1.5.10-limit-fix | 5 | 5/5 | 37.0 | 36.0 | 0.0 | 159.9 | success 5 |
 
 Human review, on the scale mulder uses for its own runs: full match = found, detection = found or partial, false positives = contradicted claims stated as fact (inside or outside the questions), each over the number of questions. Mean of the reviewed runs, range in parentheses.
 
@@ -17,8 +19,12 @@ Human review, on the scale mulder uses for its own runs: full match = found, det
 |---|---|---|---|---|---|
 | no-limit | claude-haiku-4-5 | 10 | 67% | 67% | 30% (0 to 33) |
 | no-limit | claude-opus-4-6 | 10 | 67% | 67% | 33% |
+| limit | claude-haiku-4-5 | 5 | 67% | 67% | 13% (0 to 33) |
+| limit | claude-opus-4-6 | 5 | 67% | 93% (67 to 100) | 0% |
 | no-limit-fix | claude-haiku-4-5 | 10 | 67% | 67% | 30% (0 to 33) |
 | no-limit-fix | claude-opus-4-6 | 10 | 90% (67 to 100) | 90% (67 to 100) | 10% (0 to 33) |
+| limit-fix | claude-haiku-4-5 | 5 | 87% (67 to 100) | 87% (67 to 100) | 7% (0 to 33) |
+| limit-fix | claude-opus-4-6 | 5 | 100% | 100% | 0% |
 
 Verdicts per question (F found, P partial, M missed, X false positive; count of reviewed runs):
 
@@ -26,5 +32,9 @@ Verdicts per question (F found, P partial, M missed, X false positive; count of 
 |---|---|---|---|---|
 | no-limit | claude-haiku-4-5 | F10 | F10 | M1 X9 |
 | no-limit | claude-opus-4-6 | F10 | F10 | X10 |
+| limit | claude-haiku-4-5 | F5 | F5 | M3 X2 |
+| limit | claude-opus-4-6 | F5 | F5 | P4 M1 |
 | no-limit-fix | claude-haiku-4-5 | F10 | F10 | M1 X9 |
 | no-limit-fix | claude-opus-4-6 | F10 | F10 | F7 X3 |
+| limit-fix | claude-haiku-4-5 | F5 | F5 | F3 M1 X1 |
+| limit-fix | claude-opus-4-6 | F5 | F5 | F5 |
