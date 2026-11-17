@@ -5,7 +5,7 @@ Model runs. Means are per run.
 | label | model | variant | runs | reviewed | turns | tool calls | tool errors | seconds | end reasons |
 |---|---|---|---|---|---|---|---|---|---|
 | before | claude-opus-4-6 | mulder-b922c36 | 15 | 15/15 | 9.1 | 8.1 | 0.0 | 82.3 | success 15 |
-| after | claude-opus-4-6 | mulder-54d76c8 | 10 | 10/10 | 10.0 | 9.0 | 0.0 | 83.9 | success 10 |
+| after | claude-opus-4-6 | mulder-54d76c8 | 30 | 10/30 | 10.0 | 9.0 | 0.0 | 76.2 | success 30 |
 
 Human review, on the scale mulder uses for its own runs: full match = found, detection = found or partial, false positives = contradicted claims stated as fact (inside or outside the questions), each over the number of questions. Mean of the reviewed runs, range in parentheses.
 
