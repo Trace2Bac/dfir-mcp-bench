@@ -1,80 +1,88 @@
-Now I have enough information to prepare the final report. Let me compile all findings:
+Now I have gathered all the necessary evidence. Let me compile my final forensic report.
 
 ---
 
-## DIGITAL FORENSIC INVESTIGATION REPORT
-### NIST Hacking Case - Dell Latitude CPi Notebook
-
+## DIGITAL FORENSIC EXAMINATION REPORT
 **Case ID:** nist-hacking-case-av  
-**Evidence:** 4Dell_Latitude_CPi.E01/E02  
-**Investigation Date:** 2026-11-16
+**Evidence:** Dell Latitude CPi Notebook (Serial: VLQLW)  
+**Case Date:** 09/20/04  
+**Examined by:** Digital Forensics Examiner  
 
 ---
 
-## Executive Summary
+## EXECUTIVE SUMMARY
 
-Analysis of the abandoned Dell Latitude CPi notebook (Serial #VLQLW) reveals conclusive evidence linking the computer to the suspect Greg Schardt and demonstrates extensive use of hacking and network interception tools consistent with the suspected criminal activity described in the briefing.
-
----
-
-## Forensic Findings
-
-### 1. System Configuration and Ownership
-
-The computer is registered to **Greg Schardt** with organization listed as "N/A". The system contains a user profile named "Mr. Evil" - the exact online nickname referenced in the briefing as belonging to the suspect.
-
-### 2. Hacking Tools Identified
-
-The forensic analysis identified the following hacking and interception tools installed on the system:
-
-- **Ethereal**: Professional packet sniffer (installed in Program Files/Ethereal, shortcut in Start Menu)
-- **Cain**: Password cracking and network analysis tool (CAIN25B45.EXE in Windows prefetch, evidence of execution)
-- **Brutus**: Password cracking tool (stored in My Documents/EXPLOITATION/NT/Brutus)
-- **pwdump**: Windows password dumping utility (My Documents/EXPLOITATION/NT/Pwdump)
-- **dsniff**: Packet sniffing tool optimized for switched networks (My Documents/EXPLOITATION/Unix/dsniff 2.3)
-- **ogre**: Network enumeration tool (My Documents/ENUMERATION/NT/ogre)
-- **Anonymizer**: Anonymization toolbar installed
-
-### 3. Evidence of Hacking Activity
-
-- Directories organized as "EXPLOITATION," "ENUMERATION," and "SNIFFING" tools
-- Documentation and README files for exploitation tools
-- References to "wardriving" in cached Internet files (wireless network scanning)
-- Tools specifically designed for credential interception and wireless network penetration
-- WinPcap (packet capture driver) installed in system
-
-### 4. Suspect Attribution
-
-- Registered owner: **Greg Schardt**
-- User profile directory: **"Mr. Evil"** (suspect's confirmed online nickname)
-- This direct link definitively ties the computer to the suspect
+Forensic examination of the abandoned Dell Latitude CPi notebook confirms this device was actively used for hacking activities. The registered owner is Greg Schardt, who matches the suspect alias "Mr. Evil" found in the user profiles. The device contains numerous professional-grade hacking tools organized in a structured directory system for network reconnaissance, packet sniffing, password cracking, and system exploitation. Evidence indicates the computer was used for wireless network interception and credential theft, consistent with the suspected crimes.
 
 ---
 
-## Antivirus Analysis
+## FINDINGS
 
-**ClamAV Scan Results:**
-- ClamAV was unable to perform file-level scanning of the disk image contents, as it does not mount/open disk images
-- The raw disk image files scanned as "OK" with no virus signatures detected on the E01/E02 container files themselves
-- However, **this does not indicate the files within the image are clean** - it only means the disk image files themselves are not infected
+### Operating System and Configuration
+The system runs **Microsoft Windows XP** (Version 5.1, Build 2600). The installation occurred on 08/27/04, approximately 3 weeks before the device was abandoned. Windows is installed to C:\WINDOWS with system drive configuration consistent with a Dell notebook.
 
-Despite the limitation of standard antivirus scanning, the forensic analysis identified clear evidence of **malicious purpose**: these are recognized hacking tools (not legitimate system utilities) that match the suspect's MO of intercepting wireless traffic for credential theft.
+### Registered Owner
+The Windows registry shows **Greg Schardt** as the registered owner (SOFTWARE hive, Microsoft\Windows NT\CurrentVersion\RegisteredOwner). More significantly, the user profile folder "Documents and Settings/Mr. Evil/" is present, directly linking this device to the suspect's known online alias "Mr. Evil."
+
+### Hacking Tools and Evidence of Use
+
+**Network Reconnaissance Tools:**
+- SPADE 1.14 (My Documents/FOOTPRINTING/NT/spade114.exe)
+- SuperScan network scanner (My Documents/FOOTPRINTING/NT/superscan/)
+- NSTPro2 network tool (My Documents/FOOTPRINTING/NT/NSTPro2/)
+- nmapnt - Nmap for Windows NT (My Documents/FOOTPRINTING/NT/Nmapnt/)
+
+**Packet Sniffing/Traffic Interception:**
+- Ethereal packet sniffer (installed in Program Files/Ethereal/)
+- dsniff 2.3 with documentation: "Switched networks lose security advantage due packet tool" (My Documents/EXPLOITATION/Unix/dsniff 2.3/)
+
+**Password Cracking Tools:**
+- Pwdump3 - Windows password hash dumping utility (My Documents/EXPLOITATION/NT/Pwdump/pwdump3.zip)
+- **Cain & Abel** (Evidence: Prefetch file CAIN25B45.EXE-056F3A6E.pf in WINDOWS/Prefetch/, indicating the tool was executed on this system)
+
+**Network Exploitation:**
+- Brutus password bracker (My Documents/EXPLOITATION/NT/Brutus/)
+- Novell Netware utilities (My Documents/NOVELL/Nut18/)
+- Various command-line utilities including user enumeration and service enumeration tools (My Documents/COMMANDS/)
+
+**Anonymization:**
+- Anonymizer toolbar installed (Program Files/Anonymizer/) - used to hide web browsing activity
+
+**Wireless/Interception Focus:**
+- Cached browser files reference to "wardriving" (Documents and Settings/Mr. Evil/Local Settings/Temporary Internet Files/)
+- Tools present are consistent with wireless access point scanning and packet interception
+
+### Anti-Virus Scan Results
+
+ClamAV was run against the evidence on 2026-11-16. The scan results show:
+- **4Dell_Latitude_CPi.E01: OK**
+- **4Dell_Latitude_CPi.E02: OK**
+
+**Important Note:** ClamAV cannot open EnCase E01 disk image formats. The scan was performed on the E01/E02 container files themselves as binary objects. ClamAV's note explicitly states: "This does not show that the files in the image are clean."
+
+**No virus signatures were detected** by ClamAV in the disk image containers. However, this does not confirm the absence of malware within the extracted files, as file extraction and individual file scanning would be required for a complete anti-virus assessment.
 
 ---
 
-## Case Questions
+## CONNECTION TO SUSPECT
 
-**Case Q1: What operating system was used on the computer?**  
-Microsoft Windows XP (Version 5.1, Build 2600, Service Pack integration)
+1. **Name Match:** Registered owner "Greg Schardt" matches the suspect name provided in the case briefing.
 
-**Case Q2: Who is the registered owner?**  
-Greg Schardt
+2. **Alias Confirmation:** User profile "Mr. Evil" on the system directly matches the suspect's known online nickname.
 
-**Case Q3: Perform an Anti-Virus check. Are there any viruses on the computer?**  
-ClamAV signature scanning of the disk image was unable to access files within the disk image and thus could not detect viruses. However, forensic analysis conclusively identified numerous hacking and network interception tools (Ethereal, Cain, Brutus, pwdump, dsniff) installed and executed on the system, which indicates malicious software designed for credential theft and network interception. While not classified as "viruses" by traditional antivirus signatures, these are clearly malicious tools consistent with the suspect's suspected criminal activity of intercepting wireless traffic at public hotspots.
+3. **Modus Operandi Match:** The presence of packet sniffing tools (Ethereal, dsniff), password cracking tools (Cain & Abel, Pwdump), and wireless interception references correlates with the described suspect behavior: "parking near wireless access points where he would intercept internet traffic, attempting to get credit card numbers, usernames & passwords."
+
+4. **Professional Toolkit:** The organized directory structure (FOOTPRINTING, ENUMERATION, EXPLOITATION, COMMANDS) with specialized hacking tools indicates a methodical approach consistent with an experienced attacker.
 
 ---
 
-## Conclusion
+## CASE QUESTIONS
 
-The forensic evidence strongly supports attributing this computer to suspect Greg Schardt and demonstrates clear intent to conduct hacking and credential interception activities. The presence of professional packet sniffing tools, password cracking software, and the "Mr. Evil" user profile directly correlate to the suspected wireless access point attacks targeting credit card numbers, usernames, and passwords at establishments like Starbucks and T-Mobile hotspots.
+**Case Q1: What operating system was used on the computer?**
+Microsoft Windows XP (Version 5.1, Build 2600). This is documented in the Windows registry at HKLM\Software\Microsoft\Windows NT\CurrentVersion with ProductName="Microsoft Windows XP".
+
+**Case Q2: Who is the registered owner?**
+Greg Schardt. This is documented in the Windows registry at HKLM\Software\Microsoft\Windows NT\CurrentVersion with RegisteredOwner="Greg Schardt". Additionally, the user profile "Documents and Settings/Mr. Evil/" confirms the suspect's online alias "Mr. Evil" was active on this system.
+
+**Case Q3: Perform an Anti-Virus check. Are there any viruses on the computer?**
+ClamAV anti-virus scanning was performed on the evidence files. The E01 and E02 disk image containers both returned "OK" with no detections. However, ClamAV cannot extract and scan files within the disk image format - it only scanned the container files as binary objects. Therefore, while no virus signatures were found in the accessible scan, the assessment cannot definitively confirm the absence of malware within the extracted files. A more complete anti-virus assessment would require file extraction and individual scanning of system files from the image.

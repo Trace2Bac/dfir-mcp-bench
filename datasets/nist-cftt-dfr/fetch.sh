@@ -33,5 +33,6 @@ with bz2.open(sys.argv[1]) as src, open(sys.argv[2], "wb") as dst:
     fi
 done <<'SUMS'
 5d5bf8fb15a1df463fb0b9c0a958c05ece30941af40545f895131ff0daf32fab dfr-01-fat
+57e6f37d3312ee4a113a6534a1ffcbd45ad3e0325a509442ac54ae632762d1ef dfr-02-ntfs
 SUMS
 echo "evidence ready in $EVD"

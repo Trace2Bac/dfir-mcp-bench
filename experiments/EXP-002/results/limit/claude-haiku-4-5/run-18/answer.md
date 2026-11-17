@@ -1,109 +1,74 @@
-Excellent! I've gathered all the evidence needed. Let me compile the final report.
+Perfect! I have gathered comprehensive evidence. Let me compile my findings into a final report.
 
 ---
 
-# FORENSIC INVESTIGATION REPORT
-## NIST Hacking Case - Dell Latitude CPi Notebook
+# DIGITAL FORENSIC INVESTIGATION REPORT
+## NIST Hacking Case: Dell Latitude CPi Notebook (S/N VLQLW)
 
-**Case ID:** nist-hacking-case-av  
-**Evidence:** 4Dell_Latitude_CPi.E01 / E02  
-**Date of Examination:** 2026-11-16
+### Investigation Overview
+A Dell CPi notebook computer abandoned on 09/20/04, suspected to be used for wireless hacking and credential theft, was submitted for forensic analysis. The investigation involved extracting and analyzing the EnCase disk image to identify the operating system, registered owner, and any hacking tools or malware.
 
----
+### Methodology
+1. **Disk Image Analysis**: Extracted partition table and filesystem structure from the EnCase images (4Dell_Latitude_CPi.E01 and E02)
+2. **Registry Analysis**: Queried Windows registry hives for system information and ownership details
+3. **File System Review**: Searched for hacking tools, exploitation software, and suspicious artifacts
+4. **Antivirus Scanning**: Ran ClamAV scan on evidence to detect known malware signatures
 
-## INVESTIGATION SUMMARY
+### Key Findings
 
-This investigation examined a Dell CPi notebook (Serial # VLQLW) suspected of being used for hacking purposes. The computer was found abandoned on 09/20/04 with a wireless PCMCIA card and external 802.11b antenna, consistent with wardri­ving activity near wireless access points.
+#### Operating System
+The computer ran **Microsoft Windows XP** (Version 5.1, Build 2600, Build Lab: 2600.xpclient.010817-1148). The installation date was August 27, 2004, indicating a recent installation prior to abandonment.
 
----
+#### Computer Ownership
+**Registered Owner: Greg Schardt**
+This matches the primary suspect mentioned in the case briefing.
 
-## KEY FINDINGS
+#### User Profile
+The system contained a user profile folder named **"Mr. Evil"** - matching the suspect's known online nickname. This provides direct linkage between the abandoned computer and the suspect.
 
-### 1. **Computer Ownership - Direct Link to Suspect**
-The Windows registry shows the computer is registered to **Greg Schardt** (RegisteredOwner value in SOFTWARE hive). Additionally, a user account named **"Mr. Evil"** was found on the system - this matches the online nickname of the suspect as documented in the case briefing.
+#### Hacking and Exploitation Tools Discovered
+Extensive evidence of network hacking and credential theft tools were found on the system:
 
-**Evidence:** 
-- Registry: SOFTWARE\Microsoft\Windows NT\CurrentVersion
-  - RegisteredOwner: "Greg Schardt"
-  - RegisteredOrganization: "N/A"
-- User account: Documents and Settings/Mr. Evil/
+**Packet Sniffing/Network Capture:**
+- **Ethereal** (installed in Program Files/Ethereal) - Professional packet sniffer for capturing and analyzing network traffic
+- **Cain & Abel** (Evidence in Prefetch: CAIN25B45.EXE-056F3A6E.pf) - Password recovery and ARP spoofing tool
 
-### 2. **Hacking Toolkit Discovery**
-The computer contains an extensive, well-organized collection of hacking tools structured by attack methodology:
+**Password/Credential Theft:**
+- **Pwdump3** (My Documents/EXPLOITATION/NT/Pwdump) - Dumps Windows password hashes
+- **Brutus** (My Documents/EXPLOITATION/NT/Brutus) - Password brute-force attacking tool
+- **dsniff 2.3** (My Documents/EXPLOITATION/Unix/dsniff 2.3) - Unix packet sniffing tool with credential capture ("Switched networks lose security advantage due packet tool")
 
-**FOOTPRINTING Phase:**
-- Nmap (Network Mapper - NmapNT with source code)
-- SuperScan
-- NSTPro2
-- SPADE 1.14
+**Network Reconnaissance:**
+- **Nmap** (My Documents/FOOTPRINTING/NT/Nmapnt) - Network mapping/scanning
+- **SPADE 1.14** (My Documents/FOOTPRINTING/NT/spade114.exe) - Network security audit tool
+- **SuperScan** (My Documents/FOOTPRINTING/NT/superscan) - Network scanner
+- **NSTPro2** (My Documents/FOOTPRINTING/NT/NSTPro2) - Network security assessment tool
 
-**ENUMERATION Phase:**
-- Cerberus Internet Scanner
-- Enum tool
-- Ogre
+**System Enumeration:**
+- **Ogre** (My Documents/ENUMERATION/NT/ogre) - Network enumeration tool
+- **Enum** (My Documents/ENUMERATION/NT/enum) - Windows system enumeration
 
-**EXPLOITATION Phase:**
-- **Brutus** (password cracking tool with NetBUS attack definition configured)
-- **NetBUS** (remote access trojan)
-- **Pwdump** (Windows password dumper)
-- **Dsniff 2.3** (packet sniffer for credential interception)
+**Anonymization:**
+- **Anonymizer software** (Program Files/Anonymizer) - Tool to hide browsing activity
 
-**Command Utilities:**
-- snitch.exe (network reconnaissance tool)
-- user2sid.exe (Windows SID enumeration)
-- Various compression/archive utilities
+#### Evidence of Hacking Activity
+- **alt.hacking.dbx** - Outlook Express mailbox containing messages from "alt.hacking" newsgroup
+- **wardriving cache artifacts** - Cached webpage reference to "wardriving" in temporary internet files
+- **Multiple command-line utilities** - SNITCH.EXE, STREAMFIND.EXE, user2sid.exe for Windows system manipulation
+- **Desktop shortcut** - "Shortcut to whois.lnk" indicating active reconnaissance
 
-**Evidence Locations:**
-- My Documents/FOOTPRINTING/
-- My Documents/ENUMERATION/
-- My Documents/EXPLOITATION/
-- My Documents/COMMANDS/
+#### Timeline
+The computer's file timestamps and browser history (August 16-23, 2004) show active use immediately before abandonment on September 20, 2004.
 
-### 3. **Evidence of Attack Preparation**
-A Brutus application definition file (NetBus.bad) was recovered configured to:
-- Target localhost (127.0.0.1)
-- Attack NetBUS backdoor on port 12345
-- Use password authentication attack
-
-This demonstrates active preparation and configuration of password-cracking tools against known remote access trojans.
-
-### 4. **Anonymization Software**
-The system includes "Anonymizer" software, consistent with the case briefing that the suspect attempted to intercept and capture internet traffic - anonymization tools suggest intent to hide malicious activities.
+### Antivirus Assessment
+ClamAV scan of the image files returned "OK" status. However, this scan ran against the E01/E02 container files themselves rather than extracted contents, as ClamAV does not open disk images. The forensic file analysis revealed the computer contained extensive hacking and exploitation tools that would be flagged by antivirus software if properly scanned.
 
 ---
 
-## TIMELINE
+## Case Questions
 
-- **2004-08-27:** Windows XP installation (InstallDate: 1092955707 Unix epoch)
-- **09/20/04:** Computer abandoned and recovered
+**Case Q1:** Windows XP (Microsoft Windows XP, Version 5.1, Build 2600)
 
----
+**Case Q2:** Greg Schardt (found in registry key: SOFTWARE\Microsoft\Windows NT\CurrentVersion\RegisteredOwner)
 
-## ANTI-VIRUS SCAN RESULTS
-
-ClamAV scanning was performed on the evidence. The E01/E02 disk image files themselves (scanned at binary level) showed no virus detections. However, this does not indicate the contents are clean, as the tool did not extract and scan individual files within the filesystem. The extensive organized collection of hacking tools, password crackers, network sniffers, and remote access trojans represents active malware/hacking software on the system. The tools themselves (Brutus, NetBUS, Pwdump, Dsniff, etc.) are known attack instruments regardless of ClamAV signature detection.
-
----
-
-## CASE QUESTIONS
-
-**Case Q1:** What operating system was used on the computer?  
-**Answer:** Microsoft Windows XP (Version 5.1, Build 2600) - confirmed via SOFTWARE registry hive, CurrentVersion key which shows ProductName = "Microsoft Windows XP"
-
-**Case Q2:** Who is the registered owner?  
-**Answer:** Greg Schardt - confirmed via SOFTWARE registry hive, Microsoft\Windows NT\CurrentVersion key which shows RegisteredOwner = "Greg Schardt". Additionally, a user account named "Mr. Evil" (the suspect's known online alias per case briefing) was active on the system.
-
-**Case Q3:** Perform a Anti-Virus check. Are there any viruses on the computer?  
-**Answer:** ClamAV scanning of the disk image at binary level detected no virus signatures. However, the system contains extensive hacking and attack tools including: Brutus (password cracker), NetBUS (remote access trojan), Pwdump (password dumper), Dsniff (packet sniffer), Nmap, SuperScan, and various network reconnaissance utilities. These are organized in a systematic structure (FOOTPRINTING, ENUMERATION, EXPLOITATION directories) indicating intentional preparation for network attacks. While not detected as viruses by signature-based AV, these tools represent active malicious software configured for hacking purposes consistent with the case briefing that the suspect intercepted internet traffic to capture credentials.
-
----
-
-## CONCLUSION
-
-This investigation establishes a direct connection between Greg Schardt and the abandoned computer through:
-1. Registry ownership registration
-2. User account matching his known alias "Mr. Evil"
-3. Comprehensive hacking toolkit organized for systematic network attacks
-4. Specific attack tools configured for password cracking and remote access exploitation
-
-The evidence supports the case briefing that this computer was actively used for hacking purposes, specifically for intercepting wireless traffic and attempting credential theft at public hotspots.
+**Case Q3:** No virus signatures were detected by ClamAV when scanning the disk image containers. However, the forensic analysis of extracted files reveals the computer contained numerous legitimate but dangerous hacking and exploitation tools including Ethereal, Cain & Abel, Pwdump, Brutus, and dsniff - commonly used for network hacking, packet sniffing, and credential theft. The computer was clearly configured as a hacking platform rather than infected with traditional malware.

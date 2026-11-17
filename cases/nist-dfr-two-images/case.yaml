@@ -1,0 +1,45 @@
+id: nist-dfr-two-images
+title: Two NIST deleted-file test images, only one of them listed
+title_ko: NIST 삭제 파일 테스트 이미지 두 개 중 하나만 나열한 상태
+name: "NIST DFR, two disk images"   # short name for lists
+name_ko: "NIST DFR, 디스크 이미지 두 개"
+dataset: nist-cftt-dfr
+evidence: nist-cftt-dfr
+purpose: >
+  Two disk images of the same type, dfr-01-fat.dd and dfr-02-ntfs.dd. The
+  file listing (run_fls) is run on the first only, then audit_tool_coverage
+  reports which tools were run on each image. The second image must still
+  show run_fls as not run. Written for calebevans/mulder#269.
+purpose_ko: >
+  같은 유형의 디스크 이미지 두 개, dfr-01-fat.dd와 dfr-02-ntfs.dd입니다. 파일 목록(run_fls)은 첫 번째
+  이미지에만 실행하고, audit_tool_coverage로 이미지마다 실행한 도구를 확인합니다. 두 번째 이미지에는
+  run_fls가 아직 실행하지 않은 도구로 남아 있어야 합니다. calebevans/mulder#269를 위해 만들었습니다.
+
+setup:                                # run by the runner, not by the model
+  - tool: scan_evidence
+    args: {evidence_path: "${EVIDENCE}", case_id: "${CASE_ID}"}
+
+tools: [run_fls, audit_tool_coverage]
+
+scripted:                             # --scripted: fixed calls, no model
+  - tool: run_fls
+    args: {image_path: "${EVIDENCE}/dfr-01-fat.dd"}
+  - tool: audit_tool_coverage
+    args: {}
+
+# The coverage report is the answer. Only dfr-02-ntfs.dd can show an empty
+# tools_run list, since run_fls ran on dfr-01-fat.dd. Each image has seven
+# applicable disk tools: 6 left on the first and 7 on the second.
+questions:
+  - id: Q1
+    text: Does the coverage report show that no tool has been run on the image that was not listed?
+    text_ko: "커버리지 보고서가 나열하지 않은 이미지에는 아무 도구도 실행하지 않았다고 표시하나요?"
+    expect: {all: ['"tools_run": []']}
+    requires_tools: [audit_tool_coverage]
+  - id: Q2
+    text: How many tool gaps does the coverage report count across both images (6 on the first, 7 on the second)?
+    text_ko: "커버리지 보고서가 두 이미지에서 세는 미실행 도구는 모두 몇 개인가요(첫 번째 6개, 두 번째 7개)?"
+    expect: {all: ['"total_gaps": 13']}
+    requires_tools: [audit_tool_coverage]
+
+limits: {max_turns: 12, max_tool_chars: 8000}

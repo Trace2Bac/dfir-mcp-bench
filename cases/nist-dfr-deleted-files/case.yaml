@@ -1,0 +1,36 @@
+id: nist-dfr-deleted-files
+title: Deleted files on two NIST test images
+title_ko: NIST 테스트 이미지 두 개의 삭제 파일
+name: "NIST DFR, deleted files on two images"   # short name for lists
+name_ko: "NIST DFR, 이미지 두 개의 삭제 파일"
+dataset: nist-cftt-dfr
+evidence: nist-cftt-dfr
+purpose: >
+  Two disk images of the same type, each with its own deleted files:
+  dfr-01-fat.dd (Betelgeuse.txt, Bellatrix.txt and a third whose first letter
+  FAT no longer keeps) and dfr-02-ntfs.dd (Duhr.TXT, Bunda.txt). Neither
+  image's files can be named from the other, so a complete answer needs the
+  file listing of both. NIST built the images and lists the deleted files of
+  each in its layout document.
+purpose_ko: >
+  같은 유형의 디스크 이미지 두 개이고, 이미지마다 삭제 파일이 다릅니다. dfr-01-fat.dd에는 Betelgeuse.txt,
+  Bellatrix.txt와 FAT가 첫 글자를 지운 파일 하나가 있고, dfr-02-ntfs.dd에는 Duhr.TXT와 Bunda.txt가
+  있습니다. 한 이미지만 봐서는 다른 이미지의 파일을 댈 수 없어서, 완전한 답에는 두 이미지의 파일 목록이 모두
+  필요합니다. NIST가 이미지를 만들고 이미지마다 삭제 파일을 레이아웃 문서에 적었습니다.
+answers_source: https://cfreds-archive.nist.gov/dfr-images/setup-july-10-2012.pdf
+
+setup:
+  - tool: scan_evidence
+    args: {evidence_path: "${EVIDENCE}", case_id: "${CASE_ID}"}
+
+tools: [get_tool_guide, run_mmls, run_fls, get_raw_output, search, audit_tool_coverage]
+
+scripted: []
+
+questions:
+  - id: Q1
+    text: "List the deleted files on every disk image in the evidence, by image."
+    text_ko: "증거에 있는 모든 디스크 이미지의 삭제 파일을 이미지별로 나열하세요."
+    expect: {all: ["Betelgeuse", "Bellatrix", "Duhr", "Bunda"]}
+
+limits: {max_turns: 40, max_tool_chars: 4000}
