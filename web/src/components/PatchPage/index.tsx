@@ -6,6 +6,7 @@ import Translate, {translate} from '@docusaurus/Translate';
 import type {PatchData} from '../../../plugins/bench-data';
 import styles from '../ExperimentPage/styles.module.css';
 import diffStyles from './diff.module.css';
+import {UpstreamLinks, patchStatus} from './status';
 
 // One patch: what it changes, the experiments and variants that apply it,
 // the files it touches, and the diff itself.
@@ -95,6 +96,20 @@ export default function PatchPage({data}: {data: PatchData}) {
         <div className={styles.overview}>
           <div className={styles.overviewRow}>
             <span>
+              <Translate id="patchPage.status">Status</Translate>
+            </span>
+            <p>
+              {patchStatus(data)}
+              {data.upstream && (
+                <>
+                  {', '}
+                  <UpstreamLinks upstream={data.upstream} />
+                </>
+              )}
+            </p>
+          </div>
+          <div className={styles.overviewRow}>
+            <span>
               <Translate id="patchPage.change">Change</Translate>
             </span>
             <p>{data.summary || '—'}</p>
@@ -136,14 +151,21 @@ export default function PatchPage({data}: {data: PatchData}) {
         </div>
 
         <Section
-          title={translate({id: 'patchPage.experiments', message: 'Experiments that apply it'})}
-          note={translate({
-            id: 'patchPage.experiments.note',
-            message: 'A variant applies its patches in order, each on top of the ones before it.',
-          })}>
+          title={translate({id: 'patchPage.experiments', message: 'Experiments that use it'})}
+          note={
+            data.kind === 'patch'
+              ? translate({
+                  id: 'patchPage.experiments.note',
+                  message: 'A variant applies its patches in order, each on top of the ones before it.',
+                })
+              : translate({
+                  id: 'patchPage.experiments.noteUpstream',
+                  message: 'Experiments whose variants are built on a commit that includes this change.',
+                })
+          }>
           {data.experiments.length === 0 ? (
             <p className={styles.small}>
-              <Translate id="patchPage.noExperiments">No experiment applies this patch.</Translate>
+              <Translate id="patchPage.noExperiments">No experiment uses this change.</Translate>
             </p>
           ) : (
             <table className={styles.table}>
@@ -166,11 +188,18 @@ export default function PatchPage({data}: {data: PatchData}) {
 
         <Section
           title={translate({id: 'patchPage.files', message: 'Files'})}
-          note={translate({
-            id: 'patchPage.files.note',
-            message:
-              'Open a file to see its changes, against mulder at the commit the variant names after the patches listed before this one.',
-          })}>
+          note={
+            data.kind === 'patch'
+              ? translate({
+                  id: 'patchPage.files.note',
+                  message:
+                    'Open a file to see its changes, against mulder at the commit the variant names after the patches listed before this one.',
+                })
+              : translate({
+                  id: 'patchPage.files.noteUpstream',
+                  message: 'Open a file to see its changes: the pull request as merged, tests included.',
+                })
+          }>
           {splitDiff(data.diff).map((file, i) => (
             <DiffFileBlock
               key={file.path}

@@ -235,15 +235,23 @@ function Conditions({data}: {data: ExperimentData}) {
                 <code title={v.baseImage}>{v.baseImage.split('@')[0].split('/').pop()}</code>
               </td>
               <td>
-                {v.patches
-                  ? v.patches
-                      .split(/\s+/)
-                      .filter(Boolean)
-                      .map(p => (
-                        <Link key={p} to={`/patches/${p.replace(/\.patch$/, '')}`} className={styles.link}>
-                          <code>{p}</code>
+                {/* Patches applied here, and changes already upstream that its commit includes. */}
+                {v.patches || v.upstream.length
+                  ? [
+                      ...v.patches
+                        .split(/\s+/)
+                        .filter(Boolean)
+                        .map(p => (
+                          <Link key={p} to={`/patches/${p.replace(/\.patch$/, '')}`} className={styles.link}>
+                            <code>{p}</code>
+                          </Link>
+                        )),
+                      ...v.upstream.map(u => (
+                        <Link key={u.slug} to={`/patches/${u.slug}`} className={styles.link}>
+                          {u.pr ? `#${u.pr}` : u.slug}
                         </Link>
-                      ))
+                      )),
+                    ]
                   : '—'}
               </td>
               <td className={styles.small}>{v.note}</td>

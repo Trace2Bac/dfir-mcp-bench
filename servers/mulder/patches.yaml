@@ -1,10 +1,18 @@
-# One entry per patch in patches/: what it changes and why. Kept outside
-# patches/ so that editing it does not change the image build. Shown on the
-# site's patch pages next to the diff. Patches apply in the order a variant
-# lists them (PATCHES in servers/mulder/variants/*.env), each on top of the
-# ones before it. None of them is upstream yet. The patches hold no tests:
-# they change nothing in a run, and the regression tests go with the
-# upstream pull requests instead.
+# Changes to mulder that the experiments test, one entry each: what it
+# changes and why. Shown on the site's patch pages next to the diff.
+#
+# Two kinds of entry:
+# - <name>.patch: a patch in patches/, applied by the variants that list it
+#   (PATCHES in variants/*.env), in that order, each on top of the ones
+#   before it. Patches hold no tests: the regression tests go with the
+#   upstream pull request.
+# - any other key: a change already in upstream mulder. `diff` names the
+#   stored diff (upstream/), and `variants` the variants built on it.
+#
+# Either kind may carry `upstream`: the repository, the pull request and
+# issue, and `status` (proposed while the pull request is open, merged once
+# it is in, with the merge commit). When a patch here is merged upstream,
+# add this block; the variants can then move to the merge commit.
 
 clamav-limit.patch:
   title: "run_clamav says what a disk image scan does not show"
@@ -55,3 +63,62 @@ extract-keep.patch:
     - "extract_file_by_inode: a binary file is saved under the case's extracted folder and its path returned"
   changes_ko:
     - "extract_file_by_inode: 바이너리 파일을 사건의 extracted 폴더에 저장하고 경로를 돌려줌"
+
+pr-274:
+  title: "run_pcap_analysis asks tshark for fields that exist"
+  title_ko: "run_pcap_analysis가 실제로 있는 tshark 필드를 요청"
+  summary: >
+    The dns and smtp modes of run_pcap_analysis asked tshark for
+    dns.resp.addr and smtp.response.parameter. Current Wireshark has neither,
+    so both modes failed, while mulder reported success and stored tshark's
+    error as the result. They now ask for dns.a and smtp.rsp.parameter. The
+    pull request adds tests/test_pcap_fields.py.
+  summary_ko: >
+    run_pcap_analysis의 dns와 smtp 모드가 tshark에 dns.resp.addr와 smtp.response.parameter를 요청했습니다.
+    지금의 Wireshark에는 두 필드가 없어서 두 모드가 모두 실패했는데, mulder는 성공으로 보고하고 tshark 오류를
+    결과로 저장했습니다. 이제 dns.a와 smtp.rsp.parameter를 요청합니다. PR에는 tests/test_pcap_fields.py가
+    함께 들어 있습니다.
+  changes:
+    - "run_pcap_analysis: the dns mode asks for dns.a, the smtp mode for smtp.rsp.parameter"
+  changes_ko:
+    - "run_pcap_analysis: dns 모드는 dns.a, smtp 모드는 smtp.rsp.parameter를 요청"
+  diff: upstream/pr-274.diff     # git diff 1040615 e74ae6d
+  variants: [mulder-e74ae6d]
+  upstream:
+    repo: calebevans/mulder
+    pr: 274
+    issue: 273
+    status: merged
+    merged: d20b77c8a6a6d6b872fa039e6fbf9a5a4056c711
+    merged_at: 2026-10-16
+
+pr-270:
+  title: "audit_tool_coverage counts a tool only for the evidence it ran on"
+  title_ko: "audit_tool_coverage가 도구를 실제로 실행한 증거에만 반영"
+  summary: >
+    audit_tool_coverage compared every evidence item with one list of tool
+    names from the whole case's audit log, so a tool run on one disk image
+    counted as run on every disk image. It now counts a tool for an item only
+    when the tool's evidence-input argument names that item or a folder that
+    holds it. AuditLog gains tool_call_entries() to read the stored
+    arguments. The pull request adds tests/test_audit_tool_coverage_targets.py.
+  summary_ko: >
+    audit_tool_coverage는 모든 증거를 사건 전체 감사 로그의 도구 이름 목록 하나와 비교해서, 디스크 이미지 하나에
+    실행한 도구를 모든 디스크 이미지에 실행한 것으로 셌습니다. 이제 도구의 증거 입력 인자가 그 증거나 그 증거가 든
+    폴더를 가리킬 때만 실행한 것으로 셉니다. 저장된 인자를 읽도록 AuditLog에 tool_call_entries()가 생겼습니다.
+    PR에는 tests/test_audit_tool_coverage_targets.py가 함께 들어 있습니다.
+  changes:
+    - "audit_tool_coverage: a tool counts for an evidence item only when its evidence-input argument names the item or its folder"
+    - "AuditLog: tool_call_entries() returns the stored tool calls with their arguments"
+  changes_ko:
+    - "audit_tool_coverage: 증거 입력 인자가 그 증거나 그 폴더를 가리킬 때만 그 증거에 실행한 것으로 셈"
+    - "AuditLog: 저장된 도구 호출과 인자를 돌려주는 tool_call_entries() 추가"
+  diff: upstream/pr-270.diff     # git diff b922c36 54d76c8
+  variants: [mulder-54d76c8]
+  upstream:
+    repo: calebevans/mulder
+    pr: 270
+    issue: 269
+    status: merged
+    merged: 54d76c8c9b85c68330a3c7b315c376638aec541e
+    merged_at: 2026-10-16

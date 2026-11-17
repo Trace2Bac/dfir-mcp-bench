@@ -5,10 +5,12 @@ import Layout from '@theme/Layout';
 import Translate, {translate} from '@docusaurus/Translate';
 import {usePluginData} from '@docusaurus/useGlobalData';
 import type {PatchSummary} from '../../plugins/bench-data';
+import {patchStatus} from '../components/PatchPage/status';
 import styles from './index.module.css';
 
-// Patches: one row per patch applied to mulder in the variants, with the
-// experiments that use it.
+// Patches: one row per change to mulder that an experiment tests, whether a
+// patch applied here or a change already merged upstream, with its status
+// and the experiments that use it.
 export default function Patches() {
   const {patches} = usePluginData('bench-data') as {patches: PatchSummary[]};
   const history = useHistory();
@@ -23,7 +25,7 @@ export default function Patches() {
         </h1>
         <p className={styles.muted}>
           <Translate id="patches.intro">
-            Changes to mulder that the experiments test. None of them is upstream yet.
+            Changes to mulder that the experiments test: patches applied here, and changes already merged upstream.
           </Translate>
         </p>
         <table className={styles.list}>
@@ -31,6 +33,9 @@ export default function Patches() {
             <tr>
               <th>
                 <Translate id="patches.col.patch">Patch</Translate>
+              </th>
+              <th className={styles.colCase}>
+                <Translate id="patches.col.status">Status</Translate>
               </th>
               <th className={styles.colCase}>
                 <Translate id="patches.col.size">Size</Translate>
@@ -47,6 +52,10 @@ export default function Patches() {
                   <Link to={`/patches/${p.slug}`} className={styles.title}>
                     {p.title}
                   </Link>
+                </td>
+                <td className={styles.colCase}>
+                  {patchStatus(p)}
+                  {p.upstream?.pr && <div className={styles.muted}>#{p.upstream.pr}</div>}
                 </td>
                 <td className={styles.colCase}>
                   <Translate id="patches.files" values={{n: p.files.length}}>

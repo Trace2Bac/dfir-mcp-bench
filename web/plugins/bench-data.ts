@@ -19,7 +19,15 @@ export type Question = {
   reviewOnly?: boolean; // left to a reviewer: no expected facts
   source?: string; // the dataset question it is taken from, e.g. "NIST Q31"
 };
-export type Variant = {label: string; name: string; note: string; baseImage: string; ref: string; patches: string};
+export type Variant = {
+  label: string;
+  name: string;
+  note: string;
+  baseImage: string;
+  ref: string;
+  patches: string;
+  upstream: {slug: string; pr?: number}[]; // changes already upstream that its commit includes (patches.yaml)
+};
 export type Event = {t: number; kind: string; [key: string]: unknown};
 export type Review = {
   reviewer?: string;
@@ -104,9 +112,19 @@ export type CaseData = {
   questions: Question[];
   experiments: {code: string; id: string; title: string; status: string; models: string[]}[];
 };
+export type Upstream = {
+  repo: string; // e.g. calebevans/mulder
+  pr?: number;
+  issue?: number;
+  status: 'proposed' | 'merged';
+  merged?: string; // merge commit
+  mergedAt?: string;
+};
 export type PatchData = {
-  slug: string; // file name without .patch, the page path
-  name: string; // file name
+  slug: string; // the page path: the patch file name without .patch, or the entry's key
+  name: string; // file name, or the key of a change already upstream
+  kind: 'patch' | 'upstream'; // a patch in patches/, or a change already in upstream mulder
+  upstream?: Upstream; // the pull request, once there is one
   title: string;
   summary: string;
   changes: string[]; // one line per change
@@ -141,7 +159,25 @@ function readVariant(root: string, label: string, name: string, locale = 'en'): 
   const ko = comments.filter(l => /^#\s?ko:/.test(l)).map(l => l.replace(/^#\s?ko:\s?/, ''));
   const en = comments.filter(l => !/^#\s?ko:/.test(l)).map(l => l.replace(/^#\s?/, ''));
   const note = (locale === 'ko' && ko.length ? ko : en).join(' ');
-  return {label, name, note, baseImage: get('BASE_IMAGE'), ref: get('REF'), patches: get('PATCHES')};
+  return {
+    label,
+    name,
+    note,
+    baseImage: get('BASE_IMAGE'),
+    ref: get('REF'),
+    patches: get('PATCHES'),
+    upstream: upstreamChanges(root, name),
+  };
+}
+
+// The upstream changes (patches.yaml entries with a `diff`) that list this variant.
+function upstreamChanges(root: string, variant: string): {slug: string; pr?: number}[] {
+  const file = path.join(root, 'servers', 'mulder', 'patches.yaml');
+  if (!fs.existsSync(file)) return [];
+  const meta = YAML.parse(fs.readFileSync(file, 'utf8')) ?? {};
+  return Object.entries<any>(meta)
+    .filter(([name, m]) => !name.endsWith('.patch') && m?.diff && (m.variants ?? []).map(String).includes(variant))
+    .map(([name, m]) => ({slug: name, pr: m.upstream?.pr != null ? Number(m.upstream.pr) : undefined}));
 }
 
 // Same rule as the runner: a review counts only when every question has a verdict.
@@ -383,45 +419,71 @@ function diffFiles(diff: string): {path: string; added: number; removed: number}
   return files;
 }
 
+function readUpstream(m: any): Upstream | undefined {
+  const u = m?.upstream;
+  if (!u) return undefined;
+  return {
+    repo: String(u.repo ?? 'calebevans/mulder'),
+    pr: u.pr != null ? Number(u.pr) : undefined,
+    issue: u.issue != null ? Number(u.issue) : undefined,
+    status: u.status === 'merged' ? 'merged' : 'proposed',
+    merged: u.merged ? String(u.merged) : undefined,
+    mergedAt: u.merged_at ? String(u.merged_at) : undefined,
+  };
+}
+
+// Patches in patches/ and changes already in upstream mulder (entries of
+// patches.yaml with a stored `diff`), as one list.
 function readPatches(root: string, locale: string, experiments: ExperimentData[]): PatchData[] {
-  const dir = path.join(root, 'servers', 'mulder', 'patches');
-  if (!fs.existsSync(dir)) return [];
-  const metaFile = path.join(root, 'servers', 'mulder', 'patches.yaml');
+  const base = path.join(root, 'servers', 'mulder');
+  const dir = path.join(base, 'patches');
+  const metaFile = path.join(base, 'patches.yaml');
   const meta = fs.existsSync(metaFile) ? YAML.parse(fs.readFileSync(metaFile, 'utf8')) ?? {} : {};
-  const variantDir = path.join(root, 'servers', 'mulder', 'variants');
+  const variantDir = path.join(base, 'variants');
   const variants = fs
     .readdirSync(variantDir)
     .filter(f => f.endsWith('.env'))
     .map(f => readVariant(root, '', f.replace(/\.env$/, '')));
-  // In the order the variants apply them; patches no variant lists come last.
+  const build = (name: string, kind: PatchData['kind'], diff: string, uses: (v: Variant) => boolean): PatchData => {
+    const files = diffFiles(diff);
+    const m = meta[name] ?? {};
+    return {
+      slug: name.replace(/\.patch$/, ''),
+      name,
+      kind,
+      upstream: readUpstream(m),
+      title: localized(m, 'title', locale) || name,
+      summary: localized(m, 'summary', locale),
+      changes: localizedList(m, 'changes', locale),
+      knownIssues: localized(m, 'known_issues', locale),
+      diff,
+      files,
+      added: files.reduce((n, f) => n + f.added, 0),
+      removed: files.reduce((n, f) => n + f.removed, 0),
+      variants: variants.filter(uses).map(v => v.name),
+      experiments: experiments
+        .map(e => ({code: e.code, id: e.id, title: e.title, labels: e.variants.filter(uses).map(v => v.label)}))
+        .filter(e => e.labels.length > 0),
+    };
+  };
+  // Patches in the order the variants apply them; patches no variant lists come last.
   const position = (name: string) =>
     Math.min(...variants.map(v => v.patches.split(/\s+/).indexOf(name)).filter(i => i >= 0), Infinity);
-  return fs
-    .readdirSync(dir)
+  const patches = (fs.existsSync(dir) ? fs.readdirSync(dir) : [])
     .filter(f => f.endsWith('.patch'))
     .sort((a, b) => position(a) - position(b) || a.localeCompare(b))
-    .map(name => {
-      const diff = fs.readFileSync(path.join(dir, name), 'utf8');
-      const files = diffFiles(diff);
-      const uses = (v: Variant) => v.patches.split(/\s+/).includes(name);
-      const m = meta[name] ?? {};
-      return {
-        slug: name.replace(/\.patch$/, ''),
-        name,
-        title: localized(m, 'title', locale) || name,
-        summary: localized(m, 'summary', locale),
-        changes: localizedList(m, 'changes', locale),
-        knownIssues: localized(m, 'known_issues', locale),
-        diff,
-        files,
-        added: files.reduce((n, f) => n + f.added, 0),
-        removed: files.reduce((n, f) => n + f.removed, 0),
-        variants: variants.filter(uses).map(v => v.name),
-        experiments: experiments
-          .map(e => ({code: e.code, id: e.id, title: e.title, labels: e.variants.filter(uses).map(v => v.label)}))
-          .filter(e => e.labels.length > 0),
-      };
+    .map(name =>
+      build(name, 'patch', fs.readFileSync(path.join(dir, name), 'utf8'), v => v.patches.split(/\s+/).includes(name)),
+    );
+  // Changes already upstream, newest pull request first.
+  const upstream = Object.entries<any>(meta)
+    .filter(([name, m]) => !name.endsWith('.patch') && m?.diff)
+    .sort(([, a], [, b]) => Number(b.upstream?.pr ?? 0) - Number(a.upstream?.pr ?? 0))
+    .map(([name, m]) => {
+      const listed: string[] = (m.variants ?? []).map(String);
+      return build(name, 'upstream', fs.readFileSync(path.join(base, String(m.diff)), 'utf8'), v => listed.includes(v.name));
     });
+  return [...patches, ...upstream];
 }
 
 const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
@@ -461,6 +523,7 @@ export default function benchDataPlugin(
         path.join(root, 'servers', 'mulder', 'variants', '*.env'),
         path.join(root, 'servers', 'mulder', 'patches', '*.patch'),
         path.join(root, 'servers', 'mulder', 'patches.yaml'),
+        path.join(root, 'servers', 'mulder', 'upstream', '*.diff'),
       ];
     },
 
