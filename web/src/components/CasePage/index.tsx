@@ -70,8 +70,8 @@ function Evidence({data}: {data: CaseData}) {
         <>
           <Translate
             id="casePage.evidence.note"
-            values={{folder: <code>/evidence/{data.evidence}</code>, prepare: <code>./bench.sh prepare {ds.id}</code>}}>
-            {'Files the model sees in {folder}. The data is not redistributed; {prepare} downloads it and checks its hashes.'}
+            values={{folder: <code>/evidence/{data.evidence}</code>, prepare: <code>{ds.prepare ?? `datasets/${ds.id}/`}</code>}}>
+            {'Files the model sees in {folder}. The data is not redistributed; {prepare} fetches or builds it.'}
           </Translate>
           {ds.notes && (
             <>

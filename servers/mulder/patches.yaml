@@ -11,25 +11,23 @@ clamav-limit.patch:
   title_ko: "run_clamav가 디스크 이미지 검사의 한계를 알림"
   summary: >
     One interpretation limit on upstream's run_clamav. clamscan does not open
-    a disk image: it reads an EnCase or raw image as one file and reports no
-    detection, which mulder returns as a success. When the target is a disk
-    image, or a folder holding one (every segment, .E01, .E02, ...), the
-    result carries a message, next to the detection count, that clamscan
-    read the image as one file, that the files inside were not scanned, and
-    that this does not show they are clean. The same sentence is added as a
-    NOTE line to the indexed output, so an agent that reads the output again
-    with get_raw_output or search before it answers still sees it. In
-    EXP-002, agents that saw the message only in the first response did read
-    it, then re-read the output ("E01: OK") before the final answer and often
-    answered "no virus". The scan itself does not change.
+    a disk image. It reads an EnCase or raw image as one file and reports no
+    detection, and mulder returns that as a success. When the target is a disk
+    image, or a folder that holds one (every segment, .E01, .E02 and so on),
+    the result now says next to the detection count that clamscan read the
+    image as one file, that the files inside were not scanned, and that this
+    does not show they are clean. The same sentence is added to the indexed
+    output as a NOTE line, so an agent that reads the output again with
+    get_raw_output or search before it answers still sees it. In EXP-002,
+    agents that had the sentence only in the first response read it, then read
+    the output ("E01: OK") again before the final answer and often answered
+    "no virus". The scan itself does not change.
   summary_ko: >
-    upstream run_clamav에 해석 한계 하나를 붙입니다. clamscan은 디스크 이미지를 열지 못합니다. EnCase나 raw
-    이미지를 파일 하나로 읽고 탐지 0건을 보고하며, mulder는 이를 성공으로 돌려줍니다. 검사 대상이 디스크
-    이미지이거나 이미지가 든 폴더이면(조각 .E01, .E02 ... 모두), 결과에 탐지 수와 나란히 메시지가 붙습니다.
-    clamscan이 이미지를 파일 하나로 읽었고 그 안의 파일은 검사하지 않았으며, 그래서 깨끗하다는 뜻은 아니라는
-    내용입니다. 같은 문장을 색인되는 출력에도 NOTE 줄로 넣어서, 답하기 전에 get_raw_output이나 search로 출력을
-    다시 읽어도 보이게 합니다. EXP-002에서 처음 응답에만 메시지를 받은 에이전트는 메시지를 읽고도, 최종 답 전에
-    출력("E01: OK")을 다시 읽은 뒤 "바이러스 없음"이라고 답하는 경우가 많았습니다. 검사 자체는 바뀌지 않습니다.
+    upstream run_clamav에 해석 한계 하나를 붙입니다. clamscan은 디스크 이미지를 열지 못합니다. EnCase나 raw 이미지를 파일 하나로 읽고 탐지 0건을 보고하며,
+    mulder는 이를 성공으로 돌려줍니다. 검사 대상이 디스크 이미지이거나 이미지가 든 폴더이면(.E01, .E02 같은 조각 모두), 결과의 탐지 수 옆에 문장이 하나 붙습니다.
+    clamscan이 이미지를 파일 하나로 읽었고, 안의 파일은 검사하지 않았으며, 그러니 깨끗하다는 뜻이 아니라는 내용입니다. 같은 문장을 색인되는 출력에도 NOTE 줄로 넣어서, 답하기
+    전에 get_raw_output이나 search로 출력을 다시 읽어도 보이게 합니다. EXP-002에서는 이 문장을 첫 응답에서만 받은 에이전트가 문장을 읽고도, 최종 답 전에
+    출력("E01: OK")을 다시 읽고 나서 "바이러스 없음"이라고 답하는 경우가 많았습니다. 검사 자체는 바뀌지 않습니다.
   changes:
     - "run_clamav: on a disk image, the result says the files inside were not scanned and that this does not show they are clean"
     - "run_clamav: the same sentence goes into the indexed output as a NOTE line, so re-reading the output shows it"
@@ -42,17 +40,16 @@ extract-keep.patch:
   title_ko: "extract_file_by_inode가 꺼낸 바이너리 파일을 다른 도구가 쓸 수 있게 남김"
   summary: >
     Upstream's extract_file_by_inode returns only the SHA-256 and size of a
-    binary file and keeps nothing, so no other tool can read it: an agent that
-    knows the files inside a disk image were not scanned cannot scan one
-    after extracting it. The binary file is now saved under the case's
-    extracted folder (extracted/inodes/inode_<n>), as extract_optical_file
-    already does for optical discs, and its path is returned. Text files are
-    indexed as before.
+    binary file and keeps nothing, so no other tool can read the file. An
+    agent that knows the files inside a disk image were not scanned still
+    cannot scan one after taking it out. The binary file is now saved under
+    the case's extracted folder (extracted/inodes/inode_<n>) and its path is
+    returned, as extract_optical_file already does for optical discs. Text
+    files are indexed as before.
   summary_ko: >
-    upstream extract_file_by_inode는 바이너리 파일의 SHA-256과 크기만 돌려주고 아무것도 남기지 않아서, 다른
-    도구가 그 파일을 읽을 수 없습니다. 디스크 이미지 안의 파일을 검사하지 않았다는 것을 아는 에이전트도 파일을
-    꺼낸 뒤 검사할 수 없습니다. 이제 바이너리 파일을 사건의 extracted 폴더(extracted/inodes/inode_<n>)에
-    저장하고 경로를 돌려줍니다. 광학 디스크에서 extract_optical_file이 이미 하는 방식과 같습니다. 텍스트 파일은
+    upstream extract_file_by_inode는 바이너리 파일의 SHA-256과 크기만 돌려주고 파일은 남기지 않아서, 다른 도구가 그 파일을 읽을 수 없습니다. 디스크 이미지
+    안의 파일이 검사되지 않았다는 것을 아는 에이전트도, 파일을 꺼낸 뒤 검사할 방법이 없습니다. 이제 바이너리 파일을 사건의 extracted
+    폴더(extracted/inodes/inode_<n>)에 저장하고 경로를 돌려줍니다. 광학 디스크에서 extract_optical_file이 이미 하는 방식과 같습니다. 텍스트 파일은
     전처럼 색인합니다.
   changes:
     - "extract_file_by_inode: a binary file is saved under the case's extracted folder and its path returned"

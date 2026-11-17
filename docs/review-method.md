@@ -10,13 +10,13 @@ verdict.
 | Verdict        | When                                                              |
 | -------------- | ----------------------------------------------------------------- |
 | found          | The answer gives the answer key's fact.                           |
-| partial        | Part of it: only some of the facts the question asks for are right. |
+| partial        | Only some of the facts the question asks for are right.           |
 | missed         | No answer, "not determined", a guess, or a wrong value.            |
 | false positive | A claim stated as fact that the evidence contradicts.              |
 
-A wrong claim stated as fact outside the answers, in the report's findings,
-is also counted as a false positive and listed under `extra_false_positives`
-in `review.yaml`.
+A wrong claim that the report states as fact outside the answers, in its
+findings, also counts as a false positive. It is listed under
+`extra_false_positives` in `review.yaml`.
 
 Each run gets three rates, each over the number of questions:
 

@@ -6,7 +6,7 @@ the images the run actually passed to the tool come from its tool calls
 line. A run that claims an image it never scanned is a false claim. This
 needs no reviewer, so it can be checked against review.yaml.
 
-    python -m bench scan-claims experiments/EXP-006 --tool yara_scan_files \\
+    python -m bench scan-claims experiments/EXP-004 --tool yara_scan_files \\
         --images dfr-01-fat.dd dfr-02-ntfs.dd ...
 """
 

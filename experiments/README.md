@@ -20,16 +20,16 @@ next to it holds the reviewer's verdicts.
 
 | Field | Meaning |
 |---|---|
-| (folder) | `EXP-<nnn>`, the permanent identifier: cite it, never rename or reuse it. Take the next number; a removed experiment leaves a gap |
+| (folder) | `EXP-<nnn>`, the identifier to cite. New experiments take the next number. When the list is cleaned up, experiments may be removed and the rest renumbered, so cite a commit or tag (see below), not a branch |
 | `title`, `server` | a title, which may change, and the MCP server it is about |
 | `status` | `planned`, `in-progress` or `done` |
 | `change` | what differs between the labels, or what the baseline is for |
 | `links` | issues, pull requests, dataset pages |
 | `case` | the test in `cases/`; the case names its dataset |
-| `harness` | what ran it: `bench-runner` (`runner/` with a local model or scripted calls, `./bench.sh run`), `mulder-investigate` (mulder's orchestrator) or `claude-code` (Claude Code with `mulder serve`), both with `./bench.sh investigate` |
+| `harness` | what ran it: `bench-runner` (`runner/` with a local model or scripted calls), `mulder-investigate` (mulder's orchestrator) or `claude-code` (Claude Code with `mulder serve`) |
 | `harness_options` | for `mulder-investigate`: `models` per role, `effort`, how it authenticated, and `answer_section` (ask the report for a "Case Questions" section with `Case Q<n>:` lines, which `review` shows per question); for `claude-code`: `model`, `effort`, `answer_section`, `instruction`, one line added to the end of the prompt for every label, and `tools`, the only mulder tools the agent may use (the others are removed from its tool list) |
 | `variants` | label to server variant (`servers/mulder/variants/<name>.env`) |
-| `scripted_expect` | scripted scores per label; `./bench.sh check` fails when they change |
+| `scripted_expect` | scripted scores per label; the check fails when a scripted run reaches a different score |
 | `criteria` | how the answers are judged, written before the runs, so that the rules cannot be fitted to the results |
 | `label_groups` | optional: groups of labels for the site's tables, each with a `name` and `labels` (label: short name), plus `name_ko` and `labels_ko` |
 | `conclusion` | what the results show, and their limits |
@@ -39,12 +39,13 @@ next to it holds the reviewer's verdicts.
 
 | File | Contents |
 |---|---|
-| `run.json` | case, label, variant, run number, end reason (`final_answer`, `max_turns`, `max_tokens`, `model_error`), server commit (`server_ref`), image ID (`image_id`), model URL, name and settings, harness settings, turns, seconds, tool calls and errors, tools called; for scripted runs also the questions and facts reached |
+| `run.json` | case, label, variant, run number, end reason (`success` for Claude Code; `final_answer`, `max_turns`, `max_tokens`, `model_error` for bench-runner), server commit (`server_ref`), image ID (`image_id`), model URL, name and settings, harness settings, turns, seconds, tool calls and errors, tools called; for scripted runs also the questions and facts reached |
 | `transcript.jsonl` | every prompt, model reply, tool call and tool result, with timings |
 | `answer.md` | the model's final answer (or the scripted tool output) |
 | `score.json` | scripted runs only: per question, whether the tool output holds every expected fact |
-| `review.yaml` | model runs: the reviewer's verdict per question (found, partial, missed, false positive) and contradicted claims outside the questions (`./bench.sh review`) |
-| `server-db/` | mulder's audit log (every tool call with an output hash), its log and console output; the case database is not published |
+| `review.yaml` | model runs: the reviewer's verdict per question (found, partial, missed, false positive) and contradicted claims outside the questions |
+| `server-db/` | bench-runner runs: mulder's audit log (every tool call with an output hash), its log and console output; the case database is not published |
+| `claude/`, `mulder/` | Claude Code runs: the prompt, the MCP configuration and the raw event stream (`stream.jsonl`), and mulder's audit log and log. The signed-in account's email and names are replaced with [examiner] |
 
 Results are committed so that a claim can cite them. Link to a file at a
 commit or tag, for example

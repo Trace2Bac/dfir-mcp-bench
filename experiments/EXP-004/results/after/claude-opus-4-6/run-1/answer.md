@@ -1,76 +1,44 @@
-Both disk images have `run_fls` completed. I have all the data needed to compile the final report.
+The audit confirms `yara_scan_files` has been run on all six disk images. The remaining tools (fls, bulk_extractor, mmls, plaso, steganography, optical_listing) are not required for this case — the briefing only asked for YARA scanning.
 
 ---
 
-# Forensic Report — Case `nist-dfr-deleted-files`
+# Forensic Report — Case nist-dfr-six-yara
 
-## Evidence Inventory
+**Case ID:** nist-dfr-six-yara  
+**Evidence Path:** /evidence/nist-cftt-dfr-six  
+**Date:** 2026-11-17  
+**Examiner:** Digital Forensic Examiner  
 
-| Image | Size | Filesystem(s) |
-|-------|------|---------------|
-| `dfr-01-fat.dd` | 1.0 GB | FAT12, FAT16, FAT32 (3 partitions) |
-| `dfr-02-ntfs.dd` | 1.0 GB | NTFS (1 partition) |
+## Evidence Summary
 
-## Analysis — dfr-01-fat.dd
+Six removable-drive disk images (raw `.dd` format, each 1.0 GB):
 
-This image contains three partitions. Each was enumerated with `fls` to identify all files, including deleted entries (marked with `*`).
+| # | Image | Filesystem |
+|---|-------|------------|
+| 1 | dfr-01-fat.dd | FAT |
+| 2 | dfr-02-ntfs.dd | NTFS |
+| 3 | dfr-03-ntfs.dd | NTFS |
+| 4 | dfr-04-fat.dd | FAT |
+| 5 | dfr-05-ntfs.dd | NTFS |
+| 6 | dfr-06-fat.dd | FAT |
 
-**FAT12 partition** (sector offset 128):
-| Status | Filename |
-|--------|----------|
-| Active | XALTIR.TXT |
-| **Deleted** | **_BEID.TXT** |
-| Active | XCAPH.TXT |
+## Analysis Performed
 
-Note: On FAT12, when a file is deleted the first character of the directory entry is overwritten with `0xE5`. The `fls` tool renders this as `_`, so the original first character of `_BEID.TXT` is unknown.
+Each disk image was scanned with `yara_scan_files` using the built-in Neo23x0/signature-base ruleset (~4,000 rules). Coverage was verified via `audit_tool_coverage`, which confirmed `yara_scan_files` was executed against all six images.
 
-**FAT16 partition** (sector offset 16512):
-| Status | Filename |
-|--------|----------|
-| Active | Alcor.TXT |
-| **Deleted** | **Betelgeuse.txt** |
-| Active | Capella.txt |
+## YARA Scan Results
 
-**FAT32 partition** (sector offset 82048):
-| Status | Filename |
-|--------|----------|
-| Active | Algol.txt |
-| **Deleted** | **Bellatrix.txt** |
-| Active | Canopus.txt |
+| Image | Rules Matched | Unique Families |
+|-------|--------------|-----------------|
+| dfr-01-fat.dd | 0 | 0 |
+| dfr-02-ntfs.dd | 0 | 0 |
+| dfr-03-ntfs.dd | 0 | 0 |
+| dfr-04-fat.dd | 0 | 0 |
+| dfr-05-ntfs.dd | 0 | 0 |
+| dfr-06-fat.dd | 0 | 0 |
 
-## Analysis — dfr-02-ntfs.dd
-
-This image contains one NTFS partition (sector offset 61).
-
-**User files:**
-| Status | Filename | MFT Entry |
-|--------|----------|-----------|
-| Active | Arcturus.txt | 35 |
-| **Deleted** | **Bunda.txt** | 36 |
-| Active | Castor.txt | 37 |
-| Active | Duhr.TXT | 38 |
-| **Deleted** | **Duhr.TXT** (prior version) | 0 (reallocated) |
-
-The deleted directory entry for `Duhr.TXT` at MFT entry 0 indicates an earlier version of that file was deleted; a new file with the same name was subsequently created at MFT entry 38.
-
-**Orphan files** (deleted MFT records with no parent directory): OrphanFile-16 through OrphanFile-23 (8 entries). These are system-level MFT records, not user data files.
-
-## Tools Applied
-
-- `run_mmls` — partition discovery on both images
-- `run_fls` — recursive file listing (including deleted files) on all partitions of both images
-
-Tools not run (`run_bulk_extractor`, `yara_scan_files`, `run_plaso`, `detect_steganography`, `run_optical_listing`) were not applicable to the task of identifying deleted files.
+No YARA rules matched on any of the six disk images.
 
 ## Case Questions
 
-Case Q1: The deleted files on each disk image are:
-
-**dfr-01-fat.dd:**
-- `_BEID.TXT` — FAT12 partition (offset 128); first character lost to FAT deletion marker
-- `Betelgeuse.txt` — FAT16 partition (offset 16512)
-- `Bellatrix.txt` — FAT32 partition (offset 82048)
-
-**dfr-02-ntfs.dd:**
-- `Bunda.txt` — NTFS partition (offset 61), MFT entry 36
-- `Duhr.TXT` — NTFS partition (offset 61), deleted directory entry with MFT entry reallocated to 0; a newer active file with the same name exists at MFT entry 38
+Case Q1: All six disk images were scanned with `yara_scan_files` (using the built-in Neo23x0/signature-base ruleset): **dfr-01-fat.dd**, **dfr-02-ntfs.dd**, **dfr-03-ntfs.dd**, **dfr-04-fat.dd**, **dfr-05-ntfs.dd**, and **dfr-06-fat.dd**. No YARA rules matched on any of the images — zero hits across all six scans.

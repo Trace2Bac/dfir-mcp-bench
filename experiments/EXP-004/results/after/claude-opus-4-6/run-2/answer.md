@@ -1,77 +1,46 @@
-Both images have `run_fls` completed. The remaining tools (`run_bulk_extractor`, `yara_scan_files`, `run_plaso`, `detect_steganography`, `run_optical_listing`) are not applicable to this task — the goal is strictly to inventory deleted files, and `fls` is the definitive tool for that. Optical listing is for CD/DVD media, not dd images of removable drives.
+The audit confirms `yara_scan_files` has been run on all six disk images. The remaining gaps (fls, bulk_extractor, mmls, plaso, steganography, optical listing) are outside the scope of this YARA-only task.
 
 ---
 
-# Forensic Report — Deleted File Inventory
+# Forensic Report — Case nist-dfr-six-yara
 
-**Case ID:** nist-dfr-deleted-files  
-**Evidence:** `/evidence/nist-cftt-dfr`  
-**Date:** 2026-11-17
+**Case ID:** nist-dfr-six-yara  
+**Evidence Location:** /evidence/nist-cftt-dfr-six  
+**Date:** 2026-11-17  
+**Examiner:** Digital Forensic Examiner  
 
-## Evidence Overview
+## Evidence Summary
 
-| Image | Size | Filesystem(s) |
-|-------|------|----------------|
-| dfr-01-fat.dd | 1.0 GB | FAT12, FAT16, FAT32 (3 partitions) |
-| dfr-02-ntfs.dd | 1.0 GB | NTFS (1 partition) |
+Six removable-drive disk images were provided for YARA scanning:
 
-## Analysis — dfr-01-fat.dd
+| # | Image File | Type | Size |
+|---|-----------|------|------|
+| 1 | dfr-01-fat.dd | FAT disk image | 1.0 GB |
+| 2 | dfr-02-ntfs.dd | NTFS disk image | 1.0 GB |
+| 3 | dfr-03-ntfs.dd | NTFS disk image | 1.0 GB |
+| 4 | dfr-04-fat.dd | FAT disk image | 1.0 GB |
+| 5 | dfr-05-ntfs.dd | NTFS disk image | 1.0 GB |
+| 6 | dfr-06-fat.dd | FAT disk image | 1.0 GB |
 
-This image contains three partitions. Each was enumerated with `run_fls`. Deleted files are marked with `*` in SleuthKit output.
+## YARA Scan Results
 
-### FAT12 Partition (offset 128)
-| File | Status |
-|------|--------|
-| XALTIR.TXT | Active |
-| **\_BEID.TXT** | **Deleted** |
-| XCAPH.TXT | Active |
+Each image was scanned using `yara_scan_files` with the built-in Neo23x0/signature-base ruleset (~4,000 rules). Results:
 
-> Note: In FAT, deletion overwrites the first character of the filename with 0xE5 (shown as `_`). The original first character of `_BEID.TXT` is unrecoverable from the directory entry alone.
+| Image | YARA Hits | Unique Families |
+|-------|-----------|-----------------|
+| dfr-01-fat.dd | 0 | 0 |
+| dfr-02-ntfs.dd | 0 | 0 |
+| dfr-03-ntfs.dd | 0 | 0 |
+| dfr-04-fat.dd | 0 | 0 |
+| dfr-05-ntfs.dd | 0 | 0 |
+| dfr-06-fat.dd | 0 | 0 |
 
-### FAT16 Partition (offset 16512)
-| File | Status |
-|------|--------|
-| Alcor.TXT | Active |
-| **Betelgeuse.txt** | **Deleted** |
-| Capella.txt | Active |
+**No YARA rules matched on any of the six disk images.**
 
-### FAT32 Partition (offset 82048)
-| File | Status |
-|------|--------|
-| Algol.txt | Active |
-| **Bellatrix.txt** | **Deleted** |
-| Canopus.txt | Active |
+## Tool Coverage
 
-## Analysis — dfr-02-ntfs.dd
-
-Single NTFS partition at offset 61.
-
-| File | Status |
-|------|--------|
-| Arcturus.txt | Active |
-| **Bunda.txt** | **Deleted** (MFT entry 36-128-3) |
-| Castor.txt | Active |
-| Duhr.TXT | Active (MFT entry 38-128-3) |
-| **Duhr.TXT** | **Deleted** (stale directory entry, inode 0 — original metadata overwritten) |
-
-> Note: There are two directory entries for `Duhr.TXT` — one active and one deleted. This indicates the file was deleted and subsequently re-created. Additionally, orphan MFT entries 16–23 were found; these are reserved NTFS system metadata slots, not user files.
-
-## Tools Applied
-
-- **run_mmls** — Partition discovery on both images
-- **run_fls** — Recursive file listing (including deleted files) on all partitions of both images
-
-Tools not run (`run_bulk_extractor`, `yara_scan_files`, `run_plaso`, `detect_steganography`, `run_optical_listing`) are outside scope: the task requires only a deleted-file inventory, and these images are not optical media.
+The `audit_tool_coverage` check confirmed that `yara_scan_files` was executed against all six evidence items. Other applicable disk-forensics tools (fls, bulk_extractor, mmls, plaso, steganography detection, optical listing) were not run as they fall outside the scope of this YARA-scanning task.
 
 ## Case Questions
 
-Case Q1: Deleted files by image:
-
-**dfr-01-fat.dd:**
-- `_BEID.TXT` (FAT12 partition, offset 128 — first character of filename lost to FAT deletion marker)
-- `Betelgeuse.txt` (FAT16 partition, offset 16512)
-- `Bellatrix.txt` (FAT32 partition, offset 82048)
-
-**dfr-02-ntfs.dd:**
-- `Bunda.txt` (NTFS partition, offset 61, MFT entry 36-128-3)
-- `Duhr.TXT` (NTFS partition, offset 61, stale deleted directory entry — an active copy of `Duhr.TXT` also exists, indicating the file was deleted and re-created)
+Case Q1: All six disk images were scanned with `yara_scan_files` using the built-in Neo23x0/signature-base ruleset: **dfr-01-fat.dd**, **dfr-02-ntfs.dd**, **dfr-03-ntfs.dd**, **dfr-04-fat.dd**, **dfr-05-ntfs.dd**, and **dfr-06-fat.dd**. No YARA rules matched on any of the six images — zero hits across all scans.

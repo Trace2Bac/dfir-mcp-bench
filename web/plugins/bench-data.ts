@@ -94,6 +94,7 @@ export type CaseData = {
     source?: string;
     contributor?: string;
     answers?: string;
+    prepare?: string; // the script that fetches or builds the evidence
     notes: string;
     files: {name: string; note: string}[];
     // The dataset's own questions, when it publishes some; `used` names the
@@ -353,6 +354,8 @@ function readCase(root: string, id: string, locale: string, experiments: Experim
       source: ds.source,
       contributor: ds.contributor,
       answers: ds.answers,
+      // The script under datasets/ named in `prepare` (which may be a whole command).
+      prepare: String(ds.prepare ?? '').match(/datasets\/\S+/)?.[0],
       notes: localized(ds, 'notes', locale).trim(),
       files: (ds.files ?? []).map((f: any) => ({name: String(f.name), note: localized(f, 'note', locale)})),
       questions: (ds.questions ?? []).map((q: any) => ({

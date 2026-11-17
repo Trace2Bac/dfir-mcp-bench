@@ -1,67 +1,44 @@
-Both disk images have `run_fls` and `run_mmls` completed. The remaining tools (`run_bulk_extractor`, `yara_scan_files`, `run_plaso`, `detect_steganography`, `run_optical_listing`) are not needed for identifying deleted files — they serve different purposes (IOC carving, YARA scanning, timeline generation, steganography detection, and optical media listing).
-
-Here is my final report.
+Confirmed: zero YARA matches across all images. All 6 disk images have been scanned and the audit confirms full coverage. Here is the final report.
 
 ---
 
-# Forensic Report — Deleted File Recovery
+# Forensic Report — Case nist-dfr-six-yara
 
-**Case ID:** nist-dfr-deleted-files  
-**Evidence:** /evidence/nist-cftt-dfr  
-**Date:** 2026-11-17
+**Case ID:** nist-dfr-six-yara  
+**Evidence Path:** /evidence/nist-cftt-dfr-six  
+**Date:** 2026-11-17  
+**Examiner:** Digital Forensic Examiner
 
-## Evidence Overview
+## Evidence Summary
 
-| Image | Size | Filesystem(s) |
+Six removable-drive disk images (raw .dd format), each 1.0 GB:
+
+| Image | Filesystem |
+|---|---|
+| dfr-01-fat.dd | FAT |
+| dfr-02-ntfs.dd | NTFS |
+| dfr-03-ntfs.dd | NTFS |
+| dfr-04-fat.dd | FAT |
+| dfr-05-ntfs.dd | NTFS |
+| dfr-06-fat.dd | FAT |
+
+## YARA Scan Results
+
+All six disk images were scanned using `yara_scan_files` with the built-in Neo23x0/signature-base ruleset (~4,000 rules). Results per image:
+
+| Image | YARA Rules Matched | Hits |
 |---|---|---|
-| dfr-01-fat.dd | 1.0 GB | FAT12, FAT16, FAT32 (three partitions) |
-| dfr-02-ntfs.dd | 1.0 GB | NTFS (one partition) |
+| dfr-01-fat.dd | 0 | 0 |
+| dfr-02-ntfs.dd | 0 | 0 |
+| dfr-03-ntfs.dd | 0 | 0 |
+| dfr-04-fat.dd | 0 | 0 |
+| dfr-05-ntfs.dd | 0 | 0 |
+| dfr-06-fat.dd | 0 | 0 |
 
-## Findings by Image
+**Total YARA hits across all images: 0**
 
-### Image 1: dfr-01-fat.dd
-
-This image contains three partitions. Each partition has one deleted file (marked with `*` in fls output):
-
-| Partition | Offset (sectors) | Filesystem | Deleted File |
-|---|---|---|---|
-| 1 | 128 | FAT12 | `_BEID.TXT` (inode 5) |
-| 2 | 16512 | FAT16 | `Betelgeuse.txt` (inode 8) |
-| 3 | 82048 | FAT32 | `Bellatrix.txt` (inode 7) |
-
-**Note:** On FAT12, the first character of a deleted filename is replaced with a marker byte (displayed as `_`), so `_BEID.TXT` likely had an original name of a single unknown character followed by `BEID.TXT`.
-
-Each partition also contained two non-deleted user files:
-- FAT12: `XALTIR.TXT`, `XCAPH.TXT`
-- FAT16: `Alcor.TXT`, `Capella.txt`
-- FAT32: `Algol.txt`, `Canopus.txt`
-
-### Image 2: dfr-02-ntfs.dd
-
-This image contains one NTFS partition (offset 61 sectors). Two deleted user files were found:
-
-| Deleted File | Inode | Notes |
-|---|---|---|
-| `Bunda.txt` | 36-128-3 | Name unallocated, metadata still allocated (`-/r *`) |
-| `Duhr.TXT` | 0 | Deleted directory entry (`r/- *`); a current copy of `Duhr.TXT` also exists at inode 38-128-3 |
-
-Non-deleted user files: `Arcturus.txt`, `Castor.txt`, `Duhr.TXT` (current version).
-
-Orphan MFT entries 16–23 were also flagged by fls but these are reserved NTFS metadata slots, not user-created deleted files.
-
-## Tools Not Run (Justification)
-
-- **run_bulk_extractor, yara_scan_files, run_plaso, detect_steganography, run_optical_listing** — Not applicable to the task of identifying deleted files. These tools serve IOC carving, malware scanning, timeline creation, steganography detection, and optical media enumeration respectively.
+Tool coverage audit confirmed `yara_scan_files` was executed against every disk image in the evidence set.
 
 ## Case Questions
 
-Case Q1: **Deleted files by image:**
-
-**dfr-01-fat.dd** (3 deleted files across 3 partitions):
-1. `_BEID.TXT` — FAT12 partition (offset 128), inode 5
-2. `Betelgeuse.txt` — FAT16 partition (offset 16512), inode 8
-3. `Bellatrix.txt` — FAT32 partition (offset 82048), inode 7
-
-**dfr-02-ntfs.dd** (2 deleted files on 1 NTFS partition):
-1. `Bunda.txt` — NTFS partition (offset 61), inode 36-128-3
-2. `Duhr.TXT` — NTFS partition (offset 61), deleted directory entry (a live copy also exists at inode 38-128-3)
+Case Q1: All six disk images were scanned with `yara_scan_files` using the built-in Neo23x0/signature-base YARA ruleset: **dfr-01-fat.dd**, **dfr-02-ntfs.dd**, **dfr-03-ntfs.dd**, **dfr-04-fat.dd**, **dfr-05-ntfs.dd**, and **dfr-06-fat.dd**. No YARA rules matched on any of the six images — zero hits total.

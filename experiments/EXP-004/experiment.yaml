@@ -1,81 +1,66 @@
-# EXP-004: one verification. The folder name is its permanent identifier;
+# EXP-004: one verification. The folder name is the identifier to cite;
 # the title may change.
-title: "Does an agent that follows audit_tool_coverage skip an image? (calebevans/mulder#270)"
-title_ko: "audit_tool_coverage를 따르는 에이전트가 이미지를 건너뛸까? (calebevans/mulder#270)"
+title: "Does a wrong progress report end an investigation early?"
+title_ko: "틀린 진척 보고가 조사를 일찍 끝내게 만들까?"
 server: mulder
 status: done                     # planned | in-progress | done
 change: >
-  EXP-003 showed that, before the fix, audit_tool_coverage credits a tool run
-  on one disk image to every disk image. This asks what that does to an
-  agent that uses the server's progress report, as mulder suggests
-  (finalize_report: "All applicable tools have been run (check with
-  audit_tool_coverage)"), to choose its next step and to decide when it is
-  done. Claude Code calls mulder serve over MCP and is asked for the deleted
-  files on every disk image; the prompt tells it to work one image at a time,
-  to pick the next image from audit_tool_coverage, and to answer when the
-  report shows run_fls run on every image. The two labels differ by the fix
-  only: before is main just before its merge, after is the merge.
+  EXP-003 showed that, before the fix, audit_tool_coverage counts a tool run
+  on one disk image as run on every disk image. This test looks at what
+  happens when an agent decides from that report when it is done. Claude Code
+  (Opus) calls mulder serve over MCP, scans six NIST disk images with YARA and
+  says which images it scanned. The prompt tells it to work on one image at a
+  time, to pick the next image from audit_tool_coverage, and to answer when
+  the report shows every image scanned. The built-in rules match nothing on
+  any of the six images, so in the answer an image that was never scanned
+  looks the same as a clean one. The two labels differ by the fix only.
 change_ko: >
-  EXP-003에서 수정 전 audit_tool_coverage가 디스크 이미지 하나에 실행한 도구를 모든 디스크 이미지에 실행한
-  것으로 센다는 것을 확인했습니다. 여기서는 mulder가 안내하는 대로(finalize_report: "All applicable tools
-  have been run (check with audit_tool_coverage)") 서버의 진척 보고서로 다음 작업과 종료 시점을 정하는
-  에이전트에게 이것이 어떤 영향을 주는지 봅니다. Claude Code가 MCP로 mulder serve를 부르고, 모든 디스크
-  이미지의 삭제 파일을 묻습니다. 프롬프트는 이미지를 하나씩 처리하고, 다음 이미지를 audit_tool_coverage로
-  고르고, 보고서가 모든 이미지에 run_fls를 실행했다고 표시하면 답하라고 합니다. 두 라벨의 차이는 수정 하나뿐입니다.
-  before는 머지 직전의 main, after는 머지 커밋입니다.
+  EXP-003에서 수정 전 audit_tool_coverage가 디스크 이미지 하나에 실행한 도구를 모든 디스크 이미지에 실행한 것으로 센다는 것을 확인했습니다. 여기서는 이 보고서를 보고 언제
+  끝낼지 정하는 에이전트에게 어떤 일이 생기는지 봅니다. Claude Code(Opus)가 MCP로 mulder serve를 부르고, NIST 디스크 이미지 여섯 개를 YARA로 검사한 뒤 어떤
+  이미지를 검사했는지 답합니다. 프롬프트는 이미지를 하나씩 처리하고, 다음 이미지를 audit_tool_coverage로 고르고, 보고서가 모든 이미지를 검사했다고 표시하면 답하라고 합니다. 내장
+  규칙은 여섯 이미지 모두에서 아무것도 찾지 않아서, 답만 보면 검사하지 않은 이미지와 깨끗한 이미지가 똑같아 보입니다. 두 라벨의 차이는 수정 하나뿐입니다.
 criteria: >
-  Fixed before the runs. Q1: found when the answer names the deleted files
-  of both images (Betelgeuse and Bellatrix on dfr-01-fat.dd, Duhr and Bunda
-  on dfr-02-ntfs.dd); partial when it names those of one image only; missed
-  when it names none; a false positive when it states that an image has no
-  deleted files, or that every image was examined, while one was never
-  listed. Also counted from each run's tool calls: whether run_fls ran on
-  both images before the answer.
+  Written before the runs, and judged from each run's tool calls together with
+  its answer. Q1 is found when the images the answer calls scanned are exactly
+  the images yara_scan_files ran on, and that is all six. It is a false
+  positive when the answer says an image was scanned, or that every image was,
+  while yara_scan_files never ran on it. It is missed when some images were
+  not scanned and the answer says so. A script (runner/bench/scan_claims.py)
+  compares the images each run scanned with the images its answer names, and
+  its counts agree with the reviews. The labels are compared on false
+  positives (Fisher's exact test).
 criteria_ko: >
-  실행 전에 정했습니다. Q1: 두 이미지의 삭제 파일(dfr-01-fat.dd의 Betelgeuse와 Bellatrix, dfr-02-ntfs.dd의
-  Duhr와 Bunda)을 모두 대면 found, 한 이미지 것만 대면 partial, 하나도 대지 못하면 missed입니다. 나열하지 않은
-  이미지가 있는데 그 이미지에 삭제 파일이 없다거나 모든 이미지를 확인했다고 말하면 오탐입니다. 실행 기록에서
-  답하기 전에 run_fls가 두 이미지 모두에 실행됐는지도 셉니다.
+  실행 전에 정했고, 실행 기록의 도구 호출과 답을 함께 봅니다. Q1에서 답이 검사했다고 한 이미지가 yara_scan_files를 실제로 실행한 이미지와 정확히 같고, 그것이 여섯 개 전부이면
+  일치입니다. yara_scan_files를 실행하지 않은 이미지를 검사했다고 하거나 모든 이미지를 검사했다고 하면 오탐입니다. 검사하지 않은 이미지가 있고 답에서도 그렇게 밝히면 놓침입니다.
+  실행마다 실제로 검사한 이미지와 답에 적힌 이미지를 스크립트(runner/bench/scan_claims.py)로 비교했고, 그 결과는 판정과 일치합니다. 두 라벨은 오탐률(Fisher 정확
+  검정)로 비교합니다.
 links:
   - https://github.com/calebevans/mulder/issues/269
   - https://github.com/calebevans/mulder/pull/270
-  - https://cfreds-archive.nist.gov/dfr-images/setup-july-10-2012.pdf
 
-case: nist-dfr-deleted-files
+case: nist-dfr-six-yara
 harness: claude-code
 harness_options:
   model: claude-opus-4-6
   answer_section: true
-  instruction: "Work on one disk image at a time. After each image, call audit_tool_coverage and use it to pick a disk image on which run_fls has not been run yet. When the report shows run_fls run on every disk image, give your answer."
-  tools: [scan_evidence, get_tool_guide, run_mmls, run_fls, get_raw_output, search, audit_tool_coverage]
+  instruction: "Work on one disk image at a time. After each image, call audit_tool_coverage and use it to pick a disk image on which yara_scan_files has not been run yet. When the report shows yara_scan_files run on every disk image, give your answer."
+  tools: [scan_evidence, get_tool_guide, yara_scan_files, audit_tool_coverage, get_raw_output, search]
 
 variants:
   before: mulder-b922c36 # parent of the merge
   after: mulder-54d76c8  # merge of #270
 
 conclusion: >
-  In this setting the wrong report did not make an agent skip an image: run_fls
-  ran on both images in all 12 runs, 3 per label and model (Opus and Haiku,
-  the latter with --model claude-haiku-4-5). scan_evidence lists both images,
-  and most runs worked through that list and called audit_tool_coverage only
-  at the end. Two runs before the fix called it after the first image and got
-  a report crediting run_fls to both images. Opus doubted it, checked the
-  NTFS listing and ran run_fls ("the audit shows run_fls was already run on
-  both images. Let me check"). Haiku took it as true ("run_fls ... already
-  executed on both disk images"), tried to read the NTFS listing, found none
-  and only then ran run_fls. What caught the error in both runs was that the
-  answer needed the listing itself. The defect misleads an agent that relies
-  on the report; it changes the outcome when the work it marks as done is
-  not needed again later, as with a check run for coverage alone. The
-  partial answers (a FAT file missed) are unrelated to the fix.
+  Before the fix, 6 of 50 runs scanned one to three images and answered that
+  all six had been scanned. After the fix, none of 50 did (Fisher's exact test
+  p = 0.027). In those six runs the report, asked for midway, said every image
+  had been scanned, and the agent took it at its word ("The audit confirms
+  yara_scan_files has been run on all six disk images"). Most runs that got
+  the same wrong report checked it against their own record and scanned the
+  rest (25 of 31). The false answers read the same as the true ones. Only the
+  tool calls in the run's record showed which images were missing.
 conclusion_ko: >
-  이 조건에서는 틀린 보고서 때문에 이미지를 건너뛴 실행이 없었습니다. 라벨과 모델마다 3회, 모두 12회(Opus,
-  그리고 --model claude-haiku-4-5로 Haiku)에서 run_fls가 두 이미지 모두에 실행됐습니다. scan_evidence가 이미지
-  두 개를 보여 주고, 대부분은 그 목록대로 처리한 뒤 마지막에만 audit_tool_coverage를 불렀습니다. 수정 전 두
-  실행은 첫 이미지 뒤에 보고서를 불렀고, 두 이미지 모두 run_fls를 실행했다는 틀린 답을 받았습니다. Opus는
-  의심하고 NTFS 목록을 확인한 뒤 run_fls를 실행했습니다("the audit shows run_fls was already run on both
-  images. Let me check"). Haiku는 그대로 믿었고("run_fls ... already executed on both disk images"), NTFS
-  목록을 읽으려다 없자 그제야 run_fls를 실행했습니다. 두 실행 모두 오류를 잡아낸 것은 답에 목록 자체가 필요했기
-  때문입니다. 이 결함은 보고서에 기대는 에이전트를 잘못 이끕니다. 결과까지 바뀌는 것은 완료로 표시된 작업이 뒤에서
-  다시 필요하지 않을 때, 예를 들어 범위 확인만을 위한 검사일 때입니다. 부분 정답(FAT 파일 하나 누락)은 이 수정과
-  무관합니다.
+  수정 전에는 50회 중 6회가 이미지를 1~3개만 검사하고도 여섯 개 모두 검사했다고 답했습니다. 수정 후에는 50회 중 한 번도 없었습니다(Fisher 정확 검정 p = 0.027). 이 6회는
+  중간에 부른 보고서가 모든 이미지를 검사했다고 하자, 그 말을 그대로 받아들였습니다("The audit confirms yara_scan_files has been run on all six
+  disk images"). 같은 틀린 보고를 받은 실행 대부분(31회 중 25회)은 자기 기록과 맞춰 보고 나머지를 검사했습니다. 거짓 답은 맞는 답과 똑같아 보였고, 빠진 이미지는 실행 기록의
+  도구 호출에서만 드러났습니다.
