@@ -15,6 +15,7 @@ from .investigate import answer_section, import_from_experiment, investigate_arg
 from .model import Model, ModelConfig
 from .review import review_case
 from .run import RunOptions, run_case
+from .scan_claims import check_experiment as scan_claims, report as scan_claims_report
 from .summary import summarize
 
 
@@ -91,6 +92,10 @@ def _parser() -> argparse.ArgumentParser:
     ctools = sub.add_parser("claude-tools", help="print the mulder tools an experiment allows, if it limits them")
     ctools.add_argument("experiment", type=Path, help="path to experiments/<id>/experiment.yaml")
     sub.add_parser("claude-progress", help="print a progress line per stream-json event on stdin")
+    sc = sub.add_parser("scan-claims", help="compare the images each run scanned with those its answer claims")
+    sc.add_argument("experiment", type=Path, help="path to experiments/<id>")
+    sc.add_argument("--tool", required=True, help="the scanning tool, e.g. yara_scan_files")
+    sc.add_argument("--images", nargs="+", required=True, help="the evidence images by file name")
     cimp = sub.add_parser("import-claude", help="import a claude-code run into an experiment")
     cimp.add_argument("experiment", type=Path, help="path to experiments/<id>/experiment.yaml")
     cimp.add_argument("label", help="label of the variant the run used")
@@ -174,6 +179,8 @@ def main() -> None:
         print(claude_code.tools(args.experiment))
     elif args.command == "claude-progress":
         claude_code.progress()
+    elif args.command == "scan-claims":
+        print(scan_claims_report(scan_claims(args.experiment / "results", args.tool, args.images)))
     elif args.command == "import-claude":
         out = claude_code.import_run(
             args.experiment, args.label, args.work, args.case_id, args.image_id, args.run, args.model

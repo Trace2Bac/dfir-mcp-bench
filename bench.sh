@@ -11,6 +11,9 @@
 #                                                     run every label (or the ones named), N times each
 #   ./bench.sh summary <experiment>                   compare labels and models over all runs
 #   ./bench.sh review  <experiment> [model]           review unreviewed model runs, question by question
+#   ./bench.sh scan-claims <experiment> <tool> <image...>
+#                                                     images each run scanned with <tool> against those its
+#                                                     answer claims (no reviewer needed)
 #   ./bench.sh investigate <experiment> [label...] [--repeat N] [--model M] [--dry-run]
 #                                                     run a whole investigation on each label and import it:
 #                                                     `mulder investigate` (harness mulder-investigate; needs
@@ -259,6 +262,11 @@ run)
     ;;
 summary)
     summarize "$(experiment_id "${1:?experiment}")"
+    ;;
+scan-claims)
+    e=$(experiment_id "${1:?experiment}"); shift
+    t=${1:?tool}; shift
+    in_tools env PYTHONPATH=runner python3 -m bench scan-claims "experiments/$e" --tool "$t" --images "$@"
     ;;
 review)
     e=$(experiment_id "${1:?experiment}")

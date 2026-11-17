@@ -253,4 +253,39 @@ def import_run(
         "tools_called": sorted(called),
     }
     (out / "run.json").write_text(json.dumps(run_info, indent=2) + "\n")
+    redact_account(out, root)
     return out
+
+
+def redact_account(out: Path, root: Path) -> int:
+    """Replace the signed-in account's email and names in a run's files.
+
+    Claude Code tells the model who is signed in, and a model may put that in
+    its report (an "Examiner:" line, say). Results are published, so the
+    account details from data/claude/.claude.json are replaced with
+    [examiner]. Returns the number of files changed.
+    """
+    config = root / "data" / "claude" / ".claude.json"
+    if not config.exists():
+        return 0
+    account = json.loads(config.read_text()).get("oauthAccount") or {}
+    secrets = sorted(
+        {str(account[k]) for k in ("emailAddress", "fullName", "displayName") if len(str(account.get(k) or "")) >= 3},
+        key=len,
+        reverse=True,
+    )
+    changed = 0
+    for path in out.rglob("*"):
+        if not path.is_file():
+            continue
+        try:
+            text = path.read_text()
+        except UnicodeDecodeError:
+            continue
+        new = text
+        for s in secrets:
+            new = new.replace(s, "[examiner]")
+        if new != text:
+            path.write_text(new)
+            changed += 1
+    return changed

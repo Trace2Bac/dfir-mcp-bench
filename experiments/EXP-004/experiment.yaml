@@ -3,7 +3,7 @@
 title: "Does an agent that follows audit_tool_coverage skip an image? (calebevans/mulder#270)"
 title_ko: "audit_tool_coverage를 따르는 에이전트가 이미지를 건너뛸까? (calebevans/mulder#270)"
 server: mulder
-status: planned                  # planned | in-progress | done
+status: done                     # planned | in-progress | done
 change: >
   EXP-003 showed that, before the fix, audit_tool_coverage credits a tool run
   on one disk image to every disk image. This asks what that does to an
@@ -54,6 +54,28 @@ variants:
   after: mulder-54d76c8  # merge of #270
 
 conclusion: >
-  Not run yet.
+  In this setting the wrong report did not make an agent skip an image: run_fls
+  ran on both images in all 12 runs, 3 per label and model (Opus and Haiku,
+  the latter with --model claude-haiku-4-5). scan_evidence lists both images,
+  and most runs worked through that list and called audit_tool_coverage only
+  at the end. Two runs before the fix called it after the first image and got
+  a report crediting run_fls to both images. Opus doubted it, checked the
+  NTFS listing and ran run_fls ("the audit shows run_fls was already run on
+  both images. Let me check"). Haiku took it as true ("run_fls ... already
+  executed on both disk images"), tried to read the NTFS listing, found none
+  and only then ran run_fls. What caught the error in both runs was that the
+  answer needed the listing itself. The defect misleads an agent that relies
+  on the report; it changes the outcome when the work it marks as done is
+  not needed again later, as with a check run for coverage alone. The
+  partial answers (a FAT file missed) are unrelated to the fix.
 conclusion_ko: >
-  아직 실행하지 않았습니다.
+  이 조건에서는 틀린 보고서 때문에 이미지를 건너뛴 실행이 없었습니다. 라벨과 모델마다 3회, 모두 12회(Opus,
+  그리고 --model claude-haiku-4-5로 Haiku)에서 run_fls가 두 이미지 모두에 실행됐습니다. scan_evidence가 이미지
+  두 개를 보여 주고, 대부분은 그 목록대로 처리한 뒤 마지막에만 audit_tool_coverage를 불렀습니다. 수정 전 두
+  실행은 첫 이미지 뒤에 보고서를 불렀고, 두 이미지 모두 run_fls를 실행했다는 틀린 답을 받았습니다. Opus는
+  의심하고 NTFS 목록을 확인한 뒤 run_fls를 실행했습니다("the audit shows run_fls was already run on both
+  images. Let me check"). Haiku는 그대로 믿었고("run_fls ... already executed on both disk images"), NTFS
+  목록을 읽으려다 없자 그제야 run_fls를 실행했습니다. 두 실행 모두 오류를 잡아낸 것은 답에 목록 자체가 필요했기
+  때문입니다. 이 결함은 보고서에 기대는 에이전트를 잘못 이끕니다. 결과까지 바뀌는 것은 완료로 표시된 작업이 뒤에서
+  다시 필요하지 않을 때, 예를 들어 범위 확인만을 위한 검사일 때입니다. 부분 정답(FAT 파일 하나 누락)은 이 수정과
+  무관합니다.

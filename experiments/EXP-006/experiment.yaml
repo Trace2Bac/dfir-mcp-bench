@@ -1,0 +1,78 @@
+# EXP-006: one verification. The folder name is its permanent identifier;
+# the title may change.
+title: "With six images, does an agent that follows audit_tool_coverage skip some? (calebevans/mulder#270)"
+title_ko: "이미지가 여섯 개일 때 audit_tool_coverage를 따르는 에이전트가 일부를 건너뛸까? (calebevans/mulder#270)"
+server: mulder
+status: done                     # planned | in-progress | done
+change: >
+  EXP-005 with six disk images instead of two. With two, every run kept its
+  own record of what it had scanned and trusted it over a wrong report. Six
+  images make that record harder to keep, which is when an agent leans on
+  the server's progress report. The task, prompt, tools and labels are as in
+  EXP-005: scan every image with YARA, pick the next image from
+  audit_tool_coverage and answer when the report shows yara_scan_files run
+  on every image. Before the fix, one scan counts for all six images.
+change_ko: >
+  EXP-005에서 디스크 이미지를 두 개에서 여섯 개로 늘렸습니다. 두 개일 때는 모든 실행이 무엇을 검사했는지 스스로
+  기록하고, 틀린 보고서보다 그 기록을 믿었습니다. 이미지가 여섯 개면 그 기록을 유지하기가 더 어렵고, 그때
+  에이전트는 서버의 진척 보고서에 기댑니다. 작업, 프롬프트, 도구, 라벨은 EXP-005와 같습니다. 모든 이미지를
+  YARA로 검사하고, 다음 이미지를 audit_tool_coverage로 고르고, 보고서가 모든 이미지에 yara_scan_files를 실행했다고
+  표시하면 답합니다. 수정 전에는 검사 한 번이 여섯 이미지 모두에 반영됩니다.
+criteria: >
+  Fixed before the runs, from each run's tool calls and its answer. Q1:
+  found when the answer names as scanned exactly the images yara_scan_files
+  ran on, and that is all six; a false positive when the answer says an
+  image was scanned, or that every image was, while yara_scan_files never
+  ran on it; missed when some images were not scanned and the answer says
+  so. Counted per run: how many of the six images were scanned, and how
+  many the answer claims. The labels are compared on false positives
+  (Fisher's exact test).
+criteria_ko: >
+  실행 전에 정했습니다. 실행 기록의 도구 호출과 답으로 판정합니다. Q1: 답이 검사했다고 한 이미지가 실제로
+  yara_scan_files를 실행한 이미지와 정확히 같고 그것이 여섯 개 전부이면 found입니다. yara_scan_files가 실행되지
+  않은 이미지를 검사했다고 하거나 모든 이미지를 검사했다고 하면 오탐입니다. 검사하지 않은 이미지가 있고 답도
+  그렇게 말하면 missed입니다. 실행마다 여섯 이미지 중 실제로 검사한 수와 답이 검사했다고 한 수를 셉니다. 두 라벨은
+  오탐률(Fisher 정확 검정)로 비교합니다.
+links:
+  - https://github.com/calebevans/mulder/issues/269
+  - https://github.com/calebevans/mulder/pull/270
+
+case: nist-dfr-six-yara
+harness: claude-code
+harness_options:
+  model: claude-opus-4-6
+  answer_section: true
+  instruction: "Work on one disk image at a time. After each image, call audit_tool_coverage and use it to pick a disk image on which yara_scan_files has not been run yet. When the report shows yara_scan_files run on every disk image, give your answer."
+  tools: [scan_evidence, get_tool_guide, yara_scan_files, audit_tool_coverage, get_raw_output, search]
+
+variants:
+  before: mulder-b922c36 # parent of the merge
+  after: mulder-54d76c8  # merge of #270
+
+conclusion: >
+  With six images the wrong report changed answers. Before the fix, 2 of 10
+  runs answered that all six images were scanned with no match although
+  they had scanned one and two images; after it, none of 10 (Fisher's exact
+  test p = 0.47, ten runs per label are too few to rule out chance). Nine
+  of the ten runs before the fix asked for the report midway and were told
+  that yara_scan_files had run on all six. Seven noted that they had
+  scanned fewer and ran the rest ("The audit already shows yara_scan_files
+  as run on all 6 images, but let me explicitly scan the remaining 4");
+  the two that took it as true answered from it ("The audit confirms
+  yara_scan_files has been run on all six disk images ... Here is the
+  final report"). The checks they ran found no matches, which a clean scan
+  shows too, so nothing contradicted the report. After the fix, runs that
+  asked midway were told the true count (1, 2 or 3 of 6) and went on. With
+  two images (EXP-005) no run took the wrong report; with six, two of nine
+  that received it did. Opus only.
+conclusion_ko: >
+  이미지가 여섯 개일 때는 틀린 보고서가 답을 바꿨습니다. 수정 전 10회 중 2회는 이미지를 하나와 두 개만 검사하고도
+  여섯 개 모두 검사했고 걸린 것이 없다고 답했습니다. 수정 후에는 10회 중 0회였습니다(Fisher 정확 검정 p = 0.47,
+  라벨당 10회로는 우연을 배제하기에 부족합니다). 수정 전 10회 중 9회가 중간에 보고서를 불렀고, 여섯 개 모두
+  yara_scan_files를 실행했다는 답을 받았습니다. 7회는 자기가 검사한 수가 더 적다고 짚고 나머지를 검사했고("The
+  audit already shows yara_scan_files as run on all 6 images, but let me explicitly scan the remaining 4"),
+  보고서를 사실로 받아들인 2회는 그대로 답했습니다("The audit confirms yara_scan_files has been run on all six
+  disk images ... Here is the final report"). 확인한 검색도 걸린 것이 없다고 나왔는데, 깨끗한 검사 결과도 똑같아서
+  보고서와 어긋나는 것이 없었습니다. 수정 후에는 중간에 보고서를 부른 실행이 실제 수(6개 중 1, 2, 3개)를 받고
+  계속 진행했습니다. 이미지가 두 개일 때(EXP-005)는 틀린 보고서를 받아들인 실행이 없었고, 여섯 개일 때는 받은
+  9회 중 2회가 받아들였습니다. Opus만 돌렸습니다.
