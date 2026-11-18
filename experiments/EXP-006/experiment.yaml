@@ -1,54 +1,62 @@
-# EXP-006: one verification. The folder name is the identifier to cite;
+# EXP-008: one verification. The folder name is the identifier to cite;
 # the title may change.
-title: "Do findevil's own instructions keep the agent from reading its coverage report midway?"
-title_ko: "findevil의 서버 지침 때문에 에이전트가 진척 보고를 중간에 보지 않을까?"
+title: "findevil's assess_coverage calls evidence it cannot read clean"
+title_ko: "findevil assess_coverage가 읽지 못하는 증거를 CLEAN이라 함"
 server: findevil
-status: in-progress              # planned | in-progress | done
+status: done                     # planned | in-progress | done
 change: |
-  A diagnosis for EXP-005. There, agents checked the three hosts and called
-  assess_coverage only at the end, although the prompt asked for it after
-  each host. With mulder in EXP-004 most runs read the report midway.
+  findevil's assess_coverage reports COVERAGE CLEAN when it recognizes no
+  artifact at all, although findevil's instructions treat COVERAGE CLEAN as
+  the sign that the work is done.
 
-  - The difference this tests: findevil gives the agent instructions (Claude
-    Code adds them to the prompt) that say to investigate first and call
-    assess_coverage after a round. mulder gives none.
-  - with-instructions: findevil as published (EXP-005's before).
-  - no-instructions: the same, with the server instructions removed
-    (no-instructions, a patch for this test only).
-  - Everything else is EXP-005's: the case, the tools and the prompt.
-  - Both labels have the coverage defect, so the question is only whether the
-    agent reads the report between hosts, and what it does then.
+  - Before: with no recognized file, the table and the gaps are empty and the
+    verdict is COVERAGE CLEAN, "every artifact class present in evidence has
+    been examined".
+  - After (coverage-not-assessed, our patch): the report says the coverage
+    was not assessed and why, with the verdict NOT ASSESSED.
+  - Checked without a model on the NIST Hacking Case image, not mounted:
+    list_evidence, then assess_coverage, with no analysis tool in between.
+    A missing evidence directory gives the same before and after (checked
+    by calling the function directly).
 change_ko: |
-  EXP-005의 원인 진단입니다. EXP-005에서는 프롬프트가 호스트마다 assess_coverage를 부르라고 했는데도, 에이전트가 세 호스트를 다 검사한 뒤 마지막에만 불렀습니다. EXP-004의 mulder에서는 대부분 중간에 보고서를 봤습니다.
+  findevil의 assess_coverage는 자료를 하나도 알아보지 못해도 COVERAGE CLEAN을 돌려줍니다. findevil의 지침은 COVERAGE CLEAN을 작업이 끝났다는 신호로 씁니다.
 
-  - 확인할 차이: findevil은 에이전트에게 지침을 주고(Claude Code가 프롬프트에 넣음), 그 지침은 먼저 조사하고 한 바퀴 뒤에 assess_coverage를 부르라고 합니다. mulder는 지침이 없습니다.
-  - with-instructions: 공개된 findevil 그대로입니다(EXP-005의 before).
-  - no-instructions: 같은 것에서 서버 지침만 뺐습니다(no-instructions, 이 테스트용 패치).
-  - 케이스, 도구, 프롬프트는 모두 EXP-005와 같습니다.
-  - 두 라벨 모두 진척 판정 결함이 있으므로, 볼 것은 에이전트가 호스트 사이에 보고서를 보는지와 그때 어떻게 하는지뿐입니다.
-criteria: |
-  Written before the runs, from each run's tool calls.
-
-  - A run reads the report midway when it calls assess_coverage before
-    auth_summary has run on all three hosts.
-  - The labels are compared on how many runs read it midway (Fisher's exact
-    test). Q1 and Q2 are judged as in EXP-005.
-criteria_ko: |
-  실행 전에 정했고, 실행 기록의 도구 호출로 봅니다.
-
-  - auth_summary를 세 호스트 모두에 실행하기 전에 assess_coverage를 부르면 중간에 보고서를 본 것으로 셉니다.
-  - 두 라벨은 중간에 보고서를 본 실행 수(Fisher 정확 검정)로 비교합니다. Q1과 Q2는 EXP-005와 같은 기준으로 판정합니다.
+  - 수정 전: 알아본 파일이 없으면 표와 남은 작업이 비고, 판정은 "증거에 있는 모든 자료 종류를 검사했다"는 COVERAGE CLEAN입니다.
+  - 수정 후(coverage-not-assessed, 우리 패치): 진척을 평가하지 못했다는 것과 그 이유를 적고, 판정은 NOT ASSESSED입니다.
+  - 모델 없이, 마운트하지 않은 NIST Hacking Case 이미지로 확인합니다. list_evidence 다음 바로 assess_coverage를 부르고, 그 사이에 분석 도구는 부르지 않습니다. 증거 폴더가 없을 때도 수정 전후가 같은 모습인 것을 함수를 직접 불러 확인했습니다.
 links:
   - https://github.com/marlyocat/findevil
+  - https://cfreds-archive.nist.gov/Hacking_Case.html
 
-case: linux-three-hosts-auth
-harness: claude-code
-harness_options:
-  model: claude-opus-4-6
-  answer_section: true
-  instruction: "Work on one host at a time. After each host, call assess_coverage and use it to pick a host on which auth_summary has not been run yet. When assess_coverage returns COVERAGE CLEAN, give your answer."
-  tools: [list_evidence, auth_summary, assess_coverage]
+case: findevil-disk-image-only
+harness: bench-runner # runner/ with scripted calls
 
 variants:
-  with-instructions: findevil-d1a8d25                 # findevil main as published
-  no-instructions: findevil-d1a8d25-no-instructions   # without the server instructions
+  before: findevil-d1a8d25               # findevil main as published
+  after: findevil-d1a8d25-not-assessed   # plus coverage-not-assessed
+
+scripted_expect:
+  before: { questions: 0/2, facts: 0/2 }
+  after: { questions: 2/2, facts: 2/2 }
+
+conclusion: |
+  After the fix, a report that found nothing to check no longer says the
+  work is done.
+
+  - Before: with only the disk image in the folder and no analysis tool
+    called, assess_coverage returns no table and "Verdict: COVERAGE CLEAN —
+    every artifact class present in evidence has been examined" (0 of 2).
+  - After: it says the coverage was not assessed, since no file matched a
+    class it checks and disk images are not checked, with "Verdict: NOT
+    ASSESSED" (2 of 2).
+  - findevil's own instructions say to repeat the work until the report says
+    COVERAGE CLEAN, so before the fix an agent that follows them is told to
+    stop before it has looked at anything.
+  - Checked without a model; the result does not depend on one.
+conclusion_ko: |
+  수정 후에는 점검할 것을 찾지 못한 보고서가 작업이 끝났다고 하지 않습니다.
+
+  - 수정 전: 폴더에 디스크 이미지만 있고 분석 도구를 하나도 부르지 않았는데, assess_coverage는 표 없이 "Verdict: COVERAGE CLEAN — every artifact class present in evidence has been examined"를 돌려줍니다(0/2).
+  - 수정 후: 점검하는 종류에 맞는 파일이 없고 디스크 이미지는 점검하지 않는다는 이유와 함께, 진척을 평가하지 못했다고 하며 "Verdict: NOT ASSESSED"를 돌려줍니다(2/2).
+  - findevil의 지침은 보고서가 COVERAGE CLEAN이라고 할 때까지 작업을 되풀이하라고 하므로, 수정 전에는 지침을 따르는 에이전트가 아무것도 보기 전에 멈추라는 말을 듣는 셈입니다.
+  - 모델 없이 확인했고 결과는 모델과 상관없습니다.

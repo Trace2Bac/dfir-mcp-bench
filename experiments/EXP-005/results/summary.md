@@ -1,9 +1,9 @@
-# EXP-005
+# EXP-007
 
-Model runs. Means are per run.
+Scripted runs (fixed tool calls, no model): the expected facts found in what the tools returned.
 
-| label | model | variant | runs | reviewed | turns | tool calls | tool errors | seconds | end reasons |
-|---|---|---|---|---|---|---|---|---|---|
-| before | claude-opus-4-6 | findevil-d1a8d25 | 10 | 0/10 | 15.8 | 14.8 | 0.0 | 77.0 | success 10 |
+| label | variant | questions | facts | tool calls | tool errors |
+|---|---|---|---|---|---|
+| before | findevil-d1a8d25 | 0/2 | 0/2 | 4 | 0 |
+| after | findevil-d1a8d25-per-location | 2/2 | 2/2 | 4 | 0 |
 
-No run has been reviewed yet (`./bench.sh review`).
