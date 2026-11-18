@@ -4,17 +4,18 @@ title_ko: 셸 이력 세 개 중 하나만 분석한 뒤의 assess_coverage
 name: "findevil scenario 02, shell histories"   # short name for lists
 name_ko: "findevil 시나리오 02, 셸 이력"
 dataset: findevil-samples
-evidence: findevil-scenario-02
+evidence: findevil-scenario-02-histories
 purpose: |
-  findevil's own scenario 02 has three shell histories (alice, deploy, root).
-  The scripted calls list them with find_shell_histories, then analyze
-  alice's only, and ask assess_coverage after each step.
+  The three shell histories of findevil's own scenario 02 (alice, deploy,
+  root), with nothing else in the folder, so assess_coverage's verdict rests
+  on them only. The scripted calls list them with find_shell_histories, then
+  analyze alice's only, and ask assess_coverage after each step.
 
   - find_shell_histories lists the files and does not read them.
   - deploy's history, the one never analyzed, is the only one in which
     analyze_bash_history flags a command.
 purpose_ko: |
-  findevil의 시나리오 02에는 셸 이력 세 개(alice, deploy, root)가 있습니다. 스크립트 호출로 find_shell_histories로 이력을 나열하고, alice의 이력만 분석하며, 단계마다 assess_coverage를 부릅니다.
+  findevil의 시나리오 02에 있는 셸 이력 세 개(alice, deploy, root)만 폴더에 둡니다. 다른 자료가 없으므로 assess_coverage의 판정은 이 이력만으로 정해집니다. 스크립트 호출로 find_shell_histories로 이력을 나열하고, alice의 이력만 분석하며, 단계마다 assess_coverage를 부릅니다.
 
   - find_shell_histories는 파일을 나열할 뿐 읽지 않습니다.
   - 분석하지 않은 deploy 이력이, analyze_bash_history가 명령을 의심으로 표시하는 유일한 이력입니다.
@@ -43,7 +44,7 @@ questions:
   - id: Q2
     text: After alice's history is analyzed, does the report still list deploy's and root's histories as not examined?
     text_ko: "alice 이력만 분석한 뒤에도, 보고서가 deploy와 root의 이력을 검사하지 않은 것으로 나열하나요?"
-    expect: {all: ["**shell history** present (`fs/home/deploy/.bash_history`, `fs/root/.bash_history`) but never examined"]}
+    expect: {all: ["**shell history** present (`fs/home/deploy/.bash_history`, `fs/root/.bash_history`) but never examined"], none: ["COVERAGE CLEAN"]}
     requires_tools: [assess_coverage]
 
 limits: {max_turns: 12, max_tool_chars: 8000}

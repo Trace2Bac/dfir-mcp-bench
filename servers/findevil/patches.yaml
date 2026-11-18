@@ -44,23 +44,6 @@ coverage-per-location.patch:
   known_issues_ko: |
     upstream 테스트 test_assess_coverage_clean_when_all_examined는 경로 없는 감사 기록을 쓰고 COVERAGE CLEAN을 기대하므로, 이 수정에서는 실패합니다. PR을 낸다면 그 기록에 경로를 넣어야 합니다.
 
-no-instructions.patch:
-  title: "findevil without its server instructions (diagnosis only)"
-  title_ko: "서버 지침을 뺀 findevil (진단용)"
-  summary: |
-    Not a proposed change. findevil gives MCP clients a set of instructions:
-    list the evidence, investigate, call assess_coverage after a round and
-    repeat until it says COVERAGE CLEAN, then call finalize_report. Claude
-    Code adds them to the agent's prompt. This patch removes them and changes
-    nothing else, to see whether they are why agents in EXP-005 did not read
-    assess_coverage between hosts.
-  summary_ko: |
-    제안하는 수정이 아닙니다. findevil은 MCP 클라이언트에 지침을 줍니다. 증거 목록을 보고, 조사하고, 한 바퀴 뒤 assess_coverage를 불러 COVERAGE CLEAN이 나올 때까지 반복한 다음 finalize_report를 부르라는 내용이고, Claude Code는 이를 에이전트의 프롬프트에 넣습니다. 이 패치는 그 지침만 빼고 나머지는 그대로 둡니다. EXP-005에서 에이전트가 호스트 사이에 assess_coverage를 보지 않은 이유가 이 지침인지 보려는 것입니다.
-  changes:
-    - "server: the FastMCP instructions are removed"
-  changes_ko:
-    - "server: FastMCP 지침을 뺌"
-
 coverage-not-assessed.patch:
   title: "assess_coverage does not call nothing found clean"
   title_ko: "assess_coverage가 아무것도 찾지 못한 것을 CLEAN이라 하지 않음"

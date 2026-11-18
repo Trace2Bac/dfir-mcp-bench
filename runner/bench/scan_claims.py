@@ -9,8 +9,8 @@ claim. This needs no reviewer, so it can be checked against review.yaml.
 
     python -m bench scan-claims experiments/EXP-004 --tool yara_scan_files \\
         --images dfr-01-fat.dd dfr-02-ntfs.dd ...
-    python -m bench scan-claims experiments/EXP-005 --tool auth_summary,auth_failed_logins,... \\
-        --images app01 app02 db01 db02 web01 web02
+    python -m bench scan-claims experiments/EXP-<nnn> --tool auth_summary,analyze_bash_history \\
+        --images host-a host-b ...
 """
 
 from __future__ import annotations

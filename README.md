@@ -20,10 +20,9 @@ cite them.
 | EXP-002 | Does telling the agent what a tool did not check stop a wrong answer? | clamav-limit, extract-keep (patches) | Opus and Haiku, 160 |
 | EXP-003 | Does audit_tool_coverage count a tool only for the evidence it ran on? | calebevans/mulder#270 | scripted |
 | EXP-004 | Does a wrong progress report end an investigation early? | calebevans/mulder#270 | Opus, 100 |
-| EXP-005 | Does findevil's coverage report end an investigation early? | coverage-per-location (patch to findevil) | in progress |
-| EXP-006 | Do findevil's own instructions keep the agent from reading its coverage report midway? | no-instructions (diagnosis only) | in progress |
-| EXP-007 | findevil's assess_coverage counts a shell history it never read | coverage-per-location (patch to findevil) | scripted |
-| EXP-008 | findevil's assess_coverage calls evidence it cannot read clean | coverage-not-assessed (patch to findevil) | scripted |
+| EXP-005 | findevil's assess_coverage counts a shell history it never read | coverage-per-location (patch to findevil) | scripted |
+| EXP-006 | findevil's assess_coverage calls evidence it cannot read clean | coverage-not-assessed (patch to findevil) | scripted |
+| EXP-007 | Does an agent following findevil's procedure skip a shell history the report counted? | coverage-per-location (patch to findevil) | in progress |
 
 Each experiment's change, criteria, conclusion and every run are on the
 results site and in `experiments/EXP-<nnn>/`.

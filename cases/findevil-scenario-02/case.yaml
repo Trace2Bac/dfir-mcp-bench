@@ -1,0 +1,43 @@
+id: findevil-scenario-02
+title: An agent investigates findevil's scenario 02 end to end
+title_ko: 에이전트가 findevil 시나리오 02를 처음부터 끝까지 조사
+name: "findevil scenario 02, investigation"   # short name for lists
+name_ko: "findevil 시나리오 02, 조사"
+dataset: findevil-samples
+evidence: findevil-scenario-02
+purpose: |
+  findevil's own scenario 02 (stolen CI/CD key, quiet persistence), its
+  README left out. The agent investigates with findevil's tools and its own
+  procedure, which repeats the work until assess_coverage says COVERAGE
+  CLEAN. There are three shell histories (alice, deploy, root); before the
+  fix, listing them with find_shell_histories makes all three count as
+  examined (EXP-005).
+
+  - Q1 asks whose shell histories were analyzed, and is checked against the
+    analyze_bash_history calls the agent actually made.
+  - Q2 asks for the compromise, as findevil's README describes it.
+purpose_ko: |
+  findevil의 시나리오 02(탈취한 CI/CD 키, 조용한 지속성 확보)에서 README를 뺀 증거입니다. 에이전트는 findevil의 도구와 자체 절차로 조사하고, 이 절차는 assess_coverage가 COVERAGE CLEAN이라고 할 때까지 작업을 되풀이합니다. 셸 이력은 세 개(alice, deploy, root)이고, 수정 전에는 find_shell_histories로 나열만 해도 세 개 모두 검사한 것으로 셉니다(EXP-005).
+
+  - Q1은 누구의 셸 이력을 분석했는지 묻고, 에이전트가 실제로 부른 analyze_bash_history와 대조합니다.
+  - Q2는 findevil README가 설명하는 침해를 묻습니다.
+
+setup: []
+
+tools: [list_evidence, find_shell_histories, analyze_bash_history, assess_coverage]
+
+scripted: []
+
+questions:
+  - id: Q1
+    text: "Whose shell histories did you analyze? Name each user."
+    text_ko: "누구의 셸 이력을 분석했나요? 사용자를 모두 적으세요."
+    review_only: true   # checked against the analyze_bash_history calls in the run
+  - id: Q2
+    text: "Was the server compromised? If so, give the source IP of the attacker's login and how the attacker kept access."
+    text_ko: "서버가 침해됐나요? 그렇다면 공격자 로그인의 출발지 IP와, 공격자가 접근을 유지한 방법을 적으세요."
+    # Answer (findevil's README): deploy's stolen key, login from
+    # 185.229.59.103; persistence through system-updater.service.
+    expect: {all: ["185.229.59.103", "system-updater"]}
+
+limits: {max_turns: 80, max_tool_chars: 4000}

@@ -1,29 +1,32 @@
-# EXP-007: one verification. The folder name is the identifier to cite;
+# EXP-005: one verification. The folder name is the identifier to cite;
 # the title may change.
 title: "findevil's assess_coverage counts a shell history it never read"
 title_ko: "findevil assess_coverage가 읽지 않은 셸 이력을 검사한 것으로 셈"
 server: findevil
 status: done                     # planned | in-progress | done
 change: |
-  The coverage defect of EXP-005, shown without a model on findevil's own
-  sample evidence.
+  findevil's coverage report counts a file it never read, shown without a
+  model on findevil's own sample evidence. EXP-007 runs an agent on the same
+  scenario.
 
   - Before: assess_coverage marks a kind of artifact examined once any of its
     tools appears in the audit log. Its tools for shell history include
     find_shell_histories, which only lists the files. After that one call,
-    or after one history is analyzed, all three histories show as examined.
+    or after one history is analyzed, all three histories show as examined
+    and the verdict is COVERAGE CLEAN.
   - After (coverage-per-location, our patch): a file counts only when a tool
     that reads it ran on it or on a folder holding it; find_shell_histories,
     find_webshells and verify_package_integrity, which do not read the
     files, do not count. The report lists the files not examined.
   - Checked without a model: the same scripted calls on both variants, on
-    scenario 02 from findevil's repository.
+    the three shell histories of scenario 02 from findevil's repository,
+    with nothing else in the folder.
 change_ko: |
-  EXP-005의 진척 판정 결함을 모델 없이, findevil에 들어 있는 예시 증거로 보여 줍니다.
+  findevil의 진척 보고가 읽지 않은 파일을 검사한 것으로 세는 결함을, 모델 없이 findevil에 들어 있는 예시 증거로 보여 줍니다.
 
-  - 수정 전: assess_coverage는 자료 종류의 도구가 감사 로그에 하나라도 있으면 그 종류를 검사한 것으로 표시합니다. 셸 이력 종류의 도구에는 파일을 나열만 하는 find_shell_histories도 들어 있습니다. 이 호출 한 번이나, 이력 하나를 분석한 것만으로 이력 세 개가 모두 검사됨으로 표시됩니다.
+  - 수정 전: assess_coverage는 자료 종류의 도구가 감사 로그에 하나라도 있으면 그 종류를 검사한 것으로 표시합니다. 셸 이력 종류의 도구에는 파일을 나열만 하는 find_shell_histories도 들어 있습니다. 이 호출 한 번이나, 이력 하나를 분석한 것만으로 이력 세 개가 모두 검사됨으로 표시되고 판정은 COVERAGE CLEAN입니다.
   - 수정 후(coverage-per-location, 우리 패치): 파일을 읽는 도구가 그 파일이나 그 파일이 든 폴더에 실행됐을 때만 셉니다. 파일을 읽지 않는 find_shell_histories, find_webshells, verify_package_integrity는 세지 않습니다. 보고서는 검사하지 않은 파일을 나열합니다.
-  - 모델 없이 확인합니다. findevil 저장소의 시나리오 02에서 두 버전에 같은 도구 호출을 보냅니다.
+  - 모델 없이 확인합니다. findevil 저장소 시나리오 02의 셸 이력 세 개만 둔 폴더에서, 두 버전에 같은 도구 호출을 보냅니다.
 links:
   - https://github.com/marlyocat/findevil
   - https://github.com/marlyocat/findevil/tree/d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1/samples/attack-scenario-02
@@ -44,18 +47,18 @@ conclusion: |
 
   - Before: after find_shell_histories alone, and again after only alice's
     history was analyzed, the report marks all three histories "✅ examined"
-    (0 of 2 questions).
+    and says "Verdict: COVERAGE CLEAN — every artifact class present in
+    evidence has been examined" (0 of 2 questions).
   - After: the first report marks them "❌ NOT examined"; the second says
-    "⚠ 1 of 3 examined" and lists deploy's and root's histories as never
-    examined (2 of 2).
+    "⚠ 1 of 3 examined", lists deploy's and root's histories as never
+    examined, and the verdict is "1 GAP(S) REMAIN" (2 of 2).
   - deploy's history, which the before report counted, is the only one in
     which analyze_bash_history flags a command.
-  - Checked without a model; the result does not depend on one. EXP-005
-    tests whether an agent that follows this report stops early.
+  - Checked without a model; the result does not depend on one.
 conclusion_ko: |
   수정 후에는 읽지 않은 셸 이력을 검사한 것으로 세지 않습니다.
 
-  - 수정 전: find_shell_histories만 부른 뒤에도, alice 이력만 분석한 뒤에도 보고서가 이력 세 개를 모두 "✅ examined"로 표시합니다(질문 0/2).
-  - 수정 후: 첫 보고서는 "❌ NOT examined", 두 번째는 "⚠ 1 of 3 examined"로 표시하고 deploy와 root 이력을 검사하지 않은 것으로 나열합니다(2/2).
+  - 수정 전: find_shell_histories만 부른 뒤에도, alice 이력만 분석한 뒤에도 보고서가 이력 세 개를 모두 "✅ examined"로 표시하고, "Verdict: COVERAGE CLEAN — every artifact class present in evidence has been examined"라고 합니다(질문 0/2).
+  - 수정 후: 첫 보고서는 "❌ NOT examined", 두 번째는 "⚠ 1 of 3 examined"로 표시하고 deploy와 root 이력을 검사하지 않은 것으로 나열하며, 판정은 "1 GAP(S) REMAIN"입니다(2/2).
   - 수정 전 보고서가 검사됨으로 센 deploy 이력은, analyze_bash_history가 명령을 의심으로 표시하는 유일한 이력입니다.
-  - 모델 없이 확인했고 결과는 모델과 상관없습니다. 이 보고서를 따르는 에이전트가 일을 일찍 끝내는지는 EXP-005에서 봅니다.
+  - 모델 없이 확인했고 결과는 모델과 상관없습니다.
