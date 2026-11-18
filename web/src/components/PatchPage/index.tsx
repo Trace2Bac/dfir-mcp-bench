@@ -194,7 +194,7 @@ export default function PatchPage({data}: {data: PatchData}) {
               ? translate({
                   id: 'patchPage.files.note',
                   message:
-                    'Open a file to see its changes, against mulder at the commit the variant names after the patches listed before this one.',
+                    'Open a file to see its changes, against the server at the commit the variant names after the patches listed before this one.',
                 })
               : translate({
                   id: 'patchPage.files.noteUpstream',

@@ -3,7 +3,7 @@ import path from 'path';
 import YAML from 'yaml';
 import type {LoadContext, Plugin} from '@docusaurus/types';
 
-// Reads experiments/, cases/, datasets/ and servers/mulder/ (variants,
+// Reads experiments/, cases/, datasets/ and servers/<server>/ (variants,
 // patches) at build time and adds one page per experiment (/experiments/<id>),
 // per case (/cases/<id>) and per patch (/patches/<name>). The list pages get a short summary of each through global
 // data. Nothing is fetched in the browser.
@@ -27,6 +27,8 @@ export type Variant = {
   ref: string;
   patches: string;
   upstream: {slug: string; pr?: number}[]; // changes already upstream that its commit includes (patches.yaml)
+  server: string; // the folder under servers/
+  repo: string; // the server's GitHub repository, e.g. calebevans/mulder
 };
 export type Event = {t: number; kind: string; [key: string]: unknown};
 export type Review = {
@@ -123,7 +125,8 @@ export type Upstream = {
 export type PatchData = {
   slug: string; // the page path: the patch file name without .patch, or the entry's key
   name: string; // file name, or the key of a change already upstream
-  kind: 'patch' | 'upstream'; // a patch in patches/, or a change already in upstream mulder
+  kind: 'patch' | 'upstream'; // a patch in patches/, or a change already in the upstream server
+  server: string;
   upstream?: Upstream; // the pull request, once there is one
   title: string;
   summary: string;
@@ -145,8 +148,23 @@ export type CaseSummary = {id: string; name: string; title: string; questions: n
 
 const readJson = (p: string) => JSON.parse(fs.readFileSync(p, 'utf8'));
 
+// The repository of each server under servers/, for commit links.
+const SERVER_REPOS: Record<string, string> = {mulder: 'calebevans/mulder', findevil: 'marlyocat/findevil'};
+
+// The servers with variants: servers/<server>/variants/.
+function servers(root: string): string[] {
+  const dir = path.join(root, 'servers');
+  return fs.readdirSync(dir).filter(s => fs.existsSync(path.join(dir, s, 'variants')));
+}
+
+// The server a variant belongs to; variant names are unique across servers.
+function variantServer(root: string, name: string): string {
+  return servers(root).find(s => fs.existsSync(path.join(root, 'servers', s, 'variants', `${name}.env`))) ?? 'mulder';
+}
+
 function readVariant(root: string, label: string, name: string, locale = 'en'): Variant {
-  const file = path.join(root, 'servers', 'mulder', 'variants', `${name}.env`);
+  const server = variantServer(root, name);
+  const file = path.join(root, 'servers', server, 'variants', `${name}.env`);
   const text = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
   // KEY=value or KEY="value with spaces", as the shell reads the file.
   const get = (key: string) => {
@@ -166,13 +184,15 @@ function readVariant(root: string, label: string, name: string, locale = 'en'): 
     baseImage: get('BASE_IMAGE'),
     ref: get('REF'),
     patches: get('PATCHES'),
-    upstream: upstreamChanges(root, name),
+    upstream: upstreamChanges(root, server, name),
+    server,
+    repo: SERVER_REPOS[server] ?? '',
   };
 }
 
 // The upstream changes (patches.yaml entries with a `diff`) that list this variant.
-function upstreamChanges(root: string, variant: string): {slug: string; pr?: number}[] {
-  const file = path.join(root, 'servers', 'mulder', 'patches.yaml');
+function upstreamChanges(root: string, server: string, variant: string): {slug: string; pr?: number}[] {
+  const file = path.join(root, 'servers', server, 'patches.yaml');
   if (!fs.existsSync(file)) return [];
   const meta = YAML.parse(fs.readFileSync(file, 'utf8')) ?? {};
   return Object.entries<any>(meta)
@@ -419,11 +439,11 @@ function diffFiles(diff: string): {path: string; added: number; removed: number}
   return files;
 }
 
-function readUpstream(m: any): Upstream | undefined {
+function readUpstream(m: any, server: string): Upstream | undefined {
   const u = m?.upstream;
   if (!u) return undefined;
   return {
-    repo: String(u.repo ?? 'calebevans/mulder'),
+    repo: String(u.repo ?? SERVER_REPOS[server] ?? ''),
     pr: u.pr != null ? Number(u.pr) : undefined,
     issue: u.issue != null ? Number(u.issue) : undefined,
     status: u.status === 'merged' ? 'merged' : 'proposed',
@@ -432,10 +452,15 @@ function readUpstream(m: any): Upstream | undefined {
   };
 }
 
-// Patches in patches/ and changes already in upstream mulder (entries of
-// patches.yaml with a stored `diff`), as one list.
+// Every server's patches, server by server.
 function readPatches(root: string, locale: string, experiments: ExperimentData[]): PatchData[] {
-  const base = path.join(root, 'servers', 'mulder');
+  return servers(root).flatMap(s => readServerPatches(root, s, locale, experiments));
+}
+
+// One server's patches in patches/ and changes already upstream (entries of
+// patches.yaml with a stored `diff`), as one list.
+function readServerPatches(root: string, server: string, locale: string, experiments: ExperimentData[]): PatchData[] {
+  const base = path.join(root, 'servers', server);
   const dir = path.join(base, 'patches');
   const metaFile = path.join(base, 'patches.yaml');
   const meta = fs.existsSync(metaFile) ? YAML.parse(fs.readFileSync(metaFile, 'utf8')) ?? {} : {};
@@ -451,7 +476,8 @@ function readPatches(root: string, locale: string, experiments: ExperimentData[]
       slug: name.replace(/\.patch$/, ''),
       name,
       kind,
-      upstream: readUpstream(m),
+      server,
+      upstream: readUpstream(m, server),
       title: localized(m, 'title', locale) || name,
       summary: localized(m, 'summary', locale),
       changes: localizedList(m, 'changes', locale),
@@ -520,10 +546,10 @@ export default function benchDataPlugin(
         path.join(root, 'experiments', '**', '*.{json,jsonl,md,yaml}'),
         path.join(root, 'cases', '**', '*.{yaml,md}'),
         path.join(root, 'datasets', '**', '*.yaml'),
-        path.join(root, 'servers', 'mulder', 'variants', '*.env'),
-        path.join(root, 'servers', 'mulder', 'patches', '*.patch'),
-        path.join(root, 'servers', 'mulder', 'patches.yaml'),
-        path.join(root, 'servers', 'mulder', 'upstream', '*.diff'),
+        path.join(root, 'servers', '*', 'variants', '*.env'),
+        path.join(root, 'servers', '*', 'patches', '*.patch'),
+        path.join(root, 'servers', '*', 'patches.yaml'),
+        path.join(root, 'servers', '*', 'upstream', '*.diff'),
       ];
     },
 

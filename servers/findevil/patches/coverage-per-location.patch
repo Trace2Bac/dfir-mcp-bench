@@ -1,0 +1,85 @@
+diff --git a/src/findevil/tools/autonomy.py b/src/findevil/tools/autonomy.py
+index da7aba2..7e85bc1 100644
+--- a/src/findevil/tools/autonomy.py
++++ b/src/findevil/tools/autonomy.py
+@@ -80,12 +80,41 @@ def _called_tool_names(entries: list[dict]) -> set[str]:
+     return {e.get("tool", "") for e in entries}
+ 
+ 
++# Audit params that name the evidence a tool ran on.
++_PATH_PARAMS = ("path", "root_path")
++
++# Tools that list or look around artifacts of a class without reading the
++# files themselves, so they do not make a file examined.
++_LOCATOR_TOOLS = {"find_shell_histories", "find_webshells", "verify_package_integrity"}
++
++
++def _examined_paths(entries: list[dict], tools: set[str]) -> list[Path]:
++    """Resolved paths that any of *tools* ran on, per the audit trail."""
++    paths: list[Path] = []
++    for e in entries:
++        if e.get("tool") not in tools or e.get("tool") in _LOCATOR_TOOLS:
++            continue
++        params = e.get("params") or {}
++        for key in _PATH_PARAMS:
++            value = params.get(key)
++            if isinstance(value, str) and value:
++                paths.append(Path(value).resolve())
++    return paths
++
++
++def _is_examined(location: str, examined: list[Path]) -> bool:
++    """True if a tool ran on this location or on a folder that holds it."""
++    target = (EVIDENCE_DIR / location).resolve()
++    return any(p == target or p in target.parents for p in examined)
++
++
+ # ---------------------------------------------------------------------------
+ # Evidence inventory — what artifact classes are actually present
+ # ---------------------------------------------------------------------------
+ 
+ # Each artifact class: (label, predicate over a path, expected-tool set, action).
+-# A class is "covered" if ANY of its expected tools appears in the audit trail.
++# A location is "covered" if ANY of its class's expected tools ran on it, or on
++# a folder that holds it, per the audit trail.
+ # Predicates are basename / path-fragment matches so they work regardless of
+ # whether evidence is laid out flat (evidence/auth.log) or nested
+ # (evidence/case01/fs/var/log/auth.log).
+@@ -245,7 +274,8 @@ def _inventory_evidence() -> dict[str, list[str]]:
+                     except ValueError:
+                         hits.append(str(p))
+         if hits:
+-            present[label] = sorted(set(hits))[:10]
++            # Every file, so each one can be checked against the audit trail.
++            present[label] = sorted(set(hits))
+     return present
+ 
+ 
+@@ -296,12 +326,22 @@ def assess_coverage(findings_json: str = "") -> str:
+     for label, _kind, tools, action in _ARTIFACT_CHECKS:
+         if label not in inventory:
+             continue
+-        covered = bool(tools & called)
+-        mark = "✅ examined" if covered else "❌ NOT examined"
+-        locs = ", ".join(f"`{h}`" for h in inventory[label][:3])
++        present = inventory[label]
++        examined = _examined_paths(entries, tools)
++        missing = [h for h in present if not _is_examined(h, examined)]
++        if not missing:
++            mark = "✅ examined"
++        elif len(missing) == len(present):
++            mark = "❌ NOT examined"
++        else:
++            mark = f"⚠ {len(present) - len(missing)} of {len(present)} examined"
++        locs = ", ".join(f"`{h}`" for h in present[:3])
++        if len(present) > 3:
++            locs += f" and {len(present) - 3} more"
+         table.append(f"| {label} | {locs} | {mark} |")
+-        if not covered:
+-            gaps.append(f"**{label}** present ({locs}) but never examined → {action}")
++        if missing:
++            not_examined = ", ".join(f"`{h}`" for h in missing)
++            gaps.append(f"**{label}** present ({not_examined}) but never examined → {action}")
+ 
+     # 2 & 3. IOC-pivot and verification gaps (only if findings supplied).
+     # Parsed leniently on purpose — this is a coverage *hint*, not the

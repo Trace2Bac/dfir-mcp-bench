@@ -11,14 +11,15 @@
 #                                                     run every label (or the ones named), N times each
 #   ./bench.sh summary <experiment>                   compare labels and models over all runs
 #   ./bench.sh review  <experiment> [model]           review unreviewed model runs, question by question
-#   ./bench.sh scan-claims <experiment> <tool> <image...>
-#                                                     images each run scanned with <tool> against those its
-#                                                     answer claims (no reviewer needed)
+#   ./bench.sh scan-claims <experiment> <tool[,tool...]> <target...>
+#                                                     targets (image files or host folders) each run scanned
+#                                                     with the tools against those its answer claims (no
+#                                                     reviewer needed)
 #   ./bench.sh investigate <experiment> [label...] [--repeat N] [--model M] [--dry-run]
 #                                                     run a whole investigation on each label and import it:
 #                                                     `mulder investigate` (harness mulder-investigate; needs
 #                                                     ANTHROPIC_API_KEY for Claude models) or Claude Code with
-#                                                     `mulder serve` as its tools (harness claude-code; needs
+#                                                     the variant's MCP server as its tools (harness claude-code; needs
 #                                                     `./bench.sh login` once, or CLAUDE_CODE_OAUTH_TOKEN);
 #                                                     --model runs claude-code with another model than
 #                                                     harness_options.model, filed under that model
@@ -59,10 +60,48 @@ load_env() {
     done < .env
 }
 
+# A variant is servers/<server>/variants/<variant>.env; variant names are
+# unique across servers.
 variant_file() {
-    local f="servers/mulder/variants/$1.env"
-    [ -f "$f" ] || { echo "no such variant: $1 (see servers/mulder/variants/)" >&2; exit 1; }
-    echo "$f"
+    local f
+    for f in servers/*/variants/"$1".env; do
+        [ -f "$f" ] && { echo "$f"; return; }
+    done
+    echo "no such variant: $1 (see servers/*/variants/)" >&2; exit 1
+}
+
+# The MCP server a variant belongs to (mulder, findevil, ...).
+variant_server() {
+    local f; f=$(variant_file "$1"); f=${f#servers/}; echo "${f%%/*}"
+}
+
+# The image a variant is built as.
+variant_image() {
+    echo "dfir-mcp-bench/$(variant_server "$1"):$1"
+}
+
+# The command the scripted runner starts the variant's MCP server with;
+# ${DB_DIR} and ${EVIDENCE} are filled in by the runner.
+# shellcheck disable=SC2016
+server_cmd() {
+    case "$(variant_server "$1")" in
+    mulder) echo 'mulder serve --db-dir ${DB_DIR}' ;;
+    findevil) echo 'env FINDEVIL_EVIDENCE_DIR=${EVIDENCE} FINDEVIL_LOGS_DIR=${DB_DIR} /opt/findevil/.venv/bin/python -m findevil' ;;
+    *) echo "no server command for $1" >&2; exit 1 ;;
+    esac
+}
+
+# The tool names a variant's MCP server lists, space-separated.
+server_tools() {
+    case "$(variant_server "$1")" in
+    mulder)
+        docker run --rm --entrypoint python3 "$(variant_image "$1")" -c \
+            'import asyncio; from mulder.server.app import mcp; print(" ".join(t.name for t in asyncio.run(mcp.list_tools())))' ;;
+    findevil)
+        docker run --rm --entrypoint /opt/findevil/.venv/bin/python "$(variant_image "$1")" -c \
+            'import asyncio; from findevil.server import mcp; print(" ".join(t.name for t in asyncio.run(mcp.list_tools())))' ;;
+    *) echo "no tool listing for the server of $1" >&2; exit 1 ;;
+    esac
 }
 
 # Run a command from this repository inside TOOLS_IMAGE, as the host user so
@@ -79,34 +118,35 @@ in_tools() {
 }
 
 # One claude-code run: Claude Code (bundled in the image, so pinned with it)
-# runs headless with only mulder's tools, and its stream-json output is kept
+# runs headless with only the variant's MCP server as its tools, and its stream-json output is kept
 # and shown as one line per step. Used by `investigate`.
 claude_investigate() {
     local e=$1 label=$2 v=$3 yaml=$4 c=$5 folder=$6 work=$7 opts=$8
     in_tools env PYTHONPATH=runner python3 -m bench claude-prepare "cases/$c/case.yaml" "$yaml" \
         "$work" "/evidence/$folder" "$c"
-    # harness_options.tools: only these mulder tools are allowed, and the
-    # others are removed from the agent's tool list. Without it, all of them.
-    local tools access="--allowedTools mcp__mulder"
+    # harness_options.tools: only these tools of the server are allowed, and
+    # the others are removed from the agent's tool list. Without it, all of them.
+    local server image tools
+    server=$(variant_server "$v"); image=$(variant_image "$v")
+    local access="--allowedTools mcp__$server"
     tools=$(in_tools env PYTHONPATH=runner python3 -m bench claude-tools "$yaml")
     if [ -n "$tools" ]; then
         local all t allow="" deny=""
-        all=$(docker run --rm --entrypoint python3 "dfir-mcp-bench/mulder:$v" -c \
-            'import asyncio; from mulder.server.app import mcp; print(" ".join(t.name for t in asyncio.run(mcp.list_tools())))')
+        all=$(server_tools "$v")
         for t in $tools; do
-            [[ " $all " == *" $t "* ]] || { echo "$yaml: no mulder tool named $t in $v" >&2; exit 1; }
+            [[ " $all " == *" $t "* ]] || { echo "$yaml: no $server tool named $t in $v" >&2; exit 1; }
         done
         for t in $all; do
-            if [[ " $tools " == *" $t "* ]]; then allow+="mcp__mulder__$t,"; else deny+="mcp__mulder__$t,"; fi
+            if [[ " $tools " == *" $t "* ]]; then allow+="mcp__${server}__$t,"; else deny+="mcp__${server}__$t,"; fi
         done
         access="--allowedTools ${allow%,} --disallowedTools ${deny%,}"
     fi
-    echo "== $e $label [$v]: claude -p <$work/claude/prompt.md> $opts, tools: ${tools:-all of mulder serve}"
+    echo "== $e $label [$v]: claude -p <$work/claude/prompt.md> $opts, tools: ${tools:-all of $server}"
     if [ "$dry" = 1 ]; then
         echo "   dry run: prepared $work (claude/prompt.md written); nothing started"
         return
     fi
-    # Built-in tools off (--tools ""), mulder's tools (or the listed ones,
+    # Built-in tools off (--tools ""), the server's tools (or the listed ones,
     # in $access) allowed without asking.
     # The token is passed by name from this shell, not on the command line.
     # stream-json comes out on stdout: kept as is, and shown one line per step.
@@ -118,7 +158,7 @@ claude_investigate() {
         -v "$ROOT/$work/evidence:/evidence:ro" \
         -v "$ROOT/$work/cases:/home/mulder/.mulder/cases" \
         -v "$ROOT/$work/claude:/work:ro" \
-        "dfir-mcp-bench/mulder:$v" bash -c 'cd /tmp && '"$CLAUDE_BIN"' -p "$(cat /work/prompt.md)" $OPTS \
+        "$image" bash -c 'cd /tmp && '"$CLAUDE_BIN"' -p "$(cat /work/prompt.md)" $OPTS \
             --mcp-config /work/mcp.json --strict-mcp-config --tools "" \
             --no-session-persistence --output-format stream-json --verbose' \
         | tee "$work/claude/stream.jsonl" \
@@ -129,7 +169,7 @@ claude_investigate() {
     # usage-limit error also ends with a result event, marked is_error).
     if grep '"type":"result"' "$work/claude/stream.jsonl" 2>/dev/null | grep -q '"is_error":false'; then
         local image_id
-        image_id=$(docker image inspect -f '{{.Id}}' "dfir-mcp-bench/mulder:$v" 2>/dev/null || true)
+        image_id=$(docker image inspect -f '{{.Id}}' "$image" 2>/dev/null || true)
         in_tools env PYTHONPATH=runner python3 -m bench import-claude "$yaml" "$label" "$work" "$c" \
             ${image_id:+--image-id "$image_id"} ${model:+--model "$model"}
         summarize "$e"
@@ -180,9 +220,9 @@ build() {
     local v=$1; shift
     # shellcheck disable=SC1090
     (set -a; . "$(variant_file "$v")"; set +a
-     docker build "$@" -f servers/mulder/Dockerfile \
+     docker build "$@" -f "servers/$(variant_server "$v")/Dockerfile" \
         --build-arg BASE_IMAGE="$BASE_IMAGE" --build-arg REF="$REF" --build-arg PATCHES="$PATCHES" \
-        -t "dfir-mcp-bench/mulder:$v" .)
+        -t "$(variant_image "$v")" .)
 }
 
 cmd=${1:-}; shift || true
@@ -195,6 +235,11 @@ prepare)
     nist-hacking-case) in_tools bash datasets/nist-hacking-case/fetch.sh ;;
     nist-data-leakage) in_tools bash datasets/nist-data-leakage/fetch.sh ;;
     synthetic-dns-smtp) in_tools python3 datasets/synthetic-dns-smtp/make_pcap.py data/evidence/synthetic-dns-smtp/sample.pcap ;;
+    public-linux-auth) in_tools bash datasets/public-linux-auth/fetch.sh ;;
+    findevil-samples) in_tools bash datasets/findevil-samples/fetch.sh ;;
+    linux-ten-hosts)
+        in_tools bash datasets/public-linux-auth/fetch.sh
+        in_tools python3 datasets/linux-ten-hosts/make_hosts.py data/evidence/public-linux-auth data/evidence/linux-ten-hosts ;;
     *) echo "unknown dataset: $ds" >&2; exit 1 ;;
     esac
     ;;
@@ -237,7 +282,7 @@ run)
         # Rebuilding is a cache hit unless the runner, patches or variant changed,
         # so a run never uses an image built from older runner code.
         build "$v" -q >/dev/null
-        image="dfir-mcp-bench/mulder:$v"
+        image=$(variant_image "$v")
         for i in $(seq 1 "$repeat"); do
             # Run as the host user, as `prepare` does, so results/ stays writable
             # and owned by that user on Linux too (the image's entrypoint would
@@ -250,6 +295,7 @@ run)
                 -e MODEL_MAX_TOKENS="${MODEL_MAX_TOKENS:-8192}" \
                 -e MODEL_REASONING_EFFORT="${MODEL_REASONING_EFFORT:-}" \
                 -e BENCH_IMAGE_ID="$(docker image inspect -f '{{.Id}}' "$image")" \
+                -e BENCH_SERVER_CMD="$(server_cmd "$v")" \
                 -v "$ROOT/data/evidence:/evidence:ro" \
                 -v "$ROOT/cases:/cases:ro" \
                 -v "$ROOT/$out:/results" \
@@ -368,7 +414,7 @@ investigate)
         docker run --rm -t --privileged "${sign_in[@]}" \
             -v "$ROOT/$work/evidence:/evidence:ro" \
             -v "$ROOT/$work/cases:/home/mulder/.mulder/cases" \
-            "dfir-mcp-bench/mulder:$v" \
+            "$(variant_image "$v")" \
             mulder investigate "/evidence/$folder" "$c" $opts || echo "mulder investigate on $label exited with $?" >&2
         if [ -f "$work/cases/$c.report.md" ]; then
             "$0" import "$e" "$label" "$work/cases" "$c"
@@ -386,7 +432,7 @@ import)
     [ -n "$v" ] || { echo "no label '$label' in $yaml" >&2; exit 1; }
     base=$(sed -n 's/^BASE_IMAGE=\([^ #]*\).*/\1/p' "$(variant_file "$v")")
     # The variant image when `investigate` built it, else the release image.
-    image_id=$(docker image inspect -f '{{.Id}}' "dfir-mcp-bench/mulder:$v" 2>/dev/null \
+    image_id=$(docker image inspect -f '{{.Id}}' "$(variant_image "$v")" 2>/dev/null \
         || docker image inspect -f '{{.Id}}' "$base" 2>/dev/null || true)
     in_tools env PYTHONPATH=runner python3 -m bench import-investigate "$yaml" "$label" "$src" "$cid" \
         ${image_id:+--image-id "$image_id"} ${run:+--run "$run"}
@@ -399,7 +445,7 @@ login)
     build "$v" -q >/dev/null
     mkdir -p data/claude
     docker run --rm -it -e CLAUDE_CONFIG_DIR="$CLAUDE_CONFIG" -v "$ROOT/data/claude:$CLAUDE_CONFIG" \
-        "dfir-mcp-bench/mulder:$v" bash -c "$CLAUDE_BIN auth login && $CLAUDE_BIN auth status"
+        "$(variant_image "$v")" bash -c "$CLAUDE_BIN auth login && $CLAUDE_BIN auth status"
     ;;
 check)
     if [ $# -eq 0 ]; then

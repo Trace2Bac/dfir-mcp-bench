@@ -1,0 +1,37 @@
+diff --git a/src/findevil/tools/autonomy.py b/src/findevil/tools/autonomy.py
+index da7aba2..2339100 100644
+--- a/src/findevil/tools/autonomy.py
++++ b/src/findevil/tools/autonomy.py
+@@ -360,6 +360,20 @@ def assess_coverage(findings_json: str = "") -> str:
+         out.append("|---|---|---|")
+         out.extend(table)
+         out.append("")
++    else:
++        # Nothing to compare against: say so rather than report it as covered.
++        why = (
++            f"the evidence directory `{EVIDENCE_DIR}` does not exist"
++            if not EVIDENCE_DIR.is_dir()
++            else f"no file under `{EVIDENCE_DIR}` matched an artifact class this check "
++            "knows (auth log, journal, web log, SSH and sudo config, shell history, "
++            "package log, container artifacts, filesystem root, memory image); disk "
++            "images and Windows artifacts, for example, are not checked"
++        )
++        out.append("## Artifact coverage")
++        out.append("")
++        out.append(f"Not assessed: {why}.")
++        out.append("")
+ 
+     if gaps:
+         out.append(f"## ⚠ Coverage gaps ({len(gaps)})")
+@@ -371,6 +385,11 @@ def assess_coverage(findings_json: str = "") -> str:
+             f"**Verdict: {len(gaps)} GAP(S) REMAIN — keep investigating, "
+             "then re-run assess_coverage.**"
+         )
++    elif not inventory:
++        out.append(
++            "**Verdict: NOT ASSESSED** — no artifact class was found to check, so "
++            "this is not a sign that the evidence has been examined."
++        )
+     else:
+         out.append(
+             "**Verdict: COVERAGE CLEAN** — every artifact class present in "

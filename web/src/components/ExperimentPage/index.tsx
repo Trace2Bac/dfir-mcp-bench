@@ -12,7 +12,6 @@ import styles from './styles.module.css';
 // the label comparison per model, per-question results, the scripted tool
 // output side by side, and a run explorer for transcripts.
 
-const MULDER_COMMIT = 'https://github.com/calebevans/mulder/commit/';
 
 const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 
@@ -45,10 +44,10 @@ const PickContext = createContext<{pick: Pick | null; setPick: (p: Omit<Pick, 'n
 });
 
 // One numbered square per reviewed run; a click opens that run below.
-function RunGrid({g, q}: {g: Group; q: Question}) {
+function RunGrid({g, q, perRow}: {g: Group; q: Question; perRow: number}) {
   const {setPick} = useContext(PickContext);
   return (
-    <div className={styles.runGrid}>
+    <div className={styles.runGrid} style={{gridTemplateColumns: `repeat(${perRow}, 16px)`}}>
       {g.runs
         .filter(r => r.review)
         .map(r => {
@@ -201,67 +200,70 @@ function Conditions({data}: {data: ExperimentData}) {
   return (
     <Section
       title={translate({id: 'case.conditions', message: 'Conditions'})}>
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            <th>
-              <Translate id="case.col.label">label</Translate>
-            </th>
-            <th>
-              <Translate id="case.col.commit">server commit</Translate>
-            </th>
-            <th>
-              <Translate id="case.col.image">base image</Translate>
-            </th>
-            <th>
-              <Translate id="case.col.patches">patches</Translate>
-            </th>
-            <th>
-              <Translate id="case.col.note">note</Translate>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.variants.map((v, i) => (
-            <tr key={v.label}>
-              <td className={sideClass(i)}>
-                <strong>{v.label}</strong>
-              </td>
-              <td>
-                <a href={MULDER_COMMIT + v.ref}>
-                  <code>{v.ref.slice(0, 7)}</code>
-                </a>
-              </td>
-              <td>
-                <code title={v.baseImage}>{v.baseImage.split('@')[0].split('/').pop()}</code>
-              </td>
-              <td>
-                {/* Patches applied here, and changes already upstream that its commit includes. */}
-                {v.patches || v.upstream.length
-                  ? [
-                      ...v.patches
-                        .split(/\s+/)
-                        .filter(Boolean)
-                        .map(p => (
-                          <Link key={p} to={`/patches/${p.replace(/\.patch$/, '')}`} className={styles.link}>
-                            <code>{p}</code>
+      {/* On a narrow screen the table keeps its width and scrolls sideways. */}
+      <div className={styles.tableScroll}>
+        <table className={clsx(styles.table, styles.conditionsTable)}>
+          <thead>
+            <tr>
+              <th>
+                <Translate id="case.col.label">label</Translate>
+              </th>
+              <th>
+                <Translate id="case.col.commit">server commit</Translate>
+              </th>
+              <th>
+                <Translate id="case.col.image">base image</Translate>
+              </th>
+              <th>
+                <Translate id="case.col.patches">patches</Translate>
+              </th>
+              <th>
+                <Translate id="case.col.note">note</Translate>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.variants.map((v, i) => (
+              <tr key={v.label}>
+                <td className={sideClass(i)}>
+                  <strong>{v.label}</strong>
+                </td>
+                <td>
+                  <a href={`https://github.com/${v.repo}/commit/${v.ref}`}>
+                    <code>{v.ref.slice(0, 7)}</code>
+                  </a>
+                </td>
+                <td>
+                  <code title={v.baseImage}>{v.baseImage.split('@')[0].split('/').pop()}</code>
+                </td>
+                <td>
+                  {/* Patches applied here, and changes already upstream that its commit includes. */}
+                  {v.patches || v.upstream.length
+                    ? [
+                        ...v.patches
+                          .split(/\s+/)
+                          .filter(Boolean)
+                          .map(p => (
+                            <Link key={p} to={`/patches/${p.replace(/\.patch$/, '')}`} className={styles.link}>
+                              <code>{p}</code>
+                            </Link>
+                          )),
+                        ...v.upstream.map(u => (
+                          <Link key={u.slug} to={`/patches/${u.slug}`} className={styles.link}>
+                            {u.pr ? `#${u.pr}` : u.slug}
                           </Link>
                         )),
-                      ...v.upstream.map(u => (
-                        <Link key={u.slug} to={`/patches/${u.slug}`} className={styles.link}>
-                          {u.pr ? `#${u.pr}` : u.slug}
-                        </Link>
-                      )),
-                    ]
-                  : '—'}
-              </td>
-              <td className={styles.small}>{v.note}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                      ]
+                    : '—'}
+                </td>
+                <td className={styles.small}>{v.note}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       <div className={styles.facts}>
-        {/* The case's tool list applies to bench-runner; the other harnesses get all of mulder's tools. */}
+        {/* The case's tool list applies to bench-runner; the other harnesses get the server's tools. */}
         {((data.harness ?? 'bench-runner') === 'bench-runner' || data.toolsLimited) && (
           <div>
             <span>
@@ -609,6 +611,8 @@ function Questions({data}: {data: ExperimentData}) {
     .filter(lg => lg.labels.length);
   const firstOfGroup = new Set(groups.slice(1).map(lg => lg.labels[0]));
   const several = models.length > 1;
+  // Two labels leave room for twenty squares to a row; more get ten.
+  const perRow = labels.length <= 2 ? 20 : 10;
   const cell = (g: Group, q: Question) => {
     if (g.model === 'scripted') {
       const s = g.runs[0].score?.questions.find((x: any) => x.id === q.id);
@@ -626,7 +630,7 @@ function Questions({data}: {data: ExperimentData}) {
     ) : (
       <>
         <VerdictBar verdicts={reviewed.map(r => verdictOf(r.review!.questions[q.id]?.verdict))} />
-        <RunGrid g={g} q={q} />
+        <RunGrid g={g} q={q} perRow={perRow} />
       </>
     );
   };
@@ -1133,12 +1137,12 @@ function RunExplorer({data}: {data: ExperimentData}) {
 }
 
 // How an experiment was run, in words.
-function harnessName(harness?: string): string {
+function harnessName(harness?: string, server = 'mulder'): string {
   switch (harness) {
     case 'mulder-investigate':
       return 'mulder investigate';
     case 'claude-code':
-      return translate({id: 'harness.claudeCode', message: 'Claude Code with mulder MCP'});
+      return translate({id: 'harness.claudeCode', message: 'Claude Code with {server} MCP'}, {server});
     default:
       return translate({id: 'harness.benchRunner', message: 'bench runner (local model or scripted calls)'});
   }
@@ -1171,20 +1175,23 @@ function Overview({data}: {data: ExperimentData}) {
         <span>
           <Translate id="exp.test">Case</Translate>
         </span>
-        <p>
-          <Translate id="exp.testLine" values={{
-              case: (
-                <Link to={`/cases/${data.case.id}`}>
-                  <strong>{data.case.name}</strong>
-                </Link>
-              ),
-              harness: harnessName(data.harness),
-            }}>
-            {'{case}, run with {harness}'}
-          </Translate>
-          <br />
-          <span className={styles.small}>{data.case.purpose}</span>
-        </p>
+        <div>
+          <p>
+            <Translate id="exp.testLine" values={{
+                case: (
+                  <Link to={`/cases/${data.case.id}`}>
+                    <strong>{data.case.name}</strong>
+                  </Link>
+                ),
+                harness: harnessName(data.harness, data.server),
+              }}>
+              {'{case}, run with {harness}'}
+            </Translate>
+          </p>
+          <div className={clsx(styles.small, styles.caseNote)}>
+            <RichText text={data.case.purpose} />
+          </div>
+        </div>
       </div>
       {data.criteria && (
         <div className={styles.overviewRow}>

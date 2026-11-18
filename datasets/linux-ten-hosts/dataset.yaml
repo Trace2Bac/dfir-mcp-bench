@@ -1,0 +1,29 @@
+id: linux-ten-hosts
+title: Ten Linux hosts' auth logs, three of them public
+title_ko: 리눅스 호스트 열 대의 인증 로그(그중 세 대는 공개 로그)
+source: datasets/public-linux-auth, and make_hosts.py in this folder
+prepare: datasets/linux-ten-hosts/make_hosts.py
+contents: >
+  The three public logs of public-linux-auth (app-1 from Honeynet's Forensic
+  Challenge 5, broken into by SSH brute force; LabSZ and combo from Loghub)
+  and seven generated hosts with ordinary activity only.
+files:
+  - {name: api-01/var/log/auth.log, sha256: 42b0f252cd5d3c8c64de475b638cc906e8766d500bd23827ecc46711264c6601, note: "generated; ordinary activity", note_ko: "생성. 평소 활동"}
+  - {name: api-02/var/log/auth.log, sha256: 8d0e7c0eb1f131df6dfcc1962affc0a9d2def1056faaf612557933a05f3bdb90, note: "generated; ordinary activity", note_ko: "생성. 평소 활동"}
+  - {name: api-03/var/log/auth.log, sha256: 59492fb912ff9c4bb3ef4a55cdd76a839c8e558d359f174553e9620315970f87, note: "generated; ordinary activity", note_ko: "생성. 평소 활동"}
+  - {name: api-04/var/log/auth.log, sha256: 982788b511d9c97eba32ff3b755ada8975098088e34bd6468e9712bf6e6c9855, note: "generated; ordinary activity", note_ko: "생성. 평소 활동"}
+  - {name: app-1/var/log/auth.log, sha256: 730bace212f7b2e878a7b2ad31e99e25a7f8e27479a07f1e4d713e15e4a19d18, note: "Honeynet Forensic Challenge 5; broken into by SSH brute force", note_ko: "Honeynet Forensic Challenge 5. SSH 무차별 대입으로 침입당함"}
+  - {name: combo/var/log/secure, sha256: d474818dad65467e1d0747b70fe77d2c2482a74670aa53671750eefb4edef4fc, note: "Loghub Linux_2k.log, sshd and su lines", note_ko: "Loghub Linux_2k.log의 sshd, su 줄"}
+  - {name: db-01/var/log/auth.log, sha256: 5dab536b20aaa1cb9bccc133d006bbc0b0f06a68284f2020d3ebe31d3551af2e, note: "generated; ordinary activity", note_ko: "생성. 평소 활동"}
+  - {name: db-02/var/log/auth.log, sha256: fe1798dc4190b027d96d5e778785f92d98016fad57e481bb669445ddfa233bff, note: "generated; ordinary activity", note_ko: "생성. 평소 활동"}
+  - {name: LabSZ/var/log/auth.log, sha256: 1e4912727fa88245113d41b16a0cd25ceadba7f931e1c406542885b91254264f, note: "Loghub OpenSSH_2k.log; brute force, no break-in", note_ko: "Loghub OpenSSH_2k.log. 무차별 대입 시도만 있음"}
+  - {name: web-01/var/log/auth.log, sha256: ab94576f0ce67702c54e8a1c7d5c17322ab9764878defc81e0ea7c18b5621218, note: "generated; ordinary activity", note_ko: "생성. 평소 활동"}
+notes: >
+  Only the break-in is real. The generated hosts add the number of targets:
+  hourly cron sessions, the deploy account's key logins with sudo, and a few
+  failed logins from scanners that never succeed, in April 2010 when app-1
+  was attacked. Their addresses are in the documentation ranges (RFC 5737),
+  and the generator is seeded, so it writes the same files every time.
+notes_ko: >
+  침입은 실제 로그에만 있습니다. 생성한 호스트는 대상 수를 늘리기 위한 것으로, app-1이 공격당한 2010년 4월의 매시간 cron 세션, deploy 계정의 키 로그인과 sudo,
+  그리고 성공하지 못하는 스캐너의 로그인 실패 몇 건만 있습니다. 주소는 문서용 대역(RFC 5737)이고, 생성 스크립트는 시드가 고정돼 있어 매번 같은 파일을 만듭니다.

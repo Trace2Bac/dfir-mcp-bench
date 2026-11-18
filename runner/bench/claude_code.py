@@ -1,10 +1,11 @@
-"""Run a case with Claude Code as the agent and `mulder serve` as its only tools.
+"""Run a case with Claude Code as the agent and one MCP server as its only tools.
 
 The harness `claude-code`: Claude Code (the CLI bundled with mulder's Claude
 Agent SDK, so its version is pinned by the image) runs headless with
-`claude -p`, connected to `mulder serve` over MCP stdio. Its built-in tools
-(Bash, Read, web access, ...) are turned off, so it can reach the evidence
-only through mulder. It is signed in to a Claude subscription by
+`claude -p`, connected over MCP stdio to the experiment's server (`server`
+in experiment.yaml: `mulder serve`, or findevil). Its built-in tools (Bash,
+Read, web access, ...) are turned off, so it can reach the evidence only
+through that server. It is signed in to a Claude subscription by
 `./bench.sh login` (kept in data/claude/), or by a CLAUDE_CODE_OAUTH_TOKEN
 from `claude setup-token`.
 
@@ -13,10 +14,10 @@ Claude Code in the variant's image with its stream-json output piped through
 `progress`, then calls `import` to turn that output into a bench run:
 
 - answer.md         Claude Code's final message, judged by a reviewer (review.yaml)
-- transcript.jsonl  one tool_call event per mulder tool call, with its result
+- transcript.jsonl  one tool_call event per server tool call, with its result
 - run.json          variant, model, effort, Claude Code version, timing, usage
 - claude/           the raw stream-json output and the prompt it was given
-- mulder/           mulder's audit log and logs for the case, if written
+- <server>/         the server's audit log and logs for the case, if written
 """
 
 from __future__ import annotations
@@ -35,10 +36,31 @@ from .case import load_case, split_answers
 from .investigate import CASE_PREFIX, briefing_text, run_dir
 
 # Claude Code names MCP tools mcp__<server>__<tool>.
-SERVER = "mulder"
-TOOL_PREFIX = f"mcp__{SERVER}__"
+TOOL_PREFIX = re.compile(r"^mcp__.+?__")
 # Inside the image; the entrypoint runs everything as the mulder user.
 CLAUDE = "/usr/local/lib/python3.12/dist-packages/claude_agent_sdk/_bundled/claude"
+# Mounted from the run's working folder (cases/), so what a server writes
+# there is kept with the run.
+CASES = "/home/mulder/.mulder/cases"
+
+# Per server: how it is started in its image, and how the prompt tells the
+# agent to begin. {evidence} and {case_id} are filled in.
+SERVERS: dict[str, dict[str, Any]] = {
+    "mulder": {
+        "command": "mulder",
+        "args": ["serve"],
+        "start": (
+            'Start by creating the case with scan_evidence(evidence_path="{evidence}", case_id="{case_id}"); '
+            "get_tool_guide explains which tools fit which evidence."
+        ),
+    },
+    "findevil": {
+        "command": "/opt/findevil/.venv/bin/python",
+        "args": ["-m", "findevil"],
+        "env": {"FINDEVIL_EVIDENCE_DIR": "{evidence}", "FINDEVIL_LOGS_DIR": f"{CASES}/findevil"},
+        "start": "list_evidence shows what is there; give the tools full paths under {evidence}.",
+    },
+}
 STREAM = "stream.jsonl"
 PROMPT = "prompt.md"
 MCP_CONFIG = "mcp.json"
@@ -50,16 +72,27 @@ def _options(experiment_yaml: Path) -> dict[str, Any]:
     return yaml.safe_load(experiment_yaml.read_text()).get("harness_options") or {}
 
 
+def _server(experiment_yaml: Path) -> str:
+    return str(yaml.safe_load(experiment_yaml.read_text()).get("server") or "mulder")
+
+
+def _tool_name(name: str) -> str:
+    return TOOL_PREFIX.sub("", name)
+
+
 def prepare(case_yaml: Path, experiment_yaml: Path, work: Path, evidence_in_container: str, case_id: str) -> None:
     """Write the prompt and the MCP config into *work*/claude."""
     out = work / "claude"
     out.mkdir(parents=True, exist_ok=True)
     answer_section = bool(_options(experiment_yaml).get("answer_section", False))
+    server = _server(experiment_yaml)
+    spec = SERVERS[server]
+    fill = {"evidence": evidence_in_container, "case_id": case_id}
     prompt = (
-        "You are a digital forensic examiner. Your only tools are those of the mulder MCP server. "
-        f"The evidence is mounted read-only at {evidence_in_container}. Start by creating the case "
-        f'with scan_evidence(evidence_path="{evidence_in_container}", case_id="{case_id}"); '
-        "get_tool_guide explains which tools fit which evidence. Investigate until you can answer "
+        f"You are a digital forensic examiner. Your only tools are those of the {server} MCP server. "
+        f"The evidence is mounted read-only at {evidence_in_container}. "
+        + spec["start"].format(**fill)
+        + " Investigate until you can answer "
         "every question below. Base each answer on what the tools return, not on what you may "
         "already know about this dataset. Your last message is the final report.\n\n"
         + briefing_text(case_yaml, evidence_in_container, answer_section)
@@ -69,7 +102,10 @@ def prepare(case_yaml: Path, experiment_yaml: Path, work: Path, evidence_in_cont
     if instruction:
         prompt += f"\n{str(instruction).strip()}\n"
     (out / PROMPT).write_text(prompt)
-    config = {"mcpServers": {SERVER: {"command": "mulder", "args": ["serve"]}}}
+    entry: dict[str, Any] = {"command": spec["command"], "args": spec["args"]}
+    if spec.get("env"):
+        entry["env"] = {k: v.format(**fill) for k, v in spec["env"].items()}
+    config = {"mcpServers": {server: entry}}
     (out / MCP_CONFIG).write_text(json.dumps(config, indent=2) + "\n")
 
 
@@ -85,7 +121,7 @@ def claude_args(experiment_yaml: Path, model: str | None = None) -> str:
 
 
 def tools(experiment_yaml: Path) -> str:
-    """The mulder tools the agent may use (harness_options.tools), space-separated; empty for all."""
+    """The server tools the agent may use (harness_options.tools), space-separated; empty for all."""
     return " ".join(str(t) for t in _options(experiment_yaml).get("tools") or [])
 
 
@@ -103,13 +139,13 @@ def progress() -> None:
         kind = event.get("type")
         if kind == "system" and event.get("subtype") == "init":
             servers = ", ".join(f"{s['name']} {s['status']}" for s in event.get("mcp_servers", []))
-            tools = sum(1 for n in event.get("tools", []) if n.startswith(TOOL_PREFIX))
+            tools = sum(1 for n in event.get("tools", []) if TOOL_PREFIX.match(n))
             print(f"{stamp} Claude Code {event.get('claude_code_version', '?')}, model {event.get('model')}")
-            print(f"{stamp} MCP: {servers or 'none'}; {tools} mulder tools", flush=True)
+            print(f"{stamp} MCP: {servers or 'none'}; {tools} server tools", flush=True)
         elif kind == "assistant":
             for block in event.get("message", {}).get("content", []):
                 if block.get("type") == "tool_use":
-                    name = block["name"].removeprefix(TOOL_PREFIX)
+                    name = _tool_name(block["name"])
                     args = json.dumps(block.get("input", {}), ensure_ascii=False)
                     print(f"{stamp} > {name} {args[:120]}", flush=True)
                 elif block.get("type") == "text" and block.get("text", "").strip():
@@ -157,7 +193,7 @@ def import_run(
     case = load_case(root / "cases" / exp["case"] / "case.yaml")
     options = exp.get("harness_options") or {}
     variant = exp["variants"][label]
-    env = (root / "servers" / "mulder" / "variants" / f"{variant}.env").read_text()
+    env = next((root / "servers").glob(f"*/variants/{variant}.env")).read_text()
     ref = re.search(r"^REF=(\S+)", env, re.MULTILINE)
     folder = model or options.get("model", "default")
     out = run_dir(experiment_yaml.parent / "results" / label / _slug(folder), run_id)
@@ -172,6 +208,9 @@ def import_run(
         if (cases / name).exists():
             (out / "mulder").mkdir(exist_ok=True)
             shutil.copy2(cases / name, out / "mulder" / name)
+    # findevil writes its audit log (audit.json) to FINDEVIL_LOGS_DIR.
+    if (cases / "findevil").is_dir():
+        shutil.copytree(cases / "findevil", out / "findevil")
 
     events = []
     for line in (work / "claude" / STREAM).read_text().splitlines():
@@ -198,7 +237,7 @@ def import_run(
             for block in e.get("message", {}).get("content", []):
                 if block.get("type") != "tool_use":
                     continue
-                name = block["name"].removeprefix(TOOL_PREFIX)
+                name = _tool_name(block["name"])
                 res = results.get(block["id"], {})
                 text = _text(res.get("content"))
                 if len(text) > MAX_RESULT_CHARS:

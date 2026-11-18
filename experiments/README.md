@@ -21,14 +21,14 @@ next to it holds the reviewer's verdicts.
 | Field | Meaning |
 |---|---|
 | (folder) | `EXP-<nnn>`, the identifier to cite. New experiments take the next number. When the list is cleaned up, experiments may be removed and the rest renumbered, so cite a commit or tag (see below), not a branch |
-| `title`, `server` | a title, which may change, and the MCP server it is about |
+| `title`, `server` | a title, which may change, and the MCP server it is about (a folder in `servers/`: `mulder` or `findevil`) |
 | `status` | `planned`, `in-progress` or `done` |
 | `change` | what differs between the labels, or what the baseline is for |
 | `links` | issues, pull requests, dataset pages |
 | `case` | the test in `cases/`; the case names its dataset |
-| `harness` | what ran it: `bench-runner` (`runner/` with a local model or scripted calls), `mulder-investigate` (mulder's orchestrator) or `claude-code` (Claude Code with `mulder serve`) |
-| `harness_options` | for `mulder-investigate`: `models` per role, `effort`, how it authenticated, and `answer_section` (ask the report for a "Case Questions" section with `Case Q<n>:` lines, which `review` shows per question); for `claude-code`: `model`, `effort`, `answer_section`, `instruction`, one line added to the end of the prompt for every label, and `tools`, the only mulder tools the agent may use (the others are removed from its tool list) |
-| `variants` | label to server variant (`servers/mulder/variants/<name>.env`) |
+| `harness` | what ran it: `bench-runner` (`runner/` with a local model or scripted calls), `mulder-investigate` (mulder's orchestrator) or `claude-code` (Claude Code with the experiment's server) |
+| `harness_options` | for `mulder-investigate`: `models` per role, `effort`, how it authenticated, and `answer_section` (ask the report for a "Case Questions" section with `Case Q<n>:` lines, which `review` shows per question); for `claude-code`: `model`, `effort`, `answer_section`, `instruction`, one line added to the end of the prompt for every label, and `tools`, the only server tools the agent may use (the others are removed from its tool list) |
+| `variants` | label to server variant (`servers/<server>/variants/<name>.env`) |
 | `scripted_expect` | scripted scores per label; the check fails when a scripted run reaches a different score |
 | `criteria` | how the answers are judged, written before the runs, so that the rules cannot be fitted to the results |
 | `label_groups` | optional: groups of labels for the site's tables, each with a `name` and `labels` (label: short name), plus `name_ko` and `labels_ko` |
@@ -49,7 +49,7 @@ and lines that start with `- ` form a list, so write them as literal blocks
 | `score.json` | scripted runs only: per question, whether the tool output holds every expected fact |
 | `review.yaml` | model runs: the reviewer's verdict per question (found, partial, missed, false positive) and contradicted claims outside the questions |
 | `server-db/` | bench-runner runs: mulder's audit log (every tool call with an output hash), its log and console output; the case database is not published |
-| `claude/`, `mulder/` | Claude Code runs: the prompt, the MCP configuration and the raw event stream (`stream.jsonl`), and mulder's audit log and log. The signed-in account's email and names are replaced with [examiner] |
+| `claude/`, `mulder/`, `findevil/` | Claude Code runs: the prompt, the MCP configuration and the raw event stream (`stream.jsonl`), and the server's audit log and log. The signed-in account's email and names are replaced with [examiner] |
 
 Results are committed so that a claim can cite them. Link to a file at a
 commit or tag, for example

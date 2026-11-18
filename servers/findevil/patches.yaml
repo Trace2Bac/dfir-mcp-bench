@@ -1,0 +1,88 @@
+# Changes to findevil that the experiments test, one entry each: what it
+# changes and why. Shown on the site's patch pages next to the diff. Same
+# format as servers/mulder/patches.yaml.
+
+coverage-per-location.patch:
+  title: "assess_coverage counts each file a tool actually ran on"
+  title_ko: "assess_coverage가 도구를 실제로 실행한 파일만 검사한 것으로 셈"
+  summary: |
+    assess_coverage reports, for each kind of artifact in the evidence, whether
+    it has been examined, and says COVERAGE CLEAN when nothing is left.
+
+    - Before: it reads only the tool names in the audit log. Once any auth tool
+      has run on one auth.log, every auth.log in the evidence is examined, and
+      the report says COVERAGE CLEAN.
+    - After: a file counts as examined only when one of its kind's tools ran on
+      that file, or on a folder that holds it (the path or root_path argument
+      in the audit log). The report shows how many of the files were examined
+      and lists the ones that were not.
+    - Tools that list or look around the files without reading them
+      (find_shell_histories, find_webshells, verify_package_integrity) do
+      not make a file examined.
+    - The inventory keeps every file of a kind instead of the first ten, so
+      each can be checked, and the table says how many locations it does not
+      show.
+    - The IOC and verification checks do not change.
+  summary_ko: |
+    assess_coverage는 증거에 있는 자료 종류마다 검사했는지 보고하고, 남은 것이 없으면 COVERAGE CLEAN이라고 합니다.
+
+    - 수정 전: 감사 로그의 도구 이름만 봅니다. 인증 도구를 auth.log 하나에 실행하면 증거의 모든 auth.log가 검사한 것이 되고, 보고서는 COVERAGE CLEAN이라고 합니다.
+    - 수정 후: 그 종류의 도구가 그 파일이나 그 파일이 든 폴더에 실행됐을 때만(감사 로그의 path 또는 root_path 인자) 검사한 것으로 셉니다. 보고서는 파일 중 몇 개를 검사했는지 보여 주고, 검사하지 않은 파일을 나열합니다.
+    - 파일을 읽지 않고 나열하거나 주변만 보는 도구(find_shell_histories, find_webshells, verify_package_integrity)는 검사로 세지 않습니다.
+    - 파일 목록을 앞의 10개로 자르지 않고 모두 남겨서 하나하나 확인할 수 있게 하고, 표에는 보이지 않는 위치가 몇 개인지 적습니다.
+    - IOC와 검증 조건은 바뀌지 않습니다.
+  changes:
+    - "assess_coverage: an artifact counts as examined only when its tools ran on that file or a folder holding it"
+    - "assess_coverage: the gap lists every file of the kind that was not examined"
+  changes_ko:
+    - "assess_coverage: 도구를 그 파일이나 그 파일이 든 폴더에 실행했을 때만 검사한 것으로 셈"
+    - "assess_coverage: 검사하지 않은 파일을 남은 작업에 모두 나열"
+  known_issues: |
+    Upstream's test test_assess_coverage_clean_when_all_examined writes audit
+    entries with no path and expects COVERAGE CLEAN, so it fails with this
+    change; a pull request would give those entries paths.
+  known_issues_ko: |
+    upstream 테스트 test_assess_coverage_clean_when_all_examined는 경로 없는 감사 기록을 쓰고 COVERAGE CLEAN을 기대하므로, 이 수정에서는 실패합니다. PR을 낸다면 그 기록에 경로를 넣어야 합니다.
+
+no-instructions.patch:
+  title: "findevil without its server instructions (diagnosis only)"
+  title_ko: "서버 지침을 뺀 findevil (진단용)"
+  summary: |
+    Not a proposed change. findevil gives MCP clients a set of instructions:
+    list the evidence, investigate, call assess_coverage after a round and
+    repeat until it says COVERAGE CLEAN, then call finalize_report. Claude
+    Code adds them to the agent's prompt. This patch removes them and changes
+    nothing else, to see whether they are why agents in EXP-005 did not read
+    assess_coverage between hosts.
+  summary_ko: |
+    제안하는 수정이 아닙니다. findevil은 MCP 클라이언트에 지침을 줍니다. 증거 목록을 보고, 조사하고, 한 바퀴 뒤 assess_coverage를 불러 COVERAGE CLEAN이 나올 때까지 반복한 다음 finalize_report를 부르라는 내용이고, Claude Code는 이를 에이전트의 프롬프트에 넣습니다. 이 패치는 그 지침만 빼고 나머지는 그대로 둡니다. EXP-005에서 에이전트가 호스트 사이에 assess_coverage를 보지 않은 이유가 이 지침인지 보려는 것입니다.
+  changes:
+    - "server: the FastMCP instructions are removed"
+  changes_ko:
+    - "server: FastMCP 지침을 뺌"
+
+coverage-not-assessed.patch:
+  title: "assess_coverage does not call nothing found clean"
+  title_ko: "assess_coverage가 아무것도 찾지 못한 것을 CLEAN이라 하지 않음"
+  summary: |
+    assess_coverage builds its table from the files it recognizes by name and
+    path (auth logs, journals, shell histories and so on).
+
+    - Before: when it recognizes none, the table and the gaps are both empty
+      and it says COVERAGE CLEAN, "every artifact class present in evidence
+      has been examined". That happens when the evidence directory does not
+      exist, or holds only a disk image or Windows artifacts.
+    - After: it says the coverage was not assessed and why (the directory is
+      missing, or no file matched a class it checks), with the verdict NOT
+      ASSESSED.
+    - Evidence with recognized files is reported as before.
+  summary_ko: |
+    assess_coverage는 이름과 경로로 알아본 파일(인증 로그, 저널, 셸 이력 등)로 점검 표를 만듭니다.
+
+    - 수정 전: 알아본 파일이 하나도 없으면 표와 남은 작업이 모두 비고, "증거에 있는 모든 자료 종류를 검사했다"는 COVERAGE CLEAN을 돌려줍니다. 증거 폴더가 없거나, 디스크 이미지나 Windows 자료만 있을 때 그렇습니다.
+    - 수정 후: 진척을 평가하지 못했다는 것과 그 이유(폴더가 없음, 점검하는 종류에 맞는 파일이 없음)를 적고, 판정은 NOT ASSESSED입니다.
+    - 알아본 파일이 있는 증거는 전과 같이 보고합니다.
+  changes:
+    - "assess_coverage: no recognized artifact gives NOT ASSESSED with the reason, not COVERAGE CLEAN"
+  changes_ko:
+    - "assess_coverage: 알아본 자료가 없으면 COVERAGE CLEAN 대신 이유와 함께 NOT ASSESSED"

@@ -167,6 +167,8 @@
   margin-top: 0.75rem;
   font-size: 0.85rem;
   display: grid;
+  /* minmax(0, ...): a long line of tool names wraps instead of widening the page. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.3rem;
 }
 
@@ -176,6 +178,7 @@
 }
 
 .facts code {
+  display: inline-block;
   margin-right: 0.3rem;
 }
 
@@ -190,6 +193,10 @@
 @media (max-width: 720px) {
   .compare {
     min-width: 34rem;
+  }
+
+  .conditionsTable {
+    min-width: 44rem;
   }
 }
 
@@ -399,6 +406,10 @@
 
 .conclusion .rich > p:first-child {
   font-weight: 500;
+}
+
+.caseNote {
+  margin-top: 0.3rem;
 }
 
 .rich {
@@ -700,7 +711,7 @@
   fill: var(--bench-fail);
 }
 
-/* Run by run: numbered squares, ten to a row. */
+/* Run by run: numbered squares, ten or twenty to a row (set by the table). */
 .runGrid {
   display: grid;
   grid-template-columns: repeat(10, 16px);

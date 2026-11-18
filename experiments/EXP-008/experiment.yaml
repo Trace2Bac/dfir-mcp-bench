@@ -1,0 +1,62 @@
+# EXP-008: one verification. The folder name is the identifier to cite;
+# the title may change.
+title: "findevil's assess_coverage calls evidence it cannot read clean"
+title_ko: "findevil assess_coverage가 읽지 못하는 증거를 CLEAN이라 함"
+server: findevil
+status: done                     # planned | in-progress | done
+change: |
+  findevil's assess_coverage reports COVERAGE CLEAN when it recognizes no
+  artifact at all, although findevil's instructions treat COVERAGE CLEAN as
+  the sign that the work is done.
+
+  - Before: with no recognized file, the table and the gaps are empty and the
+    verdict is COVERAGE CLEAN, "every artifact class present in evidence has
+    been examined".
+  - After (coverage-not-assessed, our patch): the report says the coverage
+    was not assessed and why, with the verdict NOT ASSESSED.
+  - Checked without a model on the NIST Hacking Case image, not mounted:
+    list_evidence, then assess_coverage, with no analysis tool in between.
+    A missing evidence directory gives the same before and after (checked
+    by calling the function directly).
+change_ko: |
+  findevil의 assess_coverage는 자료를 하나도 알아보지 못해도 COVERAGE CLEAN을 돌려줍니다. findevil의 지침은 COVERAGE CLEAN을 작업이 끝났다는 신호로 씁니다.
+
+  - 수정 전: 알아본 파일이 없으면 표와 남은 작업이 비고, 판정은 "증거에 있는 모든 자료 종류를 검사했다"는 COVERAGE CLEAN입니다.
+  - 수정 후(coverage-not-assessed, 우리 패치): 진척을 평가하지 못했다는 것과 그 이유를 적고, 판정은 NOT ASSESSED입니다.
+  - 모델 없이, 마운트하지 않은 NIST Hacking Case 이미지로 확인합니다. list_evidence 다음 바로 assess_coverage를 부르고, 그 사이에 분석 도구는 부르지 않습니다. 증거 폴더가 없을 때도 수정 전후가 같은 모습인 것을 함수를 직접 불러 확인했습니다.
+links:
+  - https://github.com/marlyocat/findevil
+  - https://cfreds-archive.nist.gov/Hacking_Case.html
+
+case: findevil-disk-image-only
+harness: bench-runner # runner/ with scripted calls
+
+variants:
+  before: findevil-d1a8d25               # findevil main as published
+  after: findevil-d1a8d25-not-assessed   # plus coverage-not-assessed
+
+scripted_expect:
+  before: { questions: 0/2, facts: 0/2 }
+  after: { questions: 2/2, facts: 2/2 }
+
+conclusion: |
+  After the fix, a report that found nothing to check no longer says the
+  work is done.
+
+  - Before: with only the disk image in the folder and no analysis tool
+    called, assess_coverage returns no table and "Verdict: COVERAGE CLEAN —
+    every artifact class present in evidence has been examined" (0 of 2).
+  - After: it says the coverage was not assessed, since no file matched a
+    class it checks and disk images are not checked, with "Verdict: NOT
+    ASSESSED" (2 of 2).
+  - findevil's own instructions say to repeat the work until the report says
+    COVERAGE CLEAN, so before the fix an agent that follows them is told to
+    stop before it has looked at anything.
+  - Checked without a model; the result does not depend on one.
+conclusion_ko: |
+  수정 후에는 점검할 것을 찾지 못한 보고서가 작업이 끝났다고 하지 않습니다.
+
+  - 수정 전: 폴더에 디스크 이미지만 있고 분석 도구를 하나도 부르지 않았는데, assess_coverage는 표 없이 "Verdict: COVERAGE CLEAN — every artifact class present in evidence has been examined"를 돌려줍니다(0/2).
+  - 수정 후: 점검하는 종류에 맞는 파일이 없고 디스크 이미지는 점검하지 않는다는 이유와 함께, 진척을 평가하지 못했다고 하며 "Verdict: NOT ASSESSED"를 돌려줍니다(2/2).
+  - findevil의 지침은 보고서가 COVERAGE CLEAN이라고 할 때까지 작업을 되풀이하라고 하므로, 수정 전에는 지침을 따르는 에이전트가 아무것도 보기 전에 멈추라는 말을 듣는 셈입니다.
+  - 모델 없이 확인했고 결과는 모델과 상관없습니다.

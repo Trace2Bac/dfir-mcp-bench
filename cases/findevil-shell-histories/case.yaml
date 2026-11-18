@@ -1,0 +1,49 @@
+id: findevil-shell-histories
+title: assess_coverage after one of three shell histories is analyzed
+title_ko: 셸 이력 세 개 중 하나만 분석한 뒤의 assess_coverage
+name: "findevil scenario 02, shell histories"   # short name for lists
+name_ko: "findevil 시나리오 02, 셸 이력"
+dataset: findevil-samples
+evidence: findevil-scenario-02
+purpose: |
+  findevil's own scenario 02 has three shell histories (alice, deploy, root).
+  The scripted calls list them with find_shell_histories, then analyze
+  alice's only, and ask assess_coverage after each step.
+
+  - find_shell_histories lists the files and does not read them.
+  - deploy's history, the one never analyzed, is the only one in which
+    analyze_bash_history flags a command.
+purpose_ko: |
+  findevil의 시나리오 02에는 셸 이력 세 개(alice, deploy, root)가 있습니다. 스크립트 호출로 find_shell_histories로 이력을 나열하고, alice의 이력만 분석하며, 단계마다 assess_coverage를 부릅니다.
+
+  - find_shell_histories는 파일을 나열할 뿐 읽지 않습니다.
+  - 분석하지 않은 deploy 이력이, analyze_bash_history가 명령을 의심으로 표시하는 유일한 이력입니다.
+
+setup: []
+
+tools: [find_shell_histories, analyze_bash_history, assess_coverage]
+
+scripted:                             # --scripted: fixed calls, no model
+  - tool: find_shell_histories
+    args: {root_path: "${EVIDENCE}/fs"}
+  - tool: assess_coverage
+    args: {}
+  - tool: analyze_bash_history
+    args: {path: "${EVIDENCE}/fs/home/alice/.bash_history"}
+  - tool: assess_coverage
+    args: {}
+
+# The coverage reports are the answer.
+questions:
+  - id: Q1
+    text: After the histories are only listed, does the coverage report show none of them as examined?
+    text_ko: "이력을 나열만 했을 때, 커버리지 보고서가 어느 이력도 검사하지 않았다고 표시하나요?"
+    expect: {all: ["| shell history | `fs/home/alice/.bash_history`, `fs/home/deploy/.bash_history`, `fs/root/.bash_history` | ❌ NOT examined |"]}
+    requires_tools: [assess_coverage]
+  - id: Q2
+    text: After alice's history is analyzed, does the report still list deploy's and root's histories as not examined?
+    text_ko: "alice 이력만 분석한 뒤에도, 보고서가 deploy와 root의 이력을 검사하지 않은 것으로 나열하나요?"
+    expect: {all: ["**shell history** present (`fs/home/deploy/.bash_history`, `fs/root/.bash_history`) but never examined"]}
+    requires_tools: [assess_coverage]
+
+limits: {max_turns: 12, max_tool_chars: 8000}

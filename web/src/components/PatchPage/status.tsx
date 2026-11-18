@@ -3,7 +3,7 @@ import {translate} from '@docusaurus/Translate';
 import type {PatchData} from '../../../plugins/bench-data';
 
 // Where a change stands: a patch here only, a pull request still open, or
-// merged into upstream mulder.
+// merged into the upstream server.
 export function patchStatus(p: Pick<PatchData, 'kind' | 'upstream'>): string {
   const u = p.upstream;
   if (u?.status === 'merged')

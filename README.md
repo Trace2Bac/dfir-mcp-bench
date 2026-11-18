@@ -20,6 +20,10 @@ cite them.
 | EXP-002 | Does telling the agent what a tool did not check stop a wrong answer? | clamav-limit, extract-keep (patches) | Opus and Haiku, 160 |
 | EXP-003 | Does audit_tool_coverage count a tool only for the evidence it ran on? | calebevans/mulder#270 | scripted |
 | EXP-004 | Does a wrong progress report end an investigation early? | calebevans/mulder#270 | Opus, 100 |
+| EXP-005 | Does findevil's coverage report end an investigation early? | coverage-per-location (patch to findevil) | in progress |
+| EXP-006 | Do findevil's own instructions keep the agent from reading its coverage report midway? | no-instructions (diagnosis only) | in progress |
+| EXP-007 | findevil's assess_coverage counts a shell history it never read | coverage-per-location (patch to findevil) | scripted |
+| EXP-008 | findevil's assess_coverage calls evidence it cannot read clean | coverage-not-assessed (patch to findevil) | scripted |
 
 Each experiment's change, criteria, conclusion and every run are on the
 results site and in `experiments/EXP-<nnn>/`.
@@ -30,10 +34,10 @@ results site and in `experiments/EXP-<nnn>/`.
 experiments/EXP-<nnn>/      one verification: experiment.yaml + results/, see experiments/README.md
 cases/<id>/                 a test: questions, tools, scripted calls, briefing; names its dataset
 datasets/<id>/              where the evidence comes from and how it is fetched or built
-servers/mulder/
-  variants/<name>.env       a server version: release image by digest, commit SHA, patches
+servers/<server>/           mulder, findevil
+  variants/<name>.env       a server version: base image by digest, commit SHA, patches
   patches/                  diffs applied on top of the commit
-  Dockerfile                release image + source at the commit + patches + runner
+  Dockerfile                base image + source at the commit + patches + runner
 runner/bench/               the bench-runner harness, the Claude Code import and the review tools
 docs/                       how runs are reviewed; docs/ko/ the Korean version
 web/                        the results site (Docusaurus), built from experiments/
@@ -49,9 +53,10 @@ same case on different variants.
   local model behind an OpenAI-compatible server, both talking to
   `mulder serve` over MCP.
 - `claude-code`: Claude Code runs the investigation itself, headless, with
-  `mulder serve` as its only tools. Its built-in tools are off, and an
-  experiment can limit it to a list of mulder tools. The Claude Code version
-  is the one bundled in mulder's image.
+  one MCP server (`mulder serve`, or findevil) as its only tools. Its
+  built-in tools are off, and an experiment can limit it to a list of the
+  server's tools. The Claude Code version is the one bundled in mulder's
+  release image, which the findevil variants also use as their base.
 - `mulder-investigate`: mulder's own five-phase orchestrator
   (`mulder investigate`). No current experiment uses it.
 
@@ -102,7 +107,8 @@ the repository is the record.
 Evidence is not redistributed. Each dataset folder links its source and
 checks hashes: the published ones where they exist, otherwise SHA-256 values
 recorded at the first download (NIST CFTT DFR, NIST Hacking Case, whose image
-MD5 is also checked against NIST's answer key). Answer keys are cited by URL.
+MD5 is also checked against NIST's answer key, and the Honeynet and Loghub
+logs). Answer keys are cited by URL.
 Published transcripts contain tool output, which includes excerpts of the
 evidence. Account details that Claude Code passes to the model are replaced
 with [examiner] in imported runs.

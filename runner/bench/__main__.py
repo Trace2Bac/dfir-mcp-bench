@@ -44,7 +44,8 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument(
         "--server-cmd",
         default=_env("BENCH_SERVER_CMD", "mulder serve --db-dir ${DB_DIR}"),
-        help="command that starts the MCP server on stdio; ${DB_DIR} is a fresh folder per run",
+        help="command that starts the MCP server on stdio; ${DB_DIR} is a fresh folder per run, "
+        "${EVIDENCE} the case's evidence folder",
     )
     run.add_argument("--model-base-url", default=_env("MODEL_BASE_URL", "http://host.docker.internal:1234/v1"))
     run.add_argument("--model", default=_env("MODEL_NAME", ""))
@@ -95,7 +96,9 @@ def _parser() -> argparse.ArgumentParser:
     sub.add_parser("claude-progress", help="print a progress line per stream-json event on stdin")
     sc = sub.add_parser("scan-claims", help="compare the images each run scanned with those its answer claims")
     sc.add_argument("experiment", type=Path, help="path to experiments/<id>")
-    sc.add_argument("--tool", required=True, help="the scanning tool, e.g. yara_scan_files")
+    sc.add_argument(
+        "--tool", required=True, help="the scanning tool, e.g. yara_scan_files; several separated by commas"
+    )
     sc.add_argument("--images", nargs="+", required=True, help="the evidence images by file name")
     cimp = sub.add_parser("import-claude", help="import a claude-code run into an experiment")
     cimp.add_argument("experiment", type=Path, help="path to experiments/<id>/experiment.yaml")

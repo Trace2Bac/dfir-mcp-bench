@@ -1,0 +1,54 @@
+# EXP-006: one verification. The folder name is the identifier to cite;
+# the title may change.
+title: "Do findevil's own instructions keep the agent from reading its coverage report midway?"
+title_ko: "findevil의 서버 지침 때문에 에이전트가 진척 보고를 중간에 보지 않을까?"
+server: findevil
+status: in-progress              # planned | in-progress | done
+change: |
+  A diagnosis for EXP-005. There, agents checked the three hosts and called
+  assess_coverage only at the end, although the prompt asked for it after
+  each host. With mulder in EXP-004 most runs read the report midway.
+
+  - The difference this tests: findevil gives the agent instructions (Claude
+    Code adds them to the prompt) that say to investigate first and call
+    assess_coverage after a round. mulder gives none.
+  - with-instructions: findevil as published (EXP-005's before).
+  - no-instructions: the same, with the server instructions removed
+    (no-instructions, a patch for this test only).
+  - Everything else is EXP-005's: the case, the tools and the prompt.
+  - Both labels have the coverage defect, so the question is only whether the
+    agent reads the report between hosts, and what it does then.
+change_ko: |
+  EXP-005의 원인 진단입니다. EXP-005에서는 프롬프트가 호스트마다 assess_coverage를 부르라고 했는데도, 에이전트가 세 호스트를 다 검사한 뒤 마지막에만 불렀습니다. EXP-004의 mulder에서는 대부분 중간에 보고서를 봤습니다.
+
+  - 확인할 차이: findevil은 에이전트에게 지침을 주고(Claude Code가 프롬프트에 넣음), 그 지침은 먼저 조사하고 한 바퀴 뒤에 assess_coverage를 부르라고 합니다. mulder는 지침이 없습니다.
+  - with-instructions: 공개된 findevil 그대로입니다(EXP-005의 before).
+  - no-instructions: 같은 것에서 서버 지침만 뺐습니다(no-instructions, 이 테스트용 패치).
+  - 케이스, 도구, 프롬프트는 모두 EXP-005와 같습니다.
+  - 두 라벨 모두 진척 판정 결함이 있으므로, 볼 것은 에이전트가 호스트 사이에 보고서를 보는지와 그때 어떻게 하는지뿐입니다.
+criteria: |
+  Written before the runs, from each run's tool calls.
+
+  - A run reads the report midway when it calls assess_coverage before
+    auth_summary has run on all three hosts.
+  - The labels are compared on how many runs read it midway (Fisher's exact
+    test). Q1 and Q2 are judged as in EXP-005.
+criteria_ko: |
+  실행 전에 정했고, 실행 기록의 도구 호출로 봅니다.
+
+  - auth_summary를 세 호스트 모두에 실행하기 전에 assess_coverage를 부르면 중간에 보고서를 본 것으로 셉니다.
+  - 두 라벨은 중간에 보고서를 본 실행 수(Fisher 정확 검정)로 비교합니다. Q1과 Q2는 EXP-005와 같은 기준으로 판정합니다.
+links:
+  - https://github.com/marlyocat/findevil
+
+case: linux-three-hosts-auth
+harness: claude-code
+harness_options:
+  model: claude-opus-4-6
+  answer_section: true
+  instruction: "Work on one host at a time. After each host, call assess_coverage and use it to pick a host on which auth_summary has not been run yet. When assess_coverage returns COVERAGE CLEAN, give your answer."
+  tools: [list_evidence, auth_summary, assess_coverage]
+
+variants:
+  with-instructions: findevil-d1a8d25                 # findevil main as published
+  no-instructions: findevil-d1a8d25-no-instructions   # without the server instructions

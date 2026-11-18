@@ -8,7 +8,7 @@ import type {PatchSummary} from '../../plugins/bench-data';
 import {patchStatus} from '../components/PatchPage/status';
 import styles from './index.module.css';
 
-// Patches: one row per change to mulder that an experiment tests, whether a
+// Patches: one row per change to an MCP server that an experiment tests, whether a
 // patch applied here or a change already merged upstream, with its status
 // and the experiments that use it.
 export default function Patches() {
@@ -18,14 +18,14 @@ export default function Patches() {
   return (
     <Layout
       title={translate({id: 'patches.title', message: 'Patches'})}
-      description={translate({id: 'patches.description', message: 'Changes to mulder tested in the experiments'})}>
+      description={translate({id: 'patches.description', message: 'Changes to the MCP servers tested in the experiments'})}>
       <main className={styles.main}>
         <h1>
           <Translate id="patches.title">Patches</Translate>
         </h1>
         <p className={styles.muted}>
           <Translate id="patches.intro">
-            Changes to mulder that the experiments test: patches applied here, and changes already merged upstream.
+            Changes to the MCP servers that the experiments test: patches applied here, and changes already merged upstream.
           </Translate>
         </p>
         <table className={styles.list}>
@@ -52,6 +52,7 @@ export default function Patches() {
                   <Link to={`/patches/${p.slug}`} className={styles.title}>
                     {p.title}
                   </Link>
+                  <div className={styles.muted}>{p.server}</div>
                 </td>
                 <td className={styles.colCase}>
                   {patchStatus(p)}

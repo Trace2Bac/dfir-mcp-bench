@@ -258,7 +258,7 @@ async def run_case(case: Case, opts: RunOptions) -> Path:
         "EVIDENCE": str(opts.evidence_root / case.evidence),
         "CASE_ID": _slug(f"bench-{case.id}-{stamp}").lower(),
     }
-    command = substitute(opts.server_cmd, {"DB_DIR": str(out / "server-db")})
+    command = substitute(opts.server_cmd, {"DB_DIR": str(out / "server-db"), "EVIDENCE": env["EVIDENCE"]})
     started = datetime.now(timezone.utc)
     reason, turns = "scripted", 0
     (out / "server-db").mkdir()
