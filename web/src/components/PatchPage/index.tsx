@@ -4,6 +4,7 @@ import Link from '@docusaurus/Link';
 import Layout from '@theme/Layout';
 import Translate, {translate} from '@docusaurus/Translate';
 import type {PatchData} from '../../../plugins/bench-data';
+import RichText from '../RichText';
 import styles from '../ExperimentPage/styles.module.css';
 import diffStyles from './diff.module.css';
 import {UpstreamLinks, patchStatus} from './status';
@@ -112,7 +113,7 @@ export default function PatchPage({data}: {data: PatchData}) {
             <span>
               <Translate id="patchPage.change">Change</Translate>
             </span>
-            <p>{data.summary || '—'}</p>
+            {data.summary ? <RichText text={data.summary} /> : <p>—</p>}
           </div>
           {data.changes.length > 0 && (
             <div className={styles.overviewRow}>

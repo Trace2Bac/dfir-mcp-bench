@@ -5,6 +5,7 @@ import Layout from '@theme/Layout';
 import Translate, {translate} from '@docusaurus/Translate';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import type {ExperimentData, Event, Group, Question, Run} from '../../../plugins/bench-data';
+import RichText from '../RichText';
 import styles from './styles.module.css';
 
 // One experiment: what changed and what it showed, the test and conditions,
@@ -1150,7 +1151,7 @@ function Overview({data}: {data: ExperimentData}) {
         <span>
           <Translate id="exp.change">Change</Translate>
         </span>
-        <p>{data.change}</p>
+        <RichText text={data.change} />
       </div>
       {data.links.length > 0 && (
         <div className={styles.overviewRow}>
@@ -1190,7 +1191,7 @@ function Overview({data}: {data: ExperimentData}) {
           <span>
             <Translate id="exp.criteria">Judged by</Translate>
           </span>
-          <p>{data.criteria}</p>
+          <RichText text={data.criteria} />
         </div>
       )}
       {data.conclusion && (
@@ -1198,7 +1199,7 @@ function Overview({data}: {data: ExperimentData}) {
           <span>
             <Translate id="exp.conclusion">Conclusion</Translate>
           </span>
-          <p>{data.conclusion}</p>
+          <RichText text={data.conclusion} />
         </div>
       )}
     </div>

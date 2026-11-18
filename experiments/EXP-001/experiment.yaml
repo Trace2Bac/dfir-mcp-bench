@@ -4,16 +4,20 @@ title: "Fix tshark field names"
 title_ko: "tshark 필드 이름 수정"
 server: mulder
 status: done # planned | in-progress | done
-change: >
-  Our first test, which verifies our PR calebevans/mulder#274. The
-  run_pcap_analysis tool asked tshark for fields that current Wireshark does
-  not have (dns.resp.addr, smtp.response.parameter), so the dns and smtp modes
-  both failed. Even so, mulder reported success and stored the tshark error as
-  the result. The fix asks for dns.a and smtp.rsp.parameter instead.
-change_ko: >
-  우리가 올린 PR calebevans/mulder#274를 검증한 첫 번째 테스트입니다. run_pcap_analysis 도구가 지금의 Wireshark에는 없는 필드(dns.resp.addr,
-  smtp.response.parameter)를 tshark에 요청해서, dns와 smtp 두 모드가 모두 실패했습니다. 그런데도 mulder는 성공으로 보고하고 tshark 오류 문구를 결과로
-  저장했습니다. 수정 후에는 dns.a와 smtp.rsp.parameter를 요청합니다.
+change: |
+  Our first test, which verifies our PR calebevans/mulder#274.
+
+  - Before: run_pcap_analysis asked tshark for fields that current Wireshark
+    does not have (dns.resp.addr, smtp.response.parameter), so the dns and smtp
+    modes both failed.
+  - Even so, mulder reported success and stored the tshark error as the result.
+  - After: it asks for dns.a and smtp.rsp.parameter instead.
+change_ko: |
+  우리가 올린 PR calebevans/mulder#274를 검증한 첫 번째 테스트입니다.
+
+  - 수정 전: run_pcap_analysis가 지금의 Wireshark에는 없는 필드(dns.resp.addr, smtp.response.parameter)를 tshark에 요청해서, dns와 smtp 두 모드가 모두 실패했습니다.
+  - 그런데도 mulder는 성공으로 보고하고 tshark 오류 문구를 결과로 저장했습니다.
+  - 수정 후: dns.a와 smtp.rsp.parameter를 요청합니다.
 links:
   - https://github.com/calebevans/mulder/issues/273
   - https://github.com/calebevans/mulder/pull/274
@@ -35,12 +39,17 @@ scripted_expect:
   before: { questions: 0/3, facts: 0/4 }
   after: { questions: 3/3, facts: 4/4 }
 
-conclusion: >
-  Checked without a model, by sending the same tool calls to both versions.
-  Before the fix, run_pcap_analysis returns the tshark error as a success in
-  both modes (0 of 3 questions, 0 of 4 facts). After it, the DNS answer and
-  the SMTP session come back (3 of 3, 4 of 4). The result does not depend on a
-  model, so no model runs are kept.
-conclusion_ko: >
-  모델 없이, 두 버전에 같은 도구 호출을 보내서 확인했습니다. 수정 전에는 run_pcap_analysis가 dns와 smtp 두 모드 모두 tshark 오류를 성공으로 돌려줍니다(질문 0/3,
-  사실 0/4). 수정 후에는 DNS 응답과 SMTP 세션이 나옵니다(3/3, 4/4). 결과가 모델과 상관없으므로 모델 실행은 남기지 않았습니다.
+conclusion: |
+  After the fix, the dns and smtp modes return data.
+
+  - Before: run_pcap_analysis returns the tshark error as a success in both
+    modes (0 of 3 questions, 0 of 4 facts).
+  - After: the DNS answer and the SMTP session come back (3 of 3, 4 of 4).
+  - Checked without a model, by sending the same tool calls to both versions.
+    The result does not depend on a model, so no model runs are kept.
+conclusion_ko: |
+  수정 후에는 dns와 smtp 모드가 데이터를 돌려줍니다.
+
+  - 수정 전: 두 모드 모두 tshark 오류를 성공으로 돌려줍니다(질문 0/3, 사실 0/4).
+  - 수정 후: DNS 응답과 SMTP 세션이 나옵니다(3/3, 4/4).
+  - 모델 없이, 두 버전에 같은 도구 호출을 보내서 확인했습니다. 결과가 모델과 상관없으므로 모델 실행은 남기지 않았습니다.

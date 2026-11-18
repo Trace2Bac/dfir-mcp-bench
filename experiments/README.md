@@ -35,6 +35,10 @@ next to it holds the reviewer's verdicts.
 | `conclusion` | what the results show, and their limits |
 | `title_ko`, `change_ko`, `criteria_ko`, `conclusion_ko` | optional Korean text for the site's Korean pages; the plain fields are English and the default |
 
+In `change`, `criteria` and `conclusion`, a blank line starts a new paragraph
+and lines that start with `- ` form a list, so write them as literal blocks
+(`|`).
+
 ## Files of a run
 
 | File | Contents |

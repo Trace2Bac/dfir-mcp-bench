@@ -4,21 +4,24 @@ title: "Credit audit_tool_coverage runs only to the evidence they named"
 title_ko: "audit_tool_coverage가 도구를 실제로 실행한 증거에만 반영"
 server: mulder
 status: done                     # planned | in-progress | done
-change: >
+change: |
   audit_tool_coverage reports, for each evidence item, which of the applicable
-  tools have been run. It built one list of tool names from the whole case's
-  audit log and compared every item with that list, so a tool run on one disk
-  image counted as run on every disk image. Judged by tool names alone, work
-  done on one target shows as done on another. The fix counts a tool for an
-  item only when the tool's evidence-input argument names that item or a
-  folder that holds it. This is checked without a model: run_fls on the first
-  of two NIST test images, then audit_tool_coverage, on the commit before the
-  fix and on its merge.
-change_ko: >
-  audit_tool_coverage는 증거마다 적용할 수 있는 도구 가운데 무엇을 실행했는지 보고합니다. 그런데 이 함수는 사건 전체의 감사 로그에서 도구 이름 목록 하나를 만들고, 모든 증거를 그
-  목록과 비교했습니다. 그래서 디스크 이미지 하나에 실행한 도구가 모든 디스크 이미지에 실행한 것으로 잡혔습니다. 진척을 도구 이름만으로 판단하면, 한 대상에서 끝낸 작업이 다른 대상에서도 끝난
-  것으로 표시되는 셈입니다. 수정 후에는 도구의 증거 입력 인자가 그 증거나 그 증거가 든 폴더를 가리킬 때만 실행한 것으로 셉니다. 확인은 모델 없이 합니다. NIST 테스트 이미지 두 개 중 첫
-  번째에만 run_fls를 실행한 뒤 audit_tool_coverage를 부르고, 이를 수정 직전 커밋과 수정을 머지한 커밋에서 똑같이 반복합니다.
+  tools have been run.
+
+  - Before: it built one list of tool names from the whole case's audit log and
+    compared every item with that list, so a tool run on one disk image counted
+    as run on every disk image. Judged by tool names alone, work done on one
+    target shows as done on another.
+  - After: a tool counts for an item only when the tool's evidence-input
+    argument names that item or a folder that holds it.
+  - Checked without a model: run_fls on the first of two NIST test images, then
+    audit_tool_coverage, on the commit before the fix and on its merge.
+change_ko: |
+  audit_tool_coverage는 증거마다 적용할 수 있는 도구 가운데 무엇을 실행했는지 보고합니다.
+
+  - 수정 전: 사건 전체의 감사 로그에서 도구 이름 목록 하나를 만들고 모든 증거를 그 목록과 비교했습니다. 그래서 디스크 이미지 하나에 실행한 도구가 모든 디스크 이미지에 실행한 것으로 잡혔습니다. 진척을 도구 이름만으로 판단하면, 한 대상에서 끝낸 작업이 다른 대상에서도 끝난 것으로 표시되는 셈입니다.
+  - 수정 후: 도구의 증거 입력 인자가 그 증거나 그 증거가 든 폴더를 가리킬 때만 실행한 것으로 셉니다.
+  - 확인은 모델 없이 합니다. NIST 테스트 이미지 두 개 중 첫 번째에만 run_fls를 실행한 뒤 audit_tool_coverage를 부르고, 이를 수정 직전 커밋과 수정을 머지한 커밋에서 똑같이 반복합니다.
 links:
   - https://github.com/calebevans/mulder/issues/269
   - https://github.com/calebevans/mulder/pull/270
@@ -36,14 +39,18 @@ scripted_expect:
   before: { questions: 0/2, facts: 0/2 }
   after: { questions: 2/2, facts: 2/2 }
 
-conclusion: >
-  Before the fix, the report counts run_fls for both images although it ran on
-  dfr-01-fat.dd only. dfr-02-ntfs.dd lists run_fls under tools_run, and the
-  case has 12 gaps. After the fix, dfr-02-ntfs.dd has no tool run and keeps
-  run_fls under tools_not_run, and the case has 13 gaps. The result does not
-  depend on a model. EXP-004 looks at whether an agent that follows this
-  report stops its work early.
-conclusion_ko: >
-  수정 전에는 run_fls를 dfr-01-fat.dd에만 실행했는데도 보고서가 두 이미지 모두 실행한 것으로 셉니다. dfr-02-ntfs.dd의 tools_run에 run_fls가 들어 있고,
-  미실행 도구는 12개입니다. 수정 후에는 dfr-02-ntfs.dd에서 실행한 도구가 없고 run_fls가 tools_not_run에 남으며, 미실행 도구는 13개입니다. 결과는 모델과
-  상관없습니다. 이 보고서를 따르는 에이전트가 일을 일찍 끝내는지는 EXP-004에서 봅니다.
+conclusion: |
+  After the fix, run_fls on one image no longer counts for the other.
+
+  - Before: run_fls ran on dfr-01-fat.dd only, but dfr-02-ntfs.dd also lists it
+    under tools_run, and the case has 12 gaps.
+  - After: dfr-02-ntfs.dd has no tool run and keeps run_fls under
+    tools_not_run, and the case has 13 gaps.
+  - The result does not depend on a model. EXP-004 looks at whether an agent
+    that follows this report stops its work early.
+conclusion_ko: |
+  수정 후에는 한 이미지에 실행한 run_fls가 다른 이미지에 반영되지 않습니다.
+
+  - 수정 전: run_fls를 dfr-01-fat.dd에만 실행했는데 dfr-02-ntfs.dd의 tools_run에도 들어 있고, 미실행 도구는 12개입니다.
+  - 수정 후: dfr-02-ntfs.dd에서 실행한 도구가 없고 run_fls가 tools_not_run에 남으며, 미실행 도구는 13개입니다.
+  - 결과는 모델과 상관없습니다. 이 보고서를 따르는 에이전트가 일을 일찍 끝내는지는 EXP-004에서 봅니다.

@@ -82,7 +82,8 @@ same case on different variants.
 
 ## Results site
 
-Built from `web/` and published from `main`. It shows each experiment's
+Built from `web/` and published when a version tag (`v<YYYY-MM-DD>`) is
+pushed, so each published version can be cited by its tag. It shows each experiment's
 change, criteria and conclusion, the conditions of each label, metrics per
 label and model, per-question results with each run's verdict, the scripted
 tool output side by side, and every run turn by turn, in English and Korean.

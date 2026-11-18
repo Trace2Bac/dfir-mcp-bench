@@ -4,6 +4,7 @@ import Link from '@docusaurus/Link';
 import Layout from '@theme/Layout';
 import Translate, {translate} from '@docusaurus/Translate';
 import type {CaseData} from '../../../plugins/bench-data';
+import RichText from '../RichText';
 import styles from '../ExperimentPage/styles.module.css';
 
 // One case: what it is, where the evidence comes from, what the model is
@@ -34,7 +35,12 @@ function Overview({data}: {data: CaseData}) {
   const answers = data.answersSource ?? ds?.answers;
   return (
     <div className={styles.overview}>
-      <Row label={<Translate id="casePage.purpose">Purpose</Translate>}>{data.purpose}</Row>
+      <div className={styles.overviewRow}>
+        <span>
+          <Translate id="casePage.purpose">Purpose</Translate>
+        </span>
+        <RichText text={data.purpose} />
+      </div>
       {ds && (
         <Row label={<Translate id="casePage.source">Source</Translate>}>
           {ds.title}

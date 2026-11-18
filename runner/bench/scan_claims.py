@@ -71,10 +71,15 @@ def check_experiment(results: Path, tool: str, images: list[str]) -> list[dict[s
 
 
 def report(rows: list[dict[str, Any]]) -> str:
-    lines = ["| run | scanned | claimed | images claimed but not scanned | calls (S scan, C coverage) |", "|---|---|---|---|---|"]
+    lines = [
+        "| run | scanned | claimed | images claimed but not scanned | calls (S scan, C coverage) |",
+        "|---|---|---|---|---|",
+    ]
     for r in rows:
         name = "/".join(Path(r["run"]).parts[-3:])
-        lines.append(f"| {name} | {r['scanned']} | {r['claimed']} | {', '.join(r['false_claims']) or '-'} | {r['order']} |")
+        lines.append(
+            f"| {name} | {r['scanned']} | {r['claimed']} | {', '.join(r['false_claims']) or '-'} | {r['order']} |"
+        )
     by_label: dict[str, list[dict[str, Any]]] = {}
     for r in rows:
         by_label.setdefault("/".join(Path(r["run"]).parts[-3:-1]), []).append(r)

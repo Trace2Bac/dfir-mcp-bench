@@ -15,7 +15,8 @@ from .investigate import answer_section, import_from_experiment, investigate_arg
 from .model import Model, ModelConfig
 from .review import review_case
 from .run import RunOptions, run_case
-from .scan_claims import check_experiment as scan_claims, report as scan_claims_report
+from .scan_claims import check_experiment as scan_claims
+from .scan_claims import report as scan_claims_report
 from .summary import summarize
 
 

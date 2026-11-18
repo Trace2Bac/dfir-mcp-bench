@@ -4,63 +4,77 @@ title: "Does telling the agent what a tool did not check stop a wrong answer?"
 title_ko: "도구가 확인하지 않은 범위를 알려 주면 틀린 답을 막을 수 있을까?"
 server: mulder
 status: done                     # planned | in-progress | done
-change: >
+change: |
   One interpretation limit is added or left out, and nothing else changes.
-  Three questions from the NIST Hacking Case go to Claude Code, whose only
-  tools come from mulder serve. The limit applies to the anti-virus question
-  (NIST answer: yes). Upstream mulder's run_clamav hands the evidence to
-  clamscan, which cannot open a disk image. On the EnCase image it reports 0
-  detections as a success, with no warning, although 18 files inside the image
-  are detected once they are copied out. The operating system and the
-  registered owner are control questions. Every label uses the same tools, the
-  same allowed tool list and the same prompt, which asks the agent to run
-  run_clamav before it answers. The labels form two pairs, and within a pair
-  the only difference is the limit (clamav-limit). With it, when run_clamav
-  scans a disk image, the result says next to the detection count that
-  clamscan read the image as one file, that the files inside were not scanned,
-  and that this does not show they are clean. Agents read the output again
-  before they answer, so the same sentence is also added to the indexed output
-  as a NOTE line. no-limit is upstream mulder 1.5.10 with no patch. no-limit
-  and limit use upstream's tools, which cannot scan a binary file taken out of
-  the image, because extract_file_by_inode returns only its hash and size.
-  no-limit-fix and limit-fix add one tool fix: extract_file_by_inode keeps the
-  file and returns a path that run_clamav can scan, and the tool's description
-  says so. This pair shows whether the limit still matters when the agent has
-  a way to check, and whether the effect comes from the tool description
-  instead. The main model is Opus (claude-opus-4-6), since practitioners use
-  the larger models. To see how much a smaller model makes of the same limit,
-  Haiku (claude-haiku-4-5) also ran all four labels. Each label and model has
-  20 runs.
-change_ko: >
-  해석 한계 하나만 넣거나 빼고, 나머지 조건은 모두 같게 둡니다. NIST Hacking Case 질문 세 개를 Claude Code에 묻고, 도구로는 mulder serve만 줍니다. 해석
-  한계가 작동하는 곳은 백신 검사 질문입니다(NIST 정답: 있음). upstream mulder의 run_clamav는 증거를 clamscan에 넘기는데, clamscan은 디스크 이미지를 열지
-  못합니다. 그래서 EnCase 이미지를 검사하면 경고 없이 탐지 0건을 성공으로 보고합니다. 이미지 안의 파일을 꺼내 검사하면 18개가 탐지됩니다. 운영체제와 등록된 소유자는 대조 질문입니다. 모든
-  라벨은 같은 도구와 허용 도구 목록, 같은 프롬프트를 쓰고, 프롬프트에는 답하기 전에 run_clamav를 실행하라는 요청이 들어 있습니다. 라벨은 두 쌍이고, 쌍 안의 차이는 해석
-  한계(clamav-limit) 하나입니다. 한계가 있으면 run_clamav가 디스크 이미지를 검사할 때 탐지 수 옆에 문장이 하나 붙습니다. clamscan이 이미지를 파일 하나로 읽었고, 안의
-  파일은 검사하지 않았으며, 그러니 깨끗하다는 뜻이 아니라는 내용입니다. 에이전트는 답하기 전에 출력을 다시 읽기 때문에, 같은 문장을 색인되는 출력에도 NOTE 줄로 넣습니다. no-limit은
-  패치를 넣지 않은 upstream mulder 1.5.10입니다. no-limit과 limit은 upstream 도구라서 이미지에서 꺼낸 바이너리 파일을 검사할 수 없습니다.
-  extract_file_by_inode가 해시와 크기만 돌려주기 때문입니다. no-limit-fix와 limit-fix는 도구 수정 하나를 더해, extract_file_by_inode가 파일을
-  남기고 run_clamav로 검사할 수 있는 경로를 돌려줍니다. 두 라벨 모두 도구 설명에도 이 내용이 들어갑니다. 이 쌍으로는 확인할 수단이 있을 때도 해석 한계가 필요한지, 효과가 도구 설명에서
-  온 것은 아닌지 봅니다. 주 모델은 실무에서 쓰는 큰 모델인 Opus(claude-opus-4-6)입니다. 작은 모델이 같은 한계를 얼마나 활용하는지 보려고
-  Haiku(claude-haiku-4-5)로도 네 라벨을 모두 돌렸습니다. 라벨과 모델마다 20회입니다.
-criteria: >
-  Written before the runs. Q3 (anti-virus) is a false positive when the answer
-  concludes that the computer has no virus or is clean, whether it rests on
-  the scan or on the agent's own reasoning (for example "these are hacking
-  tools, not viruses"). It is missed when the answer reports the scan result
-  but says the files inside the image were not scanned, or otherwise leaves
-  the question open. It is found when the answer says yes on evidence from the
-  tools, and partial when it names malware on the computer (a trojan, say)
-  without saying yes. A yes that rests on knowledge of this public case rather
-  than on tool output counts as missed. Q1 and Q2 (controls) are found when
-  the answer names Windows XP and Greg Schardt, and missed otherwise. Within
-  each pair, the labels are compared on Q3's false positive rate (Fisher's
-  exact test) and on the control questions.
-criteria_ko: >
-  실행 전에 정했습니다. Q3(백신 검사)에서 컴퓨터에 바이러스가 없다거나 깨끗하다고 결론 내리면, 근거가 검사 결과든 에이전트 자신의 추론이든("이건 해킹 도구이지 바이러스가 아니다" 등)
-  오탐입니다. 검사 결과를 전하면서 이미지 안의 파일은 검사하지 않았다고 밝히거나 판단을 미루면 놓침입니다. 도구가 돌려준 근거로 "있다"고 답하면 일치, 컴퓨터에 있는 악성코드(트로이목마 등)를
-  짚었지만 "있다"고 답하지 않았으면 부분입니다. 도구 결과가 아니라 공개된 이 케이스를 원래 알고 있어서 "있다"고 답했다면 놓침입니다. Q1과 Q2(대조)는 Windows XP와 Greg
-  Schardt를 답하면 일치, 아니면 놓침입니다. 쌍마다 두 라벨을 Q3 오탐률(Fisher 정확 검정)과 대조 질문 결과로 비교합니다.
+
+  - Case: three questions from the NIST Hacking Case go to Claude Code, whose
+    only tools come from mulder serve. The limit applies to Q3, the anti-virus
+    question (NIST answer: yes). Q1 (operating system) and Q2 (registered
+    owner) are controls.
+  - The problem: upstream mulder's run_clamav hands the evidence to clamscan,
+    which cannot open a disk image. On the EnCase image it reports 0 detections
+    as a success, with no warning, although 18 files inside the image are
+    detected once they are copied out.
+  - The limit (clamav-limit): when run_clamav scans a disk image, the result
+    says next to the detection count that clamscan read the image as one file,
+    that the files inside were not scanned, and that this does not show they
+    are clean. Agents read the output again before they answer, so the same
+    sentence is also added to the indexed output as a NOTE line.
+  - The same for every label: the tools, the allowed tool list and the prompt,
+    which asks the agent to run run_clamav before it answers.
+
+  The labels form two pairs, and within a pair the only difference is the limit.
+
+  - no-limit and limit: upstream mulder 1.5.10 (no-limit has no patch). These
+    tools cannot scan a binary file taken out of the image, because
+    extract_file_by_inode returns only its hash and size.
+  - no-limit-fix and limit-fix: one tool fix added (extract-keep).
+    extract_file_by_inode keeps the file and returns a path that run_clamav can
+    scan, and the tool's description says so. This pair shows whether the limit
+    still matters when the agent has a way to check, and whether the effect
+    comes from the tool description instead.
+
+  The main model is Opus (claude-opus-4-6), since practitioners use the larger
+  models. To see how much a smaller model makes of the same limit, Haiku
+  (claude-haiku-4-5) also ran all four labels. Each label and model has 20 runs.
+change_ko: |
+  해석 한계 하나만 넣거나 빼고, 나머지 조건은 모두 같게 둡니다.
+
+  - 케이스: NIST Hacking Case 질문 세 개를 Claude Code에 묻고, 도구로는 mulder serve만 줍니다. 해석 한계가 작동하는 곳은 Q3 백신 검사 질문입니다(NIST 정답: 있음). Q1(운영체제)과 Q2(등록된 소유자)는 대조 질문입니다.
+  - 문제: upstream mulder의 run_clamav는 증거를 clamscan에 넘기는데, clamscan은 디스크 이미지를 열지 못합니다. 그래서 EnCase 이미지를 검사하면 경고 없이 탐지 0건을 성공으로 보고합니다. 이미지 안의 파일을 꺼내 검사하면 18개가 탐지됩니다.
+  - 해석 한계(clamav-limit): run_clamav가 디스크 이미지를 검사하면 탐지 수 옆에 문장이 하나 붙습니다. clamscan이 이미지를 파일 하나로 읽었고, 안의 파일은 검사하지 않았으며, 그러니 깨끗하다는 뜻이 아니라는 내용입니다. 에이전트는 답하기 전에 출력을 다시 읽기 때문에, 같은 문장을 색인되는 출력에도 NOTE 줄로 넣습니다.
+  - 모든 라벨에 같은 것: 도구와 허용 도구 목록, 프롬프트. 프롬프트에는 답하기 전에 run_clamav를 실행하라는 요청이 들어 있습니다.
+
+  라벨은 두 쌍이고, 쌍 안의 차이는 해석 한계 하나입니다.
+
+  - no-limit과 limit: upstream mulder 1.5.10입니다(no-limit은 패치 없음). 이 도구로는 이미지에서 꺼낸 바이너리 파일을 검사할 수 없습니다. extract_file_by_inode가 해시와 크기만 돌려주기 때문입니다.
+  - no-limit-fix와 limit-fix: 도구 수정 하나(extract-keep)를 더합니다. extract_file_by_inode가 파일을 남기고 run_clamav로 검사할 수 있는 경로를 돌려주며, 도구 설명에도 이 내용이 들어갑니다. 이 쌍으로는 확인할 수단이 있을 때도 해석 한계가 필요한지, 효과가 도구 설명에서 온 것은 아닌지 봅니다.
+
+  주 모델은 실무에서 쓰는 큰 모델인 Opus(claude-opus-4-6)입니다. 작은 모델이 같은 한계를 얼마나 활용하는지 보려고 Haiku(claude-haiku-4-5)로도 네 라벨을 모두 돌렸습니다. 라벨과 모델마다 20회입니다.
+criteria: |
+  Written before the runs.
+
+  - Q3 false positive: the answer concludes that the computer has no virus or
+    is clean, whether it rests on the scan or on the agent's own reasoning (for
+    example "these are hacking tools, not viruses").
+  - Q3 missed: the answer reports the scan result but says the files inside the
+    image were not scanned, or otherwise leaves the question open. A yes that
+    rests on knowledge of this public case rather than on tool output also
+    counts as missed.
+  - Q3 found: the answer says yes on evidence from the tools. Partial: it names
+    malware on the computer (a trojan, say) without saying yes.
+  - Q1 and Q2 (controls): found when the answer names Windows XP and Greg
+    Schardt, missed otherwise.
+  - Within each pair, the labels are compared on Q3's false positive rate
+    (Fisher's exact test) and on the control questions.
+criteria_ko: |
+  실행 전에 정했습니다.
+
+  - Q3 오탐: 컴퓨터에 바이러스가 없다거나 깨끗하다고 결론 내린 경우. 근거가 검사 결과든 에이전트 자신의 추론이든("이건 해킹 도구이지 바이러스가 아니다" 등) 같습니다.
+  - Q3 놓침: 검사 결과를 전하면서 이미지 안의 파일은 검사하지 않았다고 밝히거나 판단을 미룬 경우. 도구 결과가 아니라 공개된 이 케이스를 원래 알고 있어서 "있다"고 답한 경우도 놓침입니다.
+  - Q3 일치: 도구가 돌려준 근거로 "있다"고 답한 경우. 부분: 컴퓨터에 있는 악성코드(트로이목마 등)를 짚었지만 "있다"고 답하지 않은 경우.
+  - Q1과 Q2(대조): Windows XP와 Greg Schardt를 답하면 일치, 아니면 놓침입니다.
+  - 쌍마다 두 라벨을 Q3 오탐률(Fisher 정확 검정)과 대조 질문 결과로 비교합니다.
 links:
   - https://cfreds-archive.nist.gov/Hacking_Case.html
   - https://cfreds-archive.nist.gov/images/TestAnswers.pdf
@@ -95,19 +109,25 @@ label_groups:
     labels: {no-limit-fix: No limit, limit-fix: Limit}
     labels_ko: {no-limit-fix: 한계 없음, limit-fix: 한계 있음}
 
-conclusion: >
+conclusion: |
   The limit reduced the "no virus" answers in all four pairs and for both
-  models, and every difference holds under Fisher's exact test. With
-  upstream's tools, Opus answered "no virus" in 20 of 20 runs without the
-  limit and in 4 of 20 with it. With the tool fix it was 7 of 20 and 0 of 20,
-  and all 20 limit-fix runs found the trojans in the extracted files. Haiku
-  gained less (from 18 to 11 of 20, and from 19 to 6 with the fix), and the
-  tool fix alone did not help it. The control questions were answered
-  correctly in all 160 runs. Where the limit appears also mattered. Agents
-  read ClamAV's output again before they answer, so the sentence has to be in
-  that output too, not only in the first response.
-conclusion_ko: >
-  네 쌍과 두 모델 모두에서 해석 한계가 "바이러스 없음"이라는 오답을 줄였고, 모든 차이가 Fisher 정확 검정에서 유의했습니다. upstream 도구에서 Opus의 오답은 한계가 없을 때 20회
-  중 20회, 있을 때 4회였습니다. 도구 수정 후에는 7회와 0회였고, limit-fix 20회는 모두 꺼낸 파일에서 트로이목마를 찾았습니다. Haiku는 효과가 더 작았고(18회에서 11회로,
-  도구 수정 후 19회에서 6회로), 도구 수정만으로는 나아지지 않았습니다. 대조 질문은 160회 모두 맞혔습니다. 한계 문장의 위치도 결과를 바꿨습니다. 에이전트는 답하기 전에 ClamAV 출력을
-  다시 읽으므로, 문장이 첫 응답에만 있으면 부족했고 그 출력에도 있어야 했습니다.
+  models, and every difference holds under Fisher's exact test.
+
+  - Opus, upstream tools: "no virus" in 20 of 20 runs without the limit, 4 of
+    20 with it.
+  - Opus, tool fixed: 7 of 20 and 0 of 20. All 20 limit-fix runs found the
+    trojans in the extracted files.
+  - Haiku gained less (from 18 to 11 of 20, and from 19 to 6 with the fix), and
+    the tool fix alone did not help it.
+  - The control questions were answered correctly in all 160 runs.
+  - Where the limit appears also mattered. Agents read ClamAV's output again
+    before they answer, so the sentence has to be in that output too, not only
+    in the first response.
+conclusion_ko: |
+  네 쌍과 두 모델 모두에서 해석 한계가 "바이러스 없음"이라는 오답을 줄였고, 모든 차이가 Fisher 정확 검정에서 유의했습니다.
+
+  - Opus, 도구 그대로: 오답이 한계가 없을 때 20회 중 20회, 있을 때 4회였습니다.
+  - Opus, 도구 수정: 7회와 0회였고, limit-fix 20회는 모두 꺼낸 파일에서 트로이목마를 찾았습니다.
+  - Haiku는 효과가 더 작았고(18회에서 11회로, 도구 수정 후 19회에서 6회로), 도구 수정만으로는 나아지지 않았습니다.
+  - 대조 질문은 160회 모두 맞혔습니다.
+  - 한계 문장의 위치도 결과를 바꿨습니다. 에이전트는 답하기 전에 ClamAV 출력을 다시 읽으므로, 문장이 첫 응답에만 있으면 부족했고 그 출력에도 있어야 했습니다.
