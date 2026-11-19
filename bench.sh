@@ -235,7 +235,16 @@ prepare)
     nist-hacking-case) in_tools bash datasets/nist-hacking-case/fetch.sh ;;
     nist-data-leakage) in_tools bash datasets/nist-data-leakage/fetch.sh ;;
     synthetic-dns-smtp) in_tools python3 datasets/synthetic-dns-smtp/make_pcap.py data/evidence/synthetic-dns-smtp/sample.pcap ;;
-    findevil-samples) in_tools bash datasets/findevil-samples/fetch.sh ;;
+    findevil-samples)
+        # A real Debian /etc, pinned by digest, to give one scenario a system's
+        # size. Taken here because fetch.sh runs without Docker. Files Docker
+        # writes into a running container are left out.
+        mkdir -p data/raw/findevil-samples
+        [ -s data/raw/findevil-samples/debian-etc.tar ] ||
+            docker run --rm debian@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc \
+                tar -C / --exclude=etc/hostname --exclude=etc/hosts --exclude=etc/resolv.conf -cf - etc \
+                > data/raw/findevil-samples/debian-etc.tar
+        in_tools bash datasets/findevil-samples/fetch.sh ;;
     *) echo "unknown dataset: $ds" >&2; exit 1 ;;
     esac
     ;;

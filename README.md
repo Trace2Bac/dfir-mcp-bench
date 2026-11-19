@@ -22,7 +22,7 @@ cite them.
 | EXP-004 | Does a wrong progress report end an investigation early? | calebevans/mulder#270 | Opus, 100 |
 | EXP-005 | findevil's assess_coverage counts a shell history it never read | coverage-per-location (patch to findevil) | scripted |
 | EXP-006 | findevil's assess_coverage calls evidence it cannot read clean | coverage-not-assessed (patch to findevil) | scripted |
-| EXP-007 | Does an agent following findevil's procedure skip a shell history the report counted? | coverage-per-location (patch to findevil) | in progress |
+| EXP-007 | Does findevil's coverage report hide a shell history its own tools do not list? | coverage-per-location (patch to findevil) | in progress |
 
 Each experiment's change, criteria, conclusion and every run are on the
 results site and in `experiments/EXP-<nnn>/`.
