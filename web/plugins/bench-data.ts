@@ -149,7 +149,11 @@ export type CaseSummary = {id: string; name: string; title: string; questions: n
 const readJson = (p: string) => JSON.parse(fs.readFileSync(p, 'utf8'));
 
 // The repository of each server under servers/, for commit links.
-const SERVER_REPOS: Record<string, string> = {mulder: 'calebevans/mulder', findevil: 'marlyocat/findevil'};
+const SERVER_REPOS: Record<string, string> = {
+  mulder: 'calebevans/mulder',
+  findevil: 'marlyocat/findevil',
+  trudi: 'nebulae/trudi',
+};
 
 // The servers with variants: servers/<server>/variants/.
 function servers(root: string): string[] {

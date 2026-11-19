@@ -87,6 +87,7 @@ server_cmd() {
     case "$(variant_server "$1")" in
     mulder) echo 'mulder serve --db-dir ${DB_DIR}' ;;
     findevil) echo 'env FINDEVIL_EVIDENCE_DIR=${EVIDENCE} FINDEVIL_LOGS_DIR=${DB_DIR} /opt/findevil/.venv/bin/python -m findevil' ;;
+    trudi) echo 'env TRUDI_HASH_CACHE=${DB_DIR}/hash_cache.json /opt/trudi/.venv/bin/python /opt/trudi/server.py' ;;
     *) echo "no server command for $1" >&2; exit 1 ;;
     esac
 }
@@ -100,6 +101,9 @@ server_tools() {
     findevil)
         docker run --rm --entrypoint /opt/findevil/.venv/bin/python "$(variant_image "$1")" -c \
             'import asyncio; from findevil.server import mcp; print(" ".join(t.name for t in asyncio.run(mcp.list_tools())))' ;;
+    trudi)
+        docker run --rm --entrypoint /opt/trudi/.venv/bin/python -w /opt/trudi "$(variant_image "$1")" -c \
+            'import asyncio, server; print(" ".join(t.name for t in asyncio.run(server.mcp.list_tools())))' 2>/dev/null ;;
     *) echo "no tool listing for the server of $1" >&2; exit 1 ;;
     esac
 }
@@ -235,6 +239,7 @@ prepare)
     nist-hacking-case) in_tools bash datasets/nist-hacking-case/fetch.sh ;;
     nist-data-leakage) in_tools bash datasets/nist-data-leakage/fetch.sh ;;
     synthetic-dns-smtp) in_tools python3 datasets/synthetic-dns-smtp/make_pcap.py data/evidence/synthetic-dns-smtp/sample.pcap ;;
+    synthetic-archive) in_tools python3 datasets/synthetic-archive/make_archive.py data/evidence/synthetic-archive ;;
     findevil-samples)
         # A real Debian /etc, pinned by digest, to give one scenario a system's
         # size. Taken here because fetch.sh runs without Docker. Files Docker

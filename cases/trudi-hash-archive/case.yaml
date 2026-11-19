@@ -1,0 +1,50 @@
+id: trudi-hash-archive
+title: trudi's attack-lifecycle check after a staging archive is only hashed
+title_ko: 반출 준비 압축 파일의 해시만 계산한 뒤의 trudi 공격 단계 점검
+name: "Staging archive, trudi lifecycle check"   # short name for lists
+name_ko: "반출 준비 압축 파일, trudi 공격 단계 점검"
+dataset: synthetic-archive
+evidence: synthetic-archive
+purpose: |
+  trudi's readiness check reports, for each phase of the attack lifecycle
+  (persistence, privilege escalation, lateral movement, execution,
+  exfiltration), whether its artifact sources were examined, and warns about
+  each phase that was not. A phase counts as examined when a source's
+  pattern matches the command of a successful tool call.
+
+  - The scripted calls open trudi's trace, compute the hashes of
+    collection.zip with hash_file, and ask reason_readiness_status, which
+    calls no model.
+  - Hashing reads none of the archive's content, so no exfiltration source
+    has been examined.
+purpose_ko: |
+  trudi의 준비 점검은 공격 단계(지속성, 권한 상승, 내부 이동, 실행, 유출)마다 그 단계의 자료를 검사했는지 보고하고, 검사하지 않은 단계마다 경고합니다. 성공한 도구 호출의 명령에 그 단계 자료의 패턴이 맞으면 검사한 것으로 셉니다.
+
+  - 스크립트 호출로 trudi의 실행 기록을 열고, hash_file로 collection.zip의 해시를 계산한 뒤, 모델을 부르지 않는 reason_readiness_status를 부릅니다.
+  - 해시 계산은 압축 파일의 내용을 읽지 않으므로, 유출 단계의 자료는 아무것도 검사하지 않은 상태입니다.
+
+setup: []
+
+tools: [misc_start_execution_log, hash_file, reason_readiness_status]
+
+scripted:                             # --scripted: fixed calls, no model
+  - tool: misc_start_execution_log
+    args: {case_id: "${CASE_ID}", output_path: "${DB_DIR}/trace.json", launch_dashboard: false, case_dir: "${DB_DIR}"}
+  - tool: hash_file
+    args: {file_path: "${EVIDENCE}/collection.zip"}
+  - tool: reason_readiness_status
+    args: {}
+
+questions:
+  - id: Q1
+    text: After the archive is only hashed, does the readiness check still count the exfiltration phase as not examined?
+    text_ko: "압축 파일의 해시만 계산한 뒤에도, 준비 점검이 유출 단계를 검사하지 않은 것으로 세나요?"
+    expect: {all: ['"exfil": {"label": "Exfiltration", "status": "not_examined"'], none: ['"archive_sync_tools"']}
+    requires_tools: [reason_readiness_status]
+  - id: Q2
+    text: Does its warning count all five phases as never examined?
+    text_ko: "경고가 다섯 단계 모두를 검사하지 않은 것으로 세나요?"
+    expect: {all: ["5 phase(s) whose artifact sources were never examined"]}
+    requires_tools: [reason_readiness_status]
+
+limits: {max_turns: 12, max_tool_chars: 20000}

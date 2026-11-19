@@ -1,0 +1,26 @@
+diff --git a/tools/_gates/_lifecycle.py b/tools/_gates/_lifecycle.py
+index f585f78..3f87726 100644
+--- a/tools/_gates/_lifecycle.py
++++ b/tools/_gates/_lifecycle.py
+@@ -111,6 +111,12 @@ LIFECYCLE: dict = {
+ }
+ 
+ 
++# Tools that only fingerprint a file (the hash.* namespace) do not read what is
++# in it, so hashing collection.zip examines no exfiltration source.
++def _fingerprint_only(e: dict) -> bool:
++    return (e.get("cmd") or "").lower().startswith("hash.") or (e.get("mcp_tool") or "").startswith("hash_")
++
++
+ def _fclaim(e: dict) -> dict:
+     c = e.get("claim")
+     return c if isinstance(c, dict) else {}
+@@ -133,7 +139,7 @@ def coverage(entries) -> dict:
+     haystack = [
+         ((e.get("cmd") or "") + " " + (e.get("mcp_tool") or "")).lower()
+         for e in (entries or [])
+-        if e.get("type") == "tool_call" and e.get("success") is not False
++        if e.get("type") == "tool_call" and e.get("success") is not False and not _fingerprint_only(e)
+     ]
+     out: dict = {}
+     for pid, spec in LIFECYCLE.items():

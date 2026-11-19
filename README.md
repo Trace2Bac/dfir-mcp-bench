@@ -20,9 +20,10 @@ cite them.
 | EXP-002 | Does telling the agent what a tool did not check stop a wrong answer? | clamav-limit, extract-keep (patches) | Opus and Haiku, 160 |
 | EXP-003 | Does audit_tool_coverage count a tool only for the evidence it ran on? | calebevans/mulder#270 | scripted |
 | EXP-004 | Does a wrong progress report end an investigation early? | calebevans/mulder#270 | Opus, 100 |
-| EXP-005 | findevil's assess_coverage counts a shell history it never read | coverage-per-location (patch to findevil) | scripted |
-| EXP-006 | findevil's assess_coverage calls evidence it cannot read clean | coverage-not-assessed (patch to findevil) | scripted |
-| EXP-007 | Does findevil's coverage report hide a shell history its own tools do not list? | coverage-per-location (patch to findevil) | in progress |
+| EXP-005 | Does findevil's assess_coverage count a shell history only once a tool has read it? | coverage-per-location (patch to findevil) | scripted |
+| EXP-006 | Does findevil's assess_coverage stop calling evidence it cannot read clean? | coverage-not-assessed (patch to findevil) | scripted |
+| EXP-007 | Does findevil's coverage report hide a shell history its own tools do not list? | coverage-per-location (patch to findevil) | Opus, 20 |
+| EXP-008 | Does trudi stop counting a hashed archive as an examined exfiltration phase? | lifecycle-skip-fingerprints (patch to trudi) | scripted |
 
 Each experiment's change, criteria, conclusion and every run are on the
 results site and in `experiments/EXP-<nnn>/`.
@@ -33,9 +34,10 @@ results site and in `experiments/EXP-<nnn>/`.
 experiments/EXP-<nnn>/      one verification: experiment.yaml + results/, see experiments/README.md
 cases/<id>/                 a test: questions, tools, scripted calls, briefing; names its dataset
 datasets/<id>/              where the evidence comes from and how it is fetched or built
-servers/<server>/           mulder, findevil
+servers/<server>/           mulder, findevil, trudi
   variants/<name>.env       a server version: base image by digest, commit SHA, patches
   patches/                  diffs applied on top of the commit
+  patches.yaml              what each patch, or change already upstream, does
   Dockerfile                base image + source at the commit + patches + runner
 runner/bench/               the bench-runner harness, the Claude Code import and the review tools
 docs/                       how runs are reviewed; docs/ko/ the Korean version
@@ -49,13 +51,14 @@ same case on different variants.
 ## Harnesses
 
 - `bench-runner` (`runner/`): fixed scripted tool calls with no model, or a
-  local model behind an OpenAI-compatible server, both talking to
-  `mulder serve` over MCP.
+  local model behind an OpenAI-compatible server, both talking to the
+  experiment's MCP server (mulder, findevil or trudi) over stdio.
 - `claude-code`: Claude Code runs the investigation itself, headless, with
-  one MCP server (`mulder serve`, or findevil) as its only tools. Its
+  one MCP server (`mulder serve`, findevil or trudi) as its only tools. Its
   built-in tools are off, and an experiment can limit it to a list of the
   server's tools. The Claude Code version is the one bundled in mulder's
-  release image, which the findevil variants also use as their base.
+  release image, which the findevil and trudi variants also use as their
+  base.
 - `mulder-investigate`: mulder's own five-phase orchestrator
   (`mulder investigate`). No current experiment uses it.
 

@@ -60,6 +60,11 @@ SERVERS: dict[str, dict[str, Any]] = {
         "env": {"FINDEVIL_EVIDENCE_DIR": "{evidence}", "FINDEVIL_LOGS_DIR": f"{CASES}/findevil"},
         "start": "list_evidence shows what is there; give the tools full paths under {evidence}.",
     },
+    "trudi": {
+        "command": "/opt/trudi/.venv/bin/python",
+        "args": ["/opt/trudi/server.py"],
+        "start": "The evidence files are under {evidence}; give the tools full paths.",
+    },
 }
 STREAM = "stream.jsonl"
 PROMPT = "prompt.md"
@@ -255,8 +260,13 @@ def import_run(
     lines = split_answers(case, report, prefix=CASE_PREFIX, fallback=False)
 
     usage = result.get("modelUsage") or {}
+    # The evidence folder the run read (the case's, or the label's own).
+    evidence = (
+        sorted(p.name for p in (work / "evidence").iterdir() if p.is_dir()) if (work / "evidence").is_dir() else []
+    )
     run_info = {
         "case": case.id,
+        "evidence": evidence[0] if len(evidence) == 1 else case.evidence,
         "label": label,
         "variant": variant,
         "server_ref": ref.group(1) if ref else None,

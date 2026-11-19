@@ -1,0 +1,28 @@
+# Changes to trudi that the experiments test, one entry each: what it changes
+# and why. Shown on the site's patch pages next to the diff. Same format as
+# servers/mulder/patches.yaml.
+
+lifecycle-skip-fingerprints.patch:
+  title: "Hashing a file does not count as examining an attack-lifecycle phase"
+  title_ko: "파일의 해시 계산을 공격 단계 검사로 세지 않음"
+  summary: |
+    trudi's readiness check marks a phase of the attack lifecycle examined
+    when one of the phase's source patterns matches the command of a
+    successful tool call. The command includes the file the tool ran on.
+
+    - Before: hashing collection.zip with hash_file matches the exfiltration
+      pattern for archivers (\bzip\b), so exfiltration counts as examined
+      and drops out of the coverage warning, although nothing in the archive
+      was read.
+    - After: calls of the hash.* tools, which only fingerprint a file, are
+      left out of that match. Path patterns still count for the tools that
+      parse what they open.
+  summary_ko: |
+    trudi의 준비 점검은 성공한 도구 호출의 명령에 공격 단계 자료의 패턴이 맞으면 그 단계를 검사한 것으로 표시합니다. 명령에는 도구를 실행한 파일의 경로가 들어 있습니다.
+
+    - 수정 전: hash_file로 collection.zip의 해시를 계산하면 유출 단계의 압축 도구 패턴(\bzip\b)이 맞아서, 압축 파일의 내용은 하나도 읽지 않았는데 유출 단계가 검사한 것이 되고 범위 경고에서 빠집니다.
+    - 수정 후: 파일의 지문만 만드는 hash.* 도구의 호출은 이 대조에서 뺍니다. 연 파일을 해석하는 도구에는 경로 패턴이 그대로 적용됩니다.
+  changes:
+    - "attack-lifecycle coverage: hash.* tool calls do not mark a phase examined"
+  changes_ko:
+    - "공격 단계 범위: hash.* 도구 호출로는 단계를 검사한 것으로 표시하지 않음"

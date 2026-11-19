@@ -257,8 +257,10 @@ async def run_case(case: Case, opts: RunOptions) -> Path:
     env = {
         "EVIDENCE": str(opts.evidence_root / case.evidence),
         "CASE_ID": _slug(f"bench-{case.id}-{stamp}").lower(),
+        # The server's own folder for the run, kept with it.
+        "DB_DIR": str(out / "server-db"),
     }
-    command = substitute(opts.server_cmd, {"DB_DIR": str(out / "server-db"), "EVIDENCE": env["EVIDENCE"]})
+    command = substitute(opts.server_cmd, {"DB_DIR": env["DB_DIR"], "EVIDENCE": env["EVIDENCE"]})
     started = datetime.now(timezone.utc)
     reason, turns = "scripted", 0
     (out / "server-db").mkdir()
