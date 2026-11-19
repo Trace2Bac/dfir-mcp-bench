@@ -1,62 +1,54 @@
 # EXP-006: one verification. The folder name is the identifier to cite;
 # the title may change.
-title: "findevil's assess_coverage calls evidence it cannot read clean"
-title_ko: "findevil assess_coverage가 읽지 못하는 증거를 CLEAN이라 함"
-server: findevil
-status: done                     # planned | in-progress | done
+title: "Does trudi's lifecycle check hide an exfiltration phase that was never examined?"
+title_ko: "trudi의 공격 단계 점검이 검사하지 않은 유출 단계를 가릴까?"
+server: trudi
+status: planned                  # planned | in-progress | done
 change: |
-  findevil's assess_coverage reports COVERAGE CLEAN when it recognizes no
-  artifact at all, although findevil's instructions treat COVERAGE CLEAN as
-  the sign that the work is done.
+  EXP-005 showed that, before the fix, trudi's readiness check counts the
+  exfiltration phase as examined once any successful tool call names a .zip
+  file. This test looks at what an agent reports on a real case, run through
+  trudi's tools the way EXP-003 ran mulder's: Claude Code with the MCP
+  server, without trudi's own director and reviewer models.
 
-  - Before: with no recognized file, the table and the gaps are empty and the
-    verdict is COVERAGE CLEAN, "every artifact class present in evidence has
-    been examined".
-  - After (coverage-not-assessed, our patch): the report says the coverage
-    was not assessed and why, with the verdict NOT ASSESSED.
-  - Checked without a model on the NIST Hacking Case image, not mounted:
-    list_evidence, then assess_coverage, with no analysis tool in between.
-    A missing evidence directory gives the same before and after (checked
-    by calling the function directly).
+  - Evidence: the NIST Data Leakage PC image, without the removable media.
+    The briefing does not say the case is about leakage.
+  - Task: Claude Code (Opus) examines the image with trudi's model-free tools
+    and reports, for each lifecycle phase, whether it was established, ruled
+    out or not examined, and whether data left the PC.
+  - Prompt addition (from trudi's own procedure, claude/CLAUDE.md "Attack-
+    Lifecycle Coverage"): call reason_readiness_status before reporting; a
+    phase it shows as never examined is a blind spot, not a clean bill.
+  - Before: a tool call on one of the leaked archives makes the check count
+    exfiltration as examined, and its warning stops naming it.
+  - After (lifecycle-skip-fingerprints, our patch): hashing does not count.
+  - To be confirmed without a model before any run: that an ordinary step on
+    this image (hashing or extracting one of its archives) does change the
+    check before the fix.
 change_ko: |
-  findevil의 assess_coverage는 자료를 하나도 알아보지 못해도 COVERAGE CLEAN을 돌려줍니다. findevil의 지침은 COVERAGE CLEAN을 작업이 끝났다는 신호로 씁니다.
+  EXP-005에서 수정 전 trudi의 준비 점검이, 성공한 도구 호출이 .zip 파일을 가리키기만 해도 유출 단계를 검사한 것으로 센다는 것을 확인했습니다. 여기서는 실제 사건에서 에이전트가 무엇을 보고하는지 봅니다. EXP-003에서 mulder를 돌린 방식처럼, trudi 자체의 지휘·검토 모델 없이 Claude Code와 MCP 서버로 돌립니다.
 
-  - 수정 전: 알아본 파일이 없으면 표와 남은 작업이 비고, 판정은 "증거에 있는 모든 자료 종류를 검사했다"는 COVERAGE CLEAN입니다.
-  - 수정 후(coverage-not-assessed, 우리 패치): 진척을 평가하지 못했다는 것과 그 이유를 적고, 판정은 NOT ASSESSED입니다.
-  - 모델 없이, 마운트하지 않은 NIST Hacking Case 이미지로 확인합니다. list_evidence 다음 바로 assess_coverage를 부르고, 그 사이에 분석 도구는 부르지 않습니다. 증거 폴더가 없을 때도 수정 전후가 같은 모습인 것을 함수를 직접 불러 확인했습니다.
+  - 증거: 이동식 매체를 뺀 NIST Data Leakage PC 이미지. 브리핑은 유출 사건이라고 말하지 않습니다.
+  - 작업: Claude Code(Opus)가 trudi의 모델 없는 도구로 이미지를 조사하고, 공격 단계마다 확인/배제/미검사를 적고, 자료가 PC를 떠났는지 답합니다.
+  - 프롬프트 추가(trudi 자체 절차, claude/CLAUDE.md "Attack-Lifecycle Coverage"): 보고 전에 reason_readiness_status를 부르고, 검사하지 않은 것으로 나온 단계는 깨끗한 것이 아니라 사각지대로 다룹니다.
+  - 수정 전: 유출된 압축 파일 하나에 도구를 실행하면 점검이 유출 단계를 검사한 것으로 세고, 경고에서 빠집니다.
+  - 수정 후(lifecycle-skip-fingerprints, 우리 패치): 해시 계산은 세지 않습니다.
+  - 실행 전에 모델 없이 먼저 확인할 것: 이 이미지에서 평범한 작업(압축 파일의 해시 계산이나 추출)이 수정 전 점검을 실제로 바꾸는지.
 links:
-  - https://github.com/marlyocat/findevil
-  - https://cfreds-archive.nist.gov/Hacking_Case.html
+  - https://github.com/nebulae/trudi
+  - https://cfreds-archive.nist.gov/data_leakage_case/data-leakage-case.html
+  - https://cfreds-archive.nist.gov/data_leakage_case/leakage-answers.pdf
 
-case: findevil-disk-image-only
-harness: bench-runner # runner/ with scripted calls
+case: nist-data-leakage-trudi
+harness: claude-code
+harness_options:
+  model: claude-opus-4-6
+  answer_section: true
+  instruction: "Start with misc_start_execution_log. Before you report, call reason_readiness_status: a forensic investigation must try to establish or rule out each phase of the attack lifecycle, and a phase it shows as never examined is a blind spot, not a clean bill."
+  tools: [misc_start_execution_log, reason_readiness_status, hash_file, ewf_info, tsk_mmls, tsk_fls, tsk_icat,
+          ez_recmd_hive, ez_lecmd, ez_jlecmd, ez_pecmd, ez_sbecmd, misc_usbdeviceforensics, misc_hindsight_chrome,
+          misc_evtx_filter, strings_grep]
 
 variants:
-  before: findevil-d1a8d25               # findevil main as published
-  after: findevil-d1a8d25-not-assessed   # plus coverage-not-assessed
-
-scripted_expect:
-  before: { questions: 0/2, facts: 0/2 }
-  after: { questions: 2/2, facts: 2/2 }
-
-conclusion: |
-  After the fix, a report that found nothing to check no longer says the
-  work is done.
-
-  - Before: with only the disk image in the folder and no analysis tool
-    called, assess_coverage returns no table and "Verdict: COVERAGE CLEAN —
-    every artifact class present in evidence has been examined" (0 of 2).
-  - After: it says the coverage was not assessed, since no file matched a
-    class it checks and disk images are not checked, with "Verdict: NOT
-    ASSESSED" (2 of 2).
-  - findevil's own instructions say to repeat the work until the report says
-    COVERAGE CLEAN, so before the fix an agent that follows them is told to
-    stop before it has looked at anything.
-  - Checked without a model; the result does not depend on one.
-conclusion_ko: |
-  수정 후에는 점검할 것을 찾지 못한 보고서가 작업이 끝났다고 하지 않습니다.
-
-  - 수정 전: 폴더에 디스크 이미지만 있고 분석 도구를 하나도 부르지 않았는데, assess_coverage는 표 없이 "Verdict: COVERAGE CLEAN — every artifact class present in evidence has been examined"를 돌려줍니다(0/2).
-  - 수정 후: 점검하는 종류에 맞는 파일이 없고 디스크 이미지는 점검하지 않는다는 이유와 함께, 진척을 평가하지 못했다고 하며 "Verdict: NOT ASSESSED"를 돌려줍니다(2/2).
-  - findevil의 지침은 보고서가 COVERAGE CLEAN이라고 할 때까지 작업을 되풀이하라고 하므로, 수정 전에는 지침을 따르는 에이전트가 아무것도 보기 전에 멈추라는 말을 듣는 셈입니다.
-  - 모델 없이 확인했고 결과는 모델과 상관없습니다.
+  before: trudi-88fbca7                  # trudi main as published
+  after: trudi-88fbca7-lifecycle-fix     # plus lifecycle-skip-fingerprints

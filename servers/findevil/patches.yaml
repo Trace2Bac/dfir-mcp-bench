@@ -43,29 +43,3 @@ coverage-per-location.patch:
     change; a pull request would give those entries paths.
   known_issues_ko: |
     upstream 테스트 test_assess_coverage_clean_when_all_examined는 경로 없는 감사 기록을 쓰고 COVERAGE CLEAN을 기대하므로, 이 수정에서는 실패합니다. PR을 낸다면 그 기록에 경로를 넣어야 합니다.
-
-coverage-not-assessed.patch:
-  title: "assess_coverage does not call nothing found clean"
-  title_ko: "assess_coverage가 아무것도 찾지 못한 것을 CLEAN이라 하지 않음"
-  summary: |
-    assess_coverage builds its table from the files it recognizes by name and
-    path (auth logs, journals, shell histories and so on).
-
-    - Before: when it recognizes none, the table and the gaps are both empty
-      and it says COVERAGE CLEAN, "every artifact class present in evidence
-      has been examined". That happens when the evidence directory does not
-      exist, or holds only a disk image or Windows artifacts.
-    - After: it says the coverage was not assessed and why (the directory is
-      missing, or no file matched a class it checks), with the verdict NOT
-      ASSESSED.
-    - Evidence with recognized files is reported as before.
-  summary_ko: |
-    assess_coverage는 이름과 경로로 알아본 파일(인증 로그, 저널, 셸 이력 등)로 점검 표를 만듭니다.
-
-    - 수정 전: 알아본 파일이 하나도 없으면 표와 남은 작업이 모두 비고, "증거에 있는 모든 자료 종류를 검사했다"는 COVERAGE CLEAN을 돌려줍니다. 증거 폴더가 없거나, 디스크 이미지나 Windows 자료만 있을 때 그렇습니다.
-    - 수정 후: 진척을 평가하지 못했다는 것과 그 이유(폴더가 없음, 점검하는 종류에 맞는 파일이 없음)를 적고, 판정은 NOT ASSESSED입니다.
-    - 알아본 파일이 있는 증거는 전과 같이 보고합니다.
-  changes:
-    - "assess_coverage: no recognized artifact gives NOT ASSESSED with the reason, not COVERAGE CLEAN"
-  changes_ko:
-    - "assess_coverage: 알아본 자료가 없으면 COVERAGE CLEAN 대신 이유와 함께 NOT ASSESSED"

@@ -18,12 +18,10 @@ cite them.
 |---|---|---|---|
 | EXP-001 | Does mulder's pcap analysis return DNS and SMTP data after the tshark field fix? | calebevans/mulder#274 | scripted |
 | EXP-002 | Does telling the agent what a tool did not check stop a wrong answer? | clamav-limit, extract-keep (patches) | Opus and Haiku, 160 |
-| EXP-003 | Does audit_tool_coverage count a tool only for the evidence it ran on? | calebevans/mulder#270 | scripted |
-| EXP-004 | Does a wrong progress report end an investigation early? | calebevans/mulder#270 | Opus, 100 |
-| EXP-005 | Does findevil's assess_coverage count a shell history only once a tool has read it? | coverage-per-location (patch to findevil) | scripted |
-| EXP-006 | Does findevil's assess_coverage stop calling evidence it cannot read clean? | coverage-not-assessed (patch to findevil) | scripted |
-| EXP-007 | Does findevil's coverage report hide a shell history its own tools do not list? | coverage-per-location (patch to findevil) | Opus, 20 |
-| EXP-008 | Does trudi stop counting a hashed archive as an examined exfiltration phase? | lifecycle-skip-fingerprints (patch to trudi) | scripted |
+| EXP-003 | Does a wrong progress report end an investigation early? | calebevans/mulder#270 | Opus, 100 |
+| EXP-004 | Does findevil's coverage report hide a shell history its own tools do not list? | coverage-per-location (patch to findevil) | Opus, 20 |
+| EXP-005 | Does trudi stop counting a hashed archive as an examined exfiltration phase? | lifecycle-skip-fingerprints (patch to trudi) | scripted |
+| EXP-006 | Does trudi's lifecycle check hide an exfiltration phase that was never examined? | lifecycle-skip-fingerprints (patch to trudi) | planned |
 
 Each experiment's change, criteria, conclusion and every run are on the
 results site and in `experiments/EXP-<nnn>/`.

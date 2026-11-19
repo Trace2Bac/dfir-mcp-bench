@@ -7,7 +7,7 @@ line. A target is an image file name (dfr-01-fat.dd) or a folder in the
 path (a host, db02). A run that claims a target it never scanned is a false
 claim. This needs no reviewer, so it can be checked against review.yaml.
 
-    python -m bench scan-claims experiments/EXP-004 --tool yara_scan_files \\
+    python -m bench scan-claims experiments/EXP-003 --tool yara_scan_files \\
         --images dfr-01-fat.dd dfr-02-ntfs.dd ...
     python -m bench scan-claims experiments/EXP-<nnn> --tool auth_summary,analyze_bash_history \\
         --images host-a host-b ...

@@ -4,7 +4,6 @@
 # through `./bench.sh prepare findevil-samples`, which runs it in Docker:
 #   data/raw/findevil-samples/            the repository archive
 #   data/evidence/findevil-scenario-02/             samples/attack-scenario-02
-#   data/evidence/findevil-scenario-02-histories/   its three shell histories only
 #   data/evidence/findevil-scenario-02-www/         scenario 02 at a real system's
 #                                                   size, plus an attacker shell
 #                                                   history for www-data (/var/www)
@@ -39,15 +38,6 @@ done <<'SUMS'
 09f8312bbc76a81b9ad1bbbe4d5b064628a2b5bf4895092078d6eeb5e02fa65e scenario-02
 SUMS
 
-# Scenario 02's shell histories alone, at the same paths: with nothing else in
-# the folder, assess_coverage's verdict rests on them only.
-hist=data/evidence/findevil-scenario-02-histories
-rm -rf "$hist"
-for f in fs/home/alice/.bash_history fs/home/deploy/.bash_history fs/root/.bash_history; do
-    mkdir -p "$hist/$(dirname "$f")"
-    cp "data/evidence/findevil-scenario-02/$f" "$hist/$f"
-done
-echo "ok   scenario-02-histories"
 
 # Scenario 02 at a real system's size, plus one file written for this bench:
 # the same attacker shell history (fetching and running a file from the
