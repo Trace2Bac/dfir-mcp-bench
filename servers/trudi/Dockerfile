@@ -22,6 +22,10 @@ ARG REPO=https://github.com/nebulae/trudi.git
 RUN apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends g++ >/dev/null \
     && rm -rf /var/lib/apt/lists/*
 
+# trudi calls RegRipper as /usr/local/bin/rip.pl (the SIFT path); the release
+# image has it under /usr/lib/regripper.
+RUN ln -sf /usr/lib/regripper/rip.pl /usr/local/bin/rip.pl
+
 COPY servers/trudi/patches/ /tmp/bench-patches/
 COPY servers/trudi/constraints.txt /tmp/trudi-constraints.txt
 

@@ -21,7 +21,6 @@ cite them.
 | EXP-003 | Does a wrong progress report end an investigation early? | calebevans/mulder#270 | Opus, 100 |
 | EXP-004 | Does findevil's coverage report hide a shell history its own tools do not list? | coverage-per-location (patch to findevil) | Opus, 20 |
 | EXP-005 | Does trudi stop counting a hashed archive as an examined exfiltration phase? | lifecycle-skip-fingerprints (patch to trudi) | scripted |
-| EXP-006 | Does trudi's lifecycle check hide an exfiltration phase that was never examined? | lifecycle-skip-fingerprints (patch to trudi) | planned |
 
 Each experiment's change, criteria, conclusion and every run are on the
 results site and in `experiments/EXP-<nnn>/`.

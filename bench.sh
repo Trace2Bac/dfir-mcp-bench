@@ -132,6 +132,9 @@ claude_investigate() {
     # the others are removed from the agent's tool list. Without it, all of them.
     local server image tools
     server=$(variant_server "$v"); image=$(variant_image "$v")
+    # The server's own folder (trudi's trace, findevil's logs) must exist:
+    # trudi does not create it and refuses to start its trace without it.
+    mkdir -p "$work/cases/$server"
     local access="--allowedTools mcp__$server"
     tools=$(in_tools env PYTHONPATH=runner python3 -m bench claude-tools "$yaml")
     if [ -n "$tools" ]; then

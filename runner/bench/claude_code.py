@@ -63,7 +63,12 @@ SERVERS: dict[str, dict[str, Any]] = {
     "trudi": {
         "command": "/opt/trudi/.venv/bin/python",
         "args": ["/opt/trudi/server.py"],
-        "start": "The evidence files are under {evidence}; give the tools full paths.",
+        "env": {"TRUDI_HASH_CACHE": f"{CASES}/trudi/hash_cache.json"},
+        "start": (
+            "The evidence files are under {evidence}; give the tools full paths. "
+            f'Open the trace with misc_start_execution_log(case_id="{{case_id}}", '
+            f'output_path="{CASES}/trudi/trace.json", case_dir="{CASES}/trudi", launch_dashboard=false).'
+        ),
     },
 }
 STREAM = "stream.jsonl"
@@ -213,9 +218,11 @@ def import_run(
         if (cases / name).exists():
             (out / "mulder").mkdir(exist_ok=True)
             shutil.copy2(cases / name, out / "mulder" / name)
-    # findevil writes its audit log (audit.json) to FINDEVIL_LOGS_DIR.
-    if (cases / "findevil").is_dir():
-        shutil.copytree(cases / "findevil", out / "findevil")
+    # findevil writes its audit log (audit.json) to FINDEVIL_LOGS_DIR; trudi
+    # its trace (trace.json) where the prompt asks it to.
+    for server in ("findevil", "trudi"):
+        if (cases / server).is_dir():
+            shutil.copytree(cases / server, out / server)
 
     events = []
     for line in (work / "claude" / STREAM).read_text().splitlines():
