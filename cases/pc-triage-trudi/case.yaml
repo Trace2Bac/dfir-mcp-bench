@@ -1,0 +1,44 @@
+id: pc-triage-trudi
+title: A triage collection of the NIST Data Leakage PC, examined with trudi
+title_ko: NIST Data Leakage PC의 트리아지 수집본을 trudi로 조사
+name: "NIST Data Leakage triage, trudi"   # short name for lists
+name_ko: "NIST Data Leakage 트리아지, trudi"
+dataset: nist-data-leakage
+evidence: pc-triage
+purpose: |
+  A system-level triage collection made from the NIST CFReDS Data Leakage
+  PC image (real files, copied byte for byte): the registry's system hives,
+  the main event logs, Prefetch, RecentFileCache and the device-install log,
+  as PC-triage.zip and unpacked. User hives, shortcuts and browser data are
+  not collected. The briefing does not say the case is about leakage.
+
+  - The data left the PC through, among others, a USB stick (RM#2, a SanDisk
+    Cruzer Fit, S/N 4C530012550531106501, connected 2015-03-24) (NIST's
+    answers). In this collection that shows in the SYSTEM hive (USBSTOR) and
+    setupapi.dev.log.
+  - trudi's procedure asks the investigation to establish or rule out each
+    lifecycle phase; its readiness check warns about each phase whose
+    sources were never examined. Before the fix, hashing PC-triage.zip
+    counts the exfiltration phase as examined (\bzip\b, EXP-005).
+  - Q1 asks for the status of each lifecycle phase, and is judged on the
+    exfiltration phase. The case does not ask about leakage directly, so
+    that the readiness check is what tells the agent which phases remain.
+purpose_ko: |
+  NIST CFReDS Data Leakage PC 이미지에서 만든 시스템 수준 트리아지 수집본입니다(실제 파일을 바이트 그대로 복사). 레지스트리 시스템 하이브, 주요 이벤트 로그, Prefetch, RecentFileCache, 장치 설치 로그를 PC-triage.zip과 풀어 둔 폴더로 둡니다. 사용자 하이브, 바로가기, 브라우저 자료는 수집하지 않았습니다. 브리핑은 유출 사건이라고 말하지 않습니다.
+
+  - 자료는 USB 메모리(RM#2, SanDisk Cruzer Fit, S/N 4C530012550531106501, 2015-03-24 연결) 등으로 PC를 떠났습니다(NIST 정답). 이 수집본에서는 SYSTEM 하이브(USBSTOR)와 setupapi.dev.log에 나타납니다.
+  - trudi의 절차는 공격 단계마다 확인하거나 배제하라고 하고, 준비 점검은 자료를 검사하지 않은 단계마다 경고합니다. 수정 전에는 PC-triage.zip의 해시를 계산하면 유출 단계가 검사한 것이 됩니다(\bzip\b, EXP-005).
+  - Q1은 공격 단계별 상태를 묻고, 유출 단계로 판정합니다. 남은 단계를 에이전트에게 알려 주는 것이 준비 점검이 되도록, 유출을 직접 묻지는 않습니다.
+
+setup: []
+
+tools: [misc_start_execution_log, reason_readiness_status, hash_file, hash_verify_evidence_hash, misc_regripper_hive,
+        ez_recmd_hive, ez_pecmd, ez_appcompatcacheparser, ez_evtxecmd, strings_grep, read_output, misc_job_status]
+
+questions:
+  - id: Q1
+    text: "For each phase of the attack lifecycle, was it established, ruled out, or not examined? Give the evidence for each."
+    text_ko: "공격 단계마다 확인했는지, 배제했는지, 검사하지 않았는지 적고, 각각의 근거를 적으세요."
+    review_only: true   # judged on the exfiltration phase: NIST's answer is that data left the PC; here the USB stick RM#2 shows in SYSTEM USBSTOR and setupapi.dev.log
+
+limits: {max_turns: 150, max_tool_chars: 4000}

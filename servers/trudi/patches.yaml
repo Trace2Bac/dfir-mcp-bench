@@ -26,3 +26,25 @@ lifecycle-skip-fingerprints.patch:
     - "attack-lifecycle coverage: hash.* tool calls do not mark a phase examined"
   changes_ko:
     - "공격 단계 범위: hash.* 도구 호출로는 단계를 검사한 것으로 표시하지 않음"
+
+lifecycle-archive-names.patch:
+  title: "A file named .zip or .rar does not count as running an archiver"
+  title_ko: "이름이 .zip이나 .rar로 끝나는 파일을 다룬 것을 압축 도구 실행으로 세지 않음"
+  summary: |
+    The exfiltration phase's pattern for archivers and sync tools matches
+    zip and rar as words. The command of every tool call includes the file
+    it ran on, so any call on a file named something.zip matches.
+
+    - Before: listing or searching a collection delivered as a .zip marks
+      exfiltration examined, although no exfiltration source was read.
+    - After: zip and rar right after a dot (a file extension) do not match;
+      the archiver commands themselves (zip -r, rar a) still do.
+  summary_ko: |
+    유출 단계에서 압축·동기화 도구를 찾는 패턴은 zip과 rar를 낱말로 찾습니다. 도구 호출의 명령에는 그 도구가 다룬 파일 이름이 들어가므로, 이름이 무엇.zip인 파일에 대한 호출은 모두 이 패턴에 맞습니다.
+
+    - 수정 전: .zip으로 받은 수집본의 목록을 보거나 검색만 해도, 유출 자료를 하나도 읽지 않았는데 유출 단계가 검사한 것이 됩니다.
+    - 수정 후: 점 바로 뒤의 zip과 rar(파일 확장자)는 맞지 않습니다. 압축 명령 자체(zip -r, rar a)는 그대로 맞습니다.
+  changes:
+    - "attack-lifecycle coverage: a .zip/.rar file name does not mark exfiltration examined"
+  changes_ko:
+    - "공격 단계 범위: 파일 이름의 .zip/.rar로는 유출 단계를 검사한 것으로 표시하지 않음"

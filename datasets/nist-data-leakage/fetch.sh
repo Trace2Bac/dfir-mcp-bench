@@ -3,7 +3,8 @@
 # stick RM#2 and the CD-R RM#3, about 7.6 GB) and lay out the evidence folder.
 # Run through `./bench.sh prepare nist-data-leakage`, which runs it in Docker:
 #   data/raw/nist-data-leakage/       the downloads and the answer document
-#   data/evidence/nist-data-leakage/  the images, renamed without '#'
+#   data/evidence/nist-data-leakage/     the images, renamed without '#'
+#   data/evidence/nist-data-leakage-pc/  the PC image alone (hard links)
 # The SHA-1 values are the ones NIST publishes for the downloads
 # (hash_values.html). Each image's own MD5, stored in the E01, is compared
 # with the one in NIST's answers (question 1).
@@ -59,5 +60,11 @@ rm2.E01 b4644902acab4583a1d0f9f1a08faa77
 rm3.E01 df914108fb3d86744eb688eba482fbdf
 MD5
 fi
+# The PC image alone, for cases that should not show the removable media.
+PC=data/evidence/nist-data-leakage-pc
+mkdir -p "$PC"
+for seg in pc.E01 pc.E02 pc.E03 pc.E04; do
+    [ -e "$PC/$seg" ] || ln "$EVD/$seg" "$PC/$seg"
+done
 rm -f "$EVD/.preparing"
-echo "evidence ready in $EVD"
+echo "evidence ready in $EVD and $PC"

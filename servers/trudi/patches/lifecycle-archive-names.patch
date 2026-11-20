@@ -1,0 +1,17 @@
+diff --git a/tools/_gates/_lifecycle.py b/tools/_gates/_lifecycle.py
+index 3f87726..effe98a 100644
+--- a/tools/_gates/_lifecycle.py
++++ b/tools/_gates/_lifecycle.py
+@@ -94,9 +94,11 @@ LIFECYCLE: dict = {
+         "label": "Exfiltration",
+         "establishes": {"categories": {"exfil"}, "acts": {"egress"}},
+         "sources": [
++            # zip and rar name the archivers, not a file ending in .zip/.rar:
++            # any tool run on a collection.zip would otherwise examine exfiltration.
+             ("network_flow", _rx(r"netflow|proxy log|firewall log|tcpdump|ngrep|pcap|http_session"),
+              "network flow / proxy / firewall / PCAP for outbound transfers"),
+-            ("archive_sync_tools", _rx(r"7-?zip|winrar|\brar\b|rclone|megasync|mega\.nz|robocopy|\bzip\b|veracrypt"),
++            ("archive_sync_tools", _rx(r"7-?zip|winrar|(?<!\.)\brar\b|rclone|megasync|mega\.nz|robocopy|(?<!\.)\bzip\b|veracrypt"),
+              "archiver / cloud-sync tools (7-Zip, WinRAR, Rclone, MegaSync)"),
+             ("dns_tunneling", _rx(r"dns tunnel|tcpdump_extract_dns|dns log|subdomain"),
+              "DNS logs — tunnelling (high-volume subdomain requests)"),
