@@ -8,12 +8,14 @@ import json
 import os
 from pathlib import Path
 
+import yaml
+
 from . import claude_code
 from .case import load_case
 from .check import check_experiment
 from .investigate import answer_section, import_from_experiment, investigate_args, write_briefing
 from .model import Model, ModelConfig
-from .poc import run_poc, summarize_pocs
+from .poc import model_key, poc_models, run_poc, summarize_pocs
 from .review import review_case
 from .run import RunOptions, run_case
 from .scan_claims import check_experiment as scan_claims
@@ -60,6 +62,12 @@ def _parser() -> argparse.ArgumentParser:
     poc.add_argument("poc", type=Path, help="path to pocs/<problem>/<server>/<case-id>/poc.yaml")
     poc.add_argument("--out", type=Path, required=True, help="folder for transcript.json and result.json")
     poc.add_argument("--no-model", action="store_true", help="skip the model block (keeps the last model result)")
+    poc.add_argument("--models", help="comma-separated models for the model block instead of model.models")
+    poc_models_ = sub.add_parser(
+        "poc-models", help="print the model block's models, one per line (local ones as local)"
+    )
+    poc_models_.add_argument("poc", type=Path)
+    poc_models_.add_argument("--models", help="comma-separated override, as for poc")
     poc_summary = sub.add_parser("poc-summary", help="reproduced / not reproduced per server and problem")
     poc_summary.add_argument("root", type=Path, help="path to pocs/")
 
@@ -171,12 +179,19 @@ def main() -> None:
     if args.command == "run":
         _run(args)
     elif args.command == "poc":
-        r = run_poc(str(args.poc), str(args.out), with_model=not args.no_model)
-        line = f"{r['case_id']} {r['server']} {r['result']}"
-        m = r.get("model_result")
-        if m:
-            line += f", model misled {m['misled']}/{m['runs']}" + (f" ({m['failed']} failed)" if m["failed"] else "")
-        print(line)
+        models = [m for m in (args.models or "").split(",") if m.strip()] or None
+        r = run_poc(str(args.poc), str(args.out), with_model=not args.no_model, models=models)
+        print(f"{r['case_id']} {r['server']} {r['result']}")
+        for key, m in (r.get("model_result") or {}).get("by_model", {}).items():
+            line = f"  {key}: misled {m['misled']}/{m['runs']}"
+            line += f", tool_failed {m['tool_failed']}" if m["tool_failed"] else ""
+            line += f", failed {m['failed']}" if m["failed"] else ""
+            print(line + (f" ({m['error']})" if m.get("error") else ""))
+    elif args.command == "poc-models":
+        poc = yaml.safe_load(args.poc.read_text())
+        override = [m for m in (args.models or "").split(",") if m.strip()] or None
+        for name in poc_models(poc, override):
+            print("local" if model_key(name) != name else name)
     elif args.command == "poc-summary":
         print(summarize_pocs(str(args.root)), end="")
     elif args.command == "summary":

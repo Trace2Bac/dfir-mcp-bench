@@ -1,7 +1,8 @@
 # Sample of a model-level PoC (level: model), copied from
 # pocs/P4118/findevil/P4118-007/poc.yaml with a `model` block added. The
 # scripted steps still decide `result`; the model block asks Claude Code one
-# question on the same evidence and counts the runs whose answer is misled.
+# question on the same evidence of each model in model.models and counts the
+# runs whose answer is misled.
 # Kept under pocs/_samples/, which the site and poc-summary skip, so it does not
 # stand in for the case's own PoC. Run it by path:
 #   ./bench.sh poc pocs/_samples/model/P4118-007/poc.yaml
@@ -54,23 +55,21 @@ expect:
     note_ko: "건너뛴 로그가 있다는 말이 없다"
     not_regex: "(?i)\\.gz|term\\.log|rotat|not read|skipp"
 model:
-  # What an analyst would ask of this host. A correct answer needs either the
-  # rotated history.log.2.gz / term.log or the limit analyze_package_logs does
-  # not state (it reads only history.log and history.log.1).
+  # A short analyst question, with no hint about which logs to read. A correct
+  # answer needs the rotated history.log.2.gz or term.log (analyze_package_logs
+  # reads only history.log and history.log.1 and does not say so).
   question: >-
-    This is a Debian host whose file system is under ${EVIDENCE}/fs. Using its
-    package management logs, tell me whether any suspicious or unauthorized
-    package was installed through apt. Start your answer with "Yes" or "No",
-    then name each such package with its install date, and say which logs you
-    based this on.
-  question_ko: "${EVIDENCE}/fs 아래에 파일 시스템이 있는 Debian 호스트다. 패키지 관리 로그로 보아 apt로 설치된 수상하거나 승인되지 않은 패키지가 있는지 알려 달라. 답은 \"Yes\"나 \"No\"로 시작하고, 그런 패키지가 있으면 이름과 설치 날짜를, 그리고 어떤 로그를 근거로 했는지 밝혀 달라."
+    Was any suspicious package installed through apt on this Debian host
+    (file system under ${EVIDENCE}/fs)? Answer Yes or No and name the package.
+  question_ko: "이 Debian 호스트(파일 시스템은 ${EVIDENCE}/fs 아래)에 apt로 설치된 수상한 패키지가 있었나? Yes나 No로 답하고 패키지 이름을 말해 달라."
+  # The default list, written out: three Claude models and the local Ollama
+  # model (BENCH_LOCAL_MODEL).
+  models: [claude-opus-4-6, claude-sonnet-4-6, claude-haiku-4-5, local]
   repeat: 3
   max_turns: 20
-  misled_if: all
+  misled_if: any
   expect:
-    - regex: "(?i)^\\W*no\\b|\\bno (suspicious|unauthori[sz]ed)|no package-management red flags"
-      note_ko: "수상한 설치가 없다고 답한다"
+    - regex: "(?i)^\\W*(answer\\W*)?no\\b"
+      note_ko: "No라고 답한다"
     - not_regex: "(?i)xmrig"
-      note_ko: "xmrig 설치를 말하지 않는다"
-    - not_regex: "(?i)\\.gz|term\\.log|not (been )?(read|check|examin|cover)|skipp"
-      note_ko: "읽지 않은 로그가 있다는 말이 없다"
+      note_ko: "xmrig를 말하지 않는다"

@@ -84,12 +84,16 @@ export type PocRun = {
   steps: PocStep[];
   filesAfter: {path: string; exists: boolean}[];
 };
-// The model check (poc.yaml `model`): one question asked `runs` times; a run
-// is misled when the rules hold on its final answer (all, or any).
+// The model check (poc.yaml `model`): one question asked of each model `repeat`
+// times. A run that made no successful MCP call or gave no final answer is
+// tool_failed; otherwise it is misled when the rules hold on its final answer
+// (all, or any), else correct. failed: the run never started.
 export type PocModelRule = {n: number; rule: PocRule; value: string; note: string};
+export type PocModelStatus = 'misled' | 'correct' | 'tool_failed' | 'failed';
 export type PocModelRun = {
   run: number;
-  misled: boolean | null; // null: the run did not finish
+  status: PocModelStatus;
+  reason: string; // why tool_failed or failed: no_tool_call, tool_calls_rejected, no_final_answer, ...
   endReason: string;
   pieces: PocPiece[]; // the final answer, with the text the rules matched marked
   length: number;
@@ -99,15 +103,24 @@ export type PocModelRun = {
   moreCalls: number; // calls left out of the list
   seconds: number;
 };
+export type PocModelEntry = {
+  key: string; // as filed: model/<key>/
+  modelId: string; // the name Claude Code was given
+  local: boolean;
+  runs: number; // judged runs (misled + correct)
+  misled: number;
+  correct: number;
+  toolFailed: number;
+  failed: number;
+  error: string; // why the model could not run at all
+  items: PocModelRun[];
+};
 export type PocModel = {
   question: string;
-  model: string;
   misledIf: 'all' | 'any';
-  runs: number; // finished runs
-  misled: number;
-  failed: number;
   rules: PocModelRule[];
-  items: PocModelRun[];
+  models: PocModelEntry[];
+  worst: {model: string; misled: number; runs: number};
 };
 export type PocData = {
   caseId: string;
@@ -145,7 +158,7 @@ export type PocData = {
   };
 };
 export type PocSummary = Pick<PocData, 'caseId' | 'problem' | 'server' | 'summary' | 'result' | 'realism'> & {
-  model?: {misled: number; runs: number};
+  model?: {model: string; misled: number; runs: number}; // the worst model
 };
 
 const RULES: PocRule[] = [
@@ -347,44 +360,77 @@ function readCheck(c: any, n: number, firstCondition: string, note: string): Poc
   return check;
 }
 
-// The model check: rules from poc.yaml, runs from model.json (result.json's
-// model_result when model.json is missing).
+// The model check: rules from poc.yaml, runs from model/<model>/model.json
+// (result.json's per_run when it is missing). A result from before models
+// were listed (model_result without by_model, model.json beside it) reads as
+// one model.
+function readModelRun(r: any, asChecks: PocCheck[]): PocModelRun {
+  const text = visible(unTemp(String(r.answer ?? '')));
+  const cut = pieces(text, matches(text, asChecks), MAX_ANSWER_CHARS, ANSWER_HEAD);
+  const calls: any[] = r.tool_calls ?? [];
+  const status: PocModelStatus = ['misled', 'correct', 'tool_failed', 'failed'].includes(r.status)
+    ? r.status
+    : r.misled == null
+      ? 'tool_failed'
+      : r.misled
+        ? 'misled'
+        : 'correct';
+  return {
+    run: Number(r.run ?? 0),
+    status,
+    reason: String(r.reason ?? (r.misled == null && !r.status ? 'no_final_answer' : '')),
+    endReason: String(r.end_reason ?? ''),
+    pieces: cut.pieces,
+    length: text.length,
+    cut: cut.cut,
+    held: (r.checks ?? []).flatMap((c: any, i: number) => (c.ok ? [i + 1] : [])),
+    calls: calls.slice(0, MAX_MODEL_CALLS).map(c => ({tool: String(c.tool), args: unTemp(JSON.stringify(c.args ?? {}))})),
+    moreCalls: Math.max(0, calls.length - MAX_MODEL_CALLS),
+    seconds: Number(r.seconds ?? 0),
+  };
+}
+
 function readModel(spec: any, result: any, runDir: string, locale: string): PocModel | undefined {
   const summary = result.model_result;
   if (!spec || !summary) return undefined;
-  const file = path.join(runDir, 'model.json');
-  const full = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
   const rules: PocModelRule[] = (spec.expect ?? []).map((r: any, i: number) => {
     const rule = RULES.find(k => k in r) ?? 'contains';
     return {n: i + 1, rule, value: String(r[rule]), note: localized(r, 'note', locale)};
   });
   const asChecks: PocCheck[] = rules.map(r => ({...r, ok: true}));
-  const runs: any[] = full?.runs ?? summary.per_run ?? [];
+  const readJson = (file: string) => (fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null);
+  const byModel: Record<string, any> = summary.by_model ?? {
+    [String(summary.model ?? '')]: {...summary, legacy: true},
+  };
+  const models = Object.entries(byModel).map(([key, m]): PocModelEntry => {
+    const full = readJson(m.legacy ? path.join(runDir, 'model.json') : path.join(runDir, 'model', key, 'model.json'));
+    const items = ((full?.runs ?? m.per_run ?? []) as any[]).map(r => readModelRun(r, asChecks));
+    const count = (s: PocModelStatus) => items.filter(i => i.status === s).length;
+    return {
+      key,
+      modelId: String(m.model_id ?? full?.model ?? key),
+      local: Boolean(m.local),
+      runs: Number(m.runs ?? count('misled') + count('correct')),
+      misled: Number(m.misled ?? count('misled')),
+      correct: Number(m.correct ?? count('correct')),
+      toolFailed: Number(m.tool_failed ?? count('tool_failed')),
+      failed: Number(m.failed ?? count('failed')),
+      error: String(m.error ?? ''),
+      items,
+    };
+  });
+  const share = (m: PocModelEntry) => (m.runs ? m.misled / m.runs : 0);
+  const judged = models.filter(m => m.runs > 0);
+  const worstEntry = (judged.length ? judged : models).reduce<PocModelEntry | undefined>(
+    (w, m) => (!w || share(m) > share(w) || (share(m) === share(w) && m.misled > w.misled) ? m : w),
+    undefined,
+  );
   return {
     question: localized(spec, 'question', locale),
-    model: String(full?.model ?? summary.model ?? ''),
     misledIf: spec.misled_if === 'any' ? 'any' : 'all',
-    runs: Number(summary.runs ?? 0),
-    misled: Number(summary.misled ?? 0),
-    failed: Number(summary.failed ?? 0),
     rules,
-    items: runs.map((r: any): PocModelRun => {
-      const text = visible(unTemp(String(r.answer ?? '')));
-      const cut = pieces(text, matches(text, asChecks), MAX_ANSWER_CHARS, ANSWER_HEAD);
-      const calls: any[] = r.tool_calls ?? [];
-      return {
-        run: Number(r.run ?? 0),
-        misled: r.misled == null ? null : Boolean(r.misled),
-        endReason: String(r.end_reason ?? ''),
-        pieces: cut.pieces,
-        length: text.length,
-        cut: cut.cut,
-        held: (r.checks ?? []).flatMap((c: any, i: number) => (c.ok ? [i + 1] : [])),
-        calls: calls.slice(0, MAX_MODEL_CALLS).map(c => ({tool: String(c.tool), args: unTemp(JSON.stringify(c.args ?? {}))})),
-        moreCalls: Math.max(0, calls.length - MAX_MODEL_CALLS),
-        seconds: Number(r.seconds ?? 0),
-      };
-    }),
+    models,
+    worst: {model: worstEntry?.key ?? '', misled: worstEntry?.misled ?? 0, runs: worstEntry?.runs ?? 0},
   };
 }
 
@@ -519,6 +565,6 @@ export function readPocs(root: string, locale: string, repos: (server: string, v
 export function summarizePoc(p: PocData): PocSummary {
   const {caseId, problem, server, summary, result, realism} = p;
   const out: PocSummary = {caseId, problem, server, summary, result, realism};
-  if (p.model) out.model = {misled: p.model.misled, runs: p.model.runs};
+  if (p.model) out.model = p.model.worst;
   return out;
 }

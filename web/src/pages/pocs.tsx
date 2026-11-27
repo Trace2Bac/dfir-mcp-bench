@@ -115,7 +115,7 @@ export default function Pocs() {
                       <td className={styles.colCode}>
                         {resultText(p.result)}
                         {p.model && (
-                          <span className={poc.modelBadge}>
+                          <span className={poc.modelBadge} title={p.model.model}>
                             {translate({id: 'pocs.model', message: 'model {k}/{n}'}, {k: p.model.misled, n: p.model.runs})}
                           </span>
                         )}

@@ -4,7 +4,18 @@ import Link from '@docusaurus/Link';
 import Layout from '@theme/Layout';
 import Translate, {translate} from '@docusaurus/Translate';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
-import type {PocCheck, PocData, PocFixture, PocModel, PocModelRule, PocPiece, PocRun, PocStep} from '../../../plugins/poc-data';
+import type {
+  PocCheck,
+  PocData,
+  PocFixture,
+  PocModel,
+  PocModelEntry,
+  PocModelRule,
+  PocModelRun,
+  PocPiece,
+  PocRun,
+  PocStep,
+} from '../../../plugins/poc-data';
 import styles from '../ExperimentPage/styles.module.css';
 import poc from './styles.module.css';
 import {matrixCaseUrl, realismText, resultText, runDate, serverCommitUrl, shortCommit, shortDigest} from './links';
@@ -89,7 +100,7 @@ function TitleBlock({data}: {data: PocData}) {
         )}
         {data.model && (
           <span>
-            <Translate id="poc.meta.model" values={{k: data.model.misled, n: data.model.runs}}>
+            <Translate id="poc.meta.model" values={{k: data.model.worst.misled, n: data.model.worst.runs}}>
               {'model misled {k}/{n}'}
             </Translate>
           </span>
@@ -558,20 +569,101 @@ function modelRuleText(r: PocModelRule): string {
   }
 }
 
-function runVerdict(misled: boolean | null): string {
-  if (misled === null) return translate({id: 'poc.model.run.failed', message: 'did not finish'});
-  return misled
-    ? translate({id: 'poc.model.run.misled', message: 'misread'})
-    : translate({id: 'poc.model.run.ok', message: 'read correctly'});
+function runVerdict(r: PocModelRun): string {
+  switch (r.status) {
+    case 'misled':
+      return translate({id: 'poc.model.run.misled', message: 'misread'});
+    case 'correct':
+      return translate({id: 'poc.model.run.ok', message: 'read correctly'});
+    case 'tool_failed':
+      return translate({id: 'poc.model.run.toolFailed', message: 'tool use failed'});
+    default:
+      return translate({id: 'poc.model.run.failed', message: 'did not run'});
+  }
+}
+
+// Why a run is tool_failed or failed.
+function runReason(r: PocModelRun): string {
+  switch (r.reason) {
+    case 'no_tool_call':
+      return translate({id: 'poc.model.reason.noToolCall', message: 'it called no tool'});
+    case 'tool_calls_rejected':
+      return translate({id: 'poc.model.reason.rejected', message: 'none of its tool calls succeeded'});
+    case 'no_final_answer':
+      return translate({id: 'poc.model.reason.noAnswer', message: 'it gave no final answer'});
+    case 'not_started':
+    case 'error':
+      return translate({id: 'poc.model.reason.error', message: 'Claude Code or the model returned an error'});
+    default:
+      return '';
+  }
+}
+
+function ModelRuns({entry}: {entry: PocModelEntry}) {
+  return (
+    <ol className={poc.steps}>
+      {entry.items.map(r => (
+        <li key={r.run} className={poc.step}>
+          <div className={poc.stepHead}>
+            <span className={poc.stepNo}>{r.run}</span>
+            <span className={r.status === 'misled' ? styles.fail : r.status === 'correct' ? styles.pass : styles.small}>
+              {runVerdict(r)}
+            </span>
+            <span className={styles.small}>
+              {r.seconds}s ·{' '}
+              {translate({id: 'poc.model.calls', message: '{n} tool calls'}, {n: r.calls.length + r.moreCalls})}
+              {runReason(r) && ` · ${runReason(r)}`}
+              {r.held.length > 0 &&
+                (r.status === 'misled' || r.status === 'correct') &&
+                ` · ${translate({id: 'poc.model.held', message: 'rules held: {list}'}, {list: r.held.join(', ')})}`}
+            </span>
+          </div>
+          <div className={poc.columnLabel}>
+            <Translate id="poc.model.answer">Final answer</Translate>
+          </div>
+          <pre className={clsx(styles.pre, poc.response)}>
+            {r.length ? <Marked pieces={r.pieces} /> : translate({id: 'poc.model.noAnswer', message: '(no answer)'})}
+          </pre>
+          {r.cut && (
+            <p className={styles.small}>
+              {translate(
+                {id: 'poc.model.cut', message: 'Shortened here: the answer has {n} characters; the full answer is in model.json.'},
+                {n: r.length.toLocaleString('en')},
+              )}
+            </p>
+          )}
+          {r.calls.length > 0 && (
+            <details className={styles.event}>
+              <summary>
+                <Translate id="poc.model.callList">Tool calls</Translate>
+              </summary>
+              <ol className={poc.calls}>
+                {r.calls.map((c, i) => (
+                  <li key={i}>
+                    <code className={clsx(poc.callLine, poc.callOnly)}>{c.args === '{}' ? `${c.tool}()` : `${c.tool}(${c.args})`}</code>
+                  </li>
+                ))}
+              </ol>
+              {r.moreCalls > 0 && (
+                <p className={styles.small}>
+                  {translate({id: 'poc.model.moreCalls', message: '{n} more calls are in model.json.'}, {n: r.moreCalls})}
+                </p>
+              )}
+            </details>
+          )}
+        </li>
+      ))}
+    </ol>
+  );
 }
 
 function ModelCheck({model}: {model: PocModel}) {
   return (
     <Section title={translate({id: 'poc.model.title', message: 'Model check'})}>
       <p className={styles.small}>
-        <Translate id="poc.model.note" values={{model: <code>{model.model}</code>}}>
+        <Translate id="poc.model.note">
           {
-            "{model} was asked the question below through Claude Code, with this server as its only tools and the same evidence, and nothing about the problem. Each run's final answer is checked against the rules below."
+            "Each model below was asked the question through Claude Code, with this server as its only tools and the same evidence, and nothing about the problem. A local model runs in Ollama, which Claude Code calls directly. Each run's final answer is checked against the rules below; a run that made no successful tool call or gave no final answer counts as a tool failure, not as a misreading."
           }
         </Translate>
       </p>
@@ -579,17 +671,39 @@ function ModelCheck({model}: {model: PocModel}) {
         <Translate id="poc.model.question">Question</Translate>
       </div>
       <pre className={styles.pre}>{model.question}</pre>
-      <p className={poc.modelCount}>
-        <Translate id="poc.model.count" values={{k: <strong>{model.misled}</strong>, n: model.runs}}>
-          {'Times the model misread: {k}/{n}'}
-        </Translate>
-        {model.failed > 0 && (
-          <span className={styles.small}>
-            {' '}
-            {translate({id: 'poc.model.failed', message: '({n} runs did not finish and are not counted)'}, {n: model.failed})}
-          </span>
-        )}
-      </p>
+      <div className={styles.tableScroll}>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>{translate({id: 'poc.model.col.model', message: 'Model'})}</th>
+              <th>{translate({id: 'poc.model.col.misled', message: 'Misread k/N'})}</th>
+              <th>{translate({id: 'poc.model.col.toolFailed', message: 'Tool failures'})}</th>
+              <th>{translate({id: 'poc.model.col.correct', message: 'Correct'})}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {model.models.map(m => (
+              <tr key={m.key}>
+                <td>
+                  <code>{m.key}</code>
+                  {m.local && m.modelId !== m.key && <span className={styles.small}> {m.modelId}</span>}
+                  {m.failed > 0 && (
+                    <div className={styles.small}>
+                      {translate({id: 'poc.model.failed', message: '{n} runs did not run and are not counted'}, {n: m.failed})}
+                      {m.error && `: ${m.error}`}
+                    </div>
+                  )}
+                </td>
+                <td className={m.misled ? styles.fail : undefined}>
+                  <strong>{m.misled}</strong>/{m.runs}
+                </td>
+                <td>{m.toolFailed}</td>
+                <td>{m.correct}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       <p className={styles.small}>
         {model.misledIf === 'any'
           ? translate({id: 'poc.model.ifAny', message: 'A run counts as misread when any of these rules holds:'})
@@ -606,57 +720,16 @@ function ModelCheck({model}: {model: PocModel}) {
           </li>
         ))}
       </ul>
-      <ol className={poc.steps}>
-        {model.items.map(r => (
-          <li key={r.run} className={poc.step}>
-            <div className={poc.stepHead}>
-              <span className={poc.stepNo}>{r.run}</span>
-              <span className={r.misled ? styles.fail : r.misled === false ? styles.pass : styles.small}>
-                {runVerdict(r.misled)}
-              </span>
-              <span className={styles.small}>
-                {r.seconds}s ·{' '}
-                {translate({id: 'poc.model.calls', message: '{n} tool calls'}, {n: r.calls.length + r.moreCalls})}
-                {r.held.length > 0 &&
-                  ` · ${translate({id: 'poc.model.held', message: 'rules held: {list}'}, {list: r.held.join(', ')})}`}
-              </span>
-            </div>
-            <div className={poc.columnLabel}>
-              <Translate id="poc.model.answer">Final answer</Translate>
-            </div>
-            <pre className={clsx(styles.pre, poc.response)}>
-              {r.length ? <Marked pieces={r.pieces} /> : translate({id: 'poc.model.noAnswer', message: '(no answer)'})}
-            </pre>
-            {r.cut && (
-              <p className={styles.small}>
-                {translate(
-                  {id: 'poc.model.cut', message: 'Shortened here: the answer has {n} characters; the full answer is in model.json.'},
-                  {n: r.length.toLocaleString('en')},
-                )}
-              </p>
-            )}
-            {r.calls.length > 0 && (
-              <details className={styles.event}>
-                <summary>
-                  <Translate id="poc.model.callList">Tool calls</Translate>
-                </summary>
-                <ol className={poc.calls}>
-                  {r.calls.map((c, i) => (
-                    <li key={i}>
-                      <code className={clsx(poc.callLine, poc.callOnly)}>{c.args === '{}' ? `${c.tool}()` : `${c.tool}(${c.args})`}</code>
-                    </li>
-                  ))}
-                </ol>
-                {r.moreCalls > 0 && (
-                  <p className={styles.small}>
-                    {translate({id: 'poc.model.moreCalls', message: '{n} more calls are in model.json.'}, {n: r.moreCalls})}
-                  </p>
-                )}
-              </details>
-            )}
-          </li>
+      {model.models
+        .filter(m => m.items.length > 0)
+        .map(m => (
+          <details key={m.key} className={styles.event}>
+            <summary>
+              {translate({id: 'poc.model.answers', message: 'Answers of {model}'}, {model: m.key})}
+            </summary>
+            <ModelRuns entry={m} />
+          </details>
         ))}
-      </ol>
     </Section>
   );
 }

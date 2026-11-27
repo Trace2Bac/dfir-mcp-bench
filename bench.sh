@@ -31,14 +31,19 @@
 #                                                     (the next free number when n is not given)
 #   ./bench.sh check   [experiment...]                scripted runs must match scripted_expect
 #                                                     (every experiment that has one if none given)
-#   ./bench.sh poc     <case-id|poc.yaml> [--no-model]
+#   ./bench.sh poc     <case-id|poc.yaml> [--no-model] [--models a,b]
 #                                                     run one PoC (pocs/<problem>/<server>/<case-id>/poc.yaml):
 #                                                     scripted MCP calls in the variant's image, no model;
 #                                                     writes runs/<commit>/transcript.json and result.json.
-#                                                     A PoC with a `model` block then asks Claude Code (Opus) its
-#                                                     question with the same server, writing model.json
-#                                                     (needs `./bench.sh login`); --no-model skips that
-#   ./bench.sh poc-all <server> [--no-model]          every PoC of a server, one after another
+#                                                     A PoC with a `model` block then asks its question through
+#                                                     Claude Code, with the same server, of each model in
+#                                                     model.models (or --models), writing model/<model>/
+#                                                     (Claude models need `./bench.sh login`; `local` is the
+#                                                     Ollama model BENCH_LOCAL_MODEL, default qwen3.5:9b, at
+#                                                     BENCH_OLLAMA_URL, default http://host.docker.internal:11434);
+#                                                     --no-model skips that
+#   ./bench.sh poc-all <server> [--no-model] [--models a,b]
+#                                                     every PoC of a server, one after another
 #   ./bench.sh poc-summary                            reproduced / not reproduced / failed per server and problem
 #
 # Model settings come from .env (copy .env.example); variables set on the
@@ -245,9 +250,10 @@ poc_file() {
 
 # Run one PoC in its variant's image and keep the transcript and result. With
 # a `model` block (and no --no-model), Claude Code bundled in the same image
-# also runs, signed in as for `investigate`.
+# also runs for each model, signed in as for `investigate`; a local model is
+# reached at BENCH_OLLAMA_URL, by default Ollama on the Docker host.
 run_poc() {
-    local f=$1 no_model=${2:-} v commit dir image
+    local f=$1 no_model=${2:-} models=${3:-} v commit dir image names
     v=$(yaml_field "$f" variant); commit=$(yaml_field "$f" commit)
     [ -n "$v" ] || { echo "$f names no variant" >&2; return 1; }
     dir="$(dirname "$f")/runs/${commit:0:7}"
@@ -256,12 +262,29 @@ run_poc() {
     image=$(variant_image "$v")
     local model=()
     if [ -z "$no_model" ] && grep -q '^model:' "$f"; then
-        if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ ! -f data/claude/.credentials.json ]; then
-            echo "$f has a model block but Claude Code is not signed in; run ./bench.sh login (or use --no-model)" >&2
-            return 1
+        names=$(docker run --rm --entrypoint "" -v "$ROOT/pocs:/pocs:ro" "$image" \
+            python3 -m bench poc-models "/$f" ${models:+--models "$models"})
+        local claude_models="" local_model=""
+        for n in $names; do
+            if [ "$n" = local ]; then local_model=1; else claude_models=1; fi
+        done
+        if [ -n "$claude_models" ]; then
+            if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ ! -f data/claude/.credentials.json ]; then
+                echo "$f runs Claude models but Claude Code is not signed in; run ./bench.sh login" \
+                    "(or use --models local, or --no-model)" >&2
+                return 1
+            fi
+            # The token is passed by name from this shell, not on the command line.
+            model=(-e CLAUDE_CODE_OAUTH_TOKEN -e CLAUDE_CONFIG_DIR="$CLAUDE_CONFIG" -v "$ROOT/data/claude:$CLAUDE_CONFIG")
         fi
-        # The token is passed by name from this shell, not on the command line.
-        model=(-e CLAUDE_CODE_OAUTH_TOKEN -e CLAUDE_CONFIG_DIR="$CLAUDE_CONFIG" -v "$ROOT/data/claude:$CLAUDE_CONFIG")
+        if [ -n "$local_model" ]; then
+            # An unreachable Ollama fails the local model's runs only; the others still run.
+            model+=(-e BENCH_LOCAL_MODEL -e BENCH_OLLAMA_URL)
+            # host.docker.internal is the Docker host on Linux and WSL too (Docker Desktop has it already).
+            case "${BENCH_OLLAMA_URL:-http://host.docker.internal:11434}" in
+            *host.docker.internal*) model+=(--add-host=host.docker.internal:host-gateway) ;;
+            esac
+        fi
     else
         no_model=--no-model
     fi
@@ -269,7 +292,20 @@ run_poc() {
         -e BENCH_IMAGE_ID="$(docker image inspect -f '{{.Id}}' "$image")" \
         -e BENCH_SERVER_CMD="$(server_cmd "$v")" ${model[@]+"${model[@]}"} \
         -v "$ROOT/pocs:/pocs:ro" -v "$ROOT/$dir:/out" \
-        "$image" python3 -m bench poc "/$f" --out /out $no_model
+        "$image" python3 -m bench poc "/$f" --out /out $no_model ${models:+--models "$models"}
+}
+
+# Options of poc and poc-all: [--no-model] [--models a,b], into no_model and models.
+poc_options() {
+    no_model=""; models=""
+    while [ $# -gt 0 ]; do
+        case "$1" in
+        --no-model) no_model=--no-model ;;
+        --models) models=${2:?--models needs a comma-separated list}; shift ;;
+        *) echo "unknown option: $1" >&2; exit 1 ;;
+        esac
+        shift
+    done
 }
 
 build() {
@@ -525,16 +561,16 @@ check)
     exit "$failed"
     ;;
 poc)
-    f=$(poc_file "${1:?case-id}")
-    [ "${2:-}" = "" ] || [ "$2" = --no-model ] || { echo "unknown option: $2" >&2; exit 1; }
-    run_poc "$f" "${2:-}"
+    f=$(poc_file "${1:?case-id}"); shift
+    poc_options "$@"
+    run_poc "$f" "$no_model" "$models"
     ;;
 poc-all)
-    s=${1:?server}; n=0
-    [ "${2:-}" = "" ] || [ "$2" = --no-model ] || { echo "unknown option: $2" >&2; exit 1; }
+    s=${1:?server}; n=0; shift
+    poc_options "$@"
     for f in pocs/*/"$s"/*/poc.yaml; do
         [ -f "$f" ] || continue
-        n=$((n + 1)); run_poc "$f" "${2:-}" || echo "PoC failed to run: $f" >&2
+        n=$((n + 1)); run_poc "$f" "$no_model" "$models" || echo "PoC failed to run: $f" >&2
     done
     [ "$n" -gt 0 ] || { echo "no PoCs for $s (see pocs/*/$s/)" >&2; exit 1; }
     ;;

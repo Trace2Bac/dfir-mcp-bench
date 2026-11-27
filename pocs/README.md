@@ -12,8 +12,9 @@ pocs/<problem>/<server>/<case-id>/
     result.json     reproduced or not reproduced, the checks, the image digest
     transcript.json every request and response, the evidence as written, and
                     what the model would be given (server instructions, tool list)
-    model.json      with a model block: each model run's answer, checks and tool calls
-    model/run-<n>.jsonl  each model run as Claude Code streamed it
+    model/<model>/  with a model block, one folder per model:
+      model.json    each run's class, answer, checks and tool calls
+      run-<n>.jsonl each run as Claude Code streamed it
 ```
 
 `<problem>` and `<case-id>` are the IDs in dfir-mcp-matrix: the first digit
@@ -51,20 +52,45 @@ markup passed through, missing provenance, an overstated claim of trust. For
 these, a PoC can add a `model` block. The scripted calls still decide
 `result`; the model check is reported beside it as `model_result`.
 
-Claude Code (Opus, the model of the bench's claude-code runs) runs headless in
-the same server image, with the PoC's server as its only tools and the PoC's
+Claude Code runs headless in the same server image, once for each model in
+`model.models`, with the PoC's server as its only tools and the PoC's
 evidence written fresh for each run. It is given the question and what the
 server itself gives it (instructions, tool list), and nothing about the
-defect. Its final answer is checked with the `model.expect` rules; a run
-counts as misled when all of them hold (`misled_if: all`, the default) or
-when one does (`misled_if: any`). `model_result` records the number of
-finished runs, how many were misled, each run's final answer and the tool
-calls it made (name and arguments), and the time each took.
+defect. Without `models`, the list is `claude-opus-4-6`, `claude-sonnet-4-6`,
+`claude-haiku-4-5` and `local`.
+
+`local` is a model served by Ollama: the tag in `BENCH_LOCAL_MODEL`
+(`qwen3.5:9b` by default; `local:<tag>` names another) on the Ollama server at
+`BENCH_OLLAMA_URL` (`http://host.docker.internal:11434`, Ollama on the Docker
+host, by default). Ollama answers the Anthropic Messages API itself, so
+Claude Code is pointed at it directly, with that tag as its model. Its results
+are filed as `local-<tag>`. When the URL cannot be reached or the server has
+no such model, that model's runs are recorded as failed with the reason, and
+the other models still run.
+
+Each run falls in one class:
+
+| Class | Meaning |
+|---|---|
+| `misled` | the model used the tools and answered, and the `model.expect` rules hold on its final answer (all of them with `misled_if: all`, the default; one with `misled_if: any`) |
+| `correct` | the model used the tools and answered, and the rules do not hold |
+| `tool_failed` | the model called no tool, none of its calls to the server's tools succeeded (calls to tools it does not have, malformed or rejected calls), or it ended without a final answer; not counted as misled |
+| `failed` | the run did not start (Claude Code or the model returned an error before any tool call, or the model could not be reached) |
+
+The server images are built on mulder's release image, which is published for
+linux/amd64 and linux/arm64, so on Apple Silicon they run natively.
+
+`model_result.by_model` has, per model, the judged runs (`misled` plus
+`correct`), the count of each class, the reason a model could not run, and
+each run's class, final answer, tool calls (name and arguments) and time.
+`model_result` also keeps the totals and the model misled most often
+(`worst`), which the PoC list shows.
 
 | Field | Meaning |
 |---|---|
-| `question` | the task an analyst would give, in English; `${EVIDENCE}` is filled in; `question_ko` is the Korean shown on the site |
-| `repeat` | runs, 3 by default |
+| `question` | the task an analyst would give, in English, with no hint about the defect; `${EVIDENCE}` is filled in; `question_ko` is the Korean shown on the site |
+| `models` | the models asked, Claude model IDs or `local`; the four above by default |
+| `repeat` | runs per model, 3 by default |
 | `max_turns` | turns per run, 20 by default |
 | `expect` | `contains`, `not_contains`, `regex` and `not_regex` rules on the final answer, each with an optional `note_ko` |
 | `misled_if` | `all` or `any` |
