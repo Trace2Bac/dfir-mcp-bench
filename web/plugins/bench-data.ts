@@ -2,10 +2,12 @@ import fs from 'fs';
 import path from 'path';
 import YAML from 'yaml';
 import type {LoadContext, Plugin} from '@docusaurus/types';
+import {readPocs, summarizePoc, type PocData} from './poc-data';
 
 // Reads experiments/, cases/, datasets/ and servers/<server>/ (variants,
 // patches) at build time and adds one page per experiment (/experiments/<id>),
-// per case (/cases/<id>) and per patch (/patches/<name>). The list pages get a short summary of each through global
+// per case (/cases/<id>), per patch (/patches/<name>) and per PoC
+// (/pocs/<case-id>, read in poc-data.ts). The list pages get a short summary of each through global
 // data. Nothing is fetched in the browser.
 
 // Tool output in transcripts is cut to this length on the site; the full
@@ -540,7 +542,7 @@ function summarize(c: ExperimentData): ExperimentSummary {
 
 export default function benchDataPlugin(
   context: LoadContext,
-): Plugin<{experiments: ExperimentData[]; cases: CaseData[]; patches: PatchData[]}> {
+): Plugin<{experiments: ExperimentData[]; cases: CaseData[]; patches: PatchData[]; pocs: PocData[]}> {
   const root = path.resolve(context.siteDir, '..');
   return {
     name: 'bench-data',
@@ -554,6 +556,7 @@ export default function benchDataPlugin(
         path.join(root, 'servers', '*', 'patches', '*.patch'),
         path.join(root, 'servers', '*', 'patches.yaml'),
         path.join(root, 'servers', '*', 'upstream', '*.diff'),
+        path.join(root, 'pocs', '**', '*.{json,yaml}'),
       ];
     },
 
@@ -571,11 +574,16 @@ export default function benchDataPlugin(
         .filter(id => fs.existsSync(path.join(caseDir, id, 'case.yaml')))
         .map(id => readCase(root, id, locale, experiments))
         .sort((a, b) => a.name.localeCompare(b.name));
-      return {experiments, cases, patches: readPatches(root, locale, experiments)};
+      // A PoC's server repository: from the variant it runs on, else the server's.
+      const repo = (server: string, variant: string) =>
+        (variant && fs.existsSync(path.join(root, 'servers', server, 'variants', `${variant}.env`))
+          ? readVariant(root, '', variant).repo
+          : '') || (SERVER_REPOS[server] ?? '');
+      return {experiments, cases, patches: readPatches(root, locale, experiments), pocs: readPocs(root, locale, repo)};
     },
 
     async contentLoaded({content, actions}) {
-      const {experiments, cases, patches} = content;
+      const {experiments, cases, patches, pocs} = content;
       actions.setGlobalData({
         experiments: experiments.map(summarize),
         cases: cases.map(
@@ -590,7 +598,17 @@ export default function benchDataPlugin(
         patches: patches.map(
           ({diff, summary, knownIssues, ...p}): PatchSummary => ({...p, experimentCodes: p.experiments.map(e => e.code)}),
         ),
+        pocs: pocs.map(summarizePoc),
       });
+      for (const p of pocs) {
+        const data = await actions.createData(`poc-${p.caseId}.json`, JSON.stringify(p));
+        actions.addRoute({
+          path: `${context.baseUrl}pocs/${p.caseId}`,
+          component: '@site/src/components/PocPage',
+          modules: {data},
+          exact: true,
+        });
+      }
       for (const p of patches) {
         const data = await actions.createData(`patch-${p.slug}.json`, JSON.stringify(p));
         actions.addRoute({

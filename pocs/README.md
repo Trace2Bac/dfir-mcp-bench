@@ -26,8 +26,10 @@ within the problem (`P4192-010`).
 | `variant`, `commit` | the server image the PoC runs on (`servers/<server>/variants/`) and its source commit |
 | `display` | how the result is shown: `response`, `source-vs-result`, `multi-call`, `side-effect`, `time-size`, `network`, `definition`, `secret` |
 | `summary` | one sentence: the condition, what the server returns, why it is the problem |
+| `summary_ko` | the same sentence in Korean, shown on the Korean site |
 | `realism` | how likely the condition is in real use: common, possible |
 | `coverage` | whether the PoC shows the whole case or part of it, and what is left out |
+| `coverage_ko` | what a partial PoC leaves out (the text after `partial:`), in Korean |
 | `fixture` | files written before the server starts (text, bytes, size, mode, modification time, symbolic link, many generated files), in the evidence folder, the server's data folder or a folder next to the evidence that the server is not given |
 | `stubs`, `env` | stand-in programs and server environment variables, for an external tool whose output the case depends on; a stub imitates the tool's real output format and says which in a comment |
 | `conditions`, `repeat` | the same calls under different settings (for example two time zones) or several times |

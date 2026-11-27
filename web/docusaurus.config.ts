@@ -88,6 +88,7 @@ const config: Config = {
         {to: '/', label: 'Results', position: 'left', activeBaseRegex: '^/(experiments/.*)?$'},
         {to: '/cases', label: 'Cases', position: 'left'},
         {to: '/patches', label: 'Patches', position: 'left'},
+        {to: '/pocs', label: 'PoCs', position: 'left'},
         // Opens the first document of the sidebar; every document is listed there.
         {type: 'docSidebar', sidebarId: 'defaultSidebar', label: 'Docs', position: 'left'},
         {type: 'localeDropdown', position: 'right'},

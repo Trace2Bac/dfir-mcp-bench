@@ -11,7 +11,9 @@ display: response
 level: mcp
 realism: possible
 coverage: "partial: several POSTs to the same path being overwritten by the last one"
+coverage_ko: "같은 경로에 대한 여러 POST가 마지막 POST로 덮어써지는 경우"
 summary: When a GET to /uploads/shell.php comes before the only POST to that path, analyze_nginx_access still reports an upload-then-exec chain (upload line 2, exec line 1) and LIKELY WEBSHELL COMPROMISE, and verify_finding returns SUPPORTED for the same chain, so a request that ran before any upload is read as execution of the uploaded file.
+summary_ko: "/uploads/shell.php에 대한 GET이 그 경로의 유일한 POST보다 앞에 있어도, analyze_nginx_access는 업로드 후 실행 연쇄(upload line 2, exec line 1)와 LIKELY WEBSHELL COMPROMISE를 보고하고, verify_finding은 같은 연쇄에 SUPPORTED를 돌려준다. 업로드 전에 실행된 요청이 업로드한 파일의 실행으로 읽힌다."
 fixture:
   - path: access.log
     text: "198.51.100.9 - - [05/Jan/2026:10:00:00 +0000] \"GET /uploads/shell.php HTTP/1.1\" 200 512 \"-\" \"Mozilla/5.0\"\n198.51.100.9 - - [05/Jan/2026:10:05:00 +0000] \"POST /uploads/shell.php HTTP/1.1\" 200 128 \"-\" \"Mozilla/5.0\"\n"
