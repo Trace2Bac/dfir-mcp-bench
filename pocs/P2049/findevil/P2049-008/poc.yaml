@@ -12,8 +12,8 @@ realism: possible
 realism_ko: "같은 IP의 실패가 모두 성공 뒤에만 있는 로그는 드물지만 실제로 생긴다."
 coverage: full
 summary: When the only failures from 203.0.113.7 come after its successful login, verify_finding still returns SUPPORTED for "successful login after brute force", so the claimed order is never checked.
-summary_ko: "203.0.113.7의 실패가 모두 그 IP의 로그인 성공 뒤에 있어도, verify_finding은 \"successful login after brute force\"에 SUPPORTED를 돌려준다. 주장한 순서는 검사되지 않는다."
-defect_ko: "정상이라면 '무차별 대입 뒤 성공' 주장은 실패가 성공보다 앞설 때만 SUPPORTED여야 하는데, 이 서버는 순서를 비교하지 않는다. 그래서 모델은 순서가 틀린 주장을 검증된 사실로 잘못 안다."
+summary_ko: "203.0.113.7의 실패가 모두 그 IP의 로그인 성공 뒤에 있다. 그런데도 `verify_finding`은 순서를 검사하지 않고 \"successful login after brute force\"에 SUPPORTED를 준다."
+defect_ko: "'무차별 대입 뒤 성공' 주장은 실패가 성공보다 앞설 때만 SUPPORTED여야 한다. 이 서버는 순서를 비교하지 않는다. 모델은 순서가 틀린 주장을 검증된 사실로 잘못 안다."
 setup_ko: "같은 IP가 먼저 로그인에 성공하고 그 뒤에 두 번 실패한 `auth.log`를 두었다."
 fixture:
   - path: case/auth.log
@@ -23,7 +23,7 @@ fixture:
       Apr 12 15:00:05 web sshd[802]: Failed password for alice from 203.0.113.7 port 50002 ssh2
 steps:
   - tool: verify_finding
-    note_ko: "결함이 있는 호출: '무차별 대입 뒤 성공' 주장을 검증함"
+    note_ko: "결함 호출: '무차별 대입 뒤 성공' 주장을 검증함"
     args:
       claim_type: successful_login_after_brute_force
       params: '{"log_path": "${EVIDENCE}/case/auth.log", "ip": "203.0.113.7", "user": "alice"}'

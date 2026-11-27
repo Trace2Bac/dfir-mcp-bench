@@ -13,8 +13,8 @@ realism: possible
 realism_ko: "정상 로그인 뒤에 같은 IP에서 비밀번호를 여러 번 틀리는 일은 드물지만 실제로 생긴다."
 coverage: full
 summary: When an IP logs in successfully first and fails five times only afterwards, analyze_journal still marks the login brute-force-preceded, says the IP "authenticated AFTER failed attempts" and gives LIKELY COMPROMISE, a verdict about an order the journal does not show.
-summary_ko: "어떤 IP가 먼저 로그인에 성공하고 그 뒤에만 다섯 번 실패해도, analyze_journal은 그 로그인을 brute-force-preceded로 표시하고 그 IP가 \"authenticated AFTER failed attempts\"라고 하며 LIKELY COMPROMISE를 준다. journal에 없는 순서에 대한 판정이다."
-defect_ko: "정상이라면 실패 뒤에 성공한 로그인만 침해 지표로 표시해야 하는데, 이 서버는 IP별 실패 횟수만 세고 순서를 보지 않는다. 그래서 모델은 실패보다 먼저 한 정상 로그인을 침해로 잘못 안다."
+summary_ko: "어떤 IP가 먼저 로그인에 성공하고 그 뒤에만 다섯 번 실패했다. 그런데도 `analyze_journal`은 그 로그인을 brute-force-preceded로 표시하고, \"authenticated AFTER failed attempts\"와 LIKELY COMPROMISE를 낸다."
+defect_ko: "`analyze_journal`은 IP별 실패 횟수만 세고 순서는 보지 않는다. 실패 뒤에 온 성공만 침해 지표로 표시해야 한다. 모델은 실패보다 먼저 한 정상 로그인을 침해로 잘못 안다."
 setup_ko: "같은 IP가 먼저 로그인에 성공하고 그 뒤에 다섯 번 실패한 journal 내보내기를 두었다."
 fixture:
   - path: journal.jsonl
@@ -27,7 +27,7 @@ fixture:
       {"__REALTIME_TIMESTAMP": "1775971864000000", "SYSLOG_IDENTIFIER": "sshd", "MESSAGE": "Failed password for alice from 198.51.100.9 port 40005 ssh2"}
 steps:
   - tool: analyze_journal
-    note_ko: "결함이 있는 호출: journal 요약과 판정"
+    note_ko: "결함 호출: journal 요약과 판정"
     args:
       path: ${EVIDENCE}/journal.jsonl
 expect:

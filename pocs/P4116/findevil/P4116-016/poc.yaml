@@ -13,8 +13,8 @@ realism: common
 realism_ko: "`PasswordAuthentication` 줄이 없는 sshd_config는 흔하다."
 coverage: full
 summary: For one sshd_config with no PasswordAuthentication line, find_persistence reports a high "PasswordAuthentication yes" finding and analyze_sshd_config says "No dangerous settings detected.", so the verdict depends on which tool the model calls.
-summary_ko: "PasswordAuthentication 줄이 없는 sshd_config 하나에 대해 find_persistence는 high \"PasswordAuthentication yes\" 발견을 보고하고 analyze_sshd_config는 \"No dangerous settings detected.\"라고 한다. 판정이 모델이 부르는 도구에 달려 있다."
-defect_ko: "정상이라면 같은 설정에 두 도구가 같은 판정을 내야 하는데, 이 서버의 `find_persistence`는 OpenSSH 기본값을 반영해 비밀번호 로그인이 켜졌다고 하고 `analyze_sshd_config`는 적힌 줄만 보아 위험 없음이라고 한다. 그래서 `analyze_sshd_config`만 부른 모델은 비밀번호 로그인이 꺼졌다고 잘못 안다."
+summary_ko: "PasswordAuthentication 줄이 없는 sshd_config 하나를 `find_persistence`는 high \"PasswordAuthentication yes\"로 보고하고, `analyze_sshd_config`는 \"No dangerous settings detected.\"라고 한다. 모델이 어느 도구를 부르느냐에 따라 판정이 바뀐다."
+defect_ko: "`find_persistence`는 OpenSSH 기본값을 반영해 비밀번호 로그인이 켜졌다고 하고, `analyze_sshd_config`는 적힌 줄만 보고 위험 없음이라고 한다. 같은 설정에는 같은 판정이 나와야 한다. `analyze_sshd_config`만 부른 모델은 비밀번호 로그인이 꺼졌다고 잘못 안다."
 setup_ko: "`PasswordAuthentication` 줄이 없는 sshd_config를 넣었다."
 fixture:
   - path: fs/etc/ssh/sshd_config
@@ -24,11 +24,11 @@ fixture:
       UsePAM yes
 steps:
   - tool: find_persistence
-    note_ko: "비교용: 지속성 검사는 기본값을 반영함"
+    note_ko: "비교 호출: 지속성 검사는 기본값을 반영함"
     args:
       root_path: ${EVIDENCE}/fs
   - tool: analyze_sshd_config
-    note_ko: "결함이 있는 호출: sshd 설정 분석"
+    note_ko: "결함 호출: sshd 설정 분석"
     args:
       path: ${EVIDENCE}/fs/etc/ssh/sshd_config
 expect:

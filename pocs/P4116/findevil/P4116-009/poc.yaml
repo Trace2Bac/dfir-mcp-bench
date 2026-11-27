@@ -11,8 +11,8 @@ realism: common
 realism_ko: "Debian의 `su`에서 `pam_wheel`을 켜는 것과 `chsh`의 `pam_shells`는 기본 설정이다."
 coverage: full
 summary: The Debian /etc/pam.d/su line that enables pam_wheel.so (shipped commented out, commonly enabled), the stock /etc/pam.d/chsh with pam_shells.so, and the distribution's own pam_exec.so / pam_shells.so files are reported as high-severity "PAM tampering" and "Unknown PAM .so module".
-summary_ko: "pam_wheel.so를 켜는 Debian /etc/pam.d/su 줄(주석 처리된 채로 배포되고 흔히 켬), 기본 /etc/pam.d/chsh의 pam_shells.so, 배포판 자체의 pam_exec.so / pam_shells.so 파일이 high 심각도의 \"PAM tampering\"과 \"Unknown PAM .so module\"로 보고된다."
-defect_ko: "정상이라면 배포판 기본 PAM 모듈은 정상으로 보아야 하는데, 이 서버는 고정 목록에 없다는 이유로 high 등급의 PAM 변조로 보고한다. 그래서 모델은 기본 설정을 백도어로 잘못 안다."
+summary_ko: "배포판 기본 설정이 high 심각도의 \"PAM tampering\"과 \"Unknown PAM .so module\"로 보고된다. 대상은 pam_wheel.so를 켠 Debian `/etc/pam.d/su` 줄(주석 처리로 배포되고 흔히 켬), 기본 `/etc/pam.d/chsh`의 pam_shells.so, 배포판의 pam_exec.so / pam_shells.so 파일이다."
+defect_ko: "이 서버는 고정 목록에 없다는 이유만으로 PAM 모듈을 high 등급 변조로 보고한다. 배포판 기본 모듈은 정상으로 봐야 한다. 모델은 기본 설정을 백도어로 잘못 안다."
 setup_ko: "`pam_wheel.so`를 켠 `/etc/pam.d/su`, 기본 `/etc/pam.d/chsh`, 배포판의 `pam_exec.so`·`pam_shells.so` 파일을 넣었다."
 fixture:
   - path: fs/etc/pam.d/su
@@ -31,7 +31,7 @@ fixture:
     hex: 7f454c46020101000000000000000000
 steps:
   - tool: find_persistence
-    note_ko: "결함이 있는 호출: 지속성 검사"
+    note_ko: "결함 호출: 지속성 검사"
     args:
       root_path: ${EVIDENCE}/fs
 expect:

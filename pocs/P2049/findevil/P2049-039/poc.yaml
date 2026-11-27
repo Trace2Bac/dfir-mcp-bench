@@ -13,16 +13,16 @@ realism: common
 realism_ko: "`0.0.0.0`, `127.0.0.1`, 링크 로컬·멀티캐스트 주소는 로그와 설정에 흔히 나온다."
 coverage: full
 summary: Given 0.0.0.0, 169.254.10.20, 100.64.1.1, 224.0.0.251, 255.255.255.255 and 127.0.0.1, extract_iocs lists the first five as public IPs and bulk_ioc_lookup lists 127.0.0.1 under "RFC1918 IPs (private address space)", so the labels do not describe the sets they hold.
-summary_ko: "0.0.0.0, 169.254.10.20, 100.64.1.1, 224.0.0.251, 255.255.255.255, 127.0.0.1을 주면, extract_iocs는 앞의 다섯 개를 공인 IP로 나열하고 bulk_ioc_lookup은 127.0.0.1을 \"RFC1918 IPs (private address space)\" 아래에 나열한다. 이름표가 담긴 집합을 설명하지 않는다."
-defect_ko: "정상이라면 공인 IP 목록에는 실제 공인 주소만, RFC1918 목록에는 사설 대역만 있어야 하는데, 이 서버는 특수 주소를 공인 IP로, 루프백을 RFC1918로 분류한다. 그래서 모델은 특수 주소를 외부 IOC로 쫓거나 분류를 잘못 안다."
+summary_ko: "0.0.0.0, 169.254.10.20, 100.64.1.1, 224.0.0.251, 255.255.255.255, 127.0.0.1을 주었다. `extract_iocs`는 앞의 다섯 개를 공인 IP로 나열하고, `bulk_ioc_lookup`은 127.0.0.1을 \"RFC1918 IPs (private address space)\" 아래에 둔다."
+defect_ko: "이 서버는 특수 주소를 공인 IP로, 루프백을 RFC1918로 분류한다. 공인 IP 목록에는 실제 공인 주소만, RFC1918 목록에는 사설 대역만 있어야 한다. 모델은 특수 주소를 외부 IOC로 쫓거나 분류를 잘못 안다."
 setup_ko: "`0.0.0.0`, 링크 로컬, CGNAT, 멀티캐스트, 브로드캐스트, 루프백 주소가 든 한 줄을 입력으로 준다."
 steps:
   - tool: extract_iocs
-    note_ko: "결함이 있는 호출: IOC 추출"
+    note_ko: "결함 호출: IOC 추출"
     args:
       text: "listen 0.0.0.0:22; dhcp fallback 169.254.10.20; cgnat peer 100.64.1.1; mdns 224.0.0.251; bcast 255.255.255.255; local 127.0.0.1"
   - tool: bulk_ioc_lookup
-    note_ko: "결함이 있는 호출: 같은 글로 IOC 일괄 조회"
+    note_ko: "결함 호출: 같은 글로 IOC 일괄 조회"
     args:
       text: "listen 0.0.0.0:22; dhcp fallback 169.254.10.20; cgnat peer 100.64.1.1; mdns 224.0.0.251; bcast 255.255.255.255; local 127.0.0.1"
 expect:

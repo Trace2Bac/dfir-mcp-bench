@@ -17,8 +17,8 @@ realism: common
 realism_ko: "`/etc/shadow`는 기본 권한이 `0640`이라 root가 아닌 사용자로 돌리는 서버는 흔히 읽지 못한다."
 coverage: full
 summary: An unreadable tracked file is left out of baseline_create's entries without a note, and baseline_diff reports the same file, still on disk, as "File present in baseline but missing now".
-summary_ko: "읽을 수 없는 추적 대상 파일이 아무 말 없이 baseline_create 항목에서 빠지고, baseline_diff는 아직 디스크에 있는 그 파일을 \"File present in baseline but missing now\"로 보고한다."
-defect_ko: "정상이라면 읽지 못한 추적 파일은 그렇다고 알려야 하는데, 이 서버는 기준선에서 말없이 빼고 비교 때는 삭제된 파일로 보고한다. 그래서 모델은 기준선이 완전하다고, 디스크에 있는 `/etc/shadow`가 지워졌다고 잘못 안다."
+summary_ko: "읽을 수 없는 추적 대상 파일이 `baseline_create` 항목에서 말없이 빠진다. 그 뒤 `baseline_diff`는 아직 디스크에 있는 그 파일을 \"File present in baseline but missing now\"로 보고한다."
+defect_ko: "읽지 못한 추적 파일을 이 서버는 기준선에서 말없이 빼고, 비교 때는 삭제된 파일로 보고한다. 읽지 못했다고 알려야 한다. 모델은 기준선이 완전하다고, 디스크에 있는 `/etc/shadow`가 지워졌다고 잘못 안다."
 setup_ko: "읽기 권한 없는 `etc/shadow`가 있는 두 호스트 폴더와, `etc/shadow`를 담은 깨끗한 기준선 파일을 두었다."
 fixture:
   - path: host-a/etc/passwd
@@ -54,12 +54,12 @@ fixture:
       }
 steps:
   - tool: baseline_create
-    note_ko: "결함이 있는 호출: 기준선 만들기"
+    note_ko: "결함 호출: 기준선 만들기"
     args:
       root_path: ${EVIDENCE}/host-a
       output_file: ${DB_DIR}/host-a-baseline.json
   - tool: baseline_diff
-    note_ko: "결함이 있는 호출: 기준선과 비교"
+    note_ko: "결함 호출: 기준선과 비교"
     args:
       root_path: ${EVIDENCE}/host-b
       baseline_file: ${DB_DIR}/clean-baseline.json

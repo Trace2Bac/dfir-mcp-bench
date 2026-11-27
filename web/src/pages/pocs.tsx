@@ -22,17 +22,18 @@ export default function Pocs() {
     pocs.filter(p => p.server === server && test(p)).length;
   return (
     <Layout
-      title={translate({id: 'pocs.title', message: 'PoCs'})}
-      description={translate({id: 'pocs.description', message: 'Matrix cases reproduced against the running servers'})}>
+      title={translate({id: 'pocs.title', message: 'PoC results'})}
+      description={translate({id: 'pocs.description', message: 'Matrix cases reproduced on the running servers'})}>
       <main className={styles.main}>
         <h1>
-          <Translate id="pocs.title">PoCs</Translate>
+          <Translate id="pocs.title">PoC results</Translate>
         </h1>
         <p className={styles.muted}>
           <Translate id="pocs.intro">
-            Each PoC takes one case recorded in dfir-mcp-matrix, writes small evidence files, calls the server's tools over
-            MCP with no model, and checks the responses. A case counts as reproduced only when every check holds. A case
-            whose condition is forced is counted apart, as a candidate for removal.
+            Each PoC takes one case from dfir-mcp-matrix and tries to make it happen on the real server: it writes small
+            evidence files, calls the server's tools over MCP with no model, and checks the responses against the pass
+            criteria. A case counts as reproduced only when every criterion holds. A case whose condition is forced is
+            counted separately, as a candidate for removal from the matrix.
           </Translate>
         </p>
         <table className={styles.list}>
@@ -111,7 +112,14 @@ export default function Pocs() {
                       </td>
                       <td className={styles.colCode}>{p.problem}</td>
                       <td className={styles.muted}>{p.summary}</td>
-                      <td className={styles.colCode}>{resultText(p.result)}</td>
+                      <td className={styles.colCode}>
+                        {resultText(p.result)}
+                        {p.model && (
+                          <span className={poc.modelBadge}>
+                            {translate({id: 'pocs.model', message: 'model {k}/{n}'}, {k: p.model.misled, n: p.model.runs})}
+                          </span>
+                        )}
+                      </td>
                       <td className={styles.colCode}>
                         {forced(p) ? <span className={`${poc.realismLabel} ${poc.realismForced}`}>{realismText(p.realism)}</span> : realismText(p.realism)}
                       </td>

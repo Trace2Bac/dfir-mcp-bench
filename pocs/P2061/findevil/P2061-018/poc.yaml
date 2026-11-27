@@ -12,8 +12,8 @@ realism: possible
 realism_ko: "모델이 '전부'라는 뜻으로 `-1`을 주는 일이 실제로 있다."
 coverage: full
 summary: auth_failed_logins with top_n=-1 is accepted without error, reports "4 total attempts from 2 unique IPs" but lists only one source IP, because the [:-1] slice drops the last IP with no note.
-summary_ko: "top_n=-1인 auth_failed_logins는 오류 없이 받아들여지고 \"4 total attempts from 2 unique IPs\"를 보고하지만 출발지 IP는 하나만 나열한다. [:-1] 슬라이스가 마지막 IP를 말없이 빼기 때문이다."
-defect_ko: "정상이라면 음수 `top_n`은 거부해야 하는데, 이 서버는 `[:n]` 슬라이스에 넘겨 뒤쪽 IP를 말없이 뺀다. 그래서 모델은 공격 IP가 하나뿐이라고 잘못 안다."
+summary_ko: "`top_n=-1`인 `auth_failed_logins`가 오류 없이 \"4 total attempts from 2 unique IPs\"를 내지만 출발지 IP는 하나만 나열한다. `[:-1]` 슬라이스가 마지막 IP를 말없이 빼기 때문이다."
+defect_ko: "음수 `top_n`을 이 서버는 `[:n]` 슬라이스에 그대로 넘겨 뒤쪽 IP를 뺀다. 거부해야 한다. 모델은 공격 IP가 하나뿐이라고 잘못 안다."
 setup_ko: "두 IP에서 온 실패 로그인 네 줄이 있는 `auth.log`를 두었다."
 fixture:
   - path: var/log/auth.log
@@ -24,7 +24,7 @@ fixture:
       Apr 15 10:00:04 web sshd[104]: Failed password for admin from 198.51.100.77 port 40004 ssh2
 steps:
   - tool: auth_failed_logins
-    note_ko: "결함이 있는 호출: `top_n=-1`로 실패 로그인 분석"
+    note_ko: "결함 호출: `top_n=-1`로 실패 로그인 분석"
     args:
       path: ${EVIDENCE}/var/log/auth.log
       top_n: -1

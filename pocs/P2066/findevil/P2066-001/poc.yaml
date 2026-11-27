@@ -17,8 +17,8 @@ realism_ko: "정상 분석에서 증거 밖을 가리킬 일은 적지만, 절�
 coverage: "partial: apt, pip and mtime readers are represented by bash_history"
 coverage_ko: "apt, pip, mtime 판독기는 bash_history로 대표한다"
 summary: build_timeline with evidence_root inside the evidence folder and fs_subpath "../../outside" reads a shell history outside the evidence directory and returns its commands as timeline events, with no access-denied error.
-summary_ko: "evidence_root를 증거 폴더 안으로, fs_subpath를 \"../../outside\"로 준 build_timeline이 증거 디렉터리 밖의 셸 기록을 읽어 그 명령을 타임라인 이벤트로 돌려준다. 접근 거부 오류는 없다."
-defect_ko: "정상이라면 `fs_subpath`를 붙인 경로도 증거 폴더 안인지 다시 확인해야 하는데, 이 서버는 확인하지 않고 밖의 파일을 읽는다. 그래서 증거 밖의 셸 기록이 이 사건의 타임라인 사건으로 섞인다."
+summary_ko: "`evidence_root`를 증거 폴더 안으로, `fs_subpath`를 \"../../outside\"로 주면 `build_timeline`이 증거 폴더 밖의 셸 기록을 읽는다. 그 명령이 접근 거부 없이 타임라인 이벤트로 나온다."
+defect_ko: "`fs_subpath`를 붙인 경로가 증거 폴더 안인지 이 서버는 다시 확인하지 않는다. 확인해야 한다. 증거 밖의 셸 기록이 이 사건의 타임라인에 섞인다."
 setup_ko: "증거 폴더 옆, 서버에 주지 않은 폴더에 `.bash_history`를 두었다."
 fixture:
   - path: case/auth.log
@@ -31,14 +31,14 @@ fixture:
       echo OUTSIDE-THE-EVIDENCE-FOLDER
 steps:
   - tool: build_timeline
-    note_ko: "결함이 있는 호출: `../../outside`로 증거 밖을 가리킴"
+    note_ko: "결함 호출: `../../outside`로 증거 밖을 가리킴"
     args:
       evidence_root: ${EVIDENCE}/case
       fs_subpath: ../../outside
       since_iso: "2000-01-01T00:00:00Z"
       until_iso: "2100-01-01T00:00:00Z"
   - tool: build_timeline
-    note_ko: "결함이 있는 호출: 절대 경로로 증거 밖을 가리킴"
+    note_ko: "결함 호출: 절대 경로로 증거 밖을 가리킴"
     args:
       evidence_root: ${EVIDENCE}/case
       fs_subpath: ${OUTSIDE}

@@ -13,8 +13,8 @@ realism: common
 realism_ko: "증거 호스트가 UTC가 아닌 시간대로 설정된 경우는 흔하고, syslog 시각에는 시간대 정보가 없다."
 coverage: full
 summary: For one SSH login on a host set to Asia/Seoul (UTC+9), build_timeline shows the auth.log line at 14:30:04+00:00 (local time labelled UTC) and the journal record of the same login at 05:30:04+00:00, nine hours apart, without saying the syslog time zone was assumed.
-summary_ko: "Asia/Seoul(UTC+9)로 설정된 호스트의 SSH 로그인 하나에 대해, build_timeline은 auth.log 줄을 14:30:04+00:00(UTC로 표시된 현지 시각)으로, 같은 로그인의 journal 기록을 05:30:04+00:00으로 보여 준다. 두 기록은 9시간 떨어져 있고, syslog 시간대를 가정했다는 말은 없다."
-defect_ko: "정상이라면 시간대 정보가 없는 syslog 시각은 호스트 시간대로 바꾸거나 가정했다고 밝혀야 하는데, 이 서버는 지역 시각에 `+00:00`을 붙인다. 그래서 모델은 같은 로그인 하나를 9시간 떨어진 두 사건으로 잘못 안다."
+summary_ko: "Asia/Seoul(UTC+9) 호스트의 SSH 로그인 하나를 `build_timeline`이 두 번 보여 준다. `auth.log` 줄은 14:30:04+00:00, 같은 로그인의 journal 기록은 05:30:04+00:00이고, syslog 시간대를 가정했다는 안내는 없다."
+defect_ko: "시간대 없는 syslog 시각에 이 서버는 `+00:00`을 붙인다. 호스트 시간대로 바꾸거나 가정했다고 밝혀야 한다. 모델은 같은 로그인 하나를 9시간 떨어진 두 사건으로 잘못 안다."
 setup_ko: "시간대가 `Asia/Seoul`인 호스트의 SSH 로그인 하나를 `auth.log`와 journal 양쪽에 기록해 두었다."
 fixture:
   - path: case/fs/etc/timezone
@@ -26,7 +26,7 @@ fixture:
     text: "{\"__REALTIME_TIMESTAMP\": \"1775971804000000\", \"SYSLOG_IDENTIFIER\": \"sshd\", \"_PID\": \"2211\", \"MESSAGE\": \"Accepted password for alice from 203.0.113.5 port 51122 ssh2\"}\n"
 steps:
   - tool: build_timeline
-    note_ko: "결함이 있는 호출: 두 출처를 합친 타임라인을 만듦"
+    note_ko: "결함 호출: 두 출처를 합친 타임라인을 만듦"
     args:
       evidence_root: ${EVIDENCE}/case
 expect:

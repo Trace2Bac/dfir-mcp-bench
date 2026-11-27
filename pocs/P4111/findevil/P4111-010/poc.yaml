@@ -15,8 +15,8 @@ realism: possible
 realism_ko: "증거를 마운트하지 않고 복사·압축 해제해 받는 경우는 있지만, 서버가 사본인지 알 수 없어 결함은 주의 문구가 없다는 데 있다."
 coverage: full
 summary: For a file extracted into the evidence folder with its original mtime 2025-03-01, stat_file shows the extraction time as its ctime and atime with no note that these belong to the copy, and find_timestamp_anomalies runs its mtime > ctime check against that copy ctime and reports no anomalies.
-summary_ko: 원래 mtime이 2025-03-01인 채로 증거 폴더에 풀어 놓은 파일에 대해 stat_file은 추출 시각을 ctime과 atime으로 보여 주고 이 값이 사본의 것이라는 말은 없다. find_timestamp_anomalies는 mtime > ctime 검사를 그 사본의 ctime으로 하고 이상 없음으로 답한다.
-defect_ko: "정상이라면 분석 호스트에 복사된 파일의 ctime은 원래 증거 시각이 아니라고 밝히거나 판정에서 빼야 하는데, 이 서버는 사본의 ctime을 증거 시각처럼 싣고 `mtime > ctime` 검사에 쓴다. 그래서 모델은 복사 시각을 원래 변경 시각으로, 검사 결과 이상 없음을 의미 있는 결과로 잘못 안다."
+summary_ko: "원래 mtime이 2025-03-01인 파일을 증거 폴더에 풀어 두었다. `stat_file`은 추출 시각을 ctime과 atime으로 보여 주면서 사본의 값이라고 말하지 않고, `find_timestamp_anomalies`는 그 사본의 ctime으로 mtime > ctime을 검사해 이상 없음으로 답한다."
+defect_ko: "이 서버는 사본의 ctime을 증거 시각처럼 싣고 `mtime > ctime` 검사에 쓴다. 분석 호스트에 복사된 파일의 ctime은 원래 증거 시각이 아니라고 밝히거나 판정에서 빼야 한다. 모델은 복사 시각을 원래 변경 시각으로, 이상 없음 판정을 의미 있는 결과로 잘못 안다."
 setup_ko: "원래 mtime(2025-03-01)을 유지한 채 `fs/usr/sbin/sshd`를 증거 폴더에 풀어 놓았다."
 fixture:
   - path: fs/usr/sbin/sshd
@@ -24,11 +24,11 @@ fixture:
     mtime: "2025-03-01T00:00:00Z"
 steps:
   - tool: stat_file
-    note_ko: "결함이 있는 호출: 파일 메타데이터 조회"
+    note_ko: "결함 호출: 파일 메타데이터 조회"
     args:
       path: ${EVIDENCE}/fs/usr/sbin/sshd
   - tool: find_timestamp_anomalies
-    note_ko: "결함이 있는 호출: 사본 ctime으로 시각 이상 검사"
+    note_ko: "결함 호출: 사본 ctime으로 시각 이상 검사"
     args:
       root_path: ${EVIDENCE}/fs
 expect:

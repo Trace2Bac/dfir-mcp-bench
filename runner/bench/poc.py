@@ -11,6 +11,13 @@ Besides the tool calls, the transcript keeps what the model would be given:
 the server's instructions and its tool list (descriptions, schemas,
 annotations), so problems in the definitions can be shown next to the
 behaviour.
+
+A PoC with a `model` block (level `model`) also asks a model one question
+about the same evidence: Claude Code runs headless with the PoC's server as
+its only tools, `model.repeat` times, each on freshly written evidence. The
+`model.expect` rules are checked on its final answer; a run counts as misled
+when all of them hold (`misled_if: any`: when one does). The scripted calls
+still decide `result`; the model runs add `model_result` and model.json.
 """
 
 from __future__ import annotations
@@ -21,6 +28,7 @@ import json
 import os
 import re
 import shlex
+import subprocess
 import tempfile
 import time
 from datetime import UTC, datetime
@@ -31,8 +39,14 @@ import yaml
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
+from . import claude_code
+
 # Fixture content beyond this size is summarised in the transcript, not copied.
 _KEEP_BYTES = 4096
+# The model of the bench's claude-code runs (bench runs use Opus only).
+MODEL = "claude-opus-4-6"
+# Tool results are cut here in model.json; the full text stays in model/run-<n>.jsonl.
+_MODEL_RESULT_CHARS = 4000
 
 
 def _fill(value: Any, env: dict[str, str]) -> Any:
@@ -172,27 +186,34 @@ def _server_command(base: str, extra_env: dict[str, str]) -> str:
     return "env " + " ".join(shlex.quote(f"{k}={v}") for k, v in extra_env.items()) + " " + base
 
 
+def _prepare(tmp: str, poc: dict[str, Any], cond: dict[str, Any], server_cmd: str) -> dict[str, Any]:
+    """Write the stubs and fixtures under *tmp*; return the folders, fixtures, env and server command."""
+    roots = {name: Path(tmp, name) for name in ("evidence", "db", "outside", "stubs")}
+    for p in roots.values():
+        p.mkdir()
+    env = {
+        "EVIDENCE": str(roots["evidence"]),
+        "DB_DIR": str(roots["db"]),
+        "OUTSIDE": str(roots["outside"]),
+        "STUBS": str(roots["stubs"]),
+        "PATH": os.environ.get("PATH", ""),
+    }
+    for stub in poc.get("stubs", []):
+        path = roots["stubs"] / stub["name"]
+        path.write_text(_fill(stub["text"], env))
+        path.chmod(0o755)
+    fixtures = [_write_fixture(f, env, roots) for f in poc.get("fixture", []) + cond.get("fixture", [])]
+    extra = _fill({**poc.get("env", {}), **cond.get("env", {})}, env)
+    command = _server_command(_fill(server_cmd, env), extra)
+    return {"roots": roots, "env": env, "fixtures": fixtures, "extra": extra, "command": command}
+
+
 def _run_condition(poc: dict[str, Any], cond: dict[str, Any], server_cmd: str) -> dict[str, Any]:
     with tempfile.TemporaryDirectory() as tmp:
-        roots = {name: Path(tmp, name) for name in ("evidence", "db", "outside", "stubs")}
-        for p in roots.values():
-            p.mkdir()
-        env = {
-            "EVIDENCE": str(roots["evidence"]),
-            "DB_DIR": str(roots["db"]),
-            "OUTSIDE": str(roots["outside"]),
-            "STUBS": str(roots["stubs"]),
-            "PATH": os.environ.get("PATH", ""),
-        }
-        for stub in poc.get("stubs", []):
-            path = roots["stubs"] / stub["name"]
-            path.write_text(_fill(stub["text"], env))
-            path.chmod(0o755)
-        fixtures = [_write_fixture(f, env, roots) for f in poc.get("fixture", []) + cond.get("fixture", [])]
-        extra = _fill({**poc.get("env", {}), **cond.get("env", {})}, env)
-        command = _server_command(_fill(server_cmd, env), extra)
+        prep = _prepare(tmp, poc, cond, server_cmd)
+        env = prep["env"]
         with open(Path(tmp, "server.log"), "w") as errlog:
-            record = asyncio.run(_session(command, poc["steps"], env, errlog))
+            record = asyncio.run(_session(prep["command"], poc["steps"], env, errlog))
         files = {}
         for r in poc.get("expect", []):
             key = r.get("file_exists") or r.get("file_missing")
@@ -201,8 +222,8 @@ def _run_condition(poc: dict[str, Any], cond: dict[str, Any], server_cmd: str) -
         log = Path(tmp, "server.log").read_text(errors="replace")
     return {
         "condition": cond.get("name", "default"),
-        "env": extra,
-        "fixtures": fixtures,
+        "env": prep["extra"],
+        "fixtures": prep["fixtures"],
         **record,
         "files_after": files,
         "server_log": log[-4000:],
@@ -212,6 +233,19 @@ def _run_condition(poc: dict[str, Any], cond: dict[str, Any], server_cmd: str) -
 def _step(runs: dict[str, dict[str, Any]], rule: dict[str, Any], cond: str | None = None) -> dict[str, Any]:
     run = runs[cond or rule.get("condition") or next(iter(runs))]
     return run["steps"][rule.get("step", 1) - 1]
+
+
+def _text_rule(rule: dict[str, Any], text: str) -> bool | None:
+    """contains / not_contains / regex / not_regex on *text*; None for other rules."""
+    if "contains" in rule:
+        return rule["contains"] in text
+    if "not_contains" in rule:
+        return rule["not_contains"] not in text
+    if "regex" in rule:
+        return re.search(rule["regex"], text) is not None
+    if "not_regex" in rule:
+        return re.search(rule["not_regex"], text) is None
+    return None
 
 
 def _check(rule: dict[str, Any], runs: dict[str, dict[str, Any]]) -> dict[str, Any]:
@@ -226,15 +260,10 @@ def _check(rule: dict[str, Any], runs: dict[str, dict[str, Any]]) -> dict[str, A
         return {**rule, "ok": exists if "file_exists" in rule else not exists}
     step = _step(runs, rule)
     text = step["response"]["text"]
-    if "contains" in rule:
-        ok = rule["contains"] in text
-    elif "not_contains" in rule:
-        ok = rule["not_contains"] not in text
-    elif "regex" in rule:
-        ok = re.search(rule["regex"], text) is not None
-    elif "not_regex" in rule:
-        ok = re.search(rule["not_regex"], text) is None
-    elif "is_error" in rule:
+    ok = _text_rule(rule, text)
+    if ok is not None:
+        return {**rule, "ok": ok}
+    if "is_error" in rule:
         ok = step["response"]["is_error"] == rule["is_error"]
     elif "max_seconds" in rule:
         ok = step["seconds"] <= rule["max_seconds"]
@@ -249,7 +278,180 @@ def _check(rule: dict[str, Any], runs: dict[str, dict[str, Any]]) -> dict[str, A
     return {**rule, "ok": ok}
 
 
-def run_poc(poc_file: str, out_dir: str) -> dict[str, Any]:
+def _untemp(text: str, roots: dict[str, Path]) -> str:
+    """The run's temporary folders as the ${...} names poc.yaml uses."""
+    names = {"evidence": "EVIDENCE", "db": "DB_DIR", "outside": "OUTSIDE", "stubs": "STUBS"}
+    for key, path in roots.items():
+        text = text.replace(str(path.resolve()), "${" + names[key] + "}").replace(str(path), "${" + names[key] + "}")
+    return text
+
+
+def _model_prompt(server: str, question: str) -> str:
+    # Only the question: nothing about what the PoC shows.
+    return (
+        f"You are a digital forensic examiner. Your only tools are those of the {server} MCP server. "
+        "The evidence is in ${EVIDENCE}. Base your answer on what the tools return.\n\n" + question.strip() + "\n"
+    )
+
+
+def _model_run(poc: dict[str, Any], spec: dict[str, Any], server_cmd: str, n: int, out: Path) -> dict[str, Any]:
+    """One Claude Code run on fresh evidence; its stream-json is kept as model/run-<n>.jsonl."""
+    conditions = poc.get("conditions") or [{"name": "default"}]
+    name = spec.get("condition") or conditions[0].get("name", "default")
+    cond = next(c for c in conditions if c.get("name", "default") == name)
+    server = str(poc["server"])
+    with tempfile.TemporaryDirectory() as tmp:
+        prep = _prepare(tmp, poc, cond, server_cmd)
+        env = prep["env"]
+        argv = shlex.split(prep["command"])
+        config = {"mcpServers": {server: {"command": argv[0], "args": argv[1:]}}}
+        Path(tmp, "mcp.json").write_text(json.dumps(config, indent=2) + "\n")
+        prompt = _fill(_model_prompt(server, str(spec["question"])), env)
+        cmd = [
+            os.environ.get("BENCH_CLAUDE", claude_code.CLAUDE),
+            "-p",
+            prompt,
+            "--model",
+            str(spec.get("model") or MODEL),
+            "--max-turns",
+            str(spec.get("max_turns", 20)),
+            "--mcp-config",
+            str(Path(tmp, "mcp.json")),
+            "--strict-mcp-config",
+            "--tools",
+            "",
+            "--allowedTools",
+            f"mcp__{server}",
+            "--no-session-persistence",
+            "--output-format",
+            "stream-json",
+            "--verbose",
+        ]
+        if spec.get("effort"):
+            cmd += ["--effort", str(spec["effort"])]
+        run_env = {
+            **os.environ,
+            "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+            "MCP_TIMEOUT": "120000",
+            "MCP_TOOL_TIMEOUT": "600000",
+        }
+        started = time.monotonic()
+        try:
+            proc = subprocess.run(
+                cmd,
+                check=False,
+                cwd=tmp,
+                env=run_env,
+                capture_output=True,
+                text=True,
+                timeout=spec.get("timeout_s", 1800),
+            )
+            stream, stderr = proc.stdout, proc.stderr
+        except subprocess.TimeoutExpired as exc:
+            stream = exc.stdout.decode(errors="replace") if isinstance(exc.stdout, bytes) else exc.stdout or ""
+            stderr = "timed out"
+        seconds = round(time.monotonic() - started, 1)
+        stream = _untemp(stream, prep["roots"])
+        stderr = _untemp(stderr or "", prep["roots"])
+        prompt = _untemp(prompt, prep["roots"])
+    (out / "model").mkdir(exist_ok=True)
+    (out / "model" / f"run-{n}.jsonl").write_text(stream)
+
+    events = []
+    for line in stream.splitlines():
+        try:
+            events.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    init = next((e for e in events if e.get("type") == "system" and e.get("subtype") == "init"), {})
+    result = next((e for e in reversed(events) if e.get("type") == "result"), {})
+    results = {}
+    for e in events:
+        content = e.get("message", {}).get("content", []) if e.get("type") == "user" else []
+        for block in content if isinstance(content, list) else []:
+            if block.get("type") == "tool_result":
+                results[block["tool_use_id"]] = block
+    calls = []
+    for e in events:
+        for block in e.get("message", {}).get("content", []) if e.get("type") == "assistant" else []:
+            if block.get("type") != "tool_use":
+                continue
+            res = results.get(block["id"], {})
+            text = claude_code._text(res.get("content"))
+            if len(text) > _MODEL_RESULT_CHARS:
+                text = f"{text[:_MODEL_RESULT_CHARS]}\n[cut: {len(text)} characters in model/run-{n}.jsonl]"
+            calls.append(
+                {
+                    "tool": claude_code._tool_name(block["name"]),
+                    "args": block.get("input", {}),
+                    "is_error": bool(res.get("is_error")),
+                    "result": text,
+                }
+            )
+    answer = str(result.get("result") or "")
+    finished = bool(result) and not result.get("is_error")
+    checks = [{**r, "ok": _text_rule(r, answer)} for r in spec.get("expect", [])]
+    for c in checks:
+        if c["ok"] is None:
+            raise SystemExit(f"model.expect allows contains, not_contains, regex, not_regex: {c}")
+    held = [c["ok"] for c in checks]
+    misled = (any(held) if spec.get("misled_if") == "any" else all(held)) if finished and held else None
+    return {
+        "run": n,
+        "condition": name,
+        "prompt": prompt,
+        "answer": answer,
+        "checks": checks,
+        "misled": misled,
+        "end_reason": "error" if result.get("is_error") else result.get("subtype", "no result"),
+        "tool_calls": calls,
+        "turns": result.get("num_turns"),
+        "seconds": round((result.get("duration_ms") or 0) / 1000, 1) or seconds,
+        "model": init.get("model"),
+        "claude_code_version": init.get("claude_code_version"),
+        "api_cost_usd": result.get("total_cost_usd"),
+        "stderr": stderr[-2000:],
+    }
+
+
+def _run_model(poc: dict[str, Any], server_cmd: str, out: Path) -> dict[str, Any]:
+    """The model block: repeat runs, written to model.json; returns the summary for result.json."""
+    spec = poc["model"]
+    repeat = int(spec.get("repeat", 3))
+    runs = [_model_run(poc, spec, server_cmd, n + 1, out) for n in range(repeat)]
+    done = [r for r in runs if r["misled"] is not None]
+    record = {
+        "question": spec["question"],
+        "model": spec.get("model") or MODEL,
+        "repeat": repeat,
+        "max_turns": spec.get("max_turns", 20),
+        "misled_if": spec.get("misled_if", "all"),
+        "runs": runs,
+    }
+    (out / "model.json").write_text(json.dumps(record, ensure_ascii=False, indent=2) + "\n")
+    if os.environ.get("CLAUDE_CONFIG_DIR"):
+        claude_code.redact_account(out, out, Path(os.environ["CLAUDE_CONFIG_DIR"]) / ".claude.json")
+    return {
+        "question": spec["question"],
+        "model": record["model"],
+        "runs": len(done),
+        "misled": sum(bool(r["misled"]) for r in done),
+        "failed": len(runs) - len(done),
+        "per_run": [
+            {
+                "run": r["run"],
+                "misled": r["misled"],
+                "end_reason": r["end_reason"],
+                "answer": r["answer"],
+                "tool_calls": [{"tool": c["tool"], "args": c["args"]} for c in r["tool_calls"]],
+                "seconds": r["seconds"],
+            }
+            for r in runs
+        ],
+    }
+
+
+def run_poc(poc_file: str, out_dir: str, with_model: bool = True) -> dict[str, Any]:
     poc = yaml.safe_load(Path(poc_file).read_text())
     server_cmd = os.environ["BENCH_SERVER_CMD"]
     conditions = poc.get("conditions") or [{"name": "default"}]
@@ -273,6 +475,7 @@ def run_poc(poc_file: str, out_dir: str) -> dict[str, Any]:
         "server": poc["server"],
         "commit": poc.get("commit", ""),
         "display": poc.get("display", "response"),
+        "level": "model" if poc.get("model") else poc.get("level", "mcp"),
         "realism": poc.get("realism", ""),
         "coverage": poc.get("coverage", ""),
         "result": "reproduced" if hits else "not reproduced",
@@ -283,6 +486,13 @@ def run_poc(poc_file: str, out_dir: str) -> dict[str, Any]:
     }
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
+    if poc.get("model") and with_model:
+        result["model_result"] = _run_model(poc, server_cmd, out)
+    elif (out / "result.json").exists():
+        # --no-model keeps the model result of the run before.
+        before = json.loads((out / "result.json").read_text()).get("model_result")
+        if before and poc.get("model"):
+            result["model_result"] = before
     (out / "transcript.json").write_text(json.dumps({"attempts": attempts}, ensure_ascii=False, indent=2) + "\n")
     (out / "result.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
     return result
@@ -292,6 +502,8 @@ def summarize_pocs(root: str) -> str:
     """One line per server and problem: how many PoCs reproduced the problem."""
     counts: dict[tuple[str, str], dict[str, int]] = {}
     for f in sorted(Path(root).glob("*/*/*/runs/*/result.json")):
+        if f.relative_to(root).parts[0].startswith("_"):  # pocs/_samples
+            continue
         r = json.loads(f.read_text())
         c = counts.setdefault((r["server"], r["problem"]), {"reproduced": 0, "not reproduced": 0})
         c[r["result"]] = c.get(r["result"], 0) + 1

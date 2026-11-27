@@ -12,8 +12,8 @@ realism: possible
 realism_ko: "`readonly`, `trap EXIT`, `export -f`를 함께 쓰는 셸 스크립트는 실제로 있지만, 같은 응답에 실제로 맞은 패턴 목록이 함께 나온다."
 coverage: full
 summary: A script with readonly, export -f and an EXIT trap but no set -euo pipefail is reported as an AI-polished script whose reason claims a "combination of strict-mode + readonly + parallelism"; the matched patterns listed below it show no strict-mode line, so the stated reason describes an idiom that is not in the file.
-summary_ko: readonly, export -f, EXIT trap은 있지만 set -euo pipefail은 없는 스크립트를 AI가 다듬은 스크립트로 보고하면서 이유를 "combination of strict-mode + readonly + parallelism"이라고 한다. 아래에 붙는 일치 패턴 목록에는 strict-mode 줄이 없어, 이유 문장이 파일에 없는 관용구를 설명한다.
-defect_ko: "정상이라면 판정 이유는 실제로 맞은 관용구를 적어야 하는데, 이 서버는 어떤 세 개가 맞든 'strict-mode + readonly + parallelism'이라고 적는다. 그래서 모델은 파일에 없는 strict-mode와 병렬 실행이 있다고 잘못 알 수 있다."
+summary_ko: "readonly, export -f, EXIT trap만 있고 set -euo pipefail은 없는 스크립트를 AI가 다듬은 것으로 보고하며, 이유를 \"combination of strict-mode + readonly + parallelism\"이라고 적는다. 아래의 일치 패턴 목록에는 strict-mode 줄이 없다."
+defect_ko: "판정 이유에 이 서버는 어떤 세 개가 맞든 'strict-mode + readonly + parallelism'이라고 적는다. 실제로 맞은 관용구를 적어야 한다. 모델은 파일에 없는 strict-mode와 병렬 실행이 있다고 잘못 알 수 있다."
 setup_ko: "`set -euo pipefail`과 병렬 실행 없이 `readonly`, `trap EXIT`, `export -f`만 쓰는 백업 스크립트를 두었다."
 fixture:
   - path: fs/usr/local/bin/backup.sh
@@ -28,7 +28,7 @@ fixture:
       do_copy /etc
 steps:
   - tool: find_ai_signatures
-    note_ko: "결함이 있는 호출: AI 작성 흔적 검사"
+    note_ko: "결함 호출: AI 작성 흔적 검사"
     args:
       root_path: ${EVIDENCE}/fs
 expect:

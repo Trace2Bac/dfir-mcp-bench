@@ -13,8 +13,8 @@ realism: common
 realism_ko: "없는 패턴을 찾는 검색은 조사에서 매우 흔하다."
 coverage: full
 summary: 'log_search for a pattern that is not in the file returns "[STDERR]: " (grep exits 1 for no match) instead of "No matches found", so an ordinary no-match result reads as a failed search.'
-summary_ko: "파일에 없는 패턴으로 log_search를 하면 \"No matches found\" 대신 \"[STDERR]: \"를 돌려준다(grep은 일치가 없으면 1로 끝난다). 그래서 평범한 일치 없음 결과가 실패한 검색으로 읽힌다."
-defect_ko: "정상이라면 일치가 없을 때 `No matches found`를 돌려줘야 하는데, 이 서버는 grep의 종료 코드 1을 오류로 보고 빈 `[STDERR]: `를 붙여 돌려준다. 그래서 모델은 일치 없음을 검색 실패로 잘못 안다."
+summary_ko: "파일에 없는 패턴으로 `log_search`를 하면 \"No matches found\" 대신 \"[STDERR]: \"가 돌아온다. grep은 일치가 없으면 1로 끝나는데, 이를 실패로 다루기 때문이다."
+defect_ko: "이 서버는 grep의 종료 코드 1을 오류로 보고 빈 `[STDERR]: `를 붙인다. 일치가 없으면 `No matches found`를 돌려줘야 한다. 모델은 일치 없음을 검색 실패로 잘못 안다."
 setup_ko: "한 줄짜리 syslog를 두고 그 안에 없는 `mimikatz`를 찾게 했다."
 fixture:
   - path: var/log/syslog
@@ -22,7 +22,7 @@ fixture:
       Apr 15 10:00:00 web systemd[1]: Started Daily apt download activities.
 steps:
   - tool: log_search
-    note_ko: "결함이 있는 호출: 없는 패턴으로 검색"
+    note_ko: "결함 호출: 없는 패턴으로 검색"
     args:
       path: ${EVIDENCE}/var/log/syslog
       pattern: "mimikatz"

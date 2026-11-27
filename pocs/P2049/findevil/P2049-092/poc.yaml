@@ -12,8 +12,8 @@ realism_ko: "npm으로 typosquat 패키지를 설치한 리눅스 증거는 드�
 coverage: "partial: not reading term.log (shown in P4118-007)"
 coverage_ko: "term.log를 읽지 않는 문제(P4118-007에서 보임)"
 summary: With an npm debug log recording "npm install lodasch" (an entry in the server's own npm typosquat list), the tool reads only the apt log and answers "No package-management red flags."
-summary_ko: "npm debug 로그에 \"npm install lodasch\"(서버 자체 npm typosquat 목록에 있는 항목)가 기록되어 있어도, 도구는 apt 로그만 읽고 \"No package-management red flags.\"라고 답한다."
-defect_ko: "정상이라면 설명대로 npm 기록을 읽어 typosquat을 표시해야 하는데, 이 서버는 apt 기록만 읽는다. 그래서 모델은 npm typosquat 설치가 있는 호스트를 문제없다고 잘못 안다."
+summary_ko: "npm debug 로그에 \"npm install lodasch\"(서버 자체 npm typosquat 목록에 있는 이름)가 있다. 도구는 apt 로그만 읽고 \"No package-management red flags.\"라고 답한다."
+defect_ko: "이 서버는 apt 기록만 읽는다. 설명대로라면 npm 기록도 읽어 typosquat을 표시해야 한다. 모델은 npm typosquat 설치가 있는 호스트를 문제없다고 잘못 안다."
 setup_ko: "정상 apt 설치 기록과, 서버 자체 목록에 있는 `lodasch` 설치가 남은 npm 디버그 로그를 두었다."
 fixture:
   - path: fs/var/log/apt/history.log
@@ -32,7 +32,7 @@ fixture:
       5 info run lodasch@1.0.3 postinstall node_modules/lodasch node setup.js
 steps:
   - tool: analyze_package_logs
-    note_ko: "결함이 있는 호출: 패키지 관리 기록 분석"
+    note_ko: "결함 호출: 패키지 관리 기록 분석"
     args:
       root_path: ${EVIDENCE}/fs
 expect:

@@ -12,8 +12,8 @@ realism: possible
 realism_ko: "분석가가 사건 폴더를 자기 홈 폴더 아래에 두는 일은 있지만, 표준 위치는 아니다."
 coverage: full
 summary: When the case folder sits under home/analyst/, commands from fs/home/alice/.bash_history and fs/root/.bash_history are both attributed to "analyst", and provenance only says ".bash_history:N", so the real owner cannot be recovered.
-summary_ko: "사건 폴더가 home/analyst/ 아래에 있으면 fs/home/alice/.bash_history와 fs/root/.bash_history의 명령이 모두 \"analyst\"의 것으로 돌려지고, 출처는 \".bash_history:N\"으로만 나와 실제 소유자를 되찾을 수 없다."
-defect_ko: "정상이라면 bash 명령의 사용자는 기록 파일이 있는 증거 안의 홈 폴더로 정해야 하는데, 이 서버는 절대 경로에서 처음 나오는 `home` 다음 이름을 쓴다. 그래서 모델은 alice와 root의 명령을 모두 분석가 `analyst`가 한 것으로 잘못 안다."
+summary_ko: "사건 폴더가 `home/analyst/` 아래에 있으면 `fs/home/alice/.bash_history`와 `fs/root/.bash_history`의 명령이 모두 \"analyst\"의 것이 된다. 출처는 \".bash_history:N\"으로만 나와 실제 소유자를 되찾을 수 없다."
+defect_ko: "이 서버는 절대 경로에서 처음 나오는 `home` 다음 이름을 사용자로 쓴다. 증거 안에서 기록 파일이 있는 홈 폴더로 정해야 한다. 모델은 alice와 root의 명령을 모두 분석가 `analyst`가 한 것으로 잘못 안다."
 setup_ko: "사건 폴더를 `home/analyst/case`에 두고 그 안에 alice와 root의 `.bash_history`를 넣었다."
 fixture:
   - path: home/analyst/case/fs/home/alice/.bash_history
@@ -22,7 +22,7 @@ fixture:
     text: "#1775972100\nchmod +x /tmp/x\n"
 steps:
   - tool: build_timeline
-    note_ko: "결함이 있는 호출: 분석가 홈 아래의 사건 폴더로 타임라인을 만듦"
+    note_ko: "결함 호출: 분석가 홈 아래의 사건 폴더로 타임라인을 만듦"
     args:
       evidence_root: ${EVIDENCE}/home/analyst/case
 expect:

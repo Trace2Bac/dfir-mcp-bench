@@ -20,8 +20,8 @@ realism_ko: "root 소유 `0440` sudoers처럼, 마운트한 이미지를 root가
 coverage: "partial: find_persistence hiding read failures as info"
 coverage_ko: "find_persistence가 읽기 실패를 info로 숨기는 경우"
 summary: For sudoers, sshd_config and authorized_keys files the server cannot read, the tools parse the read error as file content and answer "No user rules found", "No dangerous settings detected." and "1 key(s)", so the error shows up only as a parsed directive or key under a clean verdict.
-summary_ko: 서버가 읽을 수 없는 sudoers, sshd_config, authorized_keys 파일에 대해 도구들이 읽기 오류를 파일 내용처럼 파싱해 "No user rules found", "No dangerous settings detected.", "1 key(s)"라고 답한다. 오류는 정상 판정 아래의 지시어나 키 한 줄로만 보인다.
-defect_ko: "정상이라면 읽지 못한 파일은 분석하지 못했다고 알려야 하는데, 이 서버는 읽기 오류 문구를 파일 내용처럼 파싱해 정상 판정을 낸다. 그래서 모델은 백도어 sudo 규칙과 위험한 sshd 설정이 없다고 잘못 안다."
+summary_ko: "서버가 읽을 수 없는 sudoers, sshd_config, authorized_keys에 각 도구가 \"No user rules found\", \"No dangerous settings detected.\", \"1 key(s)\"라고 답한다. 읽기 오류를 파일 내용처럼 파싱해서, 오류는 정상 판정 아래 지시어나 키 한 줄로만 보인다."
+defect_ko: "이 서버는 읽기 오류 문구를 파일 내용처럼 파싱해 정상 판정을 낸다. 읽지 못한 파일은 분석하지 못했다고 알려야 한다. 모델은 백도어 sudo 규칙과 위험한 sshd 설정이 없다고 잘못 안다."
 setup_ko: "백도어 sudo 규칙, root 로그인 허용 sshd 설정, root의 `authorized_keys`를 두고 모두 읽기 권한을 없앴다(`0000`)."
 fixture:
   - path: fs/etc/sudoers.d/90-backdoor
@@ -35,15 +35,15 @@ fixture:
     mode: "0000"
 steps:
   - tool: analyze_sudoers
-    note_ko: "결함이 있는 호출: sudoers 분석"
+    note_ko: "결함 호출: sudoers 분석"
     args:
       path: ${EVIDENCE}/fs/etc/sudoers.d/90-backdoor
   - tool: analyze_sshd_config
-    note_ko: "결함이 있는 호출: sshd 설정 분석"
+    note_ko: "결함 호출: sshd 설정 분석"
     args:
       path: ${EVIDENCE}/fs/etc/ssh/sshd_config
   - tool: analyze_authorized_keys
-    note_ko: "결함이 있는 호출: authorized_keys 분석"
+    note_ko: "결함 호출: authorized_keys 분석"
     args:
       path: ${EVIDENCE}/fs/root/.ssh/authorized_keys
 expect:

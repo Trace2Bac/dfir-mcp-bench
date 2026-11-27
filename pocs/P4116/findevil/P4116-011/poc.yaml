@@ -25,8 +25,8 @@ realism_ko: "트리 밖 모듈과 `modprobe.d` 지시문을 쓰는 LKM 루트킷
 coverage: "partial: Volatility output is imitated (no real memory image or symbols)"
 coverage_ko: "Volatility 출력은 흉내 낸 것이다(실제 메모리 이미지나 심볼 없음)"
 summary: 'With an out-of-tree diamorphine.ko under lib/modules/*/extra and a modprobe.d install directive for it, correlate_memory_and_disk reports "Disk: 0 module name(s)" and "Memory and disk agree", because it only counts backtick names that the /etc/modules check produces.'
-summary_ko: "lib/modules/*/extra 아래의 트리 밖 diamorphine.ko와 그에 대한 modprobe.d install 지시문이 있어도, correlate_memory_and_disk는 \"Disk: 0 module name(s)\"와 \"Memory and disk agree\"를 보고한다. /etc/modules 검사가 만드는 백틱 이름만 세기 때문이다."
-defect_ko: "정상이라면 디스크 쪽 모듈 목록에 `scan_kernel_modules`가 찾은 `.ko` 파일과 `install` 지시문이 들어가야 하는데, 이 서버는 `/etc/modules` 검사가 만든 이름만 센다. 그래서 모델은 루트킷 흔적이 있는 디스크를 메모리와 일치하는 깨끗한 상태로 잘못 안다."
+summary_ko: "`lib/modules/*/extra` 아래에 트리 밖 diamorphine.ko와 modprobe.d install 지시문이 있다. 그런데도 `correlate_memory_and_disk`는 \"Disk: 0 module name(s)\"와 \"Memory and disk agree\"를 낸다. `/etc/modules` 검사가 만든 백틱 이름만 세기 때문이다."
+defect_ko: "`correlate_memory_and_disk`는 `/etc/modules` 검사가 만든 이름만 센다. `scan_kernel_modules`가 찾은 `.ko` 파일과 `install` 지시문도 디스크 쪽 목록에 들어가야 한다. 모델은 루트킷 흔적이 있는 디스크를 메모리와 일치하는 깨끗한 상태로 잘못 안다."
 setup_ko: "`diamorphine.ko`와 그 `install` 지시문을 디스크에 두고, Volatility 대역이 `diamorphine`이 적재된 lsmod 결과를 돌려주게 했다."
 env:
   FINDEVIL_VOL: ${STUBS}/vol
@@ -84,11 +84,11 @@ fixture:
     text: "# /etc/modules\nloop\n"
 steps:
   - tool: find_persistence
-    note_ko: "비교용: 디스크 검사는 모듈과 지시문을 찾음"
+    note_ko: "비교 호출: 디스크 검사는 모듈과 지시문을 찾음"
     args:
       root_path: ${EVIDENCE}/case01/fs
   - tool: correlate_memory_and_disk
-    note_ko: "결함이 있는 호출: 메모리와 디스크 대조"
+    note_ko: "결함 호출: 메모리와 디스크 대조"
     args:
       memory_dump_path: ${EVIDENCE}/case01/mem.lime
       fs_root: ${EVIDENCE}/case01/fs

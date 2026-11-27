@@ -13,8 +13,8 @@ realism_ko: "증거 호스트가 UTC가 아닌 시간대로 설정된 경우는 
 coverage: "partial: nginx offsets and file mtime ordering are not shown here (nginx: P2049-005)"
 coverage_ko: "nginx 오프셋과 파일 mtime 순서는 여기서 보이지 않는다(nginx: P2049-005)"
 summary: On a host set to Asia/Seoul, one SSH login appears twice in the timeline, at 05:30:00+00:00 from the journal and at 14:30:00+00:00 from auth.log, and neither the tool definition nor the response says syslog times were assumed to be UTC.
-summary_ko: "Asia/Seoul로 설정된 호스트에서 SSH 로그인 하나가 타임라인에 두 번 나온다. journal에서 온 05:30:00+00:00과 auth.log에서 온 14:30:00+00:00이다. 도구 정의와 응답 모두 syslog 시각을 UTC로 가정했다고 말하지 않는다."
-defect_ko: "정상이라면 정의나 응답이 syslog 시각을 어느 시간대로 가정했는지 밝혀야 하는데, 이 서버는 지역 시각에 말없이 `+00:00`을 붙인다. 그래서 모델은 같은 로그인 하나를 9시간 떨어진 두 사건으로 잘못 안다."
+summary_ko: "Asia/Seoul 호스트의 SSH 로그인 하나가 타임라인에 두 번 나온다. journal에서 온 05:30:00+00:00과 `auth.log`에서 온 14:30:00+00:00이고, 정의와 응답 어디에도 syslog 시각을 UTC로 가정했다는 말이 없다."
+defect_ko: "이 서버는 syslog 현지 시각에 말없이 `+00:00`을 붙인다. 정의나 응답이 어느 시간대로 가정했는지 밝혀야 한다. 모델은 같은 로그인 하나를 9시간 떨어진 두 사건으로 잘못 안다."
 setup_ko: "시간대가 `Asia/Seoul`인 호스트의 SSH 로그인 하나를 `auth.log`와 journal 양쪽에 기록해 두었다."
 fixture:
   - path: case/fs/etc/timezone
@@ -25,7 +25,7 @@ fixture:
     text: "{\"__REALTIME_TIMESTAMP\": \"1775971800000000\", \"SYSLOG_IDENTIFIER\": \"sshd\", \"MESSAGE\": \"Accepted password for alice from 203.0.113.7 port 50022 ssh2\"}\n"
 steps:
   - tool: build_timeline
-    note_ko: "결함이 있는 호출: 두 출처를 합친 타임라인을 만듦"
+    note_ko: "결함 호출: 두 출처를 합친 타임라인을 만듦"
     args:
       evidence_root: ${EVIDENCE}/case
 expect:

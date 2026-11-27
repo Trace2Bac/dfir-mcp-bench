@@ -13,19 +13,19 @@ realism: possible
 realism_ko: "`brute_force_from_ip`를 `brute_force_ip`로 줄여 쓰는 모델 실수는 실제로 생긴다."
 coverage: full
 summary: A CONFIRMED brute-force claim against an auth.log with no failed logins is REJECTED under the type "brute_force_from_ip" but ACCEPTED under the misspelt type "brute_force_ip", which finalize_report takes as free-form and passes on its citation alone.
-summary_ko: "실패한 로그인이 없는 auth.log에 대한 CONFIRMED 무차별 대입 주장이 \"brute_force_from_ip\" 유형으로는 REJECTED되지만 오타 유형 \"brute_force_ip\"로는 ACCEPTED된다. finalize_report는 이를 자유 형식으로 받아 인용만 보고 통과시킨다."
-defect_ko: "정상이라면 모르는 주장 유형은 오류로 알리거나 다시 검증해야 하는데, 이 서버는 자유 유형으로 보고 인용 글만으로 통과시킨다. 그래서 모델은 근거 없는 CONFIRMED 주장이 재검증을 통과했다고 잘못 안다."
+summary_ko: "실패한 로그인이 없는 `auth.log`에 대한 CONFIRMED 무차별 대입 주장이 \"brute_force_from_ip\" 유형으로는 REJECTED되고, 오타 유형 \"brute_force_ip\"로는 ACCEPTED된다. `finalize_report`가 오타 유형을 자유 형식으로 받아 인용만 보고 통과시키기 때문이다."
+defect_ko: "모르는 주장 유형을 이 서버는 자유 유형으로 보고 인용 글만으로 통과시킨다. 오류로 알리거나 다시 검증해야 한다. 모델은 근거 없는 CONFIRMED 주장이 재검증을 통과했다고 잘못 안다."
 setup_ko: "실패 로그인이 전혀 없고 정상 로그인 한 줄만 있는 `auth.log`를 두었다."
 fixture:
   - path: auth.log
     text: "Apr 12 10:00:00 web01 sshd[2211]: Accepted publickey for alice from 203.0.113.5 port 51122 ssh2\n"
 steps:
   - tool: finalize_report
-    note_ko: "비교용: 올바른 유형으로 무차별 대입 주장을 확정 요청"
+    note_ko: "비교 호출: 올바른 유형으로 무차별 대입 주장을 확정 요청"
     args:
       claims_json: "[{\"id\": \"c1\", \"type\": \"brute_force_from_ip\", \"confidence\": \"confirmed\", \"statement\": \"203.0.113.5 brute-forced SSH\", \"log_path\": \"${EVIDENCE}/auth.log\", \"ip\": \"203.0.113.5\", \"min_attempts\": 5, \"evidence\": \"auth.log:1\"}]"
   - tool: finalize_report
-    note_ko: "결함이 있는 호출: 오타 유형으로 같은 주장을 확정 요청"
+    note_ko: "결함 호출: 오타 유형으로 같은 주장을 확정 요청"
     args:
       claims_json: "[{\"id\": \"c1\", \"type\": \"brute_force_ip\", \"confidence\": \"confirmed\", \"statement\": \"203.0.113.5 brute-forced SSH\", \"log_path\": \"${EVIDENCE}/auth.log\", \"ip\": \"203.0.113.5\", \"min_attempts\": 5, \"evidence\": \"auth.log:1\"}]"
 expect:

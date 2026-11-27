@@ -31,8 +31,8 @@ realism_ko: "실제 시스템의 프로세스·소켓 수는 60·50개를 쉽게
 coverage: "partial: Volatility output is imitated (no real memory image or symbols)"
 coverage_ko: "Volatility 출력은 흉내 낸 것이다(실제 메모리 이미지나 심볼 없음)"
 summary: analyze_memory_summary points to the analyze_memory_* tools for full output, but they stop at 60 processes, 50 sockets, 200 commands and 30 regions with no way to request the rest, so the last rows of a 65/55/205/35-row capture cannot be read.
-summary_ko: "analyze_memory_summary는 전체 출력을 보려면 analyze_memory_* 도구를 쓰라고 하지만, 그 도구들은 프로세스 60개, 소켓 50개, 명령 200개, 영역 30개에서 멈추고 나머지를 요청할 방법이 없다. 그래서 65/55/205/35행짜리 수집 결과의 마지막 행은 읽을 수 없다."
-defect_ko: "정상이라면 요약이 안내한 세부 도구로 전체 목록을 받을 수 있어야 하는데, 이 서버의 세부 도구들도 고정 개수에서 자르고 나머지를 받을 인자가 없다. 그래서 모델은 잘린 뒤쪽 행(예: `curl` 명령)을 끝내 볼 수 없다."
+summary_ko: "`analyze_memory_summary`는 전체 출력을 보려면 `analyze_memory_*` 도구를 쓰라고 한다. 그런데 그 도구들도 프로세스 60개, 소켓 50개, 명령 200개, 영역 30개에서 멈추고 나머지를 요청할 방법이 없어, 65/55/205/35행짜리 결과의 마지막 행은 읽을 수 없다."
+defect_ko: "요약이 안내한 세부 도구들도 고정 개수에서 자르고, 나머지를 받을 인자가 없다. 세부 도구로는 전체 목록을 받을 수 있어야 한다. 모델은 잘린 뒤쪽 행(예: `curl` 명령)을 끝내 볼 수 없다."
 setup_ko: "Volatility 대역이 프로세스 65개, 소켓 55개, 명령 205개, malfind 영역 35개를 돌려주게 했고, 각 목록의 마지막 행에 표지를 두었다."
 env:
   FINDEVIL_VOL: ${STUBS}/vol
@@ -85,16 +85,16 @@ steps:
     note_ko: "요약: 세부 도구를 쓰라고 안내함"
     args: {memory_dump_path: "${EVIDENCE}/case01/mem.lime"}
   - tool: analyze_memory_processes
-    note_ko: "결함이 있는 호출: 프로세스 목록"
+    note_ko: "결함 호출: 프로세스 목록"
     args: {memory_dump_path: "${EVIDENCE}/case01/mem.lime"}
   - tool: analyze_memory_network
-    note_ko: "결함이 있는 호출: 소켓 목록"
+    note_ko: "결함 호출: 소켓 목록"
     args: {memory_dump_path: "${EVIDENCE}/case01/mem.lime"}
   - tool: analyze_memory_bash_history
-    note_ko: "결함이 있는 호출: 메모리 bash 기록"
+    note_ko: "결함 호출: 메모리 bash 기록"
     args: {memory_dump_path: "${EVIDENCE}/case01/mem.lime"}
   - tool: analyze_memory_malfind
-    note_ko: "결함이 있는 호출: malfind 영역"
+    note_ko: "결함 호출: malfind 영역"
     args: {memory_dump_path: "${EVIDENCE}/case01/mem.lime"}
   # asking for the rest with an offset, as a model would try
   - tool: analyze_memory_processes

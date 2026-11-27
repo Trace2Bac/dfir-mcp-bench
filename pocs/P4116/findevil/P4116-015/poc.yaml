@@ -11,19 +11,19 @@ realism: possible
 realism_ko: "새 그룹에 전체 sudo 권한을 주는 것은 실제 지속성 수법이다. 다만 `find_persistence`가 그룹을 빼는 것은 기본 `%sudo` 소음을 피하려는 의도로 보인다."
 coverage: full
 summary: For the same rule "%ops ALL=(ALL) ALL", analyze_sudoers flags "ALL sudo rights" but find_persistence reports no sudoers finding, so the result depends on which tool is called.
-summary_ko: "같은 규칙 \"%ops ALL=(ALL) ALL\"에 대해 analyze_sudoers는 \"ALL sudo rights\"를 표시하고 find_persistence는 sudoers 발견을 보고하지 않는다. 결과가 어느 도구를 부르느냐에 달려 있다."
-defect_ko: "정상이라면 같은 sudoers 규칙에 두 도구가 같은 판정을 내야 하는데, 이 서버는 `analyze_sudoers`에서만 `%그룹 ALL`을 표시하고 `find_persistence`에서는 뺀다. 그래서 `find_persistence`만 부른 모델은 이 권한 부여를 못 보고 지속성이 없다고 잘못 안다."
+summary_ko: "같은 규칙 \"%ops ALL=(ALL) ALL\"을 `analyze_sudoers`는 \"ALL sudo rights\"로 표시하고, `find_persistence`는 보고하지 않는다. 어느 도구를 부르느냐에 따라 결과가 바뀐다."
+defect_ko: "`%그룹 ALL` 규칙을 `analyze_sudoers`만 표시하고 `find_persistence`는 뺀다. 같은 규칙에는 두 도구가 같은 판정을 내야 한다. `find_persistence`만 부른 모델은 이 권한 부여를 못 보고 지속성이 없다고 잘못 안다."
 setup_ko: "`%ops ALL=(ALL) ALL` 한 줄이 든 `/etc/sudoers.d/ops`를 넣었다."
 fixture:
   - path: fs/etc/sudoers.d/ops
     text: "%ops ALL=(ALL) ALL\n"
 steps:
   - tool: find_persistence
-    note_ko: "결함이 있는 호출: 지속성 검사"
+    note_ko: "결함 호출: 지속성 검사"
     args:
       root_path: ${EVIDENCE}/fs
   - tool: analyze_sudoers
-    note_ko: "비교용: 같은 파일을 sudoers 분석으로 읽음"
+    note_ko: "비교 호출: 같은 파일을 sudoers 분석으로 읽음"
     args:
       path: ${EVIDENCE}/fs/etc/sudoers.d/ops
 expect:

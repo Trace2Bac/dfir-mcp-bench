@@ -12,8 +12,8 @@ realism: possible
 realism_ko: "오프셋 없는 apt 시각은 흔하지만, 한 호스트에 apt와 yum 기록이 함께 있는 경우는 드물다."
 coverage: full
 summary: The timeline shows an apt install as 2026-04-12T14:30:04 with no offset next to auth.log rows marked +00:00, and analyze_package_logs lists a yum install from Apr 10 after an apt install from Apr 12 because the raw yum time sorts after ISO strings.
-summary_ko: "타임라인이 apt 설치를 오프셋 없이 2026-04-12T14:30:04로 +00:00이 붙은 auth.log 행 옆에 보여 주고, analyze_package_logs는 Apr 10의 yum 설치를 Apr 12의 apt 설치 뒤에 나열한다. yum의 원래 시각 문자열이 ISO 문자열 뒤로 정렬되기 때문이다."
-defect_ko: "정상이라면 시각을 같은 기준으로 맞춰 실제 순서대로 정렬해야 하는데, 이 서버는 오프셋 없는 apt 시각을 UTC 시각 옆에 그대로 두고 yum의 원래 시각 문자열을 ISO 문자열과 글자 순으로 정렬한다. 그래서 모델은 4월 10일의 yum 설치를 4월 12일 apt 설치보다 뒤의 일로 잘못 안다."
+summary_ko: "타임라인이 오프셋 없는 apt 설치 시각 2026-04-12T14:30:04를 +00:00이 붙은 `auth.log` 행 옆에 둔다. `analyze_package_logs`는 Apr 10의 yum 설치를 Apr 12의 apt 설치 뒤에 나열하는데, yum의 원래 시각 문자열이 ISO 문자열 뒤로 정렬되기 때문이다."
+defect_ko: "이 서버는 오프셋 없는 apt 시각을 UTC 시각 옆에 그대로 두고, yum 시각 문자열을 ISO 문자열과 글자 순으로 정렬한다. 시각을 같은 기준으로 맞춰 실제 순서대로 정렬해야 한다. 모델은 4월 10일의 yum 설치를 4월 12일 apt 설치보다 뒤의 일로 잘못 안다."
 setup_ko: "auth.log 한 줄, apt history.log(4월 12일 설치), yum.log(4월 10일 설치)를 같은 파일 시스템에 넣었다."
 fixture:
   - path: case/auth.log
@@ -28,11 +28,11 @@ fixture:
     text: "Apr 10 09:00:00 Installed: xmrig-6.20.0-1.x86_64\n"
 steps:
   - tool: build_timeline
-    note_ko: "결함이 있는 호출: 타임라인에 오프셋 없는 apt 시각이 섞임"
+    note_ko: "결함 호출: 타임라인에 오프셋 없는 apt 시각이 섞임"
     args:
       evidence_root: ${EVIDENCE}/case
   - tool: analyze_package_logs
-    note_ko: "결함이 있는 호출: 패키지 로그 표의 정렬"
+    note_ko: "결함 호출: 패키지 로그 표의 정렬"
     args:
       root_path: ${EVIDENCE}/case/fs
 expect:

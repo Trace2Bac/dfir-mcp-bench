@@ -16,8 +16,8 @@ realism: possible
 realism_ko: "마운트한 이미지 안의 절대 경로 심볼릭 링크는 흔하다. `../`를 스무 번 쓴 `.md5sums` 줄은 공격자가 일부러 심어야 생긴다."
 coverage: full
 summary: A dpkg .md5sums line pointing to ../../(x20)etc/hosts makes the server open and hash /etc/hosts on the host, outside the evidence directory, and report its MD5 as a modified package file, and find_persistence returns the content of a file outside the evidence that fs/etc/crontab links to.
-summary_ko: "../../(x20)etc/hosts를 가리키는 dpkg .md5sums 줄 때문에 서버가 증거 디렉터리 밖에 있는 호스트의 /etc/hosts를 열어 해시하고 그 MD5를 수정된 패키지 파일로 보고한다. find_persistence는 fs/etc/crontab이 링크하는 증거 밖 파일의 내용을 돌려준다."
-defect_ko: "정상이라면 링크나 `.md5sums` 경로가 증거 폴더 밖을 가리키면 읽지 않아야 하는데, 이 서버는 따라가서 분석 호스트의 파일을 읽는다. 그래서 모델은 분석 호스트의 `/etc/hosts`와 밖의 파일 내용을 증거로 잘못 안다."
+summary_ko: "dpkg `.md5sums` 줄이 `../../`(x20)`etc/hosts`를 가리키면, 서버는 증거 폴더 밖 호스트의 `/etc/hosts`를 해시해 수정된 패키지 파일로 보고한다. `find_persistence`도 `fs/etc/crontab` 링크가 가리키는 증거 밖 파일의 내용을 돌려준다."
+defect_ko: "이 서버는 링크와 `.md5sums` 경로가 증거 폴더 밖을 가리켜도 따라가 읽는다. 밖을 가리키면 읽지 않아야 한다. 모델은 분석 호스트의 `/etc/hosts`와 밖의 파일 내용을 증거로 잘못 안다."
 setup_ko: "`../`로 호스트 `/etc/hosts`를 가리키는 `.md5sums` 줄과, 서버에 주지 않은 폴더의 파일로 이어지는 `etc/crontab` 링크를 두었다."
 fixture:
   - path: fs/var/lib/dpkg/info/evil.md5sums
@@ -31,11 +31,11 @@ fixture:
     symlink: ${OUTSIDE}/crontab
 steps:
   - tool: verify_package_integrity
-    note_ko: "결함이 있는 호출: 패키지 무결성 검사"
+    note_ko: "결함 호출: 패키지 무결성 검사"
     args:
       root_path: ${EVIDENCE}/fs
   - tool: find_persistence
-    note_ko: "결함이 있는 호출: 지속성 검사"
+    note_ko: "결함 호출: 지속성 검사"
     args:
       root_path: ${EVIDENCE}/fs
 expect:

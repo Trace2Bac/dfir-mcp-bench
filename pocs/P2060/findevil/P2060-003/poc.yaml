@@ -11,8 +11,8 @@ realism: possible
 realism_ko: "`filter_since` 대신 `since`처럼 인자 이름을 틀리는 모델 실수는 실제로 생기지만, `build_timeline`의 `start`처럼 없는 인자를 지어내는 일은 드물다."
 coverage: full
 summary: get_audit_trail called with `since` (the real name is filter_since) and build_timeline called with `start` (not a parameter) return their full unfiltered results with no error and no note that the filter was ignored.
-summary_ko: "`since`(실제 이름은 filter_since)로 호출한 get_audit_trail과 `start`(매개변수가 아님)로 호출한 build_timeline은 필터 없는 전체 결과를 돌려준다. 오류도, 필터가 무시됐다는 말도 없다."
-defect_ko: "정상이라면 정의에 없는 인자는 오류로 알려야 하는데, 이 서버는 말없이 버리고 필터 없는 전체 결과를 낸다. 그래서 모델은 전체 결과를 요청한 조건으로 거른 결과로 잘못 안다."
+summary_ko: "`since`(실제 이름은 `filter_since`)를 준 `get_audit_trail`과 `start`(없는 매개변수)를 준 `build_timeline`이 필터 없는 전체 결과를 돌려준다. 오류도, 필터를 무시했다는 안내도 없다."
+defect_ko: "정의에 없는 인자를 이 서버는 말없이 버린다. 오류로 알려야 한다. 모델은 전체 결과를 요청한 조건으로 거른 결과로 잘못 안다."
 setup_ko: "SSH 로그인 한 줄이 있는 `auth.log`를 두었다."
 fixture:
   - path: case/auth.log
@@ -23,11 +23,11 @@ steps:
     args:
       path: ${EVIDENCE}/case/auth.log
   - tool: get_audit_trail
-    note_ko: "결함이 있는 호출: 틀린 이름 `since`로 먼 미래 이후만 요청"
+    note_ko: "결함 호출: 틀린 이름 `since`로 먼 미래 이후만 요청"
     args:
       since: "2999-01-01T00:00:00+00:00"
   - tool: build_timeline
-    note_ko: "결함이 있는 호출: 없는 인자 `start`로 2030년 이후만 요청"
+    note_ko: "결함 호출: 없는 인자 `start`로 2030년 이후만 요청"
     args:
       evidence_root: ${EVIDENCE}/case
       start: "2030-01-01T00:00:00+00:00"

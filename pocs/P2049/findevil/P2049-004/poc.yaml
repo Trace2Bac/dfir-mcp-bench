@@ -16,8 +16,8 @@ realism: common
 realism_ko: "서버를 여러 사건에 이어 쓰면 누적 `audit.json`에 앞 사건의 도구 실행이 남는 것은 흔하다."
 coverage: full
 summary: With an audit.json left by an earlier run on another case (auth_summary on that case's log and a CONTRADICTED verify_finding), assess_coverage in a fresh session marks this case's never-read auth.log as examined and returns COVERAGE CLEAN for an unverified CONFIRMED claim, so the model skips work it never did.
-summary_ko: "다른 사건의 이전 실행이 남긴 audit.json(그 사건 로그에 대한 auth_summary와 CONTRADICTED verify_finding)이 있으면, 새 세션의 assess_coverage가 이 사건에서 한 번도 읽지 않은 auth.log를 검사함으로 표시하고, 검증되지 않은 CONFIRMED 주장에 COVERAGE CLEAN을 돌려준다. 그래서 모델은 하지 않은 작업을 건너뛴다."
-defect_ko: "정상이라면 `assess_coverage`는 이번 조사에서 실제로 본 증거만 검사함으로 쳐야 하는데, 이 서버는 누적 기록의 도구 이름만 보고 앞 사건의 실행과 CONTRADICTED 검증까지 이번 것으로 센다. 그래서 모델은 읽지도 않은 `auth.log`를 검사했다고, 검증 안 된 주장을 검증했다고 잘못 안다."
+summary_ko: "새 세션의 `assess_coverage`가 이 사건에서 한 번도 읽지 않은 `auth.log`를 검사함으로 표시하고, 검증되지 않은 CONFIRMED 주장에 COVERAGE CLEAN을 준다. 다른 사건의 이전 실행이 남긴 `audit.json`(`auth_summary`, CONTRADICTED `verify_finding`)을 이번 작업으로 세기 때문이다."
+defect_ko: "`assess_coverage`는 누적 기록의 도구 이름만 보고 앞 사건의 실행과 CONTRADICTED 검증까지 이번 것으로 센다. 이번 조사에서 실제로 본 증거만 세야 한다. 모델은 읽지 않은 `auth.log`를 검사했다고, 검증 안 된 주장을 검증했다고 잘못 안다."
 setup_ko: "다른 사건에 대한 `auth_summary`와 CONTRADICTED `verify_finding` 기록을 `audit.json`에 넣고, 이번 사건 증거로 `auth.log` 한 줄을 두었다."
 fixture:
   - path: audit.json
@@ -27,7 +27,7 @@ fixture:
     text: "Jan  5 10:00:01 web sshd[811]: Accepted password for root from 203.0.113.7 port 50122 ssh2\n"
 steps:
   - tool: assess_coverage
-    note_ko: "결함이 있는 호출: 이번 세션에서 아무 분석 없이 CONFIRMED 주장 하나로 공백 점검을 요청함"
+    note_ko: "결함 호출: 이번 세션에서 아무 분석 없이 CONFIRMED 주장 하나로 공백 점검을 요청함"
     args:
       findings_json: "[{\"claim\": \"root logged in over SSH\", \"confidence\": \"CONFIRMED\"}]"
 expect:

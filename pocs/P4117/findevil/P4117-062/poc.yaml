@@ -16,8 +16,8 @@ realism: possible
 realism_ko: "전체 파일 시스템을 풀어 놓은 증거는 경로가 20만 개를 넘는 일이 흔하지만, 검사 대상이 그 뒤에 나와야 결함이 드러난다."
 coverage: full
 summary: When the evidence directory has more than 200,000 paths, assess_coverage stops its inventory without saying so, so an unexamined auth.log is not listed and the verdict is COVERAGE CLEAN, while the same evidence without the extra files reports the auth.log gap.
-summary_ko: "증거 디렉터리에 경로가 200,000개를 넘으면 assess_coverage는 말없이 목록 작성을 멈춘다. 그래서 검사하지 않은 auth.log가 나열되지 않고 판정은 COVERAGE CLEAN이 된다. 추가 파일이 없는 같은 증거에서는 auth.log 공백을 보고한다."
-defect_ko: "정상이라면 증거 목록을 끝까지 만들거나 중간에 멈췄다고 밝혀야 하는데, 이 서버는 20만 개에서 말없이 멈춘다. 그래서 모델은 읽지 않은 auth.log가 있는데도 검사 범위가 깨끗하다고 잘못 안다."
+summary_ko: "증거 폴더의 경로가 200,000개를 넘으면 `assess_coverage`가 말없이 목록 작성을 멈춘다. 그래서 검사하지 않은 `auth.log`가 빠지고 COVERAGE CLEAN이 나온다. 추가 파일이 없는 같은 증거에서는 `auth.log` 공백을 보고한다."
+defect_ko: "이 서버는 증거 목록을 20만 개에서 말없이 멈춘다. 끝까지 만들거나 멈췄다고 밝혀야 한다. 모델은 읽지 않은 `auth.log`가 있는데도 검사 범위가 깨끗하다고 잘못 안다."
 setup_ko: "auth.log 하나를 두고, 비교 조건에서는 증거 루트에 빈 파일 200,001개를 더 넣었다."
 fixture:
   - path: case/var/log/auth.log
@@ -31,7 +31,7 @@ conditions:
         repeat: 200001
 steps:
   - tool: assess_coverage
-    note_ko: "결함이 있는 호출: 검사 범위 평가"
+    note_ko: "결함 호출: 검사 범위 평가"
     timeout_s: 600
 expect:
   - step: 1

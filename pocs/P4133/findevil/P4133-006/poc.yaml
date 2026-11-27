@@ -14,8 +14,8 @@ realism: possible
 realism_ko: "authorized_keys가 64KB를 넘는 일은 드물다(RSA 4096 키 약 90개)."
 coverage: full
 summary: For an authorized_keys file of 700 keys (70,000 bytes) the tool reports "656 key(s)" and shows key 656 with len=24 instead of 82 and no comment, because the 64KB byte cut splits that line and the rest is dropped without notice.
-summary_ko: "키 700개(70,000바이트)짜리 authorized_keys 파일에 대해 도구는 \"656 key(s)\"를 보고하고 656번째 키를 len=82가 아닌 len=24에 주석 없이 보여 준다. 64KB 바이트 자르기가 그 줄을 나누고 나머지는 알림 없이 버려지기 때문이다."
-defect_ko: "정상이라면 파일 전체를 읽거나 잘랐다고 밝혀야 하는데, 이 서버는 64KB에서 바이트 단위로 잘라 마지막 키를 반쪽으로 싣고 나머지 키는 말없이 버린다. 그래서 모델은 키가 656개뿐이고 656번째 키는 주석 없는 짧은 키라고 잘못 안다."
+summary_ko: "키 700개(70,000바이트)짜리 authorized_keys에 도구가 \"656 key(s)\"를 내고, 656번째 키를 len=82가 아닌 len=24에 주석 없이 보여 준다. 64KB 바이트 자르기가 그 줄을 나누고 나머지는 알림 없이 버려지기 때문이다."
+defect_ko: "이 서버는 64KB에서 바이트 단위로 잘라 마지막 키를 반쪽으로 싣고 나머지 키를 말없이 버린다. 파일 전체를 읽거나 잘랐다고 밝혀야 한다. 모델은 키가 656개뿐이고 656번째 키가 주석 없는 짧은 키라고 잘못 안다."
 setup_ko: "100바이트짜리 키 줄 700개(70,000바이트)로 root의 authorized_keys를 만들었다."
 fixture:
   - path: fs/root/.ssh/authorized_keys
@@ -722,7 +722,7 @@ fixture:
       ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ k699
 steps:
   - tool: analyze_authorized_keys
-    note_ko: "결함이 있는 호출: authorized_keys 분석"
+    note_ko: "결함 호출: authorized_keys 분석"
     args:
       path: ${EVIDENCE}/fs/root/.ssh/authorized_keys
 expect:

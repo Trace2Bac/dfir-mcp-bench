@@ -4,14 +4,15 @@ import Link from '@docusaurus/Link';
 import Layout from '@theme/Layout';
 import Translate, {translate} from '@docusaurus/Translate';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
-import type {PocCheck, PocData, PocFixture, PocRun, PocStep} from '../../../plugins/poc-data';
+import type {PocCheck, PocData, PocFixture, PocModel, PocModelRule, PocPiece, PocRun, PocStep} from '../../../plugins/poc-data';
 import styles from '../ExperimentPage/styles.module.css';
 import poc from './styles.module.css';
 import {matrixCaseUrl, realismText, resultText, runDate, serverCommitUrl, shortCommit, shortDigest} from './links';
 
-// One PoC, read top to bottom: the verdict, what is wrong, how it was checked,
-// what the server returned, why that counts as reproduced, how realistic the
-// condition is, and the raw record folded away at the end.
+// One PoC in the order of a bug report: title with the result, summary, what is
+// wrong, the conditions, the steps, the actual result, the model check (when
+// the PoC has one), the pass criteria, how realistic the condition is, and the
+// raw record folded away at the end.
 
 function Section({title, children}: {title: string; children: ReactNode}) {
   return (
@@ -45,32 +46,25 @@ function callLine(step: PocStep): string {
   return args === '{}' ? `${name}()` : `${name}(${args})`;
 }
 
-// ---- 1. Verdict
+// ---- Title and meta line
 
-function verdictText(data: PocData): string {
-  if (data.realism === 'forced')
-    return translate({id: 'poc.verdict.forced', message: 'The condition is forced, so this case is a candidate for removal.'});
-  if (data.result === 'reproduced')
-    return translate({
-      id: 'poc.verdict.reproduced',
-      message: 'The defect found by static analysis also happened when the server actually ran.',
-    });
-  return translate({id: 'poc.verdict.notReproduced', message: 'The defect did not show up when the server ran.'});
+function badgeText(data: PocData): string {
+  if (data.realism === 'forced') return translate({id: 'poc.badge.forced', message: 'Excluded (forced)'});
+  return resultText(data.result);
 }
 
-function Verdict({data}: {data: PocData}) {
+function TitleBlock({data}: {data: PocData}) {
   const commitUrl = serverCommitUrl(data.repo, data.commit);
-  const tone = data.realism === 'forced' ? poc.verdictForced : data.result === 'reproduced' ? poc.verdictOk : poc.verdictNo;
+  const tone = data.realism === 'forced' ? poc.badgeForced : data.result === 'reproduced' ? poc.badgeOk : poc.badgeNo;
   return (
-    <div className={clsx(poc.verdict, tone)}>
-      <p className={poc.verdictText}>{verdictText(data)}</p>
-      <div className={poc.verdictMeta}>
+    <>
+      <h1 className={poc.title}>
         <span>
-          <Translate id="poc.meta.case">Case</Translate> <code>{data.caseId}</code>
+          {data.caseId} <span className={poc.titleProblem}>· {data.problem}</span>
         </span>
-        <span>
-          <Translate id="poc.meta.problem">Problem</Translate> <code>{data.problem}</code>
-        </span>
+        <span className={clsx(poc.badge, tone)}>{badgeText(data)}</span>
+      </h1>
+      <div className={poc.meta}>
         <span>
           {data.server}{' '}
           {commitUrl ? (
@@ -86,6 +80,20 @@ function Verdict({data}: {data: PocData}) {
             {'run {date}'}
           </Translate>
         </span>
+        {data.reproducedRuns && (
+          <span>
+            <Translate id="poc.meta.runs" values={{k: data.reproducedRuns}}>
+              {'reproduced {k}'}
+            </Translate>
+          </span>
+        )}
+        {data.model && (
+          <span>
+            <Translate id="poc.meta.model" values={{k: data.model.misled, n: data.model.runs}}>
+              {'model misled {k}/{n}'}
+            </Translate>
+          </span>
+        )}
         {data.realism === 'forced' && (
           <span>
             <Translate id="poc.meta.result" values={{r: resultText(data.result)}}>
@@ -97,11 +105,11 @@ function Verdict({data}: {data: PocData}) {
           <Translate id="poc.meta.matrix">Case in the matrix</Translate>
         </a>
       </div>
-    </div>
+    </>
   );
 }
 
-// ---- 3. How it was checked
+// ---- Setup and steps
 
 function FixturePreview({f}: {f: PocFixture}) {
   if (f.symlink)
@@ -119,14 +127,14 @@ function FixturePreview({f}: {f: PocFixture}) {
       {(f.head || f.sparse) && (
         <p className={styles.small}>
           {f.sparse
-            ? translate({id: 'poc.fixture.sparse', message: 'A sparse file: past the bytes shown, it is zero bytes.'})
+            ? translate({id: 'poc.fixture.sparse', message: 'A large file with only the start filled in; the rest is zero bytes.'})
             : translate({id: 'poc.fixture.head', message: 'Only the start of the content is shown.'})}
         </p>
       )}
       {f.repeat && (
         <p className={styles.small}>
           <Translate id="poc.fixture.repeat" values={{n: f.repeat, i: <code>{'{i}'}</code>}}>
-            {'Written {n} times; {i} in the path and the text is the file number.'}
+            {'{n} files are written; {i} in the path and the content is the file number.'}
           </Translate>
         </p>
       )}
@@ -188,16 +196,15 @@ function allFixtures(data: PocData): {f: PocFixture; only?: string[]}[] {
 // Small files are shown open; the side-by-side view shows them again under the result.
 const SHORT_FIXTURE = 600;
 
-function HowChecked({data}: {data: PocData}) {
+function Setup({data}: {data: PocData}) {
   const fixtures = allFixtures(data);
-  const steps = data.runs[0]?.steps ?? [];
   const sideBySide = data.display === 'source-vs-result';
   return (
-    <Section title={translate({id: 'poc.how', message: 'How it was checked'})}>
+    <Section title={translate({id: 'poc.setup.title', message: 'Setup'})}>
       {data.setup && <p>{data.setup}</p>}
       {data.conditions.length > 0 && (
         <p className={styles.small}>
-          <Translate id="poc.how.conditions">The same calls were made once under each condition:</Translate>{' '}
+          <Translate id="poc.how.conditions">The same calls are made once under each condition:</Translate>{' '}
           {data.conditions.map((c, i) => (
             <span key={c.name}>
               {i > 0 && ' · '}
@@ -210,7 +217,7 @@ function HowChecked({data}: {data: PocData}) {
       {data.stubs.length > 0 && (
         <p className={styles.small}>
           <Translate id="poc.how.stubs" values={{names: data.stubs.map(s => s.name).join(', ')}}>
-            {"An external tool's output is imitated by a stand-in program ({names}); see Details."}
+            {'External tool output is imitated by a stand-in ({names}). Its content is under Details.'}
           </Translate>
         </p>
       )}
@@ -219,7 +226,7 @@ function HowChecked({data}: {data: PocData}) {
       </h3>
       {fixtures.length === 0 ? (
         <p className={styles.small}>
-          <Translate id="poc.evidence.none">No files are written for this PoC.</Translate>
+          <Translate id="poc.evidence.none">No files are written.</Translate>
         </p>
       ) : (
         fixtures.map(({f, only}) => (
@@ -231,9 +238,17 @@ function HowChecked({data}: {data: PocData}) {
           />
         ))
       )}
-      <h3 className={poc.h3}>
-        <Translate id="poc.how.calls">Calls to the server (over MCP, no model)</Translate>
-      </h3>
+    </Section>
+  );
+}
+
+function StepsToReproduce({data}: {data: PocData}) {
+  const steps = data.runs[0]?.steps ?? [];
+  return (
+    <Section title={translate({id: 'poc.how.calls', message: 'Steps to reproduce'})}>
+      <p className={styles.small}>
+        <Translate id="poc.how.callsNote">The server's tools are called over MCP, with no model.</Translate>
+      </p>
       <ol className={poc.calls}>
         {steps.map(s => (
           <li key={s.n}>
@@ -246,7 +261,7 @@ function HowChecked({data}: {data: PocData}) {
   );
 }
 
-// ---- 4. What came back
+// ---- Actual result
 
 // The response as kept by the plugin: highlighted where a check matched, and
 // a note where a part was left out.
@@ -268,7 +283,7 @@ function Response({step, transcript, marks = true}: {step: PocStep; transcript: 
                 <mark
                   key={i}
                   className={poc.hit}
-                  title={translate({id: 'poc.step.matched', message: 'matched by check {n}'}, {n: p.m.join(', ')})}>
+                  title={translate({id: 'poc.step.matched', message: 'matched by criterion {n}'}, {n: p.m.join(', ')})}>
                   {p.t}
                   <sup>{p.m.join(',')}</sup>
                 </mark>
@@ -289,7 +304,7 @@ function Response({step, transcript, marks = true}: {step: PocStep; transcript: 
                 </a>
               ),
             }}>
-            {'Cut on the site: the response has {n} characters; the start and the text around each match are shown. See the {link}.'}
+            {'Shortened here: the response has {n} characters, and only the start and the text around each match are shown. See the {link}.'}
           </Translate>
         </p>
       )}
@@ -419,8 +434,8 @@ function FilesAfter({run}: {run: PocRun}) {
       {run.filesAfter.length === 0 && (
         <p className={styles.small}>
           <Translate id="poc.files.none">
-            No file is checked after the run; the effect shows in the responses above, which reach files the server was not
-            meant to read or act on.
+            No file is checked after the run. The responses above show the server reaching files it should not read or act
+            on.
           </Translate>
         </p>
       )}
@@ -470,10 +485,10 @@ function ConditionTabs({runs, children}: {runs: PocRun[]; children: (run: PocRun
 function WhatCameBack({data, transcript}: {data: PocData; transcript: string}) {
   const fileChecks = data.checks.some(c => c.rule === 'file_exists' || c.rule === 'file_missing');
   return (
-    <Section title={translate({id: 'poc.result.title', message: 'What came back'})}>
+    <Section title={translate({id: 'poc.result.title', message: 'Actual result'})}>
       <p className={styles.small}>
         <Translate id="poc.result.note">
-          The server's responses as recorded. Text a check below matched is highlighted with the check number.
+          The server's responses as recorded. Text that a criterion below matched is highlighted with its number.
         </Translate>
       </p>
       {data.display === 'definition' &&
@@ -500,7 +515,153 @@ function WhatCameBack({data, transcript}: {data: PocData; transcript: string}) {
   );
 }
 
-// ---- 5. Why it is judged so
+// ---- Model check
+
+// Text with the parts a rule matched marked by the rule's number.
+function Marked({pieces}: {pieces: PocPiece[]}) {
+  return (
+    <>
+      {pieces.map((p, i) =>
+        'gap' in p ? (
+          <span key={i} className={poc.gap}>
+            {translate({id: 'poc.step.gap', message: '[… {n} characters not shown …]'}, {n: p.gap.toLocaleString('en')})}
+          </span>
+        ) : p.m ? (
+          <mark
+            key={i}
+            className={poc.hit}
+            title={translate({id: 'poc.step.matched', message: 'matched by criterion {n}'}, {n: p.m.join(', ')})}>
+            {p.t}
+            <sup>{p.m.join(',')}</sup>
+          </mark>
+        ) : (
+          <span key={i}>{p.t}</span>
+        ),
+      )}
+    </>
+  );
+}
+
+function modelRuleText(r: PocModelRule): string {
+  const x = quote(r.value);
+  switch (r.rule) {
+    case 'contains':
+      return translate({id: 'poc.model.rule.contains', message: "The answer contains '{x}'."}, {x});
+    case 'not_contains':
+      return translate({id: 'poc.model.rule.notContains', message: "The answer does not contain '{x}'."}, {x});
+    case 'regex':
+      return translate({id: 'poc.model.rule.regex', message: 'The answer has text matching /{x}/.'}, {x});
+    case 'not_regex':
+      return translate({id: 'poc.model.rule.notRegex', message: 'The answer has no text matching /{x}/.'}, {x});
+    default:
+      return `${r.rule} ${r.value}`;
+  }
+}
+
+function runVerdict(misled: boolean | null): string {
+  if (misled === null) return translate({id: 'poc.model.run.failed', message: 'did not finish'});
+  return misled
+    ? translate({id: 'poc.model.run.misled', message: 'misread'})
+    : translate({id: 'poc.model.run.ok', message: 'read correctly'});
+}
+
+function ModelCheck({model}: {model: PocModel}) {
+  return (
+    <Section title={translate({id: 'poc.model.title', message: 'Model check'})}>
+      <p className={styles.small}>
+        <Translate id="poc.model.note" values={{model: <code>{model.model}</code>}}>
+          {
+            "{model} was asked the question below through Claude Code, with this server as its only tools and the same evidence, and nothing about the problem. Each run's final answer is checked against the rules below."
+          }
+        </Translate>
+      </p>
+      <div className={poc.columnLabel}>
+        <Translate id="poc.model.question">Question</Translate>
+      </div>
+      <pre className={styles.pre}>{model.question}</pre>
+      <p className={poc.modelCount}>
+        <Translate id="poc.model.count" values={{k: <strong>{model.misled}</strong>, n: model.runs}}>
+          {'Times the model misread: {k}/{n}'}
+        </Translate>
+        {model.failed > 0 && (
+          <span className={styles.small}>
+            {' '}
+            {translate({id: 'poc.model.failed', message: '({n} runs did not finish and are not counted)'}, {n: model.failed})}
+          </span>
+        )}
+      </p>
+      <p className={styles.small}>
+        {model.misledIf === 'any'
+          ? translate({id: 'poc.model.ifAny', message: 'A run counts as misread when any of these rules holds:'})
+          : translate({id: 'poc.model.ifAll', message: 'A run counts as misread when all of these rules hold:'})}
+      </p>
+      <ul className={poc.checks}>
+        {model.rules.map(r => (
+          <li key={r.n}>
+            <span className={poc.checkNo}>{r.n}</span>
+            <div className={poc.checkBody}>
+              <div>{r.note || modelRuleText(r)}</div>
+              <code className={poc.rule}>{`${r.rule}: ${JSON.stringify(r.value)}`}</code>
+            </div>
+          </li>
+        ))}
+      </ul>
+      <ol className={poc.steps}>
+        {model.items.map(r => (
+          <li key={r.run} className={poc.step}>
+            <div className={poc.stepHead}>
+              <span className={poc.stepNo}>{r.run}</span>
+              <span className={r.misled ? styles.fail : r.misled === false ? styles.pass : styles.small}>
+                {runVerdict(r.misled)}
+              </span>
+              <span className={styles.small}>
+                {r.seconds}s ·{' '}
+                {translate({id: 'poc.model.calls', message: '{n} tool calls'}, {n: r.calls.length + r.moreCalls})}
+                {r.held.length > 0 &&
+                  ` · ${translate({id: 'poc.model.held', message: 'rules held: {list}'}, {list: r.held.join(', ')})}`}
+              </span>
+            </div>
+            <div className={poc.columnLabel}>
+              <Translate id="poc.model.answer">Final answer</Translate>
+            </div>
+            <pre className={clsx(styles.pre, poc.response)}>
+              {r.length ? <Marked pieces={r.pieces} /> : translate({id: 'poc.model.noAnswer', message: '(no answer)'})}
+            </pre>
+            {r.cut && (
+              <p className={styles.small}>
+                {translate(
+                  {id: 'poc.model.cut', message: 'Shortened here: the answer has {n} characters; the full answer is in model.json.'},
+                  {n: r.length.toLocaleString('en')},
+                )}
+              </p>
+            )}
+            {r.calls.length > 0 && (
+              <details className={styles.event}>
+                <summary>
+                  <Translate id="poc.model.callList">Tool calls</Translate>
+                </summary>
+                <ol className={poc.calls}>
+                  {r.calls.map((c, i) => (
+                    <li key={i}>
+                      <code className={clsx(poc.callLine, poc.callOnly)}>{c.args === '{}' ? `${c.tool}()` : `${c.tool}(${c.args})`}</code>
+                    </li>
+                  ))}
+                </ol>
+                {r.moreCalls > 0 && (
+                  <p className={styles.small}>
+                    {translate({id: 'poc.model.moreCalls', message: '{n} more calls are in model.json.'}, {n: r.moreCalls})}
+                  </p>
+                )}
+              </details>
+            )}
+          </li>
+        ))}
+      </ol>
+    </Section>
+  );
+}
+
+// ---- Pass criteria
 
 const quote = (s: string) => (s.length > 80 ? `${s.slice(0, 80)}…` : s);
 
@@ -565,31 +726,25 @@ function Judgement({data}: {data: PocData}) {
   const reproduced = data.result === 'reproduced';
   const manySteps = (data.runs[0]?.steps.length ?? 0) > 1;
   const manyRuns = data.runs.length > 1;
-  let lead: string;
-  if (!data.checks.length) lead = translate({id: 'poc.why.none', message: 'This PoC has no checks.'});
-  else if (!failed.length && reproduced)
-    lead = translate({id: 'poc.why.allHeld', message: 'Every condition below held, so it is judged reproduced.'});
+  // A lead sentence only when the result needs explaining.
+  let lead = '';
+  if (!data.checks.length) lead = translate({id: 'poc.why.none', message: 'This PoC has no criteria.'});
   else if (failed.length)
     lead = translate(
-      {id: 'poc.why.failed', message: 'Condition {list} below did not hold, so it is judged not reproduced.'},
+      {id: 'poc.why.failed', message: 'Criterion {list} did not hold, so the case is not reproduced.'},
       {list: failed.join(', ')},
     );
-  else
+  else if (!reproduced)
     lead = translate(
       {
         id: 'poc.why.runs',
-        message: 'Every condition below held in the run shown, but not in enough runs ({k}), so it is judged not reproduced.',
+        message: 'Every criterion held in the run shown, but too few runs reproduced it ({k}).',
       },
       {k: data.reproducedRuns},
     );
   return (
-    <Section
-      title={
-        reproduced
-          ? translate({id: 'poc.why.reproduced', message: 'Why it is judged reproduced'})
-          : translate({id: 'poc.why.notReproduced', message: 'Why it is judged not reproduced'})
-      }>
-      <p>{lead}</p>
+    <Section title={translate({id: 'poc.why.title', message: 'Pass criteria'})}>
+      {lead && <p>{lead}</p>}
       <ul className={poc.checks}>
         {data.checks.map(c => (
           <li key={c.n}>
@@ -604,7 +759,7 @@ function Judgement({data}: {data: PocData}) {
                 )}
                 {manySteps && c.step && (
                   <span className={poc.tag}>
-                    {translate({id: 'poc.why.call', message: 'call {n}'}, {n: c.step})}
+                    {translate({id: 'poc.why.call', message: 'step {n}'}, {n: c.step})}
                   </span>
                 )}
                 {c.note || checkSentence(c)}
@@ -618,11 +773,11 @@ function Judgement({data}: {data: PocData}) {
   );
 }
 
-// ---- 6. How realistic
+// ---- Realism
 
 function Realism({data}: {data: PocData}) {
   return (
-    <Section title={translate({id: 'poc.realism.title', message: 'How realistic is it'})}>
+    <Section title={translate({id: 'poc.realism.title', message: 'Realism'})}>
       <p>
         <span className={clsx(poc.realismLabel, data.realism === 'forced' && poc.realismForced)}>
           {realismText(data.realism)}
@@ -632,7 +787,7 @@ function Realism({data}: {data: PocData}) {
       {data.coverage === 'partial' && (
         <p>
           <Translate id="poc.coverage.partial" values={{note: data.coverageNote}}>
-            {'This PoC shows only part of the case: {note}'}
+            {'Shows only part of the case: {note}'}
           </Translate>
         </p>
       )}
@@ -640,7 +795,7 @@ function Realism({data}: {data: PocData}) {
   );
 }
 
-// ---- 7. Details
+// ---- Details
 
 function Details({data, transcript, repoTree}: {data: PocData; transcript: string; repoTree: string}) {
   return (
@@ -758,17 +913,25 @@ export default function PocPage({data}: {data: PocData}) {
       <main className={clsx(styles.main, poc.page)}>
         <div className={styles.crumb}>
           <Link to="/pocs">
-            <Translate id="pocs.title">PoCs</Translate>
+            <Translate id="pocs.title">PoC results</Translate>
           </Link>{' '}
           / <code>{data.server}</code>
         </div>
-        <h1>{data.caseId}</h1>
-        <Verdict data={data} />
-        <Section title={translate({id: 'poc.defect', message: 'What is wrong'})}>
-          <p>{data.defect}</p>
-        </Section>
-        <HowChecked data={data} />
+        <TitleBlock data={data} />
+        {data.summary && (
+          <Section title={translate({id: 'poc.summary', message: 'Summary'})}>
+            <p>{data.summary}</p>
+          </Section>
+        )}
+        {data.defect && data.defect !== data.summary && (
+          <Section title={translate({id: 'poc.defect', message: 'Problem'})}>
+            <p>{data.defect}</p>
+          </Section>
+        )}
+        <Setup data={data} />
+        <StepsToReproduce data={data} />
         <WhatCameBack data={data} transcript={transcript} />
+        {data.model && <ModelCheck model={data.model} />}
         <Judgement data={data} />
         <Realism data={data} />
         <Details data={data} transcript={transcript} repoTree={repoTree} />

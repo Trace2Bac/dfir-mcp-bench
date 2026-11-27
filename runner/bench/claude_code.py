@@ -313,15 +313,16 @@ def import_run(
     return out
 
 
-def redact_account(out: Path, root: Path) -> int:
+def redact_account(out: Path, root: Path, config: Path | None = None) -> int:
     """Replace the signed-in account's email and names in a run's files.
 
     Claude Code tells the model who is signed in, and a model may put that in
     its report (an "Examiner:" line, say). Results are published, so the
     account details from data/claude/.claude.json are replaced with
-    [examiner]. Returns the number of files changed.
+    [examiner]. *config* is that file where it is mounted elsewhere (a PoC's
+    model runs). Returns the number of files changed.
     """
-    config = root / "data" / "claude" / ".claude.json"
+    config = config or root / "data" / "claude" / ".claude.json"
     if not config.exists():
         return 0
     account = json.loads(config.read_text()).get("oauthAccount") or {}

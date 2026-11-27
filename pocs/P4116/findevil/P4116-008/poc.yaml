@@ -18,8 +18,8 @@ realism_ko: "`Match` 블록과 Ubuntu 클라우드 이미지의 `Include`된 `50
 coverage: "partial: case sensitivity is not checked"
 coverage_ko: "대소문자 구분은 검사하지 않는다"
 summary: An sshd_config that sets PasswordAuthentication no first and only re-enables it inside a "Match User backup" block is flagged as "PasswordAuthentication yes" and listed with yes as the effective value, although sshd uses no for every other user; and a config whose Include'd 50-cloud-init.conf enables password login is reported clean with PasswordAuthentication no.
-summary_ko: "먼저 PasswordAuthentication no를 설정하고 \"Match User backup\" 블록 안에서만 다시 켜는 sshd_config가 \"PasswordAuthentication yes\"로 표시되고 실제 값도 yes로 나열된다. sshd는 다른 모든 사용자에게 no를 쓴다. 또 Include된 50-cloud-init.conf가 비밀번호 로그인을 켜는 설정은 PasswordAuthentication no로 깨끗하다고 보고된다."
-defect_ko: "정상이라면 OpenSSH처럼 첫 값을 쓰고 `Match`·`Include`를 반영해 유효 설정을 판정해야 하는데, 이 서버는 마지막 값을 쓰고 둘 다 무시한다. 그래서 모델은 전역 비밀번호 로그인을 켜진 것으로, 실제로 켜진 호스트는 꺼진 것으로 잘못 안다."
+summary_ko: "먼저 `PasswordAuthentication no`를 두고 \"Match User backup\" 블록 안에서만 다시 켠 sshd_config를 \"PasswordAuthentication yes\"로 표시한다. sshd는 다른 모든 사용자에게 no를 쓴다. 반대로 Include된 50-cloud-init.conf가 비밀번호 로그인을 켜는 설정은 no로 깨끗하다고 보고한다."
+defect_ko: "이 서버는 마지막 값을 쓰고 `Match`·`Include`를 무시한다. OpenSSH처럼 첫 값을 쓰고 둘을 반영해 유효 설정을 판정해야 한다. 모델은 전역 비밀번호 로그인을 켜진 것으로, 실제로 켜진 호스트는 꺼진 것으로 잘못 안다."
 setup_ko: "`Match User backup` 안에서만 비밀번호를 켜는 sshd_config와, `Include`된 파일에서 비밀번호를 켜는 sshd_config를 따로 넣었다."
 fixture:
   - path: etc/ssh/sshd_config
@@ -39,11 +39,11 @@ fixture:
     text: "PasswordAuthentication yes\n"
 steps:
   - tool: analyze_sshd_config
-    note_ko: "결함이 있는 호출: `Match` 블록이 있는 설정"
+    note_ko: "결함 호출: `Match` 블록이 있는 설정"
     args:
       path: ${EVIDENCE}/etc/ssh/sshd_config
   - tool: analyze_sshd_config
-    note_ko: "결함이 있는 호출: `Include`가 있는 설정"
+    note_ko: "결함 호출: `Include`가 있는 설정"
     args:
       path: ${EVIDENCE}/host2/etc/ssh/sshd_config
 expect:

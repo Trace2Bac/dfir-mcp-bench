@@ -3,7 +3,9 @@ import path from 'path';
 import YAML from 'yaml';
 
 // Reads pocs/<problem>/<server>/<case-id>/ (poc.yaml and the newest
-// runs/<commit>/ with result.json and transcript.json) for the PoC pages.
+// runs/<commit>/ with result.json and transcript.json, and model.json when the
+// PoC has a model block) for the PoC pages. Folders starting with _ (samples)
+// are skipped.
 // Responses, fixtures and instructions are cut here, at build time, so a page
 // only carries what it shows; the full transcript is linked from the page.
 
@@ -17,6 +19,10 @@ const MAX_MARKS = 20; // highlighted matches per check and step
 const MAX_FIXTURE_CHARS = 2000;
 const MAX_HEX_BYTES = 256;
 const MAX_INSTRUCTIONS_CHARS = 6000;
+// A model's final answer is shown shorter than a server response.
+const MAX_ANSWER_CHARS = 3000;
+const ANSWER_HEAD = 1500;
+const MAX_MODEL_CALLS = 30; // tool calls listed per model run
 
 export type PocRule =
   | 'contains'
@@ -78,6 +84,31 @@ export type PocRun = {
   steps: PocStep[];
   filesAfter: {path: string; exists: boolean}[];
 };
+// The model check (poc.yaml `model`): one question asked `runs` times; a run
+// is misled when the rules hold on its final answer (all, or any).
+export type PocModelRule = {n: number; rule: PocRule; value: string; note: string};
+export type PocModelRun = {
+  run: number;
+  misled: boolean | null; // null: the run did not finish
+  endReason: string;
+  pieces: PocPiece[]; // the final answer, with the text the rules matched marked
+  length: number;
+  cut: boolean;
+  held: number[]; // the rules that held
+  calls: {tool: string; args: string}[];
+  moreCalls: number; // calls left out of the list
+  seconds: number;
+};
+export type PocModel = {
+  question: string;
+  model: string;
+  misledIf: 'all' | 'any';
+  runs: number; // finished runs
+  misled: number;
+  failed: number;
+  rules: PocModelRule[];
+  items: PocModelRun[];
+};
 export type PocData = {
   caseId: string;
   problem: string;
@@ -87,7 +118,7 @@ export type PocData = {
   commit: string;
   display: string;
   summary: string;
-  defect: string; // what is wrong: defect_ko, else the summary
+  defect: string; // what is wrong (defect_ko); may be empty
   setup: string; // the condition prepared (setup_ko); may be empty
   realism: string; // common, possible, forced
   realismNote: string; // realism_ko; may be empty
@@ -105,6 +136,7 @@ export type PocData = {
   conditions: {name: string; env: Record<string, string>}[]; // as written
   runs: PocRun[];
   checks: PocCheck[];
+  model?: PocModel;
   given: {
     server: string;
     instructions: string;
@@ -112,7 +144,9 @@ export type PocData = {
     tools: {name: string; json: string}[]; // the tools the steps call
   };
 };
-export type PocSummary = Pick<PocData, 'caseId' | 'problem' | 'server' | 'summary' | 'result' | 'realism'>;
+export type PocSummary = Pick<PocData, 'caseId' | 'problem' | 'server' | 'summary' | 'result' | 'realism'> & {
+  model?: {misled: number; runs: number};
+};
 
 const RULES: PocRule[] = [
   'contains',
@@ -198,12 +232,17 @@ function matches(text: string, checks: PocCheck[]): {s: number; e: number; n: nu
 
 // The response as pieces: the start and the text around matches further on,
 // with the matched text marked by the checks that matched it.
-function pieces(text: string, marks: {s: number; e: number; n: number}[]): {pieces: PocPiece[]; cut: boolean} {
+function pieces(
+  text: string,
+  marks: {s: number; e: number; n: number}[],
+  max = MAX_RESPONSE_CHARS,
+  head = RESPONSE_HEAD,
+): {pieces: PocPiece[]; cut: boolean} {
   let keep: [number, number][] = [[0, text.length]];
-  if (text.length > MAX_RESPONSE_CHARS) {
-    keep = [[0, RESPONSE_HEAD]];
+  if (text.length > max) {
+    keep = [[0, head]];
     for (const m of [...marks].sort((a, b) => a.s - b.s)) {
-      if (m.e <= RESPONSE_HEAD) continue;
+      if (m.e <= head) continue;
       const w: [number, number] = [Math.max(0, m.s - MATCH_CONTEXT), Math.min(text.length, m.e + MATCH_CONTEXT)];
       const last = keep[keep.length - 1];
       if (w[0] <= last[1]) last[1] = Math.max(last[1], w[1]);
@@ -308,6 +347,47 @@ function readCheck(c: any, n: number, firstCondition: string, note: string): Poc
   return check;
 }
 
+// The model check: rules from poc.yaml, runs from model.json (result.json's
+// model_result when model.json is missing).
+function readModel(spec: any, result: any, runDir: string, locale: string): PocModel | undefined {
+  const summary = result.model_result;
+  if (!spec || !summary) return undefined;
+  const file = path.join(runDir, 'model.json');
+  const full = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
+  const rules: PocModelRule[] = (spec.expect ?? []).map((r: any, i: number) => {
+    const rule = RULES.find(k => k in r) ?? 'contains';
+    return {n: i + 1, rule, value: String(r[rule]), note: localized(r, 'note', locale)};
+  });
+  const asChecks: PocCheck[] = rules.map(r => ({...r, ok: true}));
+  const runs: any[] = full?.runs ?? summary.per_run ?? [];
+  return {
+    question: localized(spec, 'question', locale),
+    model: String(full?.model ?? summary.model ?? ''),
+    misledIf: spec.misled_if === 'any' ? 'any' : 'all',
+    runs: Number(summary.runs ?? 0),
+    misled: Number(summary.misled ?? 0),
+    failed: Number(summary.failed ?? 0),
+    rules,
+    items: runs.map((r: any): PocModelRun => {
+      const text = visible(unTemp(String(r.answer ?? '')));
+      const cut = pieces(text, matches(text, asChecks), MAX_ANSWER_CHARS, ANSWER_HEAD);
+      const calls: any[] = r.tool_calls ?? [];
+      return {
+        run: Number(r.run ?? 0),
+        misled: r.misled == null ? null : Boolean(r.misled),
+        endReason: String(r.end_reason ?? ''),
+        pieces: cut.pieces,
+        length: text.length,
+        cut: cut.cut,
+        held: (r.checks ?? []).flatMap((c: any, i: number) => (c.ok ? [i + 1] : [])),
+        calls: calls.slice(0, MAX_MODEL_CALLS).map(c => ({tool: String(c.tool), args: unTemp(JSON.stringify(c.args ?? {}))})),
+        moreCalls: Math.max(0, calls.length - MAX_MODEL_CALLS),
+        seconds: Number(r.seconds ?? 0),
+      };
+    }),
+  };
+}
+
 const stepKind = (s: any): PocStep['kind'] =>
   'prompt' in (s ?? {}) ? 'prompt' : 'resource' in (s ?? {}) ? 'resource' : 'list_tools' in (s ?? {}) ? 'list_tools' : 'tool';
 
@@ -378,7 +458,7 @@ function readPoc(root: string, dir: string, locale: string, repos: (server: stri
     commit: String(result.commit || poc.commit || run.d),
     display: String(poc.display ?? result.display ?? 'response'),
     summary,
-    defect: localized(poc, 'defect', locale) || summary,
+    defect: localized(poc, 'defect', locale),
     setup: localized(poc, 'setup', locale),
     realism: String(poc.realism ?? result.realism ?? ''),
     // `realism` is the label itself, so only realism_<locale> / realism_ko hold the note.
@@ -399,6 +479,7 @@ function readPoc(root: string, dir: string, locale: string, repos: (server: stri
     conditions,
     runs,
     checks,
+    model: readModel(poc.model, result, path.join(runsDir, run.d), locale),
     given: {
       server: [given.server?.name, given.server?.version].filter(Boolean).join(' '),
       instructions: instructions.text,
@@ -418,6 +499,7 @@ export function readPocs(root: string, locale: string, repos: (server: string, v
   if (!fs.existsSync(base)) return [];
   const dirs: string[] = [];
   for (const problem of fs.readdirSync(base)) {
+    if (problem.startsWith('_')) continue; // pocs/_samples
     const pdir = path.join(base, problem);
     if (!fs.statSync(pdir).isDirectory()) continue;
     for (const server of fs.readdirSync(pdir)) {
@@ -436,5 +518,7 @@ export function readPocs(root: string, locale: string, repos: (server: string, v
 
 export function summarizePoc(p: PocData): PocSummary {
   const {caseId, problem, server, summary, result, realism} = p;
-  return {caseId, problem, server, summary, result, realism};
+  const out: PocSummary = {caseId, problem, server, summary, result, realism};
+  if (p.model) out.model = {misled: p.model.misled, runs: p.model.runs};
+  return out;
 }

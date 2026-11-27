@@ -32,8 +32,8 @@ realism_ko: "node·java 같은 JIT 프로세스의 RWX 영역은 malfind의 흔�
 coverage: "partial: Volatility output is imitated (no real memory image or symbols)"
 coverage_ko: "Volatility 출력은 흉내 낸 것이다(실제 메모리 이미지나 심볼 없음)"
 summary: A malfind hit in a node JIT region alone makes analyze_memory_summary report LIKELY MEMORY-RESIDENT COMPROMISE, and a module in transition makes analyze_memory_modules report LIKELY KERNEL ROOTKIT, with no note on JIT RWX regions or capture-time changes.
-summary_ko: "node JIT 영역의 malfind 탐지 하나만으로 analyze_memory_summary가 LIKELY MEMORY-RESIDENT COMPROMISE를 보고하고, 전환 중인 모듈 하나로 analyze_memory_modules가 LIKELY KERNEL ROOTKIT을 보고한다. JIT RWX 영역이나 수집 시점의 변화에 대한 말은 없다."
-defect_ko: "정상이라면 malfind 결과와 숨은 모듈 하나에는 JIT 영역이나 수집 중 변화 같은 다른 원인을 함께 알려야 하는데, 이 서버는 곧바로 메모리 상주 침해·커널 루트킷이라고 판정한다. 그래서 모델은 정상 JIT 영역과 전환 중 모듈을 침해 증거로 잘못 안다."
+summary_ko: "node JIT 영역의 malfind 탐지 하나로 `analyze_memory_summary`가 LIKELY MEMORY-RESIDENT COMPROMISE를, 전환 중인 모듈 하나로 `analyze_memory_modules`가 LIKELY KERNEL ROOTKIT을 낸다. JIT RWX 영역이나 수집 시점의 변화는 언급하지 않는다."
+defect_ko: "malfind 결과와 숨은 모듈 하나만으로 이 서버는 곧바로 메모리 상주 침해·커널 루트킷이라고 판정한다. JIT 영역이나 수집 중 변화 같은 다른 원인도 함께 알려야 한다. 모델은 정상 JIT 영역과 전환 중 모듈을 침해 증거로 잘못 안다."
 setup_ko: "Volatility 대역이 한 조건에서는 node의 JIT RWX 영역만, 다른 조건에서는 숨은 것처럼 보이는 `nf_conntrack_netlink`만 돌려주게 했다."
 env:
   FINDEVIL_VOL: ${STUBS}/vol
@@ -114,15 +114,15 @@ fixture:
     hex: 454d694c0100000000000000
 steps:
   - tool: analyze_memory_summary
-    note_ko: "결함이 있는 호출: 메모리 요약 판정"
+    note_ko: "결함 호출: 메모리 요약 판정"
     args:
       memory_dump_path: ${EVIDENCE}/case01/mem.lime
   - tool: analyze_memory_malfind
-    note_ko: "결함이 있는 호출: malfind 결과"
+    note_ko: "결함 호출: malfind 결과"
     args:
       memory_dump_path: ${EVIDENCE}/case01/mem.lime
   - tool: analyze_memory_modules
-    note_ko: "결함이 있는 호출: 커널 모듈 판정"
+    note_ko: "결함 호출: 커널 모듈 판정"
     args:
       memory_dump_path: ${EVIDENCE}/case01/mem.lime
 expect:

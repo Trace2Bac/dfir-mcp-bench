@@ -12,8 +12,8 @@ realism: common
 realism_ko: "문맥 줄을 붙여 로그를 검색하는 것은 흔하다."
 coverage: full
 summary: 'A 500-line log with exactly 50 lines matching the pattern, searched with 3 context lines, comes back as "[TRUNCATED: 399 total matches]", so the count is grep output lines, not matches.'
-summary_ko: "패턴과 일치하는 줄이 정확히 50개인 500줄 로그를 문맥 3줄로 검색하면 \"[TRUNCATED: 399 total matches]\"가 나온다. 이 수는 일치 수가 아니라 grep 출력 줄 수다."
-defect_ko: "정상이라면 `total matches`는 일치한 줄 수여야 하는데, 이 서버는 문맥 줄과 `--` 구분 줄을 포함한 grep 출력 줄 수를 싣는다. 그래서 모델은 실패 로그인이 50번이 아니라 399번이라고 잘못 안다."
+summary_ko: "일치하는 줄이 정확히 50개인 500줄 로그를 문맥 3줄로 검색하면 \"[TRUNCATED: 399 total matches]\"가 나온다. 399는 일치 수가 아니라 grep 출력 줄 수다."
+defect_ko: "`total matches`에 이 서버는 문맥 줄과 `--` 구분 줄까지 포함한 grep 출력 줄 수를 싣는다. 일치한 줄 수가 나와야 한다. 모델은 실패 로그인이 50번이 아니라 399번이라고 잘못 안다."
 setup_ko: "500줄 중 50줄이 `Failed password`인 auth.log를 넣었다."
 fixture:
   - path: var/log/auth.log
@@ -521,7 +521,7 @@ fixture:
       May  3 10:08:20 host app[500]: heartbeat ok
 steps:
   - tool: log_search
-    note_ko: "결함이 있는 호출: 문맥 3줄로 검색"
+    note_ko: "결함 호출: 문맥 3줄로 검색"
     args:
       path: ${EVIDENCE}/var/log/auth.log
       pattern: "Failed password"

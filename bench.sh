@@ -31,10 +31,14 @@
 #                                                     (the next free number when n is not given)
 #   ./bench.sh check   [experiment...]                scripted runs must match scripted_expect
 #                                                     (every experiment that has one if none given)
-#   ./bench.sh poc     <case-id>                      run one PoC (pocs/<problem>/<server>/<case-id>/poc.yaml):
+#   ./bench.sh poc     <case-id|poc.yaml> [--no-model]
+#                                                     run one PoC (pocs/<problem>/<server>/<case-id>/poc.yaml):
 #                                                     scripted MCP calls in the variant's image, no model;
-#                                                     writes runs/<commit>/transcript.json and result.json
-#   ./bench.sh poc-all <server>                       every PoC of a server, one after another
+#                                                     writes runs/<commit>/transcript.json and result.json.
+#                                                     A PoC with a `model` block then asks Claude Code (Opus) its
+#                                                     question with the same server, writing model.json
+#                                                     (needs `./bench.sh login`); --no-model skips that
+#   ./bench.sh poc-all <server> [--no-model]          every PoC of a server, one after another
 #   ./bench.sh poc-summary                            reproduced / not reproduced / failed per server and problem
 #
 # Model settings come from .env (copy .env.example); variables set on the
@@ -228,29 +232,44 @@ summarize() {
         --labels $(experiment_variants "$(experiment_file "$1")" | cut -d' ' -f1)
 }
 
-# The poc.yaml of a matrix case ID such as P0192-010.
+# The poc.yaml of a matrix case ID such as P0192-010, or a poc.yaml path
+# (a sample under pocs/_samples/).
 poc_file() {
     local f
+    if [ -f "$1" ]; then echo "${1#./}"; return; fi
     for f in pocs/*/*/"$1"/poc.yaml; do
         [ -f "$f" ] && { echo "$f"; return; }
     done
     echo "no PoC for case $1 (see pocs/)" >&2; exit 1
 }
 
-# Run one PoC in its variant's image and keep the transcript and result.
+# Run one PoC in its variant's image and keep the transcript and result. With
+# a `model` block (and no --no-model), Claude Code bundled in the same image
+# also runs, signed in as for `investigate`.
 run_poc() {
-    local f=$1 v commit dir image
+    local f=$1 no_model=${2:-} v commit dir image
     v=$(yaml_field "$f" variant); commit=$(yaml_field "$f" commit)
     [ -n "$v" ] || { echo "$f names no variant" >&2; return 1; }
     dir="$(dirname "$f")/runs/${commit:0:7}"
     mkdir -p "$dir"
     build "$v" -q >/dev/null
     image=$(variant_image "$v")
+    local model=()
+    if [ -z "$no_model" ] && grep -q '^model:' "$f"; then
+        if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ ! -f data/claude/.credentials.json ]; then
+            echo "$f has a model block but Claude Code is not signed in; run ./bench.sh login (or use --no-model)" >&2
+            return 1
+        fi
+        # The token is passed by name from this shell, not on the command line.
+        model=(-e CLAUDE_CODE_OAUTH_TOKEN -e CLAUDE_CONFIG_DIR="$CLAUDE_CONFIG" -v "$ROOT/data/claude:$CLAUDE_CONFIG")
+    else
+        no_model=--no-model
+    fi
     docker run --rm --entrypoint "" --user "$(id -u):$(id -g)" -e HOME=/tmp \
         -e BENCH_IMAGE_ID="$(docker image inspect -f '{{.Id}}' "$image")" \
-        -e BENCH_SERVER_CMD="$(server_cmd "$v")" \
+        -e BENCH_SERVER_CMD="$(server_cmd "$v")" ${model[@]+"${model[@]}"} \
         -v "$ROOT/pocs:/pocs:ro" -v "$ROOT/$dir:/out" \
-        "$image" python3 -m bench poc "/$f" --out /out
+        "$image" python3 -m bench poc "/$f" --out /out $no_model
 }
 
 build() {
@@ -506,13 +525,16 @@ check)
     exit "$failed"
     ;;
 poc)
-    run_poc "$(poc_file "${1:?case-id}")"
+    f=$(poc_file "${1:?case-id}")
+    [ "${2:-}" = "" ] || [ "$2" = --no-model ] || { echo "unknown option: $2" >&2; exit 1; }
+    run_poc "$f" "${2:-}"
     ;;
 poc-all)
     s=${1:?server}; n=0
+    [ "${2:-}" = "" ] || [ "$2" = --no-model ] || { echo "unknown option: $2" >&2; exit 1; }
     for f in pocs/*/"$s"/*/poc.yaml; do
         [ -f "$f" ] || continue
-        n=$((n + 1)); run_poc "$f" || echo "PoC failed to run: $f" >&2
+        n=$((n + 1)); run_poc "$f" "${2:-}" || echo "PoC failed to run: $f" >&2
     done
     [ "$n" -gt 0 ] || { echo "no PoCs for $s (see pocs/*/$s/)" >&2; exit 1; }
     ;;
