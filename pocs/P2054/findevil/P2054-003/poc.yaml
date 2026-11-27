@@ -11,7 +11,7 @@ display: response
 level: mcp
 realism: common
 coverage: full
-summary: Sending the pattern exactly as the log_search description gives it, 192\.168\.1\.\d+, against a log that has 192.168.1.50, returns no matching line ("No matches found", or only grep's "stray \ before d" warning) because grep -E does not treat \d as a digit.
+summary: Sending the pattern exactly as the log_search description gives it, 192\.168\.1\.\d+, against a log that has 192.168.1.50, returns no matching line ("No matches found", grep's "stray \ before d" warning, or an empty result, depending on the grep version) because grep -E does not treat \d as a digit.
 fixture:
   - path: auth.log
     text: "Apr 12 14:30:04 web01 sshd[2211]: Accepted password for root from 192.168.1.50 port 51122 ssh2\n"
@@ -34,6 +34,6 @@ expect:
   - step: 1
     not_contains: "192.168.1.50"
   - step: 1
-    regex: "No matches found for pattern|stray \\\\ before d"
+    regex: "No matches found for pattern|stray \\\\ before d|^\\s*\\[STDERR\\]: ?\\s*$"
   - step: 2
     contains: "192.168.1.50"

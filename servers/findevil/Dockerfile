@@ -6,6 +6,8 @@
 # its Claude Agent SDK, Python 3.12, uv and the entrypoint that runs as the
 # mulder user. mulder itself is not used. findevil does not pin its mcp
 # dependency and fails to start on mcp 2.x, so MCP_VERSION pins it.
+# findevil expects the SIFT command line tools; the base image lacks xxd,
+# which its hexdump tool runs, so it is installed here.
 #
 # Built by `./bench.sh build <variant>`, which reads the build arguments from
 # servers/findevil/variants/<variant>.env.
@@ -17,6 +19,9 @@ ARG REF
 ARG PATCHES=""
 ARG REPO=https://github.com/marlyocat/findevil.git
 ARG MCP_VERSION=1.30.0
+
+RUN apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends xxd >/dev/null \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY servers/findevil/patches/ /tmp/bench-patches/
 

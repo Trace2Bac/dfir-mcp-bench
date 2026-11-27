@@ -12,7 +12,7 @@ display: response
 level: mcp
 realism: possible
 coverage: full
-summary: For an evidence file the server cannot read, file_info returns the "cannot open" message of `file -b` under "## File Type" as if it were the identified type, because `file` exits 0 and the server only checks the exit code.
+summary: For an evidence file the server cannot read, file_info returns the message of `file -b` for an unreadable file ("cannot open" or "regular file, no read permission", depending on the file version) under "## File Type" as if it were the identified type, because `file` exits 0 and the server only checks the exit code.
 fixture:
   - path: case01/suspicious.bin
     hex: 4d5a90000300000004000000ffff0000
@@ -23,7 +23,7 @@ steps:
       path: ${EVIDENCE}/case01/suspicious.bin
 expect:
   - step: 1
-    regex: "## File Type\\n[^\\n]*cannot open"
+    regex: "## File Type\\n[^\\n]*(cannot open|no read permission)"
   - step: 1
     not_regex: "## File Type\\n(?:[^#]*\\n)?\\[STDERR\\]"
   - step: 1
