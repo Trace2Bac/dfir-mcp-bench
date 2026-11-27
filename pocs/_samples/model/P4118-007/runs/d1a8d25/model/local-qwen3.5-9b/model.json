@@ -20,8 +20,8 @@
    "answer": "Based on my comprehensive analysis of all package management logs in this Debian host's filesystem (`${EVIDENCE}/fs`), I examined:\n\n1. **apt history.log** and **term.log** - showing 20+ package installations/upgrades including git, curl, vim, make, openssl, nginx, fail2ban, tmux, etc.\n2. **dpkg.log**, **dpkg.log.1** - confirming the same legitimate packages with status updates\n3. **history.log.1** and **term.log.1** (rotated logs) - showing additional installations like logrotate, tzdata, gnupg, htop, python3-pip, etc.\n\nAll packages installed through apt are standard system tools and utilities:\n- Development tools: git, gcc, make, build-essential\n- Security tools: fail2ban, openssh-server, ca-certificates, openssl\n- Utilities: curl, vim, tmux, cron, sudo, jq, unzip, net-tools\n- System packages: libc6, libssl3, tzdata, gnupg\n\nThe `analyze_package_logs` tool also returned **0 flagged events** with the verdict \"No package-management red flags.\"",
    "checks": [
     {
-     "regex": "(?i)(\\*\\*no\\*\\*|\\bno suspicious|answer\\W*(is\\W*)?no\\b|^\\W*no\\b|all (the )?packages[^.]{0,60}(legitimate|standard))",
-     "note_ko": "수상한 패키지가 없다고(모두 정상이라고) 답한다",
+     "not_regex": "(?i)(xmrig[^.\\n]{0,80}(was |were )?(installed|unpacked|set up|setting up)|install(ed|ation)? (of )?[^.\\n]{0,40}xmrig|\\byes\\b[^.\\n]{0,120}xmrig)",
+     "note_ko": "xmrig 설치를 찾아 말하지 않는다",
      "ok": true
     },
     {
@@ -215,8 +215,8 @@
    "answer": "Based on my analysis of the package management logs:\n\n1. **apt history.log**: Shows 76 install events and 64 upgrade events, all via standard `apt-get install -y` or `apt-get upgrade -y` commands from official repositories. All packages are legitimate system utilities (git, curl, vim, make, gcc, openssl, fail2ban, sudo, cron, etc.).\n\n2. **dpkg.log**: Confirms the same installations with no local `.deb` file installs detected and no `dpkg-sig-verify: BAD` errors indicating tampered packages.\n\n3. **analyze_package_logs** tool report: \"No flagged events\" - meaning no known-bad package names (crypto miners, attacker tooling), typosquats of popular PyPI/npm packages, removals of security tooling, or local .deb installs that bypass repo signing were found.\n\n4. No suspicious patterns detected including:\n   - Crypto miner packages (xmrig, minerd, etc.)\n   - Attacker tooling (metasploit, nmap outside repos, hydra, john, hashcat)\n   - Removals of security tools (fail2ban, rsyslog, auditd)\n\n**Answer: No** — no suspicious package was installed through apt. All packages were legitimate system utilities installed via standard repository-based installation methods.",
    "checks": [
     {
-     "regex": "(?i)(\\*\\*no\\*\\*|\\bno suspicious|answer\\W*(is\\W*)?no\\b|^\\W*no\\b|all (the )?packages[^.]{0,60}(legitimate|standard))",
-     "note_ko": "수상한 패키지가 없다고(모두 정상이라고) 답한다",
+     "not_regex": "(?i)(xmrig[^.\\n]{0,80}(was |were )?(installed|unpacked|set up|setting up)|install(ed|ation)? (of )?[^.\\n]{0,40}xmrig|\\byes\\b[^.\\n]{0,120}xmrig)",
+     "note_ko": "xmrig 설치를 찾아 말하지 않는다",
      "ok": true
     },
     {
@@ -368,8 +368,8 @@
    "answer": "Based on my analysis of the Debian host's package management logs, I found **no suspicious packages** were installed through apt.\n\n## Analysis Summary:\n\n- **Total events parsed:** 140 (76 installs + 64 upgrades)\n- **Flagged events by analyze_package_logs:** 0\n- **Triage verdict from tool:** \"No package-management red flags\"\n\nAll packages identified in the logs are legitimate system tools and utilities including:\n- `apt-transport-https`, `libssl3`, `openssl` (security/infrastructure)\n- `fail2ban`, `ca-certificates` (security hardening)\n- `git`, `gcc`, `make`, `curl`, `unzip`, `vim` (development tools)\n- `cron`, `sudo`, `openssh-server`, `net-tools` (system utilities)\n- `nginx`, `tmux`, `jq`, `bash-completion`, `build-essential`\n\nNone of these are crypto miners, attacker tooling (like Metasploit/Hashcat), or other malicious software. The answer is: **No**",
    "checks": [
     {
-     "regex": "(?i)(\\*\\*no\\*\\*|\\bno suspicious|answer\\W*(is\\W*)?no\\b|^\\W*no\\b|all (the )?packages[^.]{0,60}(legitimate|standard))",
-     "note_ko": "수상한 패키지가 없다고(모두 정상이라고) 답한다",
+     "not_regex": "(?i)(xmrig[^.\\n]{0,80}(was |were )?(installed|unpacked|set up|setting up)|install(ed|ation)? (of )?[^.\\n]{0,40}xmrig|\\byes\\b[^.\\n]{0,120}xmrig)",
+     "note_ko": "xmrig 설치를 찾아 말하지 않는다",
      "ok": true
     },
     {
