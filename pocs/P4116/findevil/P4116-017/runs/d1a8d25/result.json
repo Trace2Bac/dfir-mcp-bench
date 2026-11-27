@@ -1,0 +1,35 @@
+{
+  "case_id": "P4116-017",
+  "problem": "P4116",
+  "server": "findevil",
+  "commit": "d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1",
+  "display": "response",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "regex": "## ipv4 public \\(2\\)\\n- `100\\.64\\.0\\.5`\\n- `169\\.254\\.169\\.254`",
+      "ok": true
+    },
+    {
+      "step": 1,
+      "regex": "## ipv4 private \\(1\\)\\n- `10\\.0\\.0\\.8`",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "contains": "outbound TCP to 169.254.169.254:80 (non-RFC1918, state=ESTABLISHED)",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "contains": "outbound TCP to fe80::1:4460 (non-RFC1918, state=ESTABLISHED)",
+      "ok": true
+    }
+  ],
+  "image": "sha256:193b1bff215bf0e9113e2daecca4060f589d7bcc70c7fe774f730bc4850fb71b",
+  "ran_at": "2026-11-27T06:51:04+00:00"
+}

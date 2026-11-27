@@ -1,0 +1,63 @@
+{
+  "case_id": "P4118-009",
+  "problem": "P4118",
+  "server": "findevil",
+  "commit": "d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1",
+  "display": "response",
+  "realism": "common",
+  "coverage": "partial: Volatility output is imitated (no real memory image or symbols)",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "condition": "jit",
+      "contains": "Hidden modules (lsmod-vs-check_modules): **0**",
+      "ok": true
+    },
+    {
+      "step": 1,
+      "condition": "jit",
+      "contains": "LIKELY MEMORY-RESIDENT COMPROMISE** — 2 suspicious memory region(s) (malfind)",
+      "ok": true
+    },
+    {
+      "step": 1,
+      "condition": "jit",
+      "not_regex": "(?i)JIT|just-in-time|false positive|benign|legitimate",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "condition": "jit",
+      "contains": "`node`",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "condition": "jit",
+      "not_regex": "(?i)JIT|just-in-time|false positive|benign|legitimate",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "condition": "hidden",
+      "contains": "LIKELY KERNEL ROOTKIT",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "condition": "hidden",
+      "contains": "`nf_conntrack_netlink`",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "condition": "hidden",
+      "not_regex": "(?i)smear|acquisition|capture|unload|in transition|being loaded|false positive",
+      "ok": true
+    }
+  ],
+  "image": "sha256:bf5a98095124ae6c40fd3e2c1133c5811e5014e97cc81533a3e982d2add8fcbe",
+  "ran_at": "2026-11-27T06:52:17+00:00"
+}

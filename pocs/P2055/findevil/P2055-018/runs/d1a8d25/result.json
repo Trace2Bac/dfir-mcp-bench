@@ -1,0 +1,30 @@
+{
+  "case_id": "P2055-018",
+  "problem": "P2055",
+  "server": "findevil",
+  "commit": "d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1",
+  "display": "definition",
+  "realism": "possible",
+  "coverage": "partial: nginx offsets and file mtime ordering are not shown here (nginx: P2049-005)",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "contains": "| 2026-04-12T05:30:00+00:00 | journal |",
+      "ok": true
+    },
+    {
+      "step": 1,
+      "contains": "| 2026-04-12T14:30:00+00:00 | auth.log |",
+      "ok": true
+    },
+    {
+      "step": 1,
+      "not_regex": "(?i)local time|time ?zone|assum",
+      "ok": true
+    }
+  ],
+  "image": "sha256:abad07b315555ca2b347713f2b08487dc2897f13120b481a588f72d54529837d",
+  "ran_at": "2026-11-27T06:48:03+00:00"
+}

@@ -1,0 +1,1551 @@
+{
+  "attempts": [
+    {
+      "attempt": 1,
+      "runs": [
+        {
+          "condition": "default",
+          "env": {},
+          "fixtures": [
+            {
+              "path": "case/fs/srv/cache/f{i}",
+              "root": "evidence",
+              "size": 600,
+              "repeat": 600
+            }
+          ],
+          "model_given": {
+            "server": {
+              "name": "",
+              "version": ""
+            },
+            "instructions": "You are an autonomous incident response analyst examining forensic evidence from a SANS SIFT Workstation. Work the case end to end on your own — do not wait for step-by-step instructions. Run this loop until it terminates:\n\n1. ORIENT — call list_evidence to inventory what is available.\n2. INVESTIGATE — form a hypothesis and run the relevant typed tools. Treat every finding as a lead: when a tool surfaces an IOC (IP, user, hash, path, domain), PIVOT before moving on — run extract_iocs / bulk_ioc_lookup on it and search it across the other evidence.\n3. ASSESS — call assess_coverage (pass your findings so far as findings_json). It reports gaps grounded in the audit trail: unexamined artifacts, un-pivoted IOCs, unverified CONFIRMED claims. If it reports gaps, return to step 2 and close them. Repeat until it returns COVERAGE CLEAN.\n4. FINALIZE — assemble your findings as structured claims and call finalize_report. It is the ONLY way to emit conclusions and it will REJECT any CONFIRMED claim that fails independent verification or contradicts another. When rejected, re-investigate to support the claim OR downgrade its confidence to 'inference'/'uncertain', then call finalize_report again. Only a claim that survives finalize_report may be stated as CONFIRMED in your report.\n\nRules: never modify evidence. Always distinguish confirmed findings from inferences. Prefer 'cannot determine from available evidence' over speculation. You are not done until assess_coverage is clean and finalize_report has ACCEPTED your claims.",
+            "tools": [
+              {
+                "name": "file_info",
+                "description": "Get file type and metadata for a file inside the evidence directory.\n\n    Use this as a first step to understand what kind of artifact you're looking at.\n    Returns file type identification (magic bytes) and filesystem metadata.\n\n    Args:\n        path: Path to the file inside /evidence (e.g., /evidence/case01/suspicious.exe)\n    ",
+                "input_schema": {
+                  "properties": {
+                    "path": {
+                      "title": "Path",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ],
+                  "title": "file_infoArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "file_infoOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "hash_file",
+                "description": "Compute MD5 and SHA256 hashes of a file for evidence integrity verification.\n\n    Use this to verify evidence hasn't been tampered with or to look up file hashes\n    in threat intelligence databases.\n\n    Args:\n        path: Path to the file inside /evidence\n    ",
+                "input_schema": {
+                  "properties": {
+                    "path": {
+                      "title": "Path",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ],
+                  "title": "hash_fileArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "hash_fileOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "strings_extract",
+                "description": "Extract human-readable strings from a binary file.\n\n    Useful for finding embedded URLs, IP addresses, commands, filenames, and other\n    indicators of compromise (IOCs) inside executables or memory dumps.\n\n    Args:\n        path: Path to the file inside /evidence\n        min_length: Minimum string length to extract (default: 6)\n        encoding: String encoding — 's' for ASCII, 'l' for little-endian UTF-16 (default: 's')\n    ",
+                "input_schema": {
+                  "properties": {
+                    "path": {
+                      "title": "Path",
+                      "type": "string"
+                    },
+                    "min_length": {
+                      "default": 6,
+                      "title": "Min Length",
+                      "type": "integer"
+                    },
+                    "encoding": {
+                      "default": "s",
+                      "title": "Encoding",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ],
+                  "title": "strings_extractArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "strings_extractOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "list_evidence",
+                "description": "List files and directories in the evidence directory.\n\n    Use this as your starting point to discover what evidence is available for analysis.\n\n    Args:\n        subdir: Subdirectory within /evidence to list (default: root of evidence dir)\n    ",
+                "input_schema": {
+                  "properties": {
+                    "subdir": {
+                      "default": "",
+                      "title": "Subdir",
+                      "type": "string"
+                    }
+                  },
+                  "title": "list_evidenceArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "list_evidenceOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "log_search",
+                "description": "Search log files for a regex pattern using grep.\n\n    Use this for searching through system logs, auth logs, web server logs, etc.\n    for indicators of compromise or suspicious activity.\n\n    Args:\n        path: Path to the log file inside /evidence\n        pattern: Regex pattern to search for (e.g., 'Failed password', '192\\.168\\.1\\.\\d+')\n        context_lines: Number of surrounding context lines (default: 3)\n    ",
+                "input_schema": {
+                  "properties": {
+                    "path": {
+                      "title": "Path",
+                      "type": "string"
+                    },
+                    "pattern": {
+                      "title": "Pattern",
+                      "type": "string"
+                    },
+                    "context_lines": {
+                      "default": 3,
+                      "title": "Context Lines",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "path",
+                    "pattern"
+                  ],
+                  "title": "log_searchArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "log_searchOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "hexdump",
+                "description": "Display a hex dump of a file region.\n\n    Useful for examining file headers, magic bytes, or specific byte offsets\n    in binary evidence.\n\n    Args:\n        path: Path to the file inside /evidence\n        offset: Byte offset to start from (default: 0)\n        length: Number of bytes to display (default: 512, max: 4096)\n    ",
+                "input_schema": {
+                  "properties": {
+                    "path": {
+                      "title": "Path",
+                      "type": "string"
+                    },
+                    "offset": {
+                      "default": 0,
+                      "title": "Offset",
+                      "type": "integer"
+                    },
+                    "length": {
+                      "default": 512,
+                      "title": "Length",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ],
+                  "title": "hexdumpArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "hexdumpOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "find_ai_signatures",
+                "description": "Scan a Linux filesystem root for forensic signatures of LLM-driven adversaries.\n\n    Detects six classes of artifact distinctive of agentic/AI-driven intrusions:\n\n    1. **LLM API destinations** — references to `api.anthropic.com`,\n       `api.openai.com`, `api.deepseek.com`, `claude.ai`, etc. in env files,\n       configs, cron entries, scripts, or systemd units.\n    2. **LLM API key declarations** — `ANTHROPIC_API_KEY=`, `OPENAI_API_KEY=`,\n       and similar environment-variable assignments.\n    3. **Agent runtime artifacts** — `.claude/projects/`, `.agent_cache/`,\n       `agent_tasks.jsonl`, `llm_session_*` files, `~/.config/claude` etc.\n    4. **Tool-call schema JSONL** — `.jsonl` files containing\n       `tool_use`/`tool_result`/`tool_calls` keys characteristic of LLM\n       agent transcripts.\n    5. **AI-polished scripts** — bash scripts that combine `set -euo pipefail`,\n       `readonly` constants, and parallel-execution primitives (xargs -P,\n       GNU parallel, export -f, EXIT traps). Three or more idioms together\n       is more polish than humans typically apply to ad-hoc scripts.\n    6. **Machine-speed bash history** — extended-history blocks where\n       consecutive command timestamps differ by less than 2 seconds for\n       a majority of entries. Humans take longer to type independent commands.\n\n    A finding here is a *tradecraft signal*, not direct proof of compromise.\n    Combine with persistence/auth findings to confirm an intrusion and\n    classify it as agent-operated. False positives are possible on hosts\n    that legitimately run AI tooling (developer workstations, MLOps boxes).\n\n    Args:\n        root_path: Filesystem root to scan (must be inside the evidence directory)\n\n    Returns:\n        Markdown report grouped by severity and category.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "root_path": {
+                      "title": "Root Path",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "root_path"
+                  ],
+                  "title": "find_ai_signaturesArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "find_ai_signaturesOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "verify_finding",
+                "description": "Independently re-check a specific claim against raw evidence.\n\n    Call this AFTER a finding has been produced by another tool, to\n    confirm the claim holds up under a fresh read of the underlying\n    evidence. Returns SUPPORTED / CONTRADICTED / INSUFFICIENT_EVIDENCE\n    plus the raw facts that justify the verdict.\n\n    Supported claim types (pass the exact string as `claim_type`):\n\n    - `brute_force_from_ip` — params: {log_path, ip, min_attempts}\n    - `successful_login_after_brute_force` — params: {log_path, ip, user?}\n    - `user_created` — params: {log_path, name}\n    - `package_installed` — params: {fs_root, name}\n    - `webshell_upload_chain` — params: {log_path, ip?, path?}\n    - `file_modified_in_window` — params: {path, since_iso, until_iso}\n    - `persistence_mechanism_exists` — params: {fs_root, category}\n      (category ∈ cron|systemd|ssh|user|shell|library|init|pam|kernel_module|ssh_config|sudoers)\n    - `sudo_command_executed` — params: {log_path, command_regex, user?}\n\n    Args:\n        claim_type: One of the supported type strings above\n        params: JSON-encoded object with the per-type parameters\n\n    Returns:\n        Markdown block with verdict and evidence.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "claim_type": {
+                      "title": "Claim Type",
+                      "type": "string"
+                    },
+                    "params": {
+                      "title": "Params",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "claim_type",
+                    "params"
+                  ],
+                  "title": "verify_findingArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "verify_findingOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "find_contradictions",
+                "description": "Detect logical inconsistencies across a set of structured claims.\n\n    Accepts a JSON array of claim objects, each with at minimum a `type`\n    field plus type-specific fields. Checks six contradiction patterns:\n\n    1. `brute_force_from_ip` vs `no_failed_logins` on the same log\n    2. `compromise_verdict=confirmed` with an attacker IP, but\n       `no_successful_login_from_ip` for that IP\n    3. `persistence_mechanism_exists` in category X vs `persistence_empty`\n       in category X\n    4. `user_created` via useradd vs `user_not_in_log` for the same name\n    5. `file_modified_in_window` vs `file_not_found` for the same path\n    6. Multiple `initial_access_vector` claims with different vectors\n\n    The tool flags contradictions only; it does not decide which side is\n    correct — the agent still has to go back and verify.\n\n    Args:\n        claims_json: JSON array of claim objects\n\n    Returns:\n        Markdown block listing any contradictions found.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "claims_json": {
+                      "title": "Claims Json",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "claims_json"
+                  ],
+                  "title": "find_contradictionsArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "find_contradictionsOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "get_audit_trail",
+                "description": "Return the findevil audit trail — the record of every tool call made\n    during this session.\n\n    Use this to confirm that a claim in your report maps to an actual\n    invocation. For example, before stating \"auth_summary verdict was\n    LIKELY COMPROMISE\", use `get_audit_trail(filter_tool=\"auth_summary\")`\n    to verify that tool was actually called and what it returned.\n\n    Args:\n        filter_tool: If set, only return entries for this tool name\n        filter_since: If set (ISO 8601), only return entries after this time\n        limit: Cap on the number of entries (default 100)\n\n    Returns:\n        Markdown listing of matching audit entries with tool name, params,\n        timestamp, and result summary.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "filter_tool": {
+                      "default": "",
+                      "title": "Filter Tool",
+                      "type": "string"
+                    },
+                    "filter_since": {
+                      "default": "",
+                      "title": "Filter Since",
+                      "type": "string"
+                    },
+                    "limit": {
+                      "default": 100,
+                      "title": "Limit",
+                      "type": "integer"
+                    }
+                  },
+                  "title": "get_audit_trailArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "get_audit_trailOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "extract_iocs",
+                "description": "Extract IOCs (IPs, domains, URLs, hashes, Bitcoin addresses, CVEs,\n    emails) from arbitrary text.\n\n    Useful for pulling a structured IOC list out of an already-written\n    report, a log-file snippet, or a shell-history dump. The extractor\n    separates RFC1918 IPs from public IPs, de-duplicates per type, and\n    strips trailing prose punctuation from URLs.\n\n    Args:\n        text: Any text blob to scan\n\n    Returns:\n        Markdown report grouped by IOC type.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "text": {
+                      "title": "Text",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "text"
+                  ],
+                  "title": "extract_iocsArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "extract_iocsOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "bulk_ioc_lookup",
+                "description": "Extract every IOC in `text` and look each one up against the cache.\n\n    Runs `extract_iocs` internally, then for every public IPv4, domain,\n    and hex hash it produces a structured reputation verdict (category,\n    tags, confidence, source) from the bundled offline IOC cache. Domain\n    lookups fall back to parent-domain matches (e.g. `beta.evil.com`\n    hits a cache entry for `evil.com` and gets a `subdomain_match`\n    tag); hash algorithm is inferred from length (32 → MD5, 40 → SHA1,\n    64 → SHA256). RFC1918 addresses and URLs are reported as extracted\n    but not looked up.\n\n    Args:\n        text: Any text blob — a report draft, a tool output, etc.\n\n    Returns:\n        Markdown report grouped by IOC type, with reputation verdicts\n        inline per IOC.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "text": {
+                      "title": "Text",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "text"
+                  ],
+                  "title": "bulk_ioc_lookupArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "bulk_ioc_lookupOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "assess_coverage",
+                "description": "Find the gaps in the investigation so far — the loop's \"what's left?\" step.\n\n    Grounded in the mechanical audit trail (`audit.json`), not the model's\n    memory, so the list of remaining work cannot be hallucinated. Reports\n    three classes of gap:\n\n    1. **Unexamined artifacts** — an artifact class present in the evidence\n       (an auth log, a journal export, a filesystem root, a memory image…)\n       that none of the relevant tools has been run against yet.\n    2. **Un-pivoted IOCs** — public IPs / hashes present in your supplied\n       findings that were never run through `bulk_ioc_lookup`.\n    3. **Unverified CONFIRMED claims** — more CONFIRMED claims than\n       independent `verify_finding` calls recorded.\n\n    Call this after a round of investigation. If it reports gaps, close\n    them and call it again. When it returns COVERAGE CLEAN, assemble your\n    claims and call `finalize_report`.\n\n    Args:\n        findings_json: Optional JSON array of your current findings/claims\n            (objects with `confidence` and, ideally, the evidence text).\n            Used to detect un-pivoted IOCs and unverified CONFIRMED claims.\n            Omit it for an artifact-only coverage check.\n\n    Returns:\n        Markdown: evidence examined, artifact-coverage table, the concrete\n        gaps with recommended next actions, and a COVERAGE CLEAN / N GAPS\n        verdict.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "findings_json": {
+                      "default": "",
+                      "title": "Findings Json",
+                      "type": "string"
+                    }
+                  },
+                  "title": "assess_coverageArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "assess_coverageOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "finalize_report",
+                "description": "The ONLY sanctioned way to emit conclusions — and it can say no.\n\n    Submit your findings as a JSON array of claim objects. The gate runs\n    `find_contradictions` across all claims and, for every claim marked\n    `\"confidence\": \"confirmed\"`, an independent `verify_finding` re-check\n    against raw evidence. It **rejects** the finalization if any CONFIRMED\n    claim fails verification or any pair of claims contradicts — telling\n    you exactly which claims are unsound. You then either re-investigate\n    to support them or downgrade their confidence to `inference` /\n    `uncertain` and call this again. Only claims that pass appear as\n    CONFIRMED in the accepted report.\n\n    This is architectural, not advisory: an unverified CONFIRMED claim\n    cannot get through, the same way evidence cannot be modified (no\n    write tool exists).\n\n    Each claim object:\n      - `id`         : short identifier (e.g. \"c1\")\n      - `type`       : a verifiable claim type (then its fields are\n                       re-checked) or any free-form label\n      - `confidence` : \"confirmed\" | \"inference\" | \"uncertain\"  (required)\n      - `statement`  : human-readable finding (for the report body)\n      - `evidence`   : citation (file:line) — REQUIRED for a CONFIRMED\n                       claim whose `type` is not machine-verifiable\n\n    For a CONFIRMED claim of a verifiable `type`, include that type's\n    fields at the top level so the gate can re-check it:\n      - `brute_force_from_ip`                 : log_path, ip, min_attempts\n      - `successful_login_after_brute_force`  : log_path, ip, user?\n      - `user_created`                        : log_path, name\n      - `package_installed`                   : fs_root, name\n      - `webshell_upload_chain`               : log_path, ip?, path?\n      - `file_modified_in_window`             : path, since_iso, until_iso\n      - `persistence_mechanism_exists`        : fs_root, category\n      - `sudo_command_executed`               : log_path, command_regex, user?\n\n    Args:\n        claims_json: JSON array of claim objects as described above.\n\n    Returns:\n        Markdown: ❌ REJECTED with the specific blocking claims, or\n        ✅ ACCEPTED with the verified, finalized findings.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "claims_json": {
+                      "title": "Claims Json",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "claims_json"
+                  ],
+                  "title": "finalize_reportArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "finalize_reportOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "baseline_create",
+                "description": "Create a file-integrity baseline snapshot.\n\n    Walks the tracked-path catalogue under `root_path` (which must be\n    inside the evidence directory) and produces a JSON snapshot of\n    every critical file's SHA256, size, mode, owner, and mtime.\n\n    CRITICAL workflow note: take baselines from a KNOWN-CLEAN state\n    (a golden image, or a freshly-provisioned host). A baseline taken\n    from an already-compromised host bakes the backdoors in as\n    \"normal\" and subsequent diffs will miss them.\n\n    Args:\n        root_path: Filesystem root to snapshot (must be inside\n            FINDEVIL_EVIDENCE_DIR — for live-host monitoring, point\n            FINDEVIL_EVIDENCE_DIR at a read-only mount of `/`)\n        output_file: Where to write the baseline JSON. Defaults to\n            `<FINDEVIL_LOGS_DIR>/baseline.json`.\n\n    Returns:\n        Markdown summary of what was captured.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "root_path": {
+                      "title": "Root Path",
+                      "type": "string"
+                    },
+                    "output_file": {
+                      "default": "",
+                      "title": "Output File",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "root_path"
+                  ],
+                  "title": "baseline_createArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "baseline_createOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "baseline_diff",
+                "description": "Compare the current filesystem state against a FIM baseline.\n\n    Re-walks the tracked-path catalogue under `root_path` and diffs\n    against the baseline at `baseline_file`. Every added / removed /\n    modified file is reported, grouped by severity. Any critical-\n    severity change is surfaced as \"LIKELY COMPROMISE\" in the triage\n    verdict — these are paths (like `etc/passwd`, `etc/sudoers`,\n    `sshd_config`, `authorized_keys`, cron/systemd/PAM entries) that\n    should never change outside of explicit admin activity.\n\n    Args:\n        root_path: Filesystem root to inspect (must be inside\n            FINDEVIL_EVIDENCE_DIR)\n        baseline_file: Path to a baseline JSON produced by\n            `baseline_create` (does NOT need to be inside evidence —\n            baselines are analyst artifacts, not evidence)\n\n    Returns:\n        Markdown diff report grouped by severity, with a triage\n        verdict at the top.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "root_path": {
+                      "title": "Root Path",
+                      "type": "string"
+                    },
+                    "baseline_file": {
+                      "title": "Baseline File",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "root_path",
+                    "baseline_file"
+                  ],
+                  "title": "baseline_diffArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "baseline_diffOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "auth_failed_logins",
+                "description": "Analyze failed SSH login attempts for brute force indicators.\n\n    Parses the auth log and groups failed login attempts by source IP. Surfaces\n    brute force patterns (high attempt counts from a single IP), user enumeration\n    (many distinct usernames from one IP), and password spraying (one user from\n    many IPs). Each finding includes the log line number for audit provenance.\n\n    Args:\n        path: Path to an auth.log-format file inside the evidence directory\n        top_n: Return the top N source IPs by attempt count (default: 20)\n\n    Returns:\n        Markdown report with attacker IPs, targeted users, and confidence scoring.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "path": {
+                      "title": "Path",
+                      "type": "string"
+                    },
+                    "top_n": {
+                      "default": 20,
+                      "title": "Top N",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ],
+                  "title": "auth_failed_loginsArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "auth_failed_loginsOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "auth_successful_logins",
+                "description": "List successful authentication events (SSH, console) with provenance.\n\n    Each login includes user, source IP, auth method (password / publickey /\n    keyboard-interactive), and the raw log line number. Useful for spotting\n    suspicious successful access after a brute force attempt, or identifying\n    which accounts were compromised.\n\n    Args:\n        path: Path to an auth.log-format file inside the evidence directory\n        top_n: Maximum number of login rows to render in the table\n            (default: 200). Extra rows are summarised in a footer line so\n            the response stays inside the LLM context window on busy hosts.\n\n    Returns:\n        Markdown table of successful logins (capped at ``top_n``), sorted\n        chronologically.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "path": {
+                      "title": "Path",
+                      "type": "string"
+                    },
+                    "top_n": {
+                      "default": 200,
+                      "title": "Top N",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ],
+                  "title": "auth_successful_loginsArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "auth_successful_loginsOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "auth_sudo_commands",
+                "description": "List sudo commands executed — critical privilege escalation audit trail.\n\n    Returns every sudo invocation with user, target (usually root), and the\n    full command. Looks for suspicious patterns: reading /etc/shadow, modifying\n    SSH keys, installing packages, disabling logging, etc.\n\n    Args:\n        path: Path to an auth.log-format file inside the evidence directory\n        user_filter: If set, only return sudo commands by this user (default: all)\n        top_n: Maximum number of sudo rows to render in the table\n            (default: 200). Extra rows are summarised in a footer line so\n            the response stays inside the LLM context window on busy hosts.\n\n    Returns:\n        Markdown table of sudo events (capped at ``top_n``) with flagged\n        suspicious commands.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "path": {
+                      "title": "Path",
+                      "type": "string"
+                    },
+                    "user_filter": {
+                      "default": "",
+                      "title": "User Filter",
+                      "type": "string"
+                    },
+                    "top_n": {
+                      "default": 200,
+                      "title": "Top N",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ],
+                  "title": "auth_sudo_commandsArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "auth_sudo_commandsOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "auth_user_events",
+                "description": "List user and group management events (account creation/deletion).\n\n    New user accounts are a classic Linux persistence mechanism — attackers\n    create backdoor accounts after gaining root access. This tool surfaces\n    every useradd/userdel/groupadd event with full provenance.\n\n    Args:\n        path: Path to an auth.log-format file inside the evidence directory\n\n    Returns:\n        Markdown report of user/group lifecycle events.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "path": {
+                      "title": "Path",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ],
+                  "title": "auth_user_eventsArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "auth_user_eventsOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "auth_summary",
+                "description": "High-level overview of an auth log — call this first for triage.\n\n    Returns counts of each event type, top source IPs, and a verdict on\n    whether the log shows signs of compromise. Use this as the entry point\n    before drilling into specific tools (failed logins, sudo, etc).\n\n    Args:\n        path: Path to an auth.log-format file inside the evidence directory\n\n    Returns:\n        Markdown summary with triage verdict.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "path": {
+                      "title": "Path",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ],
+                  "title": "auth_summaryArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "auth_summaryOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "analyze_container_artifacts",
+                "description": "Scan a filesystem root for container / Kubernetes security issues.\n\n    Covers:\n    - Docker container configs (/var/lib/docker/containers/*/config.v2.json)\n    - Docker daemon config (/etc/docker/daemon.json)\n    - docker-compose.yml / docker-compose.yaml anywhere under root\n    - Kubernetes manifests (*.yaml / *.yml in /etc/kubernetes/, /var/lib/kubelet/config/)\n\n    Flags: privileged containers, dangerous capabilities (SYS_ADMIN,\n    SYS_PTRACE, SYS_MODULE, NET_ADMIN, NET_RAW, DAC_READ_SEARCH, SYSLOG),\n    host namespace sharing (NetworkMode=host, PidMode=host), sensitive\n    host-path mounts (/, /etc, /root, docker.sock, /proc, /sys), daemon\n    TCP listeners without TLS, insecure registries, hostPath volumes in\n    k8s, and cluster-admin bindings to default/anonymous accounts.\n\n    Args:\n        root_path: Filesystem root to scan\n\n    Returns:\n        Markdown report grouped by severity and artifact type.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "root_path": {
+                      "title": "Root Path",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "root_path"
+                  ],
+                  "title": "analyze_container_artifactsArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "analyze_container_artifactsOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "analyze_journal",
+                "description": "Analyze a systemd-journald export (produced by `journalctl -o json`).\n\n    Categorises events into authentication (ssh/sudo/pam), service control,\n    user management, and high-priority errors. Surfaces failed-login sources,\n    post-brute-force successes, flagged sudo commands, and kernel messages\n    suggesting rootkit / module-load activity.\n\n    Judges: this tool exists because modern Ubuntu/RHEL hosts write their\n    auth data to the binary journal, not to /var/log/auth.log — without\n    this, the agent would only see text-log events.\n\n    Args:\n        path: Path to a journalctl JSON export file (JSONL, one event per line)\n        top_n_ips: Cap the failed-IP ranking at this many entries (default 10)\n\n    Returns:\n        Markdown summary with per-finding line-number provenance.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "path": {
+                      "title": "Path",
+                      "type": "string"
+                    },
+                    "top_n_ips": {
+                      "default": 10,
+                      "title": "Top N Ips",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ],
+                  "title": "analyze_journalArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "analyze_journalOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "analyze_memory_processes",
+                "description": "List processes recovered from a Linux memory dump.\n\n    Wraps Volatility 3's `linux.pslist`. Surfaces every process the kernel\n    had at capture time, the PID/PPID parent-child relationship, command\n    name, and flags two anomalies:\n\n    - Processes whose parent PID is not present in the snapshot (orphaned\n      by a parent that was killed before capture — sometimes a sign of a\n      detached daemon or a process that hid its parent).\n    - Process command names matching a small known-bad list (Kinsing's\n      `kdevtmpfsi`, TeamTNT's `kthrotlds`, BPFDoor's `kdmtmpflush`, etc.).\n\n    Args:\n        memory_dump_path: Path to a Linux memory dump (.lime / .raw / .vmem)\n            inside the evidence directory.\n\n    Returns:\n        Markdown report listing processes, PID hierarchy, and anomalies.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "memory_dump_path": {
+                      "title": "Memory Dump Path",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "memory_dump_path"
+                  ],
+                  "title": "analyze_memory_processesArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "analyze_memory_processesOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "analyze_memory_network",
+                "description": "List network connections recovered from a Linux memory dump.\n\n    Wraps `linux.netstat`. Surfaces every TCP/UDP/UNIX socket the kernel\n    knew about at capture time. Flags listeners on common reverse-shell\n    handler ports (4444, 4445, 1337, 31337, 8888, 9001, 6666, 13337)\n    and outbound connections to non-RFC1918 destinations, since live\n    network state is often the only place to see a rootkit's C2.\n\n    Args:\n        memory_dump_path: Path to a Linux memory dump inside the evidence\n            directory.\n\n    Returns:\n        Markdown report listing sockets and flagged connections.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "memory_dump_path": {
+                      "title": "Memory Dump Path",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "memory_dump_path"
+                  ],
+                  "title": "analyze_memory_networkArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "analyze_memory_networkOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "analyze_memory_modules",
+                "description": "Compare linux.lsmod and linux.check_modules to surface hidden LKMs.\n\n    A module that appears in `linux.check_modules` (which walks kernel\n    data structures directly) but NOT in `linux.lsmod` (which uses the\n    canonical loaded-modules list that rootkits like Diamorphine, Drovorub,\n    and many real-world Linux rootkits hide themselves from) is the\n    classic hidden-module signature.\n\n    This is one of the strongest single signals available in memory\n    forensics — a hidden module is almost always a rootkit, and there is\n    no equivalent disk-only check.\n\n    Args:\n        memory_dump_path: Path to a Linux memory dump inside the evidence\n            directory.\n\n    Returns:\n        Markdown report with loaded modules, hidden modules, and a\n        triage verdict.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "memory_dump_path": {
+                      "title": "Memory Dump Path",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "memory_dump_path"
+                  ],
+                  "title": "analyze_memory_modulesArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "analyze_memory_modulesOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "analyze_memory_bash_history",
+                "description": "Recover bash command history from process heap memory.\n\n    Wraps `linux.bash`. Crucial when an attacker ran `history -c` or\n    truncated `~/.bash_history` — the in-memory history of a still-running\n    bash process is unaffected by the on-disk file deletion.\n\n    Args:\n        memory_dump_path: Path to a Linux memory dump inside the evidence\n            directory.\n\n    Returns:\n        Markdown listing of recovered commands with PID, process name,\n        and timestamp.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "memory_dump_path": {
+                      "title": "Memory Dump Path",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "memory_dump_path"
+                  ],
+                  "title": "analyze_memory_bash_historyArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "analyze_memory_bash_historyOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "analyze_memory_malfind",
+                "description": "Detect injected code / shellcode in process memory (linux.malfind).\n\n    `linux.malfind` finds RWX memory regions without a backing file, and\n    regions whose entropy or magic-byte patterns suggest shellcode or\n    reflective ELF loading. This catches in-memory-only malware that\n    leaves nothing on disk.\n\n    Args:\n        memory_dump_path: Path to a Linux memory dump inside the evidence\n            directory.\n\n    Returns:\n        Markdown listing of suspicious memory regions per process.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "memory_dump_path": {
+                      "title": "Memory Dump Path",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "memory_dump_path"
+                  ],
+                  "title": "analyze_memory_malfindArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "analyze_memory_malfindOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "correlate_memory_and_disk",
+                "description": "Cross-reference memory state against on-disk persistence findings.\n\n    The strongest forensic verdict comes from memory + disk *agreement*.\n    This tool runs `analyze_memory_modules` and `find_persistence`'s\n    kernel-module + container scanners against the same case and\n    reports the four-quadrant correlation:\n\n    | memory says | disk says | interpretation |\n    |---|---|---|\n    | hidden module X | /etc/modules lists X | confirmed kernel rootkit |\n    | hidden module X | disk has nothing | memory-resident rootkit |\n    | no hidden modules | /etc/modules has X | stale config, possibly rolled back |\n    | no hidden modules | disk clean | memory + disk agree: no LKM compromise |\n\n    Both arguments must resolve inside the evidence directory.\n\n    Args:\n        memory_dump_path: Path to a Linux memory dump\n        fs_root: Filesystem root (e.g. evidence/case01/fs) for find_persistence\n\n    Returns:\n        Markdown report with the correlation matrix and a unified verdict.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "memory_dump_path": {
+                      "title": "Memory Dump Path",
+                      "type": "string"
+                    },
+                    "fs_root": {
+                      "title": "Fs Root",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "memory_dump_path",
+                    "fs_root"
+                  ],
+                  "title": "correlate_memory_and_diskArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "correlate_memory_and_diskOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "analyze_memory_summary",
+                "description": "Triage a Linux memory dump — high-level verdict in one tool call.\n\n    Identifies the kernel via `banners.Banners`, then runs `linux.pslist`,\n    `linux.netstat`, `linux.lsmod` + `linux.check_modules` (compared for\n    hidden modules), and `linux.malfind`. Returns a unified report with\n    a single triage verdict.\n\n    Use this first when you receive a memory dump. Drill into the specific\n    `analyze_memory_*` tools afterward for full per-plugin output.\n\n    Args:\n        memory_dump_path: Path to a Linux memory dump (.lime / .raw / .vmem)\n            inside the evidence directory.\n\n    Returns:\n        Markdown report with kernel banner, headline counts, hidden\n        modules, suspicious processes, suspicious network state, code\n        injection findings, and a triage verdict.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "memory_dump_path": {
+                      "title": "Memory Dump Path",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "memory_dump_path"
+                  ],
+                  "title": "analyze_memory_summaryArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "analyze_memory_summaryOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "analyze_package_logs",
+                "description": "Parse every package-manager log under a filesystem root.\n\n    Covers apt (/var/log/apt/history.log, /var/log/apt/term.log),\n    dpkg (/var/log/dpkg.log), yum/dnf (/var/log/yum.log, /var/log/dnf.log),\n    and pip (.pip/pip.log in user and root homes).\n\n    Flags known-bad package names (crypto miners, attacker tooling),\n    typosquats of popular PyPI/npm packages, removals of security tooling\n    (auditd/rsyslog/fail2ban/apparmor), local .deb installs that bypass\n    repo signing, and pip installs with unusual target directories.\n\n    Args:\n        root_path: Filesystem root to scan (must be inside evidence directory)\n        max_events: Cap the event listing to avoid overwhelming output\n\n    Returns:\n        Markdown report with flagged events, action counts, and a summary.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "root_path": {
+                      "title": "Root Path",
+                      "type": "string"
+                    },
+                    "max_events": {
+                      "default": 200,
+                      "title": "Max Events",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "root_path"
+                  ],
+                  "title": "analyze_package_logsArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "analyze_package_logsOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "verify_package_integrity",
+                "description": "Verify on-disk package files against the dpkg md5sums shipped at install.\n\n    Reads every `/var/lib/dpkg/info/*.md5sums` under the filesystem root,\n    computes the actual MD5 of each referenced file, and reports any file\n    whose content has changed since the package was installed. This is\n    the canonical detection for backdoored system binaries (e.g., a\n    replaced `/usr/sbin/sshd`) — the signal `debsums -c` would surface on\n    a live host, computed here from the dpkg metadata so it works against\n    forensic disk images too.\n\n    Limitations:\n    - Only covers dpkg-managed systems (Debian/Ubuntu). RPM hosts have\n      analogous metadata in `/var/lib/rpm/`; that integration is a\n      follow-up.\n    - Files installed outside a package (manual binaries, attacker-dropped\n      payloads) won't have an md5sums entry, so they're invisible here.\n      `find_persistence` and `scan_devshm_executables` cover that surface.\n    - A tampered package can ship its own md5sums; this tool catches\n      drift after install, not malicious packages at install time. Pair\n      with `analyze_package_logs` for install-time signals.\n\n    Args:\n        root_path: Filesystem root to scan (must be inside evidence dir)\n        max_mismatches: Cap output to avoid overwhelming reports\n\n    Returns:\n        Markdown report listing modified package files and a triage verdict.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "root_path": {
+                      "title": "Root Path",
+                      "type": "string"
+                    },
+                    "max_mismatches": {
+                      "default": 50,
+                      "title": "Max Mismatches",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "root_path"
+                  ],
+                  "title": "verify_package_integrityArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "verify_package_integrityOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "find_persistence",
+                "description": "Scan a Linux filesystem root for persistence mechanisms.\n\n    Inspects cron, systemd units, SSH authorized_keys, /etc/passwd/shadow,\n    shell init files, ld.so.preload, and rc.local. Returns findings grouped\n    by severity with the specific reasons each item was flagged (inline\n    network downloads, immutable files, UID-0 backdoors, empty passwords,\n    rootkit library names, etc.). Call this when you suspect an attacker\n    has established persistence on a host, after correlating with other\n    signals like auth-log compromise or unexpected sudo activity.\n\n    Args:\n        root_path: Path to the filesystem root to scan (must be inside the\n            evidence directory). For a mounted disk image this is usually\n            the mount point; for the bundled samples it's the fs/ subdir.\n\n    Returns:\n        Markdown report of persistence findings with severity and sample content.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "root_path": {
+                      "title": "Root Path",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "root_path"
+                  ],
+                  "title": "find_persistenceArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "find_persistenceOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "analyze_authorized_keys",
+                "description": "Deep-dive a single authorized_keys file.\n\n    Useful after find_persistence flags an SSH key file — this breaks out\n    each key with its type, fingerprint hint, comment, and any SSH options.\n\n    Args:\n        path: Path to an authorized_keys file inside evidence\n\n    Returns:\n        Markdown listing of keys with per-key annotations.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "path": {
+                      "title": "Path",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ],
+                  "title": "analyze_authorized_keysArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "analyze_authorized_keysOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "analyze_systemd_unit",
+                "description": "Inspect a single systemd unit file for suspicious directives.\n\n    Parses `[Unit]`, `[Service]`, and `[Install]` sections and flags\n    ExecStart paths pointing to world-writable directories, outbound\n    network downloads, inline shell execution, and unusual install targets.\n\n    Args:\n        path: Path to a systemd .service / .timer / .socket / .path file inside evidence\n\n    Returns:\n        Markdown analysis of the unit with flagged lines.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "path": {
+                      "title": "Path",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ],
+                  "title": "analyze_systemd_unitArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "analyze_systemd_unitOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "analyze_sshd_config",
+                "description": "Deep-dive inspection of an sshd_config file.\n\n    Parses every directive, calls out dangerous settings (PermitRootLogin,\n    PasswordAuthentication, PermitEmptyPasswords, HostBasedAuthentication,\n    weak Ciphers/MACs/HostKeyAlgorithms, Protocol 1), and reports the full\n    effective configuration for context.\n\n    Args:\n        path: Path to an sshd_config file inside the evidence directory\n\n    Returns:\n        Markdown report with flagged settings and the full parsed config.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "path": {
+                      "title": "Path",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ],
+                  "title": "analyze_sshd_configArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "analyze_sshd_configOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "analyze_sudoers",
+                "description": "Deep-dive inspection of an /etc/sudoers file or /etc/sudoers.d/* include.\n\n    Parses user/group rules and flags dangerous grants:\n    - NOPASSWD: ALL on any non-root user\n    - NOPASSWD on known privilege-escalation vectors (vim, find, python,\n      docker, systemctl, tar, tee, cp, etc. — the GTFOBins surface)\n    - Unrestricted ALL grants to non-root accounts\n\n    Args:\n        path: Path to a sudoers file inside the evidence directory\n\n    Returns:\n        Markdown report of user rules with per-rule flags.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "path": {
+                      "title": "Path",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ],
+                  "title": "analyze_sudoersArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "analyze_sudoersOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "find_shell_histories",
+                "description": "Enumerate shell history files under a filesystem root.\n\n    Lists `.bash_history`, `.zsh_history`, `.sh_history`, `.ash_history` for\n    root and every home directory. Call this first to see which accounts\n    have usable shell history, then drill in with `analyze_bash_history`.\n    An empty or missing history for an active account is itself a signal.\n\n    Args:\n        root_path: Filesystem root to search (must be inside evidence directory)\n\n    Returns:\n        Markdown table of history files with size and a brief suspiciousness hint.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "root_path": {
+                      "title": "Root Path",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "root_path"
+                  ],
+                  "title": "find_shell_historiesArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "find_shell_historiesOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "analyze_bash_history",
+                "description": "Parse a shell history file and flag suspicious commands or tampering.\n\n    Detects:\n    - Reverse shells (bash/nc/python one-liners)\n    - Credential access (cat /etc/shadow, ~/.ssh/id_rsa)\n    - Recon (whoami, id, netstat, find -perm -u=s)\n    - Anti-forensics (history -c, history file truncation, chattr)\n    - Obfuscated payloads (base64 -d, eval $(...))\n    - Firewall/logging service tampering\n    - References to world-writable dirs and persistence paths\n    - Tampering signals: empty file, suspiciously short content\n\n    Args:\n        path: Path to a shell history file inside the evidence directory\n\n    Returns:\n        Markdown report with flagged entries, timestamps (if present), and\n        tampering indicators.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "path": {
+                      "title": "Path",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ],
+                  "title": "analyze_bash_historyArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "analyze_bash_historyOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "stat_file",
+                "description": "Return structured filesystem metadata for a single file.\n\n    Provides the agent with typed access to timestamps (mtime, ctime, atime),\n    mode / permissions, owner (uid/gid), size, and file type. Use this when\n    reasoning about WHEN an artifact was created or modified — typically\n    after another tool has surfaced a path of interest.\n\n    Args:\n        path: Path inside the evidence directory\n\n    Returns:\n        Markdown-formatted metadata block.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "path": {
+                      "title": "Path",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ],
+                  "title": "stat_fileArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "stat_fileOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "find_recent_changes",
+                "description": "List files modified within a time window under a filesystem root.\n\n    Critical for reasoning about attack windows: \"between 14:45 (successful\n    login) and 15:00 (session end), what did the attacker modify?\"\n\n    Args:\n        root_path: Filesystem root to walk\n        since_iso: Lower bound (ISO 8601, e.g. \"2026-04-12T14:45:00+00:00\")\n        until_iso: Upper bound (ISO 8601)\n        limit: Cap the returned file list (default 200)\n\n    Returns:\n        Markdown listing of files with mtime in the window, sorted\n        chronologically.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "root_path": {
+                      "title": "Root Path",
+                      "type": "string"
+                    },
+                    "since_iso": {
+                      "title": "Since Iso",
+                      "type": "string"
+                    },
+                    "until_iso": {
+                      "title": "Until Iso",
+                      "type": "string"
+                    },
+                    "limit": {
+                      "default": 200,
+                      "title": "Limit",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "root_path",
+                    "since_iso",
+                    "until_iso"
+                  ],
+                  "title": "find_recent_changesArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "find_recent_changesOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "find_timestamp_anomalies",
+                "description": "Detect classic timestomping patterns across a filesystem tree.\n\n    Surfaces:\n    - Files where mtime > ctime (mtime can be set by the user; ctime\n      cannot be backdated without root+kernel tricks — so this often\n      indicates a deliberate mtime reset).\n    - Files with mtime in the future.\n    - Clusters of files with identical mtime+ctime to the second\n      (possible batch-touched artifacts).\n\n    Args:\n        root_path: Filesystem root to scan\n        limit: Cap each category of findings (default 100)\n\n    Returns:\n        Markdown report grouped by anomaly type.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "root_path": {
+                      "title": "Root Path",
+                      "type": "string"
+                    },
+                    "limit": {
+                      "default": 100,
+                      "title": "Limit",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "root_path"
+                  ],
+                  "title": "find_timestamp_anomaliesArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "find_timestamp_anomaliesOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "build_timeline",
+                "description": "Fuse events from every available artifact into one unified timeline.\n\n    Automatically discovers and parses: auth.log, journal.jsonl,\n    var/log/apt/history.log, var/log/dpkg.log, root/.pip/pip.log, any\n    access.log, and any .bash_history with HISTTIMEFORMAT timestamps —\n    wherever they exist under the evidence root. Optionally folds in\n    filesystem mtime events if a time window is provided.\n\n    Every event carries: timestamp, source, actor, action, short detail,\n    and provenance (file:line). The result is a chronologically sorted\n    markdown table the agent can use to reason about attack sequence,\n    correlate cross-source events, and spot gaps.\n\n    Args:\n        evidence_root: Root directory of the evidence case (under the\n            evidence dir)\n        fs_subpath: Subpath inside evidence_root for the filesystem\n            snapshot (default \"fs\")\n        since_iso: Optional ISO 8601 lower bound to include filesystem\n            mtime events\n        until_iso: Optional ISO 8601 upper bound\n        fallback_year: Year to attribute to syslog-style timestamps that\n            don't carry a year (default 2026)\n        max_events: Cap the timeline to keep output manageable\n\n    Returns:\n        Markdown table of unified events sorted by timestamp.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "evidence_root": {
+                      "title": "Evidence Root",
+                      "type": "string"
+                    },
+                    "fs_subpath": {
+                      "default": "fs",
+                      "title": "Fs Subpath",
+                      "type": "string"
+                    },
+                    "since_iso": {
+                      "default": "",
+                      "title": "Since Iso",
+                      "type": "string"
+                    },
+                    "until_iso": {
+                      "default": "",
+                      "title": "Until Iso",
+                      "type": "string"
+                    },
+                    "fallback_year": {
+                      "default": 2026,
+                      "title": "Fallback Year",
+                      "type": "integer"
+                    },
+                    "max_events": {
+                      "default": 500,
+                      "title": "Max Events",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "evidence_root"
+                  ],
+                  "title": "build_timelineArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "build_timelineOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "analyze_nginx_access",
+                "description": "Analyze an nginx/apache access log (Combined Log Format) for web attacks.\n\n    Detects: SQLi, LFI/path traversal, RCE / command injection, PHP stream\n    wrappers, base64-encoded payloads, known webshell filenames, scanner\n    user-agents, unusual HTTP methods, and POST-to-static-file patterns.\n    Correlates file uploads to executable extensions with subsequent GETs\n    that invoke them — the classic webshell-upload-then-execute chain.\n\n    Args:\n        path: Path to an access log inside the evidence directory\n        top_n_ips: Cap the per-IP attack summary (default 10)\n\n    Returns:\n        Markdown report with per-finding line numbers, top offending IPs,\n        webshell-upload chains, and a triage verdict.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "path": {
+                      "title": "Path",
+                      "type": "string"
+                    },
+                    "top_n_ips": {
+                      "default": 10,
+                      "title": "Top N Ips",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "path"
+                  ],
+                  "title": "analyze_nginx_accessArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "analyze_nginx_accessOutput",
+                  "type": "object"
+                }
+              },
+              {
+                "name": "find_webshells",
+                "description": "Scan common web roots under the filesystem root for webshell backdoors.\n\n    Searches /var/www, /srv/http, /srv/www, /usr/share/nginx, /opt/lampp/htdocs,\n    and every /home/*/public_html for files with executable extensions\n    (.php .phtml .asp .aspx .jsp .cgi .pl .py) and matches them against\n    classic webshell primitives:\n\n    - PHP: eval(request data), assert(request data), system/passthru/\n      shell_exec on request data, preg_replace /e, create_function,\n      eval of base64_decode / gzinflate payloads, dynamic include.\n    - JSP: Runtime.getRuntime().exec(), ProcessBuilder.\n    - ASP: WScript.Shell, Shell.Application.\n    - Perl/CGI: piped open.\n\n    Args:\n        root_path: Filesystem root to scan (must be inside evidence directory)\n\n    Returns:\n        Markdown listing of suspicious files with matched primitives and a\n        content sample.\n    ",
+                "input_schema": {
+                  "properties": {
+                    "root_path": {
+                      "title": "Root Path",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "root_path"
+                  ],
+                  "title": "find_webshellsArguments",
+                  "type": "object"
+                },
+                "output_schema": {
+                  "properties": {
+                    "result": {
+                      "title": "Result",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "result"
+                  ],
+                  "title": "find_webshellsOutput",
+                  "type": "object"
+                }
+              }
+            ]
+          },
+          "steps": [
+            {
+              "call": "build_timeline",
+              "args": {
+                "evidence_root": "/tmp/tmp5uybtz8o/evidence/case",
+                "since_iso": "2000-01-01T00:00:00Z",
+                "until_iso": "2100-01-01T00:00:00Z",
+                "max_events": 1000
+              },
+              "response": {
+                "text": "# Unified timeline — `/tmp/tmp5uybtz8o/evidence/case`\n\n- **Events:** 500\n- **Sources:** filesystem\n\n| Timestamp | Source | Actor | Action | Detail | Provenance |\n|-----------|--------|-------|--------|--------|------------|\n| 2026-11-27T06:51:47.043014+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f1 | fs:srv/cache/f1 |\n| 2026-11-27T06:51:47.043046+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f2 | fs:srv/cache/f2 |\n| 2026-11-27T06:51:47.043075+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f3 | fs:srv/cache/f3 |\n| 2026-11-27T06:51:47.043103+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f4 | fs:srv/cache/f4 |\n| 2026-11-27T06:51:47.043155+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f6 | fs:srv/cache/f6 |\n| 2026-11-27T06:51:47.043175+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f7 | fs:srv/cache/f7 |\n| 2026-11-27T06:51:47.043196+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f8 | fs:srv/cache/f8 |\n| 2026-11-27T06:51:47.043218+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f9 | fs:srv/cache/f9 |\n| 2026-11-27T06:51:47.043239+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f10 | fs:srv/cache/f10 |\n| 2026-11-27T06:51:47.043259+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f11 | fs:srv/cache/f11 |\n| 2026-11-27T06:51:47.043281+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f12 | fs:srv/cache/f12 |\n| 2026-11-27T06:51:47.043299+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f13 | fs:srv/cache/f13 |\n| 2026-11-27T06:51:47.043348+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f14 | fs:srv/cache/f14 |\n| 2026-11-27T06:51:47.043386+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f15 | fs:srv/cache/f15 |\n| 2026-11-27T06:51:47.043443+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f17 | fs:srv/cache/f17 |\n| 2026-11-27T06:51:47.043465+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f18 | fs:srv/cache/f18 |\n| 2026-11-27T06:51:47.043488+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f19 | fs:srv/cache/f19 |\n| 2026-11-27T06:51:47.043509+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f20 | fs:srv/cache/f20 |\n| 2026-11-27T06:51:47.043612+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f22 | fs:srv/cache/f22 |\n| 2026-11-27T06:51:47.043647+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f23 | fs:srv/cache/f23 |\n| 2026-11-27T06:51:47.043670+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f24 | fs:srv/cache/f24 |\n| 2026-11-27T06:51:47.043693+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f25 | fs:srv/cache/f25 |\n| 2026-11-27T06:51:47.043761+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f27 | fs:srv/cache/f27 |\n| 2026-11-27T06:51:47.043785+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f28 | fs:srv/cache/f28 |\n| 2026-11-27T06:51:47.043864+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f30 | fs:srv/cache/f30 |\n| 2026-11-27T06:51:47.043887+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f31 | fs:srv/cache/f31 |\n| 2026-11-27T06:51:47.043909+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f32 | fs:srv/cache/f32 |\n| 2026-11-27T06:51:47.043969+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f35 | fs:srv/cache/f35 |\n| 2026-11-27T06:51:47.043991+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f36 | fs:srv/cache/f36 |\n| 2026-11-27T06:51:47.044009+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f37 | fs:srv/cache/f37 |\n| 2026-11-27T06:51:47.044028+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f38 | fs:srv/cache/f38 |\n| 2026-11-27T06:51:47.044047+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f39 | fs:srv/cache/f39 |\n| 2026-11-27T06:51:47.044064+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f40 | fs:srv/cache/f40 |\n| 2026-11-27T06:51:47.044085+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f41 | fs:srv/cache/f41 |\n| 2026-11-27T06:51:47.044104+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f42 | fs:srv/cache/f42 |\n| 2026-11-27T06:51:47.044123+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f43 | fs:srv/cache/f43 |\n| 2026-11-27T06:51:47.044145+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f44 | fs:srv/cache/f44 |\n| 2026-11-27T06:51:47.044163+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f45 | fs:srv/cache/f45 |\n| 2026-11-27T06:51:47.044183+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f46 | fs:srv/cache/f46 |\n| 2026-11-27T06:51:47.044200+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f47 | fs:srv/cache/f47 |\n| 2026-11-27T06:51:47.044235+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f48 | fs:srv/cache/f48 |\n| 2026-11-27T06:51:47.044254+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f49 | fs:srv/cache/f49 |\n| 2026-11-27T06:51:47.044312+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f51 | fs:srv/cache/f51 |\n| 2026-11-27T06:51:47.044345+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f52 | fs:srv/cache/f52 |\n| 2026-11-27T06:51:47.044456+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f55 | fs:srv/cache/f55 |\n| 2026-11-27T06:51:47.044477+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f56 | fs:srv/cache/f56 |\n| 2026-11-27T06:51:47.044547+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f58 | fs:srv/cache/f58 |\n| 2026-11-27T06:51:47.044572+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f59 | fs:srv/cache/f59 |\n| 2026-11-27T06:51:47.044594+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f60 | fs:srv/cache/f60 |\n| 2026-11-27T06:51:47.044612+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f61 | fs:srv/cache/f61 |\n| 2026-11-27T06:51:47.044634+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f62 | fs:srv/cache/f62 |\n| 2026-11-27T06:51:47.044654+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f63 | fs:srv/cache/f63 |\n| 2026-11-27T06:51:47.044673+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f64 | fs:srv/cache/f64 |\n| 2026-11-27T06:51:47.044692+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f65 | fs:srv/cache/f65 |\n| 2026-11-27T06:51:47.044806+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f66 | fs:srv/cache/f66 |\n| 2026-11-27T06:51:47.044881+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f67 | fs:srv/cache/f67 |\n| 2026-11-27T06:51:47.044963+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f69 | fs:srv/cache/f69 |\n| 2026-11-27T06:51:47.044986+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f70 | fs:srv/cache/f70 |\n| 2026-11-27T06:51:47.045017+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f71 | fs:srv/cache/f71 |\n| 2026-11-27T06:51:47.045057+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f73 | fs:srv/cache/f73 |\n| 2026-11-27T06:51:47.045075+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f74 | fs:srv/cache/f74 |\n| 2026-11-27T06:51:47.045095+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f75 | fs:srv/cache/f75 |\n| 2026-11-27T06:51:47.045114+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f76 | fs:srv/cache/f76 |\n| 2026-11-27T06:51:47.045132+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f77 | fs:srv/cache/f77 |\n| 2026-11-27T06:51:47.045170+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f79 | fs:srv/cache/f79 |\n| 2026-11-27T06:51:47.045214+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f80 | fs:srv/cache/f80 |\n| 2026-11-27T06:51:47.045235+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f81 | fs:srv/cache/f81 |\n| 2026-11-27T06:51:47.045255+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f82 | fs:srv/cache/f82 |\n| 2026-11-27T06:51:47.045276+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f83 | fs:srv/cache/f83 |\n| 2026-11-27T06:51:47.045297+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f84 | fs:srv/cache/f84 |\n| 2026-11-27T06:51:47.045322+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f85 | fs:srv/cache/f85 |\n| 2026-11-27T06:51:47.045340+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f86 | fs:srv/cache/f86 |\n| 2026-11-27T06:51:47.045358+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f87 | fs:srv/cache/f87 |\n| 2026-11-27T06:51:47.045377+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f88 | fs:srv/cache/f88 |\n| 2026-11-27T06:51:47.045395+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f89 | fs:srv/cache/f89 |\n| 2026-11-27T06:51:47.045414+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f90 | fs:srv/cache/f90 |\n| 2026-11-27T06:51:47.045456+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f91 | fs:srv/cache/f91 |\n| 2026-11-27T06:51:47.045499+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f92 | fs:srv/cache/f92 |\n| 2026-11-27T06:51:47.045543+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f94 | fs:srv/cache/f94 |\n| 2026-11-27T06:51:47.045638+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f95 | fs:srv/cache/f95 |\n| 2026-11-27T06:51:47.045689+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f97 | fs:srv/cache/f97 |\n| 2026-11-27T06:51:47.045708+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f98 | fs:srv/cache/f98 |\n| 2026-11-27T06:51:47.045726+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f99 | fs:srv/cache/f99 |\n| 2026-11-27T06:51:47.045746+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f100 | fs:srv/cache/f100 |\n| 2026-11-27T06:51:47.045764+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f101 | fs:srv/cache/f101 |\n| 2026-11-27T06:51:47.045783+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f102 | fs:srv/cache/f102 |\n| 2026-11-27T06:51:47.045808+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f103 | fs:srv/cache/f103 |\n| 2026-11-27T06:51:47.045827+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f104 | fs:srv/cache/f104 |\n| 2026-11-27T06:51:47.045845+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f105 | fs:srv/cache/f105 |\n| 2026-11-27T06:51:47.045883+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f107 | fs:srv/cache/f107 |\n| 2026-11-27T06:51:47.045944+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f108 | fs:srv/cache/f108 |\n| 2026-11-27T06:51:47.045974+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f109 | fs:srv/cache/f109 |\n| 2026-11-27T06:51:47.045995+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f110 | fs:srv/cache/f110 |\n| 2026-11-27T06:51:47.046037+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f111 | fs:srv/cache/f111 |\n| 2026-11-27T06:51:47.046060+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f112 | fs:srv/cache/f112 |\n| 2026-11-27T06:51:47.046080+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f113 | fs:srv/cache/f113 |\n| 2026-11-27T06:51:47.046099+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f114 | fs:srv/cache/f114 |\n| 2026-11-27T06:51:47.046117+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f115 | fs:srv/cache/f115 |\n| 2026-11-27T06:51:47.046160+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f116 | fs:srv/cache/f116 |\n| 2026-11-27T06:51:47.046248+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f119 | fs:srv/cache/f119 |\n| 2026-11-27T06:51:47.046271+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f120 | fs:srv/cache/f120 |\n| 2026-11-27T06:51:47.046293+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f121 | fs:srv/cache/f121 |\n| 2026-11-27T06:51:47.046327+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f122 | fs:srv/cache/f122 |\n| 2026-11-27T06:51:47.046353+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f123 | fs:srv/cache/f123 |\n| 2026-11-27T06:51:47.046479+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f125 | fs:srv/cache/f125 |\n| 2026-11-27T06:51:47.046501+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f126 | fs:srv/cache/f126 |\n| 2026-11-27T06:51:47.046522+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f127 | fs:srv/cache/f127 |\n| 2026-11-27T06:51:47.046540+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f128 | fs:srv/cache/f128 |\n| 2026-11-27T06:51:47.046560+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f129 | fs:srv/cache/f129 |\n| 2026-11-27T06:51:47.046578+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f130 | fs:srv/cache/f130 |\n| 2026-11-27T06:51:47.046619+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f131 | fs:srv/cache/f131 |\n| 2026-11-27T06:51:47.046660+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f133 | fs:srv/cache/f133 |\n| 2026-11-27T06:51:47.046728+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f135 | fs:srv/cache/f135 |\n| 2026-11-27T06:51:47.046772+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f136 | fs:srv/cache/f136 |\n| 2026-11-27T06:51:47.046803+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f137 | fs:srv/cache/f137 |\n| 2026-11-27T06:51:47.046825+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f138 | fs:srv/cache/f138 |\n| 2026-11-27T06:51:47.046865+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f140 | fs:srv/cache/f140 |\n| 2026-11-27T06:51:47.046884+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f141 | fs:srv/cache/f141 |\n| 2026-11-27T06:51:47.046904+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f142 | fs:srv/cache/f142 |\n| 2026-11-27T06:51:47.046972+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f143 | fs:srv/cache/f143 |\n| 2026-11-27T06:51:47.047001+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f144 | fs:srv/cache/f144 |\n| 2026-11-27T06:51:47.047071+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f146 | fs:srv/cache/f146 |\n| 2026-11-27T06:51:47.047091+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f147 | fs:srv/cache/f147 |\n| 2026-11-27T06:51:47.047125+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f148 | fs:srv/cache/f148 |\n| 2026-11-27T06:51:47.047155+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f149 | fs:srv/cache/f149 |\n| 2026-11-27T06:51:47.047179+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f150 | fs:srv/cache/f150 |\n| 2026-11-27T06:51:47.047199+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f151 | fs:srv/cache/f151 |\n| 2026-11-27T06:51:47.047219+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f152 | fs:srv/cache/f152 |\n| 2026-11-27T06:51:47.047320+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f153 | fs:srv/cache/f153 |\n| 2026-11-27T06:51:47.047351+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f154 | fs:srv/cache/f154 |\n| 2026-11-27T06:51:47.047394+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f155 | fs:srv/cache/f155 |\n| 2026-11-27T06:51:47.047415+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f156 | fs:srv/cache/f156 |\n| 2026-11-27T06:51:47.047436+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f157 | fs:srv/cache/f157 |\n| 2026-11-27T06:51:47.047455+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f158 | fs:srv/cache/f158 |\n| 2026-11-27T06:51:47.047473+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f159 | fs:srv/cache/f159 |\n| 2026-11-27T06:51:47.047492+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f160 | fs:srv/cache/f160 |\n| 2026-11-27T06:51:47.047509+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f161 | fs:srv/cache/f161 |\n| 2026-11-27T06:51:47.047529+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f162 | fs:srv/cache/f162 |\n| 2026-11-27T06:51:47.047549+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f163 | fs:srv/cache/f163 |\n| 2026-11-27T06:51:47.047613+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f165 | fs:srv/cache/f165 |\n| 2026-11-27T06:51:47.047655+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f167 | fs:srv/cache/f167 |\n| 2026-11-27T06:51:47.047675+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f168 | fs:srv/cache/f168 |\n| 2026-11-27T06:51:47.047696+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f169 | fs:srv/cache/f169 |\n| 2026-11-27T06:51:47.047735+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f171 | fs:srv/cache/f171 |\n| 2026-11-27T06:51:47.047754+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f172 | fs:srv/cache/f172 |\n| 2026-11-27T06:51:47.047772+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f173 | fs:srv/cache/f173 |\n| 2026-11-27T06:51:47.047791+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f174 | fs:srv/cache/f174 |\n| 2026-11-27T06:51:47.047809+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f175 | fs:srv/cache/f175 |\n| 2026-11-27T06:51:47.047837+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f176 | fs:srv/cache/f176 |\n| 2026-11-27T06:51:47.047854+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f177 | fs:srv/cache/f177 |\n| 2026-11-27T06:51:47.047892+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f179 | fs:srv/cache/f179 |\n| 2026-11-27T06:51:47.048060+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f182 | fs:srv/cache/f182 |\n| 2026-11-27T06:51:47.048091+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f183 | fs:srv/cache/f183 |\n| 2026-11-27T06:51:47.048137+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f184 | fs:srv/cache/f184 |\n| 2026-11-27T06:51:47.048168+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f185 | fs:srv/cache/f185 |\n| 2026-11-27T06:51:47.048263+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f188 | fs:srv/cache/f188 |\n| 2026-11-27T06:51:47.048332+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f190 | fs:srv/cache/f190 |\n| 2026-11-27T06:51:47.048368+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f191 | fs:srv/cache/f191 |\n| 2026-11-27T06:51:47.048391+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f192 | fs:srv/cache/f192 |\n| 2026-11-27T06:51:47.048411+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f193 | fs:srv/cache/f193 |\n| 2026-11-27T06:51:47.048431+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f194 | fs:srv/cache/f194 |\n| 2026-11-27T06:51:47.048450+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f195 | fs:srv/cache/f195 |\n| 2026-11-27T06:51:47.048470+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f196 | fs:srv/cache/f196 |\n| 2026-11-27T06:51:47.048489+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f197 | fs:srv/cache/f197 |\n| 2026-11-27T06:51:47.048508+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f198 | fs:srv/cache/f198 |\n| 2026-11-27T06:51:47.048529+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f199 | fs:srv/cache/f199 |\n| 2026-11-27T06:51:47.048573+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f200 | fs:srv/cache/f200 |\n| 2026-11-27T06:51:47.048595+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f201 | fs:srv/cache/f201 |\n| 2026-11-27T06:51:47.048619+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f202 | fs:srv/cache/f202 |\n| 2026-11-27T06:51:47.048639+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f203 | fs:srv/cache/f203 |\n| 2026-11-27T06:51:47.048659+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f204 | fs:srv/cache/f204 |\n| 2026-11-27T06:51:47.048677+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f205 | fs:srv/cache/f205 |\n| 2026-11-27T06:51:47.048697+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f206 | fs:srv/cache/f206 |\n| 2026-11-27T06:51:47.048716+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f207 | fs:srv/cache/f207 |\n| 2026-11-27T06:51:47.048735+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f208 | fs:srv/cache/f208 |\n| 2026-11-27T06:51:47.048754+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f209 | fs:srv/cache/f209 |\n| 2026-11-27T06:51:47.048882+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f211 | fs:srv/cache/f211 |\n| 2026-11-27T06:51:47.048919+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f212 | fs:srv/cache/f212 |\n| 2026-11-27T06:51:47.048944+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f213 | fs:srv/cache/f213 |\n| 2026-11-27T06:51:47.048985+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f215 | fs:srv/cache/f215 |\n| 2026-11-27T06:51:47.049006+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f216 | fs:srv/cache/f216 |\n| 2026-11-27T06:51:47.049054+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f218 | fs:srv/cache/f218 |\n| 2026-11-27T06:51:47.049078+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f219 | fs:srv/cache/f219 |\n| 2026-11-27T06:51:47.049097+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f220 | fs:srv/cache/f220 |\n| 2026-11-27T06:51:47.049116+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f221 | fs:srv/cache/f221 |\n| 2026-11-27T06:51:47.049141+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f222 | fs:srv/cache/f222 |\n| 2026-11-27T06:51:47.049160+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f223 | fs:srv/cache/f223 |\n| 2026-11-27T06:51:47.049181+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f224 | fs:srv/cache/f224 |\n| 2026-11-27T06:51:47.049199+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f225 | fs:srv/cache/f225 |\n| 2026-11-27T06:51:47.049221+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f226 | fs:srv/cache/f226 |\n| 2026-11-27T06:51:47.049267+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f227 | fs:srv/cache/f227 |\n| 2026-11-27T06:51:47.049290+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f228 | fs:srv/cache/f228 |\n| 2026-11-27T06:51:47.049311+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f229 | fs:srv/cache/f229 |\n| 2026-11-27T06:51:47.049363+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f230 | fs:srv/cache/f230 |\n| 2026-11-27T06:51:47.049386+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f231 | fs:srv/cache/f231 |\n| 2026-11-27T06:51:47.049407+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f232 | fs:srv/cache/f232 |\n| 2026-11-27T06:51:47.049452+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f233 | fs:srv/cache/f233 |\n| 2026-11-27T06:51:47.049474+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f234 | fs:srv/cache/f234 |\n| 2026-11-27T06:51:47.049514+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f236 | fs:srv/cache/f236 |\n| 2026-11-27T06:51:47.049533+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f237 | fs:srv/cache/f237 |\n| 2026-11-27T06:51:47.049551+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f238 | fs:srv/cache/f238 |\n| 2026-11-27T06:51:47.049589+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f239 | fs:srv/cache/f239 |\n| 2026-11-27T06:51:47.049690+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f240 | fs:srv/cache/f240 |\n| 2026-11-27T06:51:47.049764+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f243 | fs:srv/cache/f243 |\n| 2026-11-27T06:51:47.049785+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f244 | fs:srv/cache/f244 |\n| 2026-11-27T06:51:47.049805+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f245 | fs:srv/cache/f245 |\n| 2026-11-27T06:51:47.049824+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f246 | fs:srv/cache/f246 |\n| 2026-11-27T06:51:47.049845+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f247 | fs:srv/cache/f247 |\n| 2026-11-27T06:51:47.049868+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f248 | fs:srv/cache/f248 |\n| 2026-11-27T06:51:47.049905+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f250 | fs:srv/cache/f250 |\n| 2026-11-27T06:51:47.049924+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f251 | fs:srv/cache/f251 |\n| 2026-11-27T06:51:47.049943+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f252 | fs:srv/cache/f252 |\n| 2026-11-27T06:51:47.050002+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f255 | fs:srv/cache/f255 |\n| 2026-11-27T06:51:47.050023+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f256 | fs:srv/cache/f256 |\n| 2026-11-27T06:51:47.050042+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f257 | fs:srv/cache/f257 |\n| 2026-11-27T06:51:47.050062+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f258 | fs:srv/cache/f258 |\n| 2026-11-27T06:51:47.050101+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f260 | fs:srv/cache/f260 |\n| 2026-11-27T06:51:47.050121+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f261 | fs:srv/cache/f261 |\n| 2026-11-27T06:51:47.050140+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f262 | fs:srv/cache/f262 |\n| 2026-11-27T06:51:47.050164+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f263 | fs:srv/cache/f263 |\n| 2026-11-27T06:51:47.050184+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f264 | fs:srv/cache/f264 |\n| 2026-11-27T06:51:47.050223+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f266 | fs:srv/cache/f266 |\n| 2026-11-27T06:51:47.050241+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f267 | fs:srv/cache/f267 |\n| 2026-11-27T06:51:47.050261+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f268 | fs:srv/cache/f268 |\n| 2026-11-27T06:51:47.050383+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f269 | fs:srv/cache/f269 |\n| 2026-11-27T06:51:47.050416+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f270 | fs:srv/cache/f270 |\n| 2026-11-27T06:51:47.050440+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f271 | fs:srv/cache/f271 |\n| 2026-11-27T06:51:47.050481+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f273 | fs:srv/cache/f273 |\n| 2026-11-27T06:51:47.050501+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f274 | fs:srv/cache/f274 |\n| 2026-11-27T06:51:47.050522+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f275 | fs:srv/cache/f275 |\n| 2026-11-27T06:51:47.050543+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f276 | fs:srv/cache/f276 |\n| 2026-11-27T06:51:47.050562+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f277 | fs:srv/cache/f277 |\n| 2026-11-27T06:51:47.050607+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f278 | fs:srv/cache/f278 |\n| 2026-11-27T06:51:47.050651+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f279 | fs:srv/cache/f279 |\n| 2026-11-27T06:51:47.050693+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f280 | fs:srv/cache/f280 |\n| 2026-11-27T06:51:47.050716+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f281 | fs:srv/cache/f281 |\n| 2026-11-27T06:51:47.050740+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f282 | fs:srv/cache/f282 |\n| 2026-11-27T06:51:47.050785+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f283 | fs:srv/cache/f283 |\n| 2026-11-27T06:51:47.050830+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f284 | fs:srv/cache/f284 |\n| 2026-11-27T06:51:47.050854+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f285 | fs:srv/cache/f285 |\n| 2026-11-27T06:51:47.050876+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f286 | fs:srv/cache/f286 |\n| 2026-11-27T06:51:47.050920+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f288 | fs:srv/cache/f288 |\n| 2026-11-27T06:51:47.050961+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f290 | fs:srv/cache/f290 |\n| 2026-11-27T06:51:47.050981+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f291 | fs:srv/cache/f291 |\n| 2026-11-27T06:51:47.051023+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f293 | fs:srv/cache/f293 |\n| 2026-11-27T06:51:47.051062+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f295 | fs:srv/cache/f295 |\n| 2026-11-27T06:51:47.051081+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f296 | fs:srv/cache/f296 |\n| 2026-11-27T06:51:47.051101+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f297 | fs:srv/cache/f297 |\n| 2026-11-27T06:51:47.051198+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f298 | fs:srv/cache/f298 |\n| 2026-11-27T06:51:47.051231+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f299 | fs:srv/cache/f299 |\n| 2026-11-27T06:51:47.051278+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f300 | fs:srv/cache/f300 |\n| 2026-11-27T06:51:47.051303+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f301 | fs:srv/cache/f301 |\n| 2026-11-27T06:51:47.051340+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f302 | fs:srv/cache/f302 |\n| 2026-11-27T06:51:47.051373+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f303 | fs:srv/cache/f303 |\n| 2026-11-27T06:51:47.051397+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f304 | fs:srv/cache/f304 |\n| 2026-11-27T06:51:47.051421+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f305 | fs:srv/cache/f305 |\n| 2026-11-27T06:51:47.051441+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f306 | fs:srv/cache/f306 |\n| 2026-11-27T06:51:47.051461+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f307 | fs:srv/cache/f307 |\n| 2026-11-27T06:51:47.051498+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f308 | fs:srv/cache/f308 |\n| 2026-11-27T06:51:47.051559+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f310 | fs:srv/cache/f310 |\n| 2026-11-27T06:51:47.051602+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f312 | fs:srv/cache/f312 |\n| 2026-11-27T06:51:47.051621+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f313 | fs:srv/cache/f313 |\n| 2026-11-27T06:51:47.051641+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f314 | fs:srv/cache/f314 |\n| 2026-11-27T06:51:47.051660+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f315 | fs:srv/cache/f315 |\n| 2026-11-27T06:51:47.051701+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f317 | fs:srv/cache/f317 |\n| 2026-11-27T06:51:47.051722+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f318 | fs:srv/cache/f318 |\n| 2026-11-27T06:51:47.051760+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f320 | fs:srv/cache/f320 |\n| 2026-11-27T06:51:47.051780+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f321 | fs:srv/cache/f321 |\n| 2026-11-27T06:51:47.051799+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f322 | fs:srv/cache/f322 |\n| 2026-11-27T06:51:47.051818+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f323 | fs:srv/cache/f323 |\n| 2026-11-27T06:51:47.051852+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f324 | fs:srv/cache/f324 |\n| 2026-11-27T06:51:47.051883+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f325 | fs:srv/cache/f325 |\n| 2026-11-27T06:51:47.051907+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f326 | fs:srv/cache/f326 |\n| 2026-11-27T06:51:47.052011+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f327 | fs:srv/cache/f327 |\n| 2026-11-27T06:51:47.052049+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f328 | fs:srv/cache/f328 |\n| 2026-11-27T06:51:47.052072+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f329 | fs:srv/cache/f329 |\n| 2026-11-27T06:51:47.052094+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f330 | fs:srv/cache/f330 |\n| 2026-11-27T06:51:47.052114+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f331 | fs:srv/cache/f331 |\n| 2026-11-27T06:51:47.052137+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f332 | fs:srv/cache/f332 |\n| 2026-11-27T06:51:47.052157+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f333 | fs:srv/cache/f333 |\n| 2026-11-27T06:51:47.052235+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f335 | fs:srv/cache/f335 |\n| 2026-11-27T06:51:47.052268+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f336 | fs:srv/cache/f336 |\n| 2026-11-27T06:51:47.052294+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f337 | fs:srv/cache/f337 |\n| 2026-11-27T06:51:47.052513+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f338 | fs:srv/cache/f338 |\n| 2026-11-27T06:51:47.052560+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f340 | fs:srv/cache/f340 |\n| 2026-11-27T06:51:47.052582+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f341 | fs:srv/cache/f341 |\n| 2026-11-27T06:51:47.052642+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f344 | fs:srv/cache/f344 |\n| 2026-11-27T06:51:47.052663+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f345 | fs:srv/cache/f345 |\n| 2026-11-27T06:51:47.052708+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f346 | fs:srv/cache/f346 |\n| 2026-11-27T06:51:47.052751+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f347 | fs:srv/cache/f347 |\n| 2026-11-27T06:51:47.052788+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f348 | fs:srv/cache/f348 |\n| 2026-11-27T06:51:47.052813+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f349 | fs:srv/cache/f349 |\n| 2026-11-27T06:51:47.052855+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f351 | fs:srv/cache/f351 |\n| 2026-11-27T06:51:47.052910+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f352 | fs:srv/cache/f352 |\n| 2026-11-27T06:51:47.052937+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f353 | fs:srv/cache/f353 |\n| 2026-11-27T06:51:47.052959+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f354 | fs:srv/cache/f354 |\n| 2026-11-27T06:51:47.053085+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f356 | fs:srv/cache/f356 |\n| 2026-11-27T06:51:47.053116+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f357 | fs:srv/cache/f357 |\n| 2026-11-27T06:51:47.053139+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f358 | fs:srv/cache/f358 |\n| 2026-11-27T06:51:47.053160+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f359 | fs:srv/cache/f359 |\n| 2026-11-27T06:51:47.053199+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f361 | fs:srv/cache/f361 |\n| 2026-11-27T06:51:47.053246+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f362 | fs:srv/cache/f362 |\n| 2026-11-27T06:51:47.053291+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f364 | fs:srv/cache/f364 |\n| 2026-11-27T06:51:47.053376+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f365 | fs:srv/cache/f365 |\n| 2026-11-27T06:51:47.053402+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f366 | fs:srv/cache/f366 |\n| 2026-11-27T06:51:47.053423+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f367 | fs:srv/cache/f367 |\n| 2026-11-27T06:51:47.053444+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f368 | fs:srv/cache/f368 |\n| 2026-11-27T06:51:47.053464+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f369 | fs:srv/cache/f369 |\n| 2026-11-27T06:51:47.053501+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f371 | fs:srv/cache/f371 |\n| 2026-11-27T06:51:47.053542+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f373 | fs:srv/cache/f373 |\n| 2026-11-27T06:51:47.053580+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f375 | fs:srv/cache/f375 |\n| 2026-11-27T06:51:47.053600+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f376 | fs:srv/cache/f376 |\n| 2026-11-27T06:51:47.053619+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f377 | fs:srv/cache/f377 |\n| 2026-11-27T06:51:47.053640+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f378 | fs:srv/cache/f378 |\n| 2026-11-27T06:51:47.053660+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f379 | fs:srv/cache/f379 |\n| 2026-11-27T06:51:47.053680+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f380 | fs:srv/cache/f380 |\n| 2026-11-27T06:51:47.053699+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f381 | fs:srv/cache/f381 |\n| 2026-11-27T06:51:47.053718+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f382 | fs:srv/cache/f382 |\n| 2026-11-27T06:51:47.053757+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f384 | fs:srv/cache/f384 |\n| 2026-11-27T06:51:47.053854+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f385 | fs:srv/cache/f385 |\n| 2026-11-27T06:51:47.053901+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f386 | fs:srv/cache/f386 |\n| 2026-11-27T06:51:47.053926+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f387 | fs:srv/cache/f387 |\n| 2026-11-27T06:51:47.053947+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f388 | fs:srv/cache/f388 |\n| 2026-11-27T06:51:47.053967+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f389 | fs:srv/cache/f389 |\n| 2026-11-27T06:51:47.053986+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f390 | fs:srv/cache/f390 |\n| 2026-11-27T06:51:47.054010+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f391 | fs:srv/cache/f391 |\n| 2026-11-27T06:51:47.054034+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f392 | fs:srv/cache/f392 |\n| 2026-11-27T06:51:47.054054+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f393 | fs:srv/cache/f393 |\n| 2026-11-27T06:51:47.054075+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f394 | fs:srv/cache/f394 |\n| 2026-11-27T06:51:47.054095+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f395 | fs:srv/cache/f395 |\n| 2026-11-27T06:51:47.054113+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f396 | fs:srv/cache/f396 |\n| 2026-11-27T06:51:47.054132+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f397 | fs:srv/cache/f397 |\n| 2026-11-27T06:51:47.054152+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f398 | fs:srv/cache/f398 |\n| 2026-11-27T06:51:47.054171+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f399 | fs:srv/cache/f399 |\n| 2026-11-27T06:51:47.054190+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f400 | fs:srv/cache/f400 |\n| 2026-11-27T06:51:47.054255+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f402 | fs:srv/cache/f402 |\n| 2026-11-27T06:51:47.054278+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f403 | fs:srv/cache/f403 |\n| 2026-11-27T06:51:47.054300+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f404 | fs:srv/cache/f404 |\n| 2026-11-27T06:51:47.054318+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f405 | fs:srv/cache/f405 |\n| 2026-11-27T06:51:47.054358+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f407 | fs:srv/cache/f407 |\n| 2026-11-27T06:51:47.054377+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f408 | fs:srv/cache/f408 |\n| 2026-11-27T06:51:47.054397+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f409 | fs:srv/cache/f409 |\n| 2026-11-27T06:51:47.054417+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f410 | fs:srv/cache/f410 |\n| 2026-11-27T06:51:47.054437+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f411 | fs:srv/cache/f411 |\n| 2026-11-27T06:51:47.054456+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f412 | fs:srv/cache/f412 |\n| 2026-11-27T06:51:47.054479+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f413 | fs:srv/cache/f413 |\n| 2026-11-27T06:51:47.054502+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f414 | fs:srv/cache/f414 |\n| 2026-11-27T06:51:47.054560+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f417 | fs:srv/cache/f417 |\n| 2026-11-27T06:51:47.054599+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f419 | fs:srv/cache/f419 |\n| 2026-11-27T06:51:47.054619+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f420 | fs:srv/cache/f420 |\n| 2026-11-27T06:51:47.054639+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f421 | fs:srv/cache/f421 |\n| 2026-11-27T06:51:47.054659+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f422 | fs:srv/cache/f422 |\n| 2026-11-27T06:51:47.054679+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f423 | fs:srv/cache/f423 |\n| 2026-11-27T06:51:47.054699+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f424 | fs:srv/cache/f424 |\n| 2026-11-27T06:51:47.054724+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f425 | fs:srv/cache/f425 |\n| 2026-11-27T06:51:47.054767+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f427 | fs:srv/cache/f427 |\n| 2026-11-27T06:51:47.054787+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f428 | fs:srv/cache/f428 |\n| 2026-11-27T06:51:47.054807+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f429 | fs:srv/cache/f429 |\n| 2026-11-27T06:51:47.054848+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f431 | fs:srv/cache/f431 |\n| 2026-11-27T06:51:47.054868+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f432 | fs:srv/cache/f432 |\n| 2026-11-27T06:51:47.054888+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f433 | fs:srv/cache/f433 |\n| 2026-11-27T06:51:47.054909+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f434 | fs:srv/cache/f434 |\n| 2026-11-27T06:51:47.054929+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f435 | fs:srv/cache/f435 |\n| 2026-11-27T06:51:47.054950+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f436 | fs:srv/cache/f436 |\n| 2026-11-27T06:51:47.055003+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f437 | fs:srv/cache/f437 |\n| 2026-11-27T06:51:47.055049+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f439 | fs:srv/cache/f439 |\n| 2026-11-27T06:51:47.055071+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f440 | fs:srv/cache/f440 |\n| 2026-11-27T06:51:47.055091+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f441 | fs:srv/cache/f441 |\n| 2026-11-27T06:51:47.055109+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f442 | fs:srv/cache/f442 |\n| 2026-11-27T06:51:47.055136+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f443 | fs:srv/cache/f443 |\n| 2026-11-27T06:51:47.055155+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f444 | fs:srv/cache/f444 |\n| 2026-11-27T06:51:47.055175+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f445 | fs:srv/cache/f445 |\n| 2026-11-27T06:51:47.055194+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f446 | fs:srv/cache/f446 |\n| 2026-11-27T06:51:47.055212+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f447 | fs:srv/cache/f447 |\n| 2026-11-27T06:51:47.055234+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f448 | fs:srv/cache/f448 |\n| 2026-11-27T06:51:47.055254+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f449 | fs:srv/cache/f449 |\n| 2026-11-27T06:51:47.055275+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f450 | fs:srv/cache/f450 |\n| 2026-11-27T06:51:47.055295+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f451 | fs:srv/cache/f451 |\n| 2026-11-27T06:51:47.055321+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f452 | fs:srv/cache/f452 |\n| 2026-11-27T06:51:47.055391+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f454 | fs:srv/cache/f454 |\n| 2026-11-27T06:51:47.055415+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f455 | fs:srv/cache/f455 |\n| 2026-11-27T06:51:47.055457+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f457 | fs:srv/cache/f457 |\n| 2026-11-27T06:51:47.055476+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f458 | fs:srv/cache/f458 |\n| 2026-11-27T06:51:47.055496+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f459 | fs:srv/cache/f459 |\n| 2026-11-27T06:51:47.055516+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f460 | fs:srv/cache/f460 |\n| 2026-11-27T06:51:47.055536+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f461 | fs:srv/cache/f461 |\n| 2026-11-27T06:51:47.055555+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f462 | fs:srv/cache/f462 |\n| 2026-11-27T06:51:47.055574+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f463 | fs:srv/cache/f463 |\n| 2026-11-27T06:51:47.055593+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f464 | fs:srv/cache/f464 |\n| 2026-11-27T06:51:47.055674+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f466 | fs:srv/cache/f466 |\n| 2026-11-27T06:51:47.055695+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f467 | fs:srv/cache/f467 |\n| 2026-11-27T06:51:47.055717+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f468 | fs:srv/cache/f468 |\n| 2026-11-27T06:51:47.055739+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f469 | fs:srv/cache/f469 |\n| 2026-11-27T06:51:47.055764+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f470 | fs:srv/cache/f470 |\n| 2026-11-27T06:51:47.055793+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f471 | fs:srv/cache/f471 |\n| 2026-11-27T06:51:47.055821+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f472 | fs:srv/cache/f472 |\n| 2026-11-27T06:51:47.055882+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f475 | fs:srv/cache/f475 |\n| 2026-11-27T06:51:47.055901+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f476 | fs:srv/cache/f476 |\n| 2026-11-27T06:51:47.055921+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f477 | fs:srv/cache/f477 |\n| 2026-11-27T06:51:47.055939+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f478 | fs:srv/cache/f478 |\n| 2026-11-27T06:51:47.055988+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f479 | fs:srv/cache/f479 |\n| 2026-11-27T06:51:47.056015+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f480 | fs:srv/cache/f480 |\n| 2026-11-27T06:51:47.056036+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f481 | fs:srv/cache/f481 |\n| 2026-11-27T06:51:47.056058+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f482 | fs:srv/cache/f482 |\n| 2026-11-27T06:51:47.056100+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f484 | fs:srv/cache/f484 |\n| 2026-11-27T06:51:47.056161+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f487 | fs:srv/cache/f487 |\n| 2026-11-27T06:51:47.056266+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f488 | fs:srv/cache/f488 |\n| 2026-11-27T06:51:47.056294+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f489 | fs:srv/cache/f489 |\n| 2026-11-27T06:51:47.056318+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f490 | fs:srv/cache/f490 |\n| 2026-11-27T06:51:47.056363+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f492 | fs:srv/cache/f492 |\n| 2026-11-27T06:51:47.056383+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f493 | fs:srv/cache/f493 |\n| 2026-11-27T06:51:47.056402+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f494 | fs:srv/cache/f494 |\n| 2026-11-27T06:51:47.056423+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f495 | fs:srv/cache/f495 |\n| 2026-11-27T06:51:47.056447+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f496 | fs:srv/cache/f496 |\n| 2026-11-27T06:51:47.056488+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f498 | fs:srv/cache/f498 |\n| 2026-11-27T06:51:47.056551+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f501 | fs:srv/cache/f501 |\n| 2026-11-27T06:51:47.056577+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f502 | fs:srv/cache/f502 |\n| 2026-11-27T06:51:47.056598+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f503 | fs:srv/cache/f503 |\n| 2026-11-27T06:51:47.056619+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f504 | fs:srv/cache/f504 |\n| 2026-11-27T06:51:47.056660+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f506 | fs:srv/cache/f506 |\n| 2026-11-27T06:51:47.056679+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f507 | fs:srv/cache/f507 |\n| 2026-11-27T06:51:47.056699+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f508 | fs:srv/cache/f508 |\n| 2026-11-27T06:51:47.056719+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f509 | fs:srv/cache/f509 |\n| 2026-11-27T06:51:47.056740+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f510 | fs:srv/cache/f510 |\n| 2026-11-27T06:51:47.056759+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f511 | fs:srv/cache/f511 |\n| 2026-11-27T06:51:47.056779+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f512 | fs:srv/cache/f512 |\n| 2026-11-27T06:51:47.056799+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f513 | fs:srv/cache/f513 |\n| 2026-11-27T06:51:47.056820+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f514 | fs:srv/cache/f514 |\n| 2026-11-27T06:51:47.056840+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f515 | fs:srv/cache/f515 |\n| 2026-11-27T06:51:47.056860+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f516 | fs:srv/cache/f516 |\n| 2026-11-27T06:51:47.056881+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f517 | fs:srv/cache/f517 |\n| 2026-11-27T06:51:47.056901+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f518 | fs:srv/cache/f518 |\n| 2026-11-27T06:51:47.056920+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f519 | fs:srv/cache/f519 |\n| 2026-11-27T06:51:47.056941+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f520 | fs:srv/cache/f520 |\n| 2026-11-27T06:51:47.056961+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f521 | fs:srv/cache/f521 |\n| 2026-11-27T06:51:47.056987+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f522 | fs:srv/cache/f522 |\n| 2026-11-27T06:51:47.057011+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f523 | fs:srv/cache/f523 |\n| 2026-11-27T06:51:47.057051+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f525 | fs:srv/cache/f525 |\n| 2026-11-27T06:51:47.057112+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f527 | fs:srv/cache/f527 |\n| 2026-11-27T06:51:47.057146+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f528 | fs:srv/cache/f528 |\n| 2026-11-27T06:51:47.057170+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f529 | fs:srv/cache/f529 |\n| 2026-11-27T06:51:47.057192+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f530 | fs:srv/cache/f530 |\n| 2026-11-27T06:51:47.057217+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f531 | fs:srv/cache/f531 |\n| 2026-11-27T06:51:47.057243+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f532 | fs:srv/cache/f532 |\n| 2026-11-27T06:51:47.057265+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f533 | fs:srv/cache/f533 |\n| 2026-11-27T06:51:47.057307+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f535 | fs:srv/cache/f535 |\n| 2026-11-27T06:51:47.057327+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f536 | fs:srv/cache/f536 |\n| 2026-11-27T06:51:47.057360+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f537 | fs:srv/cache/f537 |\n| 2026-11-27T06:51:47.057443+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f539 | fs:srv/cache/f539 |\n| 2026-11-27T06:51:47.057466+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f540 | fs:srv/cache/f540 |\n| 2026-11-27T06:51:47.057511+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f542 | fs:srv/cache/f542 |\n| 2026-11-27T06:51:47.057532+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f543 | fs:srv/cache/f543 |\n| 2026-11-27T06:51:47.057554+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f544 | fs:srv/cache/f544 |\n| 2026-11-27T06:51:47.057574+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f545 | fs:srv/cache/f545 |\n| 2026-11-27T06:51:47.057594+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f546 | fs:srv/cache/f546 |\n| 2026-11-27T06:51:47.057615+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f547 | fs:srv/cache/f547 |\n| 2026-11-27T06:51:47.057636+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f548 | fs:srv/cache/f548 |\n| 2026-11-27T06:51:47.057657+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f549 | fs:srv/cache/f549 |\n| 2026-11-27T06:51:47.057679+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f550 | fs:srv/cache/f550 |\n| 2026-11-27T06:51:47.057722+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f552 | fs:srv/cache/f552 |\n| 2026-11-27T06:51:47.057743+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f553 | fs:srv/cache/f553 |\n| 2026-11-27T06:51:47.057776+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f554 | fs:srv/cache/f554 |\n| 2026-11-27T06:51:47.057804+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f555 | fs:srv/cache/f555 |\n| 2026-11-27T06:51:47.057827+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f556 | fs:srv/cache/f556 |\n| 2026-11-27T06:51:47.057857+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f557 | fs:srv/cache/f557 |\n| 2026-11-27T06:51:47.057887+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f558 | fs:srv/cache/f558 |\n| 2026-11-27T06:51:47.057908+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f559 | fs:srv/cache/f559 |\n| 2026-11-27T06:51:47.057933+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f560 | fs:srv/cache/f560 |\n| 2026-11-27T06:51:47.057953+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f561 | fs:srv/cache/f561 |\n| 2026-11-27T06:51:47.057993+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f563 | fs:srv/cache/f563 |\n| 2026-11-27T06:51:47.058015+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f564 | fs:srv/cache/f564 |\n| 2026-11-27T06:51:47.058058+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f565 | fs:srv/cache/f565 |\n| 2026-11-27T06:51:47.058086+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f566 | fs:srv/cache/f566 |\n| 2026-11-27T06:51:47.058110+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f567 | fs:srv/cache/f567 |\n| 2026-11-27T06:51:47.058131+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f568 | fs:srv/cache/f568 |\n| 2026-11-27T06:51:47.058153+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f569 | fs:srv/cache/f569 |\n| 2026-11-27T06:51:47.058174+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f570 | fs:srv/cache/f570 |\n| 2026-11-27T06:51:47.058215+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f572 | fs:srv/cache/f572 |\n| 2026-11-27T06:51:47.058237+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f573 | fs:srv/cache/f573 |\n| 2026-11-27T06:51:47.058281+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f575 | fs:srv/cache/f575 |\n| 2026-11-27T06:51:47.058327+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f576 | fs:srv/cache/f576 |\n| 2026-11-27T06:51:47.058351+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f577 | fs:srv/cache/f577 |\n| 2026-11-27T06:51:47.058372+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f578 | fs:srv/cache/f578 |\n| 2026-11-27T06:51:47.058393+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f579 | fs:srv/cache/f579 |\n| 2026-11-27T06:51:47.058434+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f581 | fs:srv/cache/f581 |\n| 2026-11-27T06:51:47.058501+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f583 | fs:srv/cache/f583 |\n| 2026-11-27T06:51:47.058545+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f584 | fs:srv/cache/f584 |\n| 2026-11-27T06:51:47.058570+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f585 | fs:srv/cache/f585 |\n| 2026-11-27T06:51:47.058615+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f587 | fs:srv/cache/f587 |\n| 2026-11-27T06:51:47.058636+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f588 | fs:srv/cache/f588 |\n| 2026-11-27T06:51:47.058662+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f589 | fs:srv/cache/f589 |\n| 2026-11-27T06:51:47.058707+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f590 | fs:srv/cache/f590 |\n| 2026-11-27T06:51:47.058735+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f591 | fs:srv/cache/f591 |\n| 2026-11-27T06:51:47.058763+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f592 | fs:srv/cache/f592 |\n| 2026-11-27T06:51:47.058787+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f593 | fs:srv/cache/f593 |\n| 2026-11-27T06:51:47.058806+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f594 | fs:srv/cache/f594 |\n| 2026-11-27T06:51:47.058851+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f596 | fs:srv/cache/f596 |\n| 2026-11-27T06:51:47.058870+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f597 | fs:srv/cache/f597 |\n| 2026-11-27T06:51:47.058890+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f598 | fs:srv/cache/f598 |\n| 2026-11-27T06:51:47.058910+00:00 | filesystem | `?` | fs_modify | mtime modified: srv/cache/f599 | fs:srv/cache/f599 |",
+                "is_error": false,
+                "timed_out": false
+              },
+              "seconds": 0.072
+            }
+          ],
+          "files_after": {},
+          "server_log": "[11/27/26 06:51:47] INFO     Processing request of type            server.py:733\n                             ListToolsRequest                                   \n                    INFO     Processing request of type            server.py:733\n                             CallToolRequest                                    \n"
+        }
+      ],
+      "checks": [
+        {
+          "step": 1,
+          "contains": "- **Events:** 500",
+          "ok": true
+        },
+        {
+          "step": 1,
+          "not_regex": "(?i)truncat|more events|\\bcap\\b|limit|first 500|stopped",
+          "ok": true
+        }
+      ],
+      "reproduced": true
+    }
+  ]
+}

