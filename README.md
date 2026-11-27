@@ -20,8 +20,7 @@ cite them.
 | EXP-002 | Does telling the agent what a tool did not check stop a wrong answer? | clamav-limit, extract-keep (patches) | Opus and Haiku, 160 |
 | EXP-003 | Does a wrong progress report end an investigation early? | calebevans/mulder#270 | Opus, 100 |
 | EXP-004 | Does findevil's coverage report hide a shell history its own tools do not list? | coverage-per-location (patch to findevil) | Opus, 20 |
-| EXP-005 | Does trudi stop counting a hashed archive as an examined exfiltration phase? | lifecycle-skip-fingerprints (patch to trudi) | scripted |
-| EXP-006 | Does trudi's lifecycle check hide an exfiltration phase that was never examined? | lifecycle-skip-fingerprints, lifecycle-archive-names (patches to trudi) | in progress |
+| EXP-005 | Does trudi's lifecycle check hide an exfiltration phase that was never examined? | lifecycle-skip-fingerprints, lifecycle-archive-names (patches to trudi) | in progress |
 
 Each experiment's change, criteria, conclusion and every run are on the
 results site and in `experiments/EXP-<nnn>/`.
@@ -30,6 +29,8 @@ results site and in `experiments/EXP-<nnn>/`.
 
 ```
 experiments/EXP-<nnn>/      one verification: experiment.yaml + results/, see experiments/README.md
+pocs/<problem>/<server>/    a PoC: one problem shown on one server, see pocs/README.md
+checks/<problem>/           a test run the same way on every server, see checks/README.md
 cases/<id>/                 a test: questions, tools, scripted calls, briefing; names its dataset
 datasets/<id>/              where the evidence comes from and how it is fetched or built
 servers/<server>/           mulder, findevil, trudi

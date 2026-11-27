@@ -243,7 +243,6 @@ prepare)
     nist-data-leakage) in_tools bash datasets/nist-data-leakage/fetch.sh ;;
     nist-data-leakage-triage) in_tools bash datasets/nist-data-leakage/make_triage.sh ;;
     synthetic-dns-smtp) in_tools python3 datasets/synthetic-dns-smtp/make_pcap.py data/evidence/synthetic-dns-smtp/sample.pcap ;;
-    synthetic-archive) in_tools python3 datasets/synthetic-archive/make_archive.py data/evidence/synthetic-archive ;;
     findevil-samples)
         # A real Debian /etc, pinned by digest, to give one scenario a system's
         # size. Taken here because fetch.sh runs without Docker. Files Docker
