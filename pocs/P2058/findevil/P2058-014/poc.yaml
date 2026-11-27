@@ -1,0 +1,36 @@
+# Matrix case P2058-014: finalize_report says an unverified CONFIRMED claim
+# cannot get through, but a claim of a type outside the eight verifiable ones
+# passes on any non-empty evidence string, and the acceptance text says every
+# CONFIRMED claim passed an independent re-check.
+case_id: P2058-014
+problem: P2058
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+realism_ko: "모델은 측면 이동처럼 여덟 가지 검증 유형에 없는 결론도 확정으로 내므로 이 경로를 실제로 탄다. 다만 확정 목록의 그 줄에는 `cited` 표시가 붙는다."
+coverage: full
+summary: A CONFIRMED lateral-movement claim citing auth.log line 7 of a one-line log, where nothing supports it, is ACCEPTED, and the acceptance text says every CONFIRMED claim passed an independent re-check, although the description calls this gate architectural and the claim was never checked.
+summary_ko: "한 줄짜리 auth.log의 7번째 줄을 인용한 측면 이동 CONFIRMED 주장이, 뒷받침하는 내용이 없는데도 ACCEPTED되고, 수락 문구는 모든 CONFIRMED 주장이 독립 재검사를 통과했다고 쓴다. 설명은 이 관문이 구조적이라고 하지만 이 주장은 검사되지 않았다."
+defect_ko: "정상이라면 검사하지 않은 확정 주장은 검사하지 않았다고 알려야 하는데, 이 서버는 인용 글만 있으면 받아들이고 모든 확정 주장이 재검사를 통과했다고 쓴다. 그래서 모델은 검증된 결론이라고 잘못 안다."
+setup_ko: "정상 로그인 한 줄만 있는 `auth.log`를 두고, 그 파일에 없는 7번째 줄을 근거로 측면 이동을 확정한다고 요청했다."
+fixture:
+  - path: auth.log
+    text: "Apr 12 10:00:00 web01 sshd[2211]: Accepted publickey for alice from 203.0.113.5 port 51122 ssh2\n"
+steps:
+  - tool: finalize_report
+    note_ko: "결함이 있는 호출: 검증 유형에 없는 측면 이동 주장을 확정 요청"
+    args:
+      claims_json: "[{\"id\": \"c1\", \"type\": \"lateral_movement\", \"confidence\": \"confirmed\", \"statement\": \"alice moved laterally to db01 over SSH\", \"evidence\": \"${EVIDENCE}/auth.log:7\"}]"
+expect:
+  - step: 1
+    note_ko: "확정이 받아들여진다"
+    contains: "Finalization ACCEPTED"
+  - step: 1
+    note_ko: "수락 문구가 모든 확정 주장이 독립 재검사를 통과했다고 쓴다"
+    contains: "Every CONFIRMED claim passed an independent re-check"
+  - step: 1
+    note_ko: "근거 없는 측면 이동 주장이 확정 목록에 오른다"
+    contains: "`c1` — alice moved laterally to db01 over SSH"

@@ -12,16 +12,17 @@ commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
 display: response
 level: mcp
 realism: possible
-realism_ko: "웹 폴더에 읽기 권한이 없는 파일은 실제로 생길 수 있지만, 끝 쉼표가 있는 `daemon.json`은 Docker가 시작하지 못하는 파일이라 실제 노출로 이어지지 않는다."
+realism_ko: "웹 폴더에 읽기 권한이 없는 파일과, 전원이 갑자기 꺼진 호스트에서 중간에 잘린 컨테이너 설정 파일은 실제 증거에서 생긴다."
 coverage: "partial: failures of find_recent_changes, find_timestamp_anomalies, find_ai_signatures and verify_package_integrity are shown through two of them"
 coverage_ko: "find_recent_changes, find_timestamp_anomalies, find_ai_signatures, verify_package_integrity의 실패는 그중 두 개로 보인다"
-summary: A daemon.json exposing tcp://0.0.0.0:2375 but with a trailing comma is dropped without notice while the compose finding next to it is reported, so the report looks complete; an unreadable .php file is counted as scanned and the webshell scan reports no indicators.
-summary_ko: "tcp://0.0.0.0:2375를 노출하지만 끝에 쉼표가 있는 daemon.json이 알림 없이 빠지고 그 옆의 compose 발견만 보고되어, 보고서가 완전해 보인다. 읽을 수 없는 .php 파일은 검사한 것으로 세어지고 웹셸 검사는 지표 없음을 보고한다."
+summary: A container config.v2.json cut off mid-file (as left by a host that lost power) that already shows Privileged true is dropped without notice while the compose finding next to it is reported, so the report looks complete; an unreadable .php file is counted as scanned and the webshell scan reports no indicators.
+summary_ko: "`Privileged: true`까지 적힌 채 중간에서 잘린 컨테이너 config.v2.json(전원이 꺼진 호스트에 남는 꼴)이 알림 없이 빠지고 그 옆의 compose 발견만 보고되어, 보고서가 완전해 보인다. 읽을 수 없는 .php 파일은 검사한 것으로 세어지고 웹셸 검사는 지표 없음을 보고한다."
 defect_ko: "정상이라면 읽거나 해석하지 못한 파일은 알려야 하는데, 이 서버는 말없이 건너뛰거나 검사한 것으로 센다. 그래서 모델은 보고서가 완전하다고, 웹셸이 없다고 잘못 안다."
-setup_ko: "끝 쉼표가 있는 `daemon.json`, `privileged: true` compose 파일, 읽기 권한을 없앤 웹셸 `.php` 파일을 두었다."
+setup_ko: "중간에서 잘린 컨테이너 `config.v2.json`, `privileged: true` compose 파일, 읽기 권한을 없앤 웹셸 `.php` 파일을 두었다."
 fixture:
-  - path: fs/etc/docker/daemon.json
-    text: "{\"hosts\": [\"tcp://0.0.0.0:2375\"], \"insecure-registries\": [\"10.0.0.5:5000\"],}\n"
+  # Cut off mid-object, as a file still being written is left when the host loses power.
+  - path: fs/var/lib/docker/containers/abc123/config.v2.json
+    text: "{\"Name\": \"/miner\", \"HostConfig\": {\"Privileged\": true, \"NetworkMode\": \"host\", \"Binds\": [\"/:/host\""
   - path: fs/srv/app/docker-compose.yml
     text: |
       services:
@@ -45,8 +46,8 @@ expect:
     note_ko: "compose 발견은 보고된다"
     contains: "privileged: true set on a service"
   - step: 1
-    note_ko: "`daemon.json`은 응답에 없다"
-    not_contains: "daemon.json"
+    note_ko: "잘린 컨테이너 설정 파일은 응답에 없다"
+    not_contains: "config.v2.json"
   - step: 1
     note_ko: "해석하지 못한 파일이 있다는 안내가 없다"
     not_regex: "(?i)parse|invalid json|skipp|could not|unreadable"
