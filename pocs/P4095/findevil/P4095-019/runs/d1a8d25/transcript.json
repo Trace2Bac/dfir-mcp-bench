@@ -8,11 +8,11 @@
           "env": {},
           "fixtures": [
             {
-              "path": "fs/etc/docker/daemon.json",
+              "path": "fs/var/lib/docker/containers/abc123/config.v2.json",
               "root": "evidence",
-              "size": 77,
-              "hex": "7b22686f737473223a205b227463703a2f2f302e302e302e303a32333735225d2c2022696e7365637572652d72656769737472696573223a205b2231302e302e302e353a35303030225d2c7d0a",
-              "text": "{\"hosts\": [\"tcp://0.0.0.0:2375\"], \"insecure-registries\": [\"10.0.0.5:5000\"],}\n"
+              "size": 96,
+              "hex": "7b224e616d65223a20222f6d696e6572222c2022486f7374436f6e666967223a207b2250726976696c65676564223a20747275652c20224e6574776f726b4d6f6465223a2022686f7374222c202242696e6473223a205b222f3a2f686f737422",
+              "text": "{\"Name\": \"/miner\", \"HostConfig\": {\"Privileged\": true, \"NetworkMode\": \"host\", \"Binds\": [\"/:/host\""
             },
             {
               "path": "fs/srv/app/docker-compose.yml",
@@ -1532,55 +1532,60 @@
             {
               "call": "analyze_container_artifacts",
               "args": {
-                "root_path": "/tmp/tmp7z8r6_eq/evidence/fs"
+                "root_path": "/tmp/tmpm7tz45v_/evidence/fs"
               },
               "response": {
-                "text": "# Container artifact analysis — `/tmp/tmp7z8r6_eq/evidence/fs`\n\n- **Findings:** 1\n\n## HIGH findings\n\n### `srv/app/docker-compose.yml` — docker-compose file exposes the host\n- **Kind:** docker_compose\n- ⚠ privileged: true set on a service\n```\nservices:\n  app:\n    image: nginx:1.25\n    privileged: true\n\n```\n",
+                "text": "# Container artifact analysis — `/tmp/tmpm7tz45v_/evidence/fs`\n\n- **Findings:** 1\n\n## HIGH findings\n\n### `srv/app/docker-compose.yml` — docker-compose file exposes the host\n- **Kind:** docker_compose\n- ⚠ privileged: true set on a service\n```\nservices:\n  app:\n    image: nginx:1.25\n    privileged: true\n\n```\n",
                 "is_error": false,
                 "timed_out": false
               },
-              "seconds": 0.055
+              "seconds": 0.046
             },
             {
               "call": "find_webshells",
               "args": {
-                "root_path": "/tmp/tmp7z8r6_eq/evidence/fs"
+                "root_path": "/tmp/tmpm7tz45v_/evidence/fs"
               },
               "response": {
-                "text": "# Webshell scan — `/tmp/tmp7z8r6_eq/evidence/fs`\n\n- **Web roots inspected:** 1\n- **Files with executable extensions scanned:** 1\n- **Suspicious files found:** 0\n\nNo webshell indicators found in scanned files.",
+                "text": "# Webshell scan — `/tmp/tmpm7tz45v_/evidence/fs`\n\n- **Web roots inspected:** 1\n- **Files with executable extensions scanned:** 1\n- **Suspicious files found:** 0\n\nNo webshell indicators found in scanned files.",
                 "is_error": false,
                 "timed_out": false
               },
-              "seconds": 0.007
+              "seconds": 0.004
             }
           ],
           "files_after": {},
-          "server_log": "[11/27/26 06:49:24] INFO     Processing request of type            server.py:733\n                             ListToolsRequest                                   \n                    INFO     Processing request of type            server.py:733\n                             CallToolRequest                                    \n                    INFO     Processing request of type            server.py:733\n                             CallToolRequest                                    \n"
+          "server_log": "[11/27/26 08:53:26] INFO     Processing request of type            server.py:733\n                             ListToolsRequest                                   \n                    INFO     Processing request of type            server.py:733\n                             CallToolRequest                                    \n[11/27/26 08:53:27] INFO     Processing request of type            server.py:733\n                             CallToolRequest                                    \n"
         }
       ],
       "checks": [
         {
           "step": 1,
+          "note_ko": "compose 발견은 보고된다",
           "contains": "privileged: true set on a service",
           "ok": true
         },
         {
           "step": 1,
-          "not_contains": "daemon.json",
+          "note_ko": "잘린 컨테이너 설정 파일은 응답에 없다",
+          "not_contains": "config.v2.json",
           "ok": true
         },
         {
           "step": 1,
+          "note_ko": "해석하지 못한 파일이 있다는 안내가 없다",
           "not_regex": "(?i)parse|invalid json|skipp|could not|unreadable",
           "ok": true
         },
         {
           "step": 2,
+          "note_ko": "읽지 못한 `.php` 파일을 검사한 것으로 센다",
           "contains": "- **Files with executable extensions scanned:** 1",
           "ok": true
         },
         {
           "step": 2,
+          "note_ko": "웹셸 지표가 없다고 한다",
           "contains": "No webshell indicators found in scanned files.",
           "ok": true
         }
