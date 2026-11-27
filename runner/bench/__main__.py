@@ -13,6 +13,7 @@ from .case import load_case
 from .check import check_experiment
 from .investigate import answer_section, import_from_experiment, investigate_args, write_briefing
 from .model import Model, ModelConfig
+from .poc import run_poc, summarize_pocs
 from .review import review_case
 from .run import RunOptions, run_case
 from .scan_claims import check_experiment as scan_claims
@@ -54,6 +55,12 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--timeout", type=float, default=float(_env("MODEL_TIMEOUT_S", "900")))
     run.add_argument("--max-tokens", type=int, default=int(_env("MODEL_MAX_TOKENS", "0")))
     run.add_argument("--reasoning-effort", default=_env("MODEL_REASONING_EFFORT", ""))
+
+    poc = sub.add_parser("poc", help="run one PoC: scripted MCP calls, no model")
+    poc.add_argument("poc", type=Path, help="path to pocs/<problem>/<server>/<case-id>/poc.yaml")
+    poc.add_argument("--out", type=Path, required=True, help="folder for transcript.json and result.json")
+    poc_summary = sub.add_parser("poc-summary", help="reproduced / not reproduced per server and problem")
+    poc_summary.add_argument("root", type=Path, help="path to pocs/")
 
     summary = sub.add_parser("summary", help="write summary.md: labels and models over all runs")
     summary.add_argument("results", type=Path, help="path to experiments/<id>/results")
@@ -162,6 +169,11 @@ def main() -> None:
     args = _parser().parse_args()
     if args.command == "run":
         _run(args)
+    elif args.command == "poc":
+        r = run_poc(str(args.poc), str(args.out))
+        print(f"{r['case_id']} {r['server']} {r['result']}")
+    elif args.command == "poc-summary":
+        print(summarize_pocs(str(args.root)), end="")
     elif args.command == "summary":
         text = summarize(args.results, args.labels)
         (args.results / "summary.md").write_text(text)

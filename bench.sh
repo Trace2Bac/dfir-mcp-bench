@@ -31,6 +31,11 @@
 #                                                     (the next free number when n is not given)
 #   ./bench.sh check   [experiment...]                scripted runs must match scripted_expect
 #                                                     (every experiment that has one if none given)
+#   ./bench.sh poc     <case-id>                      run one PoC (pocs/<problem>/<server>/<case-id>/poc.yaml):
+#                                                     scripted MCP calls in the variant's image, no model;
+#                                                     writes runs/<commit>/transcript.json and result.json
+#   ./bench.sh poc-all <server>                       every PoC of a server, one after another
+#   ./bench.sh poc-summary                            reproduced / not reproduced / failed per server and problem
 #
 # Model settings come from .env (copy .env.example); variables set on the
 # command line take precedence. Results go to
@@ -221,6 +226,31 @@ summarize() {
     # shellcheck disable=SC2046
     in_tools env PYTHONPATH=runner python3 -m bench summary "$dir" \
         --labels $(experiment_variants "$(experiment_file "$1")" | cut -d' ' -f1)
+}
+
+# The poc.yaml of a matrix case ID such as P0192-010.
+poc_file() {
+    local f
+    for f in pocs/*/*/"$1"/poc.yaml; do
+        [ -f "$f" ] && { echo "$f"; return; }
+    done
+    echo "no PoC for case $1 (see pocs/)" >&2; exit 1
+}
+
+# Run one PoC in its variant's image and keep the transcript and result.
+run_poc() {
+    local f=$1 v commit dir image
+    v=$(yaml_field "$f" variant); commit=$(yaml_field "$f" commit)
+    [ -n "$v" ] || { echo "$f names no variant" >&2; return 1; }
+    dir="$(dirname "$f")/runs/${commit:0:7}"
+    mkdir -p "$dir"
+    build "$v" -q >/dev/null
+    image=$(variant_image "$v")
+    docker run --rm --entrypoint "" --user "$(id -u):$(id -g)" -e HOME=/tmp \
+        -e BENCH_IMAGE_ID="$(docker image inspect -f '{{.Id}}' "$image")" \
+        -e BENCH_SERVER_CMD="$(server_cmd "$v")" \
+        -v "$ROOT/pocs:/pocs:ro" -v "$ROOT/$dir:/out" \
+        "$image" python3 -m bench poc "/$f" --out /out
 }
 
 build() {
@@ -474,6 +504,20 @@ check)
         in_tools env PYTHONPATH=runner python3 -m bench check "$(experiment_file "$e")" ".check/$e" || failed=1
     done
     exit "$failed"
+    ;;
+poc)
+    run_poc "$(poc_file "${1:?case-id}")"
+    ;;
+poc-all)
+    s=${1:?server}; n=0
+    for f in pocs/*/"$s"/*/poc.yaml; do
+        [ -f "$f" ] || continue
+        n=$((n + 1)); run_poc "$f" || echo "PoC failed to run: $f" >&2
+    done
+    [ "$n" -gt 0 ] || { echo "no PoCs for $s (see pocs/*/$s/)" >&2; exit 1; }
+    ;;
+poc-summary)
+    in_tools env PYTHONPATH=runner python3 -m bench poc-summary pocs
     ;;
 *) usage ;;
 esac
