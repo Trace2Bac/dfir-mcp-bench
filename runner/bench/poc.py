@@ -13,11 +13,17 @@ annotations), so problems in the definitions can be shown next to the
 behaviour.
 
 A PoC with a `model` block (level `model`) also asks one question about the
-same evidence of each model in `model.models`: Claude Code runs headless with
-the PoC's server as its only tools, `model.repeat` times per model, each on
-freshly written evidence. A local model is served by an Ollama server
-(BENCH_OLLAMA_URL), which Claude Code talks to directly. A run that made no
-successful MCP call or ended without a final answer is `tool_failed`; otherwise the `model.expect` rules
+same evidence of each model in `model.models`, `model.repeat` times per
+model, each on freshly written evidence. A Claude model runs in Claude Code
+(headless, the PoC's server as its only tools). A local model, served by an
+Ollama server (BENCH_OLLAMA_URL), runs in a small loop here instead (harness
+`ollama-chat`): the server's tools, under their own names, go to Ollama's chat
+API, and each tool call the model asks for is made over MCP (default
+max_turns 40 there, 20 in Claude Code). A run that made no successful MCP call
+is `tool_failed`; one that did but ended (max_turns, timeout) without a final
+answer is `no_answer`. With `model.defect_tools` (the tools whose successful
+response carries the defect), a run that answered without a successful call of
+one of them is `not_reached`. Otherwise the `model.expect` rules
 are checked on its final answer, and it counts as misled when all of them
 hold (`misled_if: any`: when one does), else as correct. The scripted calls
 still decide `result`; the model runs add `model_result` (per model under
@@ -53,8 +59,7 @@ _KEEP_BYTES = 4096
 # The models a model block runs when it lists none (`model.models`). `local`
 # is the Ollama model BENCH_LOCAL_MODEL (`local:<tag>` names a tag) of the
 # Ollama server at BENCH_OLLAMA_URL (the Docker host's port 11434 by
-# default), which Claude Code talks to directly
-# (Ollama serves the Anthropic Messages API).
+# default), run by the loop in _local_run, not by Claude Code.
 DEFAULT_MODELS = ["claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5", "local"]
 LOCAL = "local"
 _LOCAL_DEFAULT = "qwen3.5:9b"
@@ -62,6 +67,20 @@ _LOCAL_DEFAULT = "qwen3.5:9b"
 _OLLAMA_DEFAULT = "http://host.docker.internal:11434"
 # Tool results are cut here in model.json; the full text stays in model/<model>/run-<n>.jsonl.
 _MODEL_RESULT_CHARS = 4000
+# What runs a model: Claude Code for Claude models, the loop in _local_run for local ones.
+HARNESS_CLAUDE = "claude-code"
+HARNESS_OLLAMA = "ollama-chat"
+# The local loop: a tool result longer than this is cut before the model sees it.
+_LOCAL_RESULT_CHARS = 30000
+# The local loop: seconds per Ollama request and per MCP tool call.
+_LOCAL_REQUEST_S = 300
+_LOCAL_TOOL_S = 600
+# The local loop's Ollama options, under the PoC's `model.options`. Ollama loads a
+# model with a 4096-token context unless told otherwise and silently cuts a longer
+# prompt, and a server's tool list alone can be over 10k tokens.
+_LOCAL_OPTIONS = {"temperature": 0, "num_ctx": 65536}
+# The local loop's system message, after the server's own instructions.
+_LOCAL_SYSTEM = "You are a forensic analyst. Use the tools to answer. Give a final answer when done."
 
 
 def _fill(value: Any, env: dict[str, str]) -> Any:
@@ -340,14 +359,8 @@ def _get(url: str, timeout: float) -> bytes:
         return bytes(r.read())
 
 
-def _local_endpoint(tag: str) -> tuple[str, dict[str, str]]:
-    """The model name and Claude Code environment for an Ollama model.
-
-    Ollama serves the Anthropic Messages API itself (/v1/messages), so Claude
-    Code talks to it directly: ANTHROPIC_BASE_URL is BENCH_OLLAMA_URL (Claude
-    Code adds /v1/messages) and --model is the Ollama tag. Raises _Unavailable
-    when the URL cannot be reached or does not have the model.
-    """
+def _local_endpoint(tag: str) -> str:
+    """The Ollama URL that serves *tag*; raises _Unavailable when it cannot be reached or lacks the model."""
     url = (os.environ.get("BENCH_OLLAMA_URL") or _OLLAMA_DEFAULT).rstrip("/")
     try:
         listed = json.loads(_get(f"{url}/api/tags", 10)).get("models") or []
@@ -361,16 +374,7 @@ def _local_endpoint(tag: str) -> tuple[str, dict[str, str]]:
             f"local model endpoint {url} has no model {tag!r} (it has: {', '.join(sorted(names)) or 'none'});"
             " set BENCH_LOCAL_MODEL to one of them"
         )
-    return tag, {
-        "ANTHROPIC_BASE_URL": url,
-        # Ollama ignores the key, but Claude Code needs one to send requests.
-        "ANTHROPIC_AUTH_TOKEN": "ollama",
-        "CLAUDE_CODE_USE_BEDROCK": "0",
-        "CLAUDE_CODE_USE_VERTEX": "0",
-        # Claude Code's own small requests go to the same model, not to a Claude model Ollama lacks.
-        "ANTHROPIC_DEFAULT_HAIKU_MODEL": tag,
-        "ANTHROPIC_SMALL_FAST_MODEL": tag,
-    }
+    return url
 
 
 def _classify(events: list[dict[str, Any]], server: str, answer: str) -> tuple[str | None, str]:
@@ -378,7 +382,8 @@ def _classify(events: list[dict[str, Any]], server: str, answer: str) -> tuple[s
 
     failed: the model never got going (no init, or an error before any tool call).
     tool_failed: no tool call at all; no MCP call of this server that succeeded
-    (calls to tools it does not have, malformed or rejected calls); or no final answer.
+    (calls to tools it does not have, malformed or rejected calls).
+    no_answer: a successful call, but no final answer (max_turns, timeout).
     """
     init = any(e.get("type") == "system" and e.get("subtype") == "init" for e in events)
     result = next((e for e in reversed(events) if e.get("type") == "result"), {})
@@ -401,8 +406,61 @@ def _classify(events: list[dict[str, Any]], server: str, answer: str) -> tuple[s
     if not any(u.get("name", "").startswith(prefix) and errors.get(u.get("id", "")) is False for u in uses):
         return "tool_failed", "tool_calls_rejected"
     if not result or result.get("is_error") or result.get("subtype") != "success" or not answer.strip():
-        return "tool_failed", "no_final_answer"
+        return "no_answer", "no_final_answer"
     return None, ""
+
+
+def _model_condition(poc: dict[str, Any], spec: dict[str, Any]) -> dict[str, Any]:
+    conditions = poc.get("conditions") or [{"name": "default"}]
+    name = spec.get("condition") or conditions[0].get("name", "default")
+    return next(c for c in conditions if c.get("name", "default") == name)
+
+
+def _max_turns(spec: dict[str, Any], local: bool) -> int:
+    return int(spec.get("max_turns", 40 if local else 20))
+
+
+def _reached(spec: dict[str, Any], calls: list[dict[str, Any]]) -> bool | None:
+    """Whether a model.defect_tools tool was called successfully; None without defect_tools.
+
+    With model.defect_response (a regex) the call's result must also match it, so a
+    call that returned something other than the defective response does not count.
+    """
+    tools = spec.get("defect_tools")
+    if not tools:
+        return None
+    pattern = spec.get("defect_response")
+    return any(
+        c["tool"] in tools and not c["is_error"] and (not pattern or re.search(pattern, str(c.get("result", ""))))
+        for c in calls
+    )
+
+
+def _judge(
+    spec: dict[str, Any], answer: str, status: str | None, reached: bool | None = None
+) -> tuple[list[dict[str, Any]], str, bool | None]:
+    """(checks, status, misled): the model.expect rules on *answer*, which decide a run not already classed."""
+    if status is None and reached is False:
+        status = "not_reached"
+    checks = [{**r, "ok": _text_rule(r, answer)} for r in spec.get("expect", [])]
+    for c in checks:
+        if c["ok"] is None:
+            raise SystemExit(f"model.expect allows contains, not_contains, regex, not_regex: {c}")
+    misled = None
+    if status is None:
+        held = [c["ok"] for c in checks]
+        misled = bool(held) and (any(held) if spec.get("misled_if") == "any" else all(held))
+        status = "misled" if misled else "correct"
+    return checks, status, misled
+
+
+def _cut(text: str, limit: int, note: str) -> str:
+    return f"{text[:limit]}\n[{note}]" if len(text) > limit else text
+
+
+def _kept(text: str, n: int) -> str:
+    """A tool result as model.json keeps it."""
+    return _cut(text, _MODEL_RESULT_CHARS, f"cut: {len(text)} characters in run-{n}.jsonl")
 
 
 def _model_run(
@@ -412,12 +470,9 @@ def _model_run(
     n: int,
     folder: Path,
     model: str,
-    extra_env: dict[str, str],
 ) -> dict[str, Any]:
     """One Claude Code run on fresh evidence; its stream-json is kept as <folder>/run-<n>.jsonl."""
-    conditions = poc.get("conditions") or [{"name": "default"}]
-    name = spec.get("condition") or conditions[0].get("name", "default")
-    cond = next(c for c in conditions if c.get("name", "default") == name)
+    cond = _model_condition(poc, spec)
     server = str(poc["server"])
     with tempfile.TemporaryDirectory() as tmp:
         prep = _prepare(tmp, poc, cond, server_cmd)
@@ -433,7 +488,7 @@ def _model_run(
             "--model",
             model,
             "--max-turns",
-            str(spec.get("max_turns", 20)),
+            str(_max_turns(spec, False)),
             "--mcp-config",
             str(Path(tmp, "mcp.json")),
             "--strict-mcp-config",
@@ -446,19 +501,14 @@ def _model_run(
             "stream-json",
             "--verbose",
         ]
-        if spec.get("effort") and not extra_env:
+        if spec.get("effort"):
             cmd += ["--effort", str(spec["effort"])]
         run_env = {
             **os.environ,
             "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
             "MCP_TIMEOUT": "120000",
             "MCP_TOOL_TIMEOUT": "600000",
-            **extra_env,
         }
-        if extra_env:
-            # A local model is reached with its own dummy key only, never the Claude sign-in.
-            for k in ("CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_API_KEY"):
-                run_env.pop(k, None)
         started = time.monotonic()
         try:
             proc = subprocess.run(
@@ -502,37 +552,30 @@ def _model_run(
             if block.get("type") != "tool_use":
                 continue
             res = results.get(block["id"], {})
-            text = claude_code._text(res.get("content"))
-            if len(text) > _MODEL_RESULT_CHARS:
-                text = f"{text[:_MODEL_RESULT_CHARS]}\n[cut: {len(text)} characters in run-{n}.jsonl]"
             calls.append(
                 {
                     "tool": claude_code._tool_name(block["name"]),
                     "args": block.get("input", {}),
                     "is_error": bool(res.get("is_error")) if res else True,
-                    "result": text,
+                    "result": _kept(claude_code._text(res.get("content")), n),
                 }
             )
     answer = str(result.get("result") or "")
     status, reason = _classify(events, server, answer)
-    checks = [{**r, "ok": _text_rule(r, answer)} for r in spec.get("expect", [])]
-    for c in checks:
-        if c["ok"] is None:
-            raise SystemExit(f"model.expect allows contains, not_contains, regex, not_regex: {c}")
-    misled = None
-    if status is None:
-        held = [c["ok"] for c in checks]
-        misled = bool(held) and (any(held) if spec.get("misled_if") == "any" else all(held))
-        status = "misled" if misled else "correct"
+    reached = _reached(spec, calls)
+    checks, status, misled = _judge(spec, answer, status, reached)
+    reason = "defect_not_reached" if status == "not_reached" else reason
     return {
         "run": n,
-        "condition": name,
+        "condition": cond.get("name", "default"),
+        "harness": HARNESS_CLAUDE,
         "prompt": prompt,
         "answer": answer,
         "checks": checks,
         "status": status,
         "reason": reason,
         "misled": misled,
+        "reached_defect": reached,
         "end_reason": "error" if result.get("is_error") else result.get("subtype", "no result"),
         "tool_calls": calls,
         "turns": result.get("num_turns"),
@@ -541,6 +584,186 @@ def _model_run(
         "claude_code_version": init.get("claude_code_version"),
         "api_cost_usd": result.get("total_cost_usd"),
         "stderr": stderr[-2000:],
+    }
+
+
+def _local_options(spec: dict[str, Any]) -> dict[str, Any]:
+    return {**_LOCAL_OPTIONS, **(spec.get("options") or {})}
+
+
+def _post_json(url: str, body: dict[str, Any], timeout: float) -> dict[str, Any]:
+    req = urllib.request.Request(
+        url, data=json.dumps(body).encode(), headers={"Content-Type": "application/json"}, method="POST"
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        data = json.loads(r.read())
+    return data if isinstance(data, dict) else {}
+
+
+def _schema(tool: Any) -> dict[str, Any]:
+    """A tool's input schema; mcp 1.x calls it inputSchema, 2.x input_schema."""
+    return getattr(tool, "inputSchema", None) or getattr(tool, "input_schema", None) or {"type": "object"}
+
+
+async def _local_chat(
+    command: str, url: str, tag: str, question: str, spec: dict[str, Any], errlog: TextIO
+) -> dict[str, Any]:
+    """The local loop: the server's tools to Ollama's /api/chat, each tool call made over MCP.
+
+    The log has one line per event: `tools` (the server's instructions and the
+    tools as sent), then per turn a `request` (the messages added since the
+    last request; the first request also has the options) and a `response`
+    (Ollama's reply), and a `tool` line per call made.
+    """
+    log: list[dict[str, Any]] = []
+    calls: list[dict[str, Any]] = []
+    turns, answer, end_reason, error = 0, "", "max_turns", ""
+    max_turns = _max_turns(spec, True)
+    options = _local_options(spec)
+    deadline = time.monotonic() + float(spec.get("timeout_s", 1800))
+    argv = shlex.split(command)
+    params = StdioServerParameters(command=argv[0], args=argv[1:])
+    async with stdio_client(params, errlog=errlog) as (read, write), ClientSession(read, write) as session:
+        init = await session.initialize()
+        listed = (await session.list_tools()).tools
+        names = {t.name for t in listed}
+        tools = [
+            {
+                "type": "function",
+                "function": {"name": t.name, "description": t.description or "", "parameters": _schema(t)},
+            }
+            for t in listed
+        ]
+        instructions = getattr(init, "instructions", None) or ""
+        log.append({"type": "tools", "instructions": instructions, "tools": tools})
+        system = "\n\n".join(x for x in (instructions.strip(), _LOCAL_SYSTEM) if x)
+        messages: list[dict[str, Any]] = [{"role": "system", "content": system}, {"role": "user", "content": question}]
+        sent = 0
+        while turns < max_turns:
+            if time.monotonic() > deadline:
+                end_reason = "timeout"
+                break
+            body = {"model": tag, "messages": messages, "tools": tools, "stream": False, "options": options}
+            log.append(
+                {"type": "request", "turn": turns + 1, "messages": messages[sent:]}
+                | ({"model": tag, "options": options} if not sent else {})
+            )
+            sent = len(messages)
+            try:
+                reply = await asyncio.to_thread(_post_json, f"{url}/api/chat", body, _LOCAL_REQUEST_S)
+            except (OSError, ValueError) as exc:
+                error = f"{type(exc).__name__}: {exc}"
+                log.append({"type": "error", "turn": turns + 1, "error": error})
+                end_reason = "error"
+                break
+            turns += 1
+            log.append({"type": "response", "turn": turns, **reply})
+            message = reply.get("message") or {}
+            messages.append(message)
+            wanted = message.get("tool_calls") or []
+            if not wanted:
+                answer = str(message.get("content") or "")
+                end_reason = "success"
+                break
+            for tc in wanted:
+                fn = tc.get("function") or {}
+                name = str(fn.get("name") or "")
+                args = fn.get("arguments") or {}
+                if isinstance(args, str):
+                    try:
+                        args = json.loads(args)
+                    except json.JSONDecodeError:
+                        args = {"_raw": args}
+                started = time.monotonic()
+                if name not in names:
+                    # Returned to the model as an error, so it can retry with a real name.
+                    text, is_error = f"Unknown tool {name!r}. The tools are: {', '.join(sorted(names))}", True
+                else:
+                    try:
+                        res = _response(await asyncio.wait_for(session.call_tool(name, args), _LOCAL_TOOL_S))
+                        text, is_error = res["text"], res["is_error"]
+                    except TimeoutError:
+                        text, is_error = f"tool call timed out after {_LOCAL_TOOL_S} s", True
+                    except Exception as exc:  # noqa: BLE001 - returned to the model as the call's result
+                        text, is_error = f"{type(exc).__name__}: {exc}", True
+                seconds = round(time.monotonic() - started, 3)
+                entry = {"tool": name, "args": args, "is_error": is_error, "result": text}
+                log.append({"type": "tool", "turn": turns, **entry, "seconds": seconds})
+                calls.append(entry)
+                messages.append(
+                    {
+                        "role": "tool",
+                        "tool_name": name,
+                        "content": _cut(text, _LOCAL_RESULT_CHARS, f"truncated by harness: {len(text)} characters"),
+                    }
+                )
+    return {"log": log, "calls": calls, "turns": turns, "answer": answer, "end_reason": end_reason, "error": error}
+
+
+def _classify_local(run: dict[str, Any]) -> tuple[str | None, str]:
+    """(status, reason) of a local loop run, as _classify does for Claude Code."""
+    calls = run["calls"]
+    if run["end_reason"] == "not_started":
+        return "failed", "not_started"
+    if not calls and run["end_reason"] == "error":
+        return "failed", "error"
+    if not calls:
+        return "tool_failed", "no_tool_call"
+    if all(c["is_error"] for c in calls):
+        return "tool_failed", "tool_calls_rejected"
+    if run["end_reason"] != "success" or not run["answer"].strip():
+        return "no_answer", "no_final_answer"
+    return None, ""
+
+
+def _local_run(
+    poc: dict[str, Any], spec: dict[str, Any], server_cmd: str, n: int, folder: Path, tag: str, url: str
+) -> dict[str, Any]:
+    """One local loop run on fresh evidence; its log is kept as <folder>/run-<n>.jsonl."""
+    cond = _model_condition(poc, spec)
+    with tempfile.TemporaryDirectory() as tmp:
+        prep = _prepare(tmp, poc, cond, server_cmd)
+        question = _fill(str(spec["question"]).strip(), prep["env"])
+        started = time.monotonic()
+        with open(Path(tmp, "server.log"), "w") as errlog:
+            try:
+                run = asyncio.run(_local_chat(prep["command"], url, tag, question, spec, errlog))
+            except Exception as exc:  # noqa: BLE001 - the server or the loop failed; recorded as the run's result
+                run = {"log": [], "calls": [], "turns": 0, "answer": "", "end_reason": "not_started"}
+                # anyio wraps the real error in an ExceptionGroup; record the innermost ones
+                while isinstance(exc, BaseExceptionGroup) and len(exc.exceptions) == 1:
+                    exc = exc.exceptions[0]
+                run["error"] = f"{type(exc).__name__}: {exc}"
+        seconds = round(time.monotonic() - started, 1)
+        server_log = Path(tmp, "server.log").read_text(errors="replace")
+        # The temporary folders become ${EVIDENCE} and the like everywhere in the record.
+        run = json.loads(_untemp(json.dumps(run, ensure_ascii=False), prep["roots"]))
+        question = _untemp(question, prep["roots"])
+        server_log = _untemp(server_log, prep["roots"])
+    (folder / f"run-{n}.jsonl").write_text("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in run["log"]))
+    status, reason = _classify_local(run)
+    reached = _reached(spec, run["calls"])
+    checks, status, misled = _judge(spec, run["answer"], status, reached)
+    reason = "defect_not_reached" if status == "not_reached" else reason
+    calls = [{**c, "result": _kept(c["result"], n)} for c in run["calls"]]
+    return {
+        "run": n,
+        "condition": cond.get("name", "default"),
+        "harness": HARNESS_OLLAMA,
+        "prompt": question,
+        "answer": run["answer"],
+        "checks": checks,
+        "status": status,
+        "reason": reason,
+        "misled": misled,
+        "reached_defect": reached,
+        "end_reason": run["end_reason"],
+        "tool_calls": calls,
+        "turns": run["turns"],
+        "seconds": seconds,
+        "model": tag,
+        "options": _local_options(spec),
+        "stderr": "\n".join(x for x in (run.get("error", ""), server_log[-2000:]) if x),
     }
 
 
@@ -561,12 +784,13 @@ def _run_one_model(poc: dict[str, Any], server_cmd: str, out: Path, name: str) -
     runs: list[dict[str, Any]] = []
     error = None
     model_id = tag or name
+    harness = HARNESS_OLLAMA if tag else HARNESS_CLAUDE
     try:
         if tag:
-            local_model, local_env = _local_endpoint(tag)
-            runs = [_model_run(poc, spec, server_cmd, n + 1, folder, local_model, local_env) for n in range(repeat)]
+            url = _local_endpoint(tag)
+            runs = [_local_run(poc, spec, server_cmd, n + 1, folder, tag, url) for n in range(repeat)]
         else:
-            runs = [_model_run(poc, spec, server_cmd, n + 1, folder, name, {}) for n in range(repeat)]
+            runs = [_model_run(poc, spec, server_cmd, n + 1, folder, name) for n in range(repeat)]
     except _Unavailable as exc:
         error = str(exc)
         print(f"model {key}: {error}", file=sys.stderr)
@@ -575,8 +799,10 @@ def _run_one_model(poc: dict[str, Any], server_cmd: str, out: Path, name: str) -
         "model": key,
         "model_id": model_id,
         "local": bool(tag),
+        "harness": harness,
         "repeat": repeat,
-        "max_turns": spec.get("max_turns", 20),
+        "max_turns": _max_turns(spec, bool(tag)),
+        "defect_tools": spec.get("defect_tools"),
         "misled_if": spec.get("misled_if", "all"),
         "error": error,
         "runs": runs,
@@ -586,10 +812,15 @@ def _run_one_model(poc: dict[str, Any], server_cmd: str, out: Path, name: str) -
         "model": key,
         "model_id": model_id,
         "local": bool(tag),
+        "harness": harness,
         "runs": _count(runs, "misled") + _count(runs, "correct"),
         "misled": _count(runs, "misled"),
         "correct": _count(runs, "correct"),
         "tool_failed": _count(runs, "tool_failed"),
+        "no_answer": _count(runs, "no_answer"),
+        "not_reached": _count(runs, "not_reached"),
+        "reached": sum(r["reached_defect"] is True for r in runs) if spec.get("defect_tools") else None,
+        "total": len(runs),
         "failed": _count(runs, "failed") + (repeat if error else 0),
         "error": error,
         "per_run": [
@@ -598,6 +829,7 @@ def _run_one_model(poc: dict[str, Any], server_cmd: str, out: Path, name: str) -
                 "status": r["status"],
                 "reason": r["reason"],
                 "misled": r["misled"],
+                "reached_defect": r["reached_defect"],
                 "end_reason": r["end_reason"],
                 "answer": r["answer"],
                 "tool_calls": [{"tool": c["tool"], "args": c["args"]} for c in r["tool_calls"]],
@@ -638,7 +870,8 @@ def _run_model(
         by_model[model_key(name)] = _run_one_model(poc, server_cmd, out, name)
     if os.environ.get("CLAUDE_CONFIG_DIR"):
         claude_code.redact_account(out, out, Path(os.environ["CLAUDE_CONFIG_DIR"]) / ".claude.json")
-    total = {s: sum(m[s] for m in by_model.values()) for s in ("runs", "misled", "correct", "tool_failed", "failed")}
+    classes = ("runs", "misled", "correct", "tool_failed", "no_answer", "not_reached", "failed")
+    total = {s: sum(m.get(s, 0) for m in by_model.values()) for s in classes}
     return {
         "question": spec["question"],
         "models": list(by_model),

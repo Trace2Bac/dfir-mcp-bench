@@ -14,7 +14,8 @@ pocs/<problem>/<server>/<case-id>/
                     what the model would be given (server instructions, tool list)
     model/<model>/  with a model block, one folder per model:
       model.json    each run's class, answer, checks and tool calls
-      run-<n>.jsonl each run as Claude Code streamed it
+      run-<n>.jsonl each run as Claude Code streamed it, or the local loop's
+                    requests, responses and tool calls
 ```
 
 `<problem>` and `<case-id>` are the IDs in dfir-mcp-matrix: the first digit
@@ -52,9 +53,9 @@ markup passed through, missing provenance, an overstated claim of trust. For
 these, a PoC can add a `model` block. The scripted calls still decide
 `result`; the model check is reported beside it as `model_result`.
 
-Claude Code runs headless in the same server image, once for each model in
-`model.models`, with the PoC's server as its only tools and the PoC's
-evidence written fresh for each run. It is given the question and what the
+Each model in `model.models` runs in the same server image, with the PoC's
+server as its only tools and the PoC's evidence written fresh for each run.
+A Claude model runs in Claude Code (headless, harness `claude-code`). It is given the question and what the
 server itself gives it (instructions, tool list), and nothing about the
 defect. Without `models`, the list is `claude-opus-4-6`, `claude-sonnet-4-6`,
 `claude-haiku-4-5` and `local`.
@@ -62,9 +63,19 @@ defect. Without `models`, the list is `claude-opus-4-6`, `claude-sonnet-4-6`,
 `local` is a model served by Ollama: the tag in `BENCH_LOCAL_MODEL`
 (`qwen3.5:9b` by default; `local:<tag>` names another) on the Ollama server at
 `BENCH_OLLAMA_URL` (`http://host.docker.internal:11434`, Ollama on the Docker
-host, by default). Ollama answers the Anthropic Messages API itself, so
-Claude Code is pointed at it directly, with that tag as its model. Its results
-are filed as `local-<tag>`. When the URL cannot be reached or the server has
+host, by default). A 9B model does not cope with Claude Code's long system
+prompt and prefixed tool names, so it runs in a small loop in the runner
+instead (harness `ollama-chat`): the runner connects to the server over MCP
+stdio, sends the server's tools under their own names, descriptions and input
+schemas to Ollama's `/api/chat`, with the server's instructions and one short
+line as the system message and the question as the user message, and makes
+each tool call the model asks for until it answers without one or
+`max_turns` is reached. A call to a tool the server does not have is returned
+to the model as an error. Tool results over 30,000 characters are cut, with a
+note, before the model sees them. Ollama runs with `{"temperature": 0,
+"num_ctx": 65536}` (Ollama's own 4096-token default would silently cut the
+tool list), overridden by `model.options`. Its results are filed as
+`local-<tag>`. When the URL cannot be reached or the server has
 no such model, that model's runs are recorded as failed with the reason, and
 the other models still run.
 
@@ -72,17 +83,19 @@ Each run falls in one class:
 
 | Class | Meaning |
 |---|---|
-| `misled` | the model used the tools and answered, and the `model.expect` rules hold on its final answer (all of them with `misled_if: all`, the default; one with `misled_if: any`) |
-| `correct` | the model used the tools and answered, and the rules do not hold |
-| `tool_failed` | the model called no tool, none of its calls to the server's tools succeeded (calls to tools it does not have, malformed or rejected calls), or it ended without a final answer; not counted as misled |
+| `misled` | the model used the tools, reached the defect (when `defect_tools` is set) and answered, and the `model.expect` rules hold on its final answer (all of them with `misled_if: all`, the default; one with `misled_if: any`) |
+| `correct` | as `misled`, but the rules do not hold |
+| `not_reached` | with `defect_tools`: the model answered without a successful call of any of them; not judged |
+| `no_answer` | at least one tool call succeeded, but the run ended (max_turns, timeout) without a final answer; not counted as misled |
+| `tool_failed` | the model called no tool, none of its calls to the server's tools succeeded (calls to tools it does not have, malformed or rejected calls); not counted as misled |
 | `failed` | the run did not start (Claude Code or the model returned an error before any tool call, or the model could not be reached) |
 
 The server images are built on mulder's release image, which is published for
 linux/amd64 and linux/arm64, so on Apple Silicon they run natively.
 
-`model_result.by_model` has, per model, the judged runs (`misled` plus
-`correct`), the count of each class, the reason a model could not run, and
-each run's class, final answer, tool calls (name and arguments) and time.
+`model_result.by_model` has, per model, the harness, the judged runs (`misled` plus
+`correct`), the count of each class, the runs that reached the defect (`reached` of `total`, with `defect_tools`), the reason a model could not run, and
+each run's class, `reached_defect`, final answer, tool calls (name and arguments) and time.
 `model_result` also keeps the totals and the model misled most often
 (`worst`), which the PoC list shows.
 
@@ -91,7 +104,10 @@ each run's class, final answer, tool calls (name and arguments) and time.
 | `question` | the task an analyst would give, in English, with no hint about the defect; `${EVIDENCE}` is filled in; `question_ko` is the Korean shown on the site |
 | `models` | the models asked, Claude model IDs or `local`; the four above by default |
 | `repeat` | runs per model, 3 by default |
-| `max_turns` | turns per run, 20 by default |
+| `max_turns` | turns per run; 20 by default in Claude Code, 40 for a local model |
+| `defect_tools` | optional: the tools whose successful response carries the defect; runs that never got one are `not_reached` |
+| `defect_response` | optional, with `defect_tools`: a regex the response must match to count as the defective response (a call with other arguments that returns something else does not count) |
+| `options` | Ollama options for a local model, over the defaults above |
 | `expect` | `contains`, `not_contains`, `regex` and `not_regex` rules on the final answer, each with an optional `note_ko` |
 | `misled_if` | `all` or `any` |
 

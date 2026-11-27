@@ -577,6 +577,10 @@ function runVerdict(r: PocModelRun): string {
       return translate({id: 'poc.model.run.ok', message: 'read correctly'});
     case 'tool_failed':
       return translate({id: 'poc.model.run.toolFailed', message: 'tool use failed'});
+    case 'no_answer':
+      return translate({id: 'poc.model.run.noAnswer', message: 'no answer'});
+    case 'not_reached':
+      return translate({id: 'poc.model.run.notReached', message: 'did not reach the defect'});
     default:
       return translate({id: 'poc.model.run.failed', message: 'did not run'});
   }
@@ -589,6 +593,8 @@ function runReason(r: PocModelRun): string {
       return translate({id: 'poc.model.reason.noToolCall', message: 'it called no tool'});
     case 'tool_calls_rejected':
       return translate({id: 'poc.model.reason.rejected', message: 'none of its tool calls succeeded'});
+    case 'defect_not_reached':
+      return translate({id: 'poc.model.reason.notReached', message: 'it answered without a successful call of the defect tool'});
     case 'no_final_answer':
       return translate({id: 'poc.model.reason.noAnswer', message: 'it gave no final answer'});
     case 'not_started':
@@ -663,7 +669,7 @@ function ModelCheck({model}: {model: PocModel}) {
       <p className={styles.small}>
         <Translate id="poc.model.note">
           {
-            "Each model below was asked the question through Claude Code, with this server as its only tools and the same evidence, and nothing about the problem. A local model runs in Ollama, which Claude Code calls directly. Each run's final answer is checked against the rules below; a run that made no successful tool call or gave no final answer counts as a tool failure, not as a misreading."
+            "Each model below was asked the question with this server as its only tools and the same evidence, and nothing about the problem. A Claude model runs in Claude Code; a local model runs in Ollama, through a small loop that gives it the server's tools under their own names and makes the calls it asks for. Each run's final answer is checked against the rules below; a run that made no successful tool call counts as a tool failure, one that ended without a final answer as no answer, and, when the PoC names the tools that carry the defect, one that answered without getting their response as not reaching it; none of these counts as a misreading."
           }
         </Translate>
       </p>
@@ -676,9 +682,12 @@ function ModelCheck({model}: {model: PocModel}) {
           <thead>
             <tr>
               <th>{translate({id: 'poc.model.col.model', message: 'Model'})}</th>
-              <th>{translate({id: 'poc.model.col.misled', message: 'Misread k/N'})}</th>
-              <th>{translate({id: 'poc.model.col.toolFailed', message: 'Tool failures'})}</th>
+              <th>{translate({id: 'poc.model.col.harness', message: 'Harness'})}</th>
+              <th>{translate({id: 'poc.model.col.reached', message: 'Got the defect k/N'})}</th>
+              <th>{translate({id: 'poc.model.col.misled', message: 'Misread'})}</th>
               <th>{translate({id: 'poc.model.col.correct', message: 'Correct'})}</th>
+              <th>{translate({id: 'poc.model.col.noAnswer', message: 'No answer'})}</th>
+              <th>{translate({id: 'poc.model.col.toolFailed', message: 'Tool failures'})}</th>
             </tr>
           </thead>
           <tbody>
@@ -694,11 +703,14 @@ function ModelCheck({model}: {model: PocModel}) {
                     </div>
                   )}
                 </td>
+                <td>{m.harness === 'ollama-chat' ? 'Ollama chat' : 'Claude Code'}</td>
+                <td>{m.reached === null ? '-' : `${m.reached}/${m.total}`}</td>
                 <td className={m.misled ? styles.fail : undefined}>
-                  <strong>{m.misled}</strong>/{m.runs}
+                  <strong>{m.misled}</strong>
                 </td>
-                <td>{m.toolFailed}</td>
                 <td>{m.correct}</td>
+                <td>{m.noAnswer}</td>
+                <td>{m.toolFailed}</td>
               </tr>
             ))}
           </tbody>

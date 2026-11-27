@@ -85,14 +85,17 @@ export type PocRun = {
   filesAfter: {path: string; exists: boolean}[];
 };
 // The model check (poc.yaml `model`): one question asked of each model `repeat`
-// times. A run that made no successful MCP call or gave no final answer is
-// tool_failed; otherwise it is misled when the rules hold on its final answer
-// (all, or any), else correct. failed: the run never started.
+// times. A run that made no successful MCP call is tool_failed; one that did
+// but gave no final answer is no_answer; with defect_tools, one that answered
+// without a successful call of those tools is not_reached. Otherwise it is
+// misled when the rules hold on its final answer (all, or any), else correct.
+// failed: the run never started.
 export type PocModelRule = {n: number; rule: PocRule; value: string; note: string};
-export type PocModelStatus = 'misled' | 'correct' | 'tool_failed' | 'failed';
+export type PocModelStatus = 'misled' | 'correct' | 'tool_failed' | 'no_answer' | 'not_reached' | 'failed';
 export type PocModelRun = {
   run: number;
   status: PocModelStatus;
+  reached: boolean | null; // a defect_tools tool was called successfully; null without defect_tools
   reason: string; // why tool_failed or failed: no_tool_call, tool_calls_rejected, no_final_answer, ...
   endReason: string;
   pieces: PocPiece[]; // the final answer, with the text the rules matched marked
@@ -105,12 +108,17 @@ export type PocModelRun = {
 };
 export type PocModelEntry = {
   key: string; // as filed: model/<key>/
-  modelId: string; // the name Claude Code was given
+  modelId: string; // the model name the harness was given
   local: boolean;
+  harness: 'claude-code' | 'ollama-chat'; // what ran the model
   runs: number; // judged runs (misled + correct)
   misled: number;
   correct: number;
   toolFailed: number;
+  noAnswer: number;
+  notReached: number;
+  reached: number | null; // runs that got the defect's response; null without defect_tools
+  total: number; // runs made
   failed: number;
   error: string; // why the model could not run at all
   items: PocModelRun[];
@@ -368,7 +376,7 @@ function readModelRun(r: any, asChecks: PocCheck[]): PocModelRun {
   const text = visible(unTemp(String(r.answer ?? '')));
   const cut = pieces(text, matches(text, asChecks), MAX_ANSWER_CHARS, ANSWER_HEAD);
   const calls: any[] = r.tool_calls ?? [];
-  const status: PocModelStatus = ['misled', 'correct', 'tool_failed', 'failed'].includes(r.status)
+  const status: PocModelStatus = ['misled', 'correct', 'tool_failed', 'no_answer', 'not_reached', 'failed'].includes(r.status)
     ? r.status
     : r.misled == null
       ? 'tool_failed'
@@ -378,6 +386,7 @@ function readModelRun(r: any, asChecks: PocCheck[]): PocModelRun {
   return {
     run: Number(r.run ?? 0),
     status,
+    reached: typeof r.reached_defect === 'boolean' ? r.reached_defect : null,
     reason: String(r.reason ?? (r.misled == null && !r.status ? 'no_final_answer' : '')),
     endReason: String(r.end_reason ?? ''),
     pieces: cut.pieces,
@@ -410,10 +419,16 @@ function readModel(spec: any, result: any, runDir: string, locale: string): PocM
       key,
       modelId: String(m.model_id ?? full?.model ?? key),
       local: Boolean(m.local),
+      // Results from before the local loop ran every model, local ones too, in Claude Code.
+      harness: (m.harness ?? full?.harness) === 'ollama-chat' ? 'ollama-chat' : 'claude-code',
       runs: Number(m.runs ?? count('misled') + count('correct')),
       misled: Number(m.misled ?? count('misled')),
       correct: Number(m.correct ?? count('correct')),
       toolFailed: Number(m.tool_failed ?? count('tool_failed')),
+      noAnswer: Number(m.no_answer ?? count('no_answer')),
+      notReached: Number(m.not_reached ?? count('not_reached')),
+      reached: m.reached ?? (items.some(i => i.reached !== null) ? items.filter(i => i.reached).length : null),
+      total: Number(m.total ?? items.length),
       failed: Number(m.failed ?? count('failed')),
       error: String(m.error ?? ''),
       items,
