@@ -1,0 +1,36 @@
+# Matrix case P4111-010: stat_file and find_timestamp_anomalies report ctime
+# and atime of the copy on the analysis host as if they were the evidence's
+# own times, and use ctime for the mtime>ctime timestomping check. On a copy
+# ctime is the copy time, so it says nothing about the original.
+# The fixture sets the original mtime (as cp -p / tar extraction keeps it)
+# with fixture "mtime"; ctime and atime become the time of the copy.
+case_id: P4111-010
+problem: P4111
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: source-vs-result
+level: mcp
+realism: common
+coverage: full
+summary: For a file extracted into the evidence folder with its original mtime 2025-03-01, stat_file shows the extraction time as its ctime and atime with no note that these belong to the copy, and find_timestamp_anomalies judges timestomping from that ctime.
+fixture:
+  - path: fs/usr/sbin/sshd
+    text: "#!/bin/sh\n"
+    mtime: "2025-03-01T00:00:00Z"
+steps:
+  - tool: stat_file
+    args:
+      path: ${EVIDENCE}/fs/usr/sbin/sshd
+  - tool: find_timestamp_anomalies
+    args:
+      root_path: ${EVIDENCE}/fs
+expect:
+  - step: 1
+    contains: "- **mtime:** 2025-03-01T00:00:00+00:00"
+  - step: 1
+    regex: "- \\*\\*ctime:\\*\\* (?!2025-03-01)"
+  - step: 1
+    not_regex: "(?i)copy|analysis host|extract|not (the )?original"
+  - step: 2
+    contains: "No timestamp anomalies detected."

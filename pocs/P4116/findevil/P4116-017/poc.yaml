@@ -1,0 +1,58 @@
+# Matrix case P4116-017: _is_rfc1918 only knows the IPv4 private ranges and
+# 127/8, so link-local 169.254/16 (cloud metadata) and carrier-grade NAT
+# 100.64/10 are classified as public. Step 1 uses extract_iocs
+# (threat_intel._is_rfc1918). Step 2 uses analyze_memory_network, which has
+# its own copy (linux_memory._is_rfc1918) that also returns False for every
+# IPv6 address.
+# For step 2, vol is a stub (FINDEVIL_VOL) that prints linux.sockstat.Sockstat
+# rows in Volatility 3's "-r json" form (list of objects with "Family",
+# "Proto", "Source Addr", "Source Port", "Destination Addr",
+# "Destination Port", "State", ...). External tool output is simulated.
+# The connections are what a cloud VM normally has: cloud-init talking to the
+# metadata service and an IPv6 link-local peer.
+case_id: P4116-017
+problem: P4116
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: common
+coverage: full
+summary: extract_iocs puts the cloud metadata address 169.254.169.254 and the carrier-grade NAT address 100.64.0.5 under "ipv4 public", although neither is routable on the internet, and analyze_memory_network flags connections to the metadata service and to an IPv6 link-local peer as outbound non-RFC1918, so the model treats them as external IOCs to pivot on.
+env:
+  FINDEVIL_VOL: ${STUBS}/vol
+stubs:
+  - name: vol
+    text: |
+      #!/bin/sh
+      if [ "$1" = "--help" ]; then echo "usage: vol [-h] [-f FILE] PLUGIN"; exit 0; fi
+      case "$*" in
+        *linux.sockstat.Sockstat*)
+          cat <<'JSON'
+      [{"NetNS": 4026531840, "Process Name": "cloud-init", "PID": 612, "TID": 612, "FD": 5, "Sock Offset": 18446616593423011840, "Family": "AF_INET", "Type": "STREAM", "Proto": "TCP", "Source Addr": "10.0.0.8", "Source Port": 48812, "Destination Addr": "169.254.169.254", "Destination Port": 80, "State": "ESTABLISHED", "Filter": "-", "__children": []},
+       {"NetNS": 4026531840, "Process Name": "chronyd", "PID": 540, "TID": 540, "FD": 7, "Sock Offset": 18446616593423015936, "Family": "AF_INET6", "Type": "STREAM", "Proto": "TCP", "Source Addr": "fe80::5054:ff:fe12:3456", "Source Port": 51000, "Destination Addr": "fe80::1", "Destination Port": 4460, "State": "ESTABLISHED", "Filter": "-", "__children": []}]
+      JSON
+          exit 0;;
+      esac
+      echo "[]"
+      exit 0
+fixture:
+  - path: mem/host.lime
+    hex: 454d694c0100000000000000000000000000000000000000
+steps:
+  - tool: extract_iocs
+    args:
+      text: "curl -s http://169.254.169.254/latest/meta-data/iam/ ; ssh admin@100.64.0.5 ; scp loot 10.0.0.8:/tmp/"
+  - tool: analyze_memory_network
+    args:
+      memory_dump_path: ${EVIDENCE}/mem/host.lime
+expect:
+  - step: 1
+    regex: "## ipv4 public \\(2\\)\\n- `100\\.64\\.0\\.5`\\n- `169\\.254\\.169\\.254`"
+  - step: 1
+    regex: "## ipv4 private \\(1\\)\\n- `10\\.0\\.0\\.8`"
+  - step: 2
+    contains: "outbound TCP to 169.254.169.254:80 (non-RFC1918, state=ESTABLISHED)"
+  - step: 2
+    contains: "outbound TCP to fe80::1:4460 (non-RFC1918, state=ESTABLISHED)"

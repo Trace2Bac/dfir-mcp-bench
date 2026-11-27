@@ -1,0 +1,30 @@
+# Matrix case P4093-008: file_info runs `file -b`
+# without -E. On a file it cannot read, `file` prints "cannot open ..." and
+# still exits 0, so _run_tool shows no [STDERR] and the error sentence is
+# returned as the file type. The fixture file is made unreadable (mode 0000);
+# the bench container runs as a non-root user, so the read fails there too.
+case_id: P4093-008
+problem: P4093
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: full
+summary: For an evidence file the server cannot read, file_info returns the "cannot open" message of `file -b` under "## File Type" as if it were the identified type, because `file` exits 0 and the server only checks the exit code.
+fixture:
+  - path: case01/suspicious.bin
+    hex: 4d5a90000300000004000000ffff0000
+    mode: "0000"
+steps:
+  - tool: file_info
+    args:
+      path: ${EVIDENCE}/case01/suspicious.bin
+expect:
+  - step: 1
+    regex: "## File Type\\n[^\\n]*cannot open"
+  - step: 1
+    not_regex: "## File Type\\n(?:[^#]*\\n)?\\[STDERR\\]"
+  - step: 1
+    is_error: false

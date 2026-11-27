@@ -1,0 +1,26 @@
+# Matrix case P4124-003: _run_tool appends "[STDERR]: ..." to stdout in the
+# same string, and the basic tools wrap that output with server header lines
+# ("## MD5", "## SHA256"), so tool error text, evidence-derived text and
+# server text are one undivided block.
+case_id: P4124-003
+problem: P4124
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: "partial: only hash_file (the other 5 tools and the [TRUNCATED] note share the cause)"
+summary: hash_file on a folder returns the md5sum and sha256sum error text behind "[STDERR]:" inside the same text as the server's "## MD5" and "## SHA256" headings, with nothing marking which lines are tool output and which the server wrote.
+fixture:
+  - path: case/dir/readme.txt
+    text: "x\n"
+steps:
+  - tool: hash_file
+    args:
+      path: ${EVIDENCE}/case/dir
+expect:
+  - step: 1
+    regex: "^## MD5\\n\\n\\[STDERR\\]: md5sum: .*Is a directory"
+  - step: 1
+    regex: "\\n## SHA256\\n\\n\\[STDERR\\]: sha256sum: .*Is a directory"

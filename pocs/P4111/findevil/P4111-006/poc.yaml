@@ -1,0 +1,38 @@
+# Matrix case P4111-006: build_timeline mixes apt times without an offset with
+# auth.log times labelled +00:00; analyze_package_logs leaves yum times in
+# their raw "Apr 10 ..." form and string-sorts them after ISO times.
+case_id: P4111-006
+problem: P4111
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: source-vs-result
+level: mcp
+realism: common
+coverage: full
+summary: The timeline shows an apt install as 2026-04-12T14:30:04 with no offset next to auth.log rows marked +00:00, and analyze_package_logs lists a yum install from Apr 10 after an apt install from Apr 12 because the raw yum time sorts after ISO strings.
+fixture:
+  - path: case/auth.log
+    text: "Apr 12 14:00:00 web sshd[811]: Accepted password for root from 203.0.113.7 port 50022 ssh2\n"
+  - path: case/fs/var/log/apt/history.log
+    text: |
+      Start-Date: 2026-04-12  14:30:04
+      Commandline: apt-get install -y xmrig
+      Install: xmrig:amd64 (6.21.0-1)
+      End-Date: 2026-04-12  14:30:09
+  - path: case/fs/var/log/yum.log
+    text: "Apr 10 09:00:00 Installed: xmrig-6.20.0-1.x86_64\n"
+steps:
+  - tool: build_timeline
+    args:
+      evidence_root: ${EVIDENCE}/case
+  - tool: analyze_package_logs
+    args:
+      root_path: ${EVIDENCE}/case/fs
+expect:
+  - step: 1
+    contains: "| 2026-04-12T14:00:00+00:00 | auth.log |"
+  - step: 1
+    contains: "| 2026-04-12T14:30:04 | apt |"
+  - step: 2
+    regex: "\\| 2026-04-12T14:30:04 \\| apt \\|[^\\n]*\\n\\| Apr 10 09:00:00 \\| yum \\|"

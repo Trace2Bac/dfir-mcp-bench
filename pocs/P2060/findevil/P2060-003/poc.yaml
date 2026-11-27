@@ -1,0 +1,39 @@
+# Matrix case P2060-003: arguments outside the tool schema are dropped without
+# an error, so a misnamed filter is silently not applied.
+case_id: P2060-003
+problem: P2060
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: full
+summary: get_audit_trail called with `since` (the real name is filter_since) and build_timeline called with `start` (not a parameter) return their full unfiltered results with no error and no note that the filter was ignored.
+fixture:
+  - path: case/auth.log
+    text: "Apr 12 14:00:00 web sshd[800]: Accepted password for root from 203.0.113.7 port 50000 ssh2\n"
+steps:
+  - tool: stat_file
+    args:
+      path: ${EVIDENCE}/case/auth.log
+  - tool: get_audit_trail
+    args:
+      since: "2999-01-01T00:00:00+00:00"
+  - tool: build_timeline
+    args:
+      evidence_root: ${EVIDENCE}/case
+      start: "2030-01-01T00:00:00+00:00"
+expect:
+  - step: 2
+    is_error: false
+  - step: 2
+    contains: "(1 matching entries, showing last 1)"
+  - step: 2
+    not_contains: "Filtered to entries since"
+  - step: 3
+    is_error: false
+  - step: 3
+    contains: "| 2026-04-12T14:00:00+00:00 | auth.log |"
+  - step: 3
+    not_regex: "(?i)unknown|unexpected|ignored|start"

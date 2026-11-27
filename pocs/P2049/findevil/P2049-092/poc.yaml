@@ -1,0 +1,38 @@
+# Matrix case P2049-092: analyze_package_logs says it flags npm typosquats,
+# but no npm log is read (_NPM_TYPOSQUATS is never used).
+case_id: P2049-092
+problem: P2049
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: "partial: not reading term.log (shown in P4118-007)"
+summary: With an npm debug log recording "npm install lodasch" (an entry in the server's own npm typosquat list), the tool reads only the apt log and answers "No package-management red flags."
+fixture:
+  - path: fs/var/log/apt/history.log
+    text: |
+      Start-Date: 2026-04-12  10:00:00
+      Commandline: apt-get install -y curl
+      Install: curl:amd64 (8.5.0-2)
+      End-Date: 2026-04-12  10:00:04
+  - path: fs/root/.npm/_logs/2026-04-12T14_30_04_000Z-debug-0.log
+    text: |
+      0 verbose cli /usr/bin/node /usr/bin/npm
+      1 info using npm@10.2.4
+      2 verbose title npm install lodasch
+      3 verbose argv "install" "lodasch"
+      4 http fetch GET 200 https://registry.npmjs.org/lodasch 120ms
+      5 info run lodasch@1.0.3 postinstall node_modules/lodasch node setup.js
+steps:
+  - tool: analyze_package_logs
+    args:
+      root_path: ${EVIDENCE}/fs
+expect:
+  - step: 1
+    contains: "**Sources:** apt"
+  - step: 1
+    contains: "No package-management red flags."
+  - step: 1
+    not_contains: "lodasch"

@@ -1,0 +1,41 @@
+# Matrix case P4101-005: check errors ("Error: ...", "File not found: ...")
+# and external tool failures ("[STDERR]: ...") are returned as ordinary
+# results; only exceptions that escape to FastMCP set isError.
+case_id: P4101-005
+problem: P4101
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: common
+coverage: full
+summary: A missing file, a path outside the evidence folder and a grep failure all come back with isError false, so a client that reads the status sees three successful calls.
+fixture:
+  - path: auth.log
+    text: "Apr 12 14:30:04 web01 sshd[2211]: Accepted password for alice from 203.0.113.5 port 51122 ssh2\n"
+steps:
+  - tool: hash_file
+    args:
+      path: ${EVIDENCE}/no-such-file.bin
+  - tool: hash_file
+    args:
+      path: /etc/hosts
+  - tool: log_search
+    args:
+      path: ${EVIDENCE}/auth.log
+      pattern: "Accepted"
+      context_lines: -1
+expect:
+  - step: 1
+    contains: "File not found:"
+  - step: 1
+    is_error: false
+  - step: 2
+    contains: "Error: Access denied"
+  - step: 2
+    is_error: false
+  - step: 3
+    contains: "[STDERR]:"
+  - step: 3
+    is_error: false

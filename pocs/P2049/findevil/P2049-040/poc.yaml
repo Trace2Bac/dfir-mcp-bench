@@ -1,0 +1,36 @@
+# Matrix case P2049-040: find_ai_signatures raises a polished_script finding
+# when any 3 of its 6 idioms match, but the reason line always says
+# "combination of strict-mode + readonly + parallelism".
+case_id: P2049-040
+problem: P2049
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: common
+coverage: full
+summary: A script with readonly, export -f and an EXIT trap but no set -euo pipefail is reported as an AI-polished script whose reason claims a "combination of strict-mode + readonly + parallelism", so the finding describes a strict-mode idiom that is not in the file.
+fixture:
+  - path: fs/usr/local/bin/backup.sh
+    # no "set -euo pipefail", no xargs -P, no GNU parallel
+    text: |
+      #!/bin/bash
+      readonly DEST=/srv/backup
+      cleanup() { rm -f /run/backup.lock; }
+      trap 'cleanup' EXIT
+      do_copy() { cp -a "$1" "$DEST"; }
+      export -f do_copy
+      do_copy /etc
+steps:
+  - tool: find_ai_signatures
+    args:
+      root_path: ${EVIDENCE}/fs
+expect:
+  - step: 1
+    contains: "usr/local/bin/backup.sh` — AI-style polished script (3 idioms)"
+  - step: 1
+    contains: "combination of strict-mode + readonly + parallelism"
+  # the strict-mode idiom did not match
+  - step: 1
+    not_contains: "matched: set\\s+-euo\\s+pipefail"

@@ -1,0 +1,33 @@
+# Matrix case P4111-005: build_timeline stamps syslog times with
+# fallback_year (default 2026) and UTC, and drops the offset of access-log
+# times (+0900) before labelling them UTC. Neither assumption is shown.
+# The access request really happened at 2025-12-31T14:30:00Z; the auth.log
+# line from the same December 2025 is placed in 2026.
+case_id: P4111-005
+problem: P4111
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: source-vs-result
+level: mcp
+realism: possible
+coverage: full
+summary: An access-log request at 31/Dec/2025:23:30:00 +0900 (14:30Z) is shown as 2025-12-31T23:30:00+00:00, and an auth.log line "Dec 31 23:40:00" from the same night is shown as 2026-12-31T23:40:00+00:00, a year later, without saying that the offset was dropped or that a year and time zone were assumed.
+fixture:
+  - path: case/access.log
+    text: "198.51.100.9 - - [31/Dec/2025:23:30:00 +0900] \"GET /index.php HTTP/1.1\" 200 512 \"-\" \"Mozilla/5.0\"\n"
+  - path: case/auth.log
+    text: "Dec 31 23:40:00 web01 sshd[2211]: Accepted password for alice from 198.51.100.9 port 51122 ssh2\n"
+steps:
+  - tool: build_timeline
+    args:
+      evidence_root: ${EVIDENCE}/case
+expect:
+  # +0900 dropped: local wall time labelled UTC
+  - step: 1
+    regex: "\\| 2025-12-31T23:30:00\\+00:00 \\| nginx \\|"
+  # fallback year 2026 applied to a December 2025 line
+  - step: 1
+    regex: "\\| 2026-12-31T23:40:00\\+00:00 \\| auth\\.log"
+  - step: 1
+    not_regex: "(?i)assum|fallback|offset|time ?zone|local time"

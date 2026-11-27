@@ -1,0 +1,37 @@
+# Matrix case P4111-008: the auth.log parser only accepts the traditional
+# syslog timestamp ("Mon dd HH:MM:SS"). Lines written with an RFC 3339
+# timestamp (rsyslog RSYSLOG_FileFormat, the default on some distributions)
+# are dropped, and the response does not say that any line was skipped.
+case_id: P4111-008
+problem: P4111
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: source-vs-result
+level: mcp
+realism: possible
+coverage: "partial: journal entries without __REALTIME_TIMESTAMP"
+summary: An auth.log with one traditional-format login and one RFC 3339-format login is summarized as 1 event and 1 successful login, and auth_successful_logins lists only the first, because the RFC 3339 line is dropped without any note.
+fixture:
+  - path: var/log/auth.log
+    text: |
+      Apr 15 10:00:00 web sshd[100]: Accepted publickey for alice from 198.51.100.9 port 50000 ssh2
+      2026-04-15T11:00:00.123456+00:00 web sshd[200]: Accepted password for root from 203.0.113.66 port 51000 ssh2
+steps:
+  - tool: auth_summary
+    args:
+      path: ${EVIDENCE}/var/log/auth.log
+  - tool: auth_successful_logins
+    args:
+      path: ${EVIDENCE}/var/log/auth.log
+expect:
+  - step: 1
+    contains: "**Total events:** 1"
+  - step: 1
+    contains: "**Successful logins:** 1"
+  - step: 2
+    not_contains: "203.0.113.66"
+  - step: 1
+    not_regex: "(?i)skipp|unparsed|unrecogni|dropped|could not parse|malformed"
+  - step: 2
+    not_regex: "(?i)skipp|unparsed|unrecogni|dropped|could not parse|malformed"

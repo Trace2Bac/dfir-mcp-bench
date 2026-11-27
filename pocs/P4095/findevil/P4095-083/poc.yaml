@@ -1,0 +1,24 @@
+# Matrix case P4095-083: analyze_container_artifacts skips a config.v2.json it
+# cannot parse and still reports that no issues were found.
+case_id: P4095-083
+problem: P4095
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: full
+summary: A container config.v2.json that declares Privileged true but has a trailing comma is skipped silently, and the tool answers "No container security issues found" without saying a file could not be parsed.
+fixture:
+  - path: fs/var/lib/docker/containers/abc123/config.v2.json
+    text: "{\"Name\": \"/miner\", \"HostConfig\": {\"Privileged\": true, \"NetworkMode\": \"host\",}}\n"
+steps:
+  - tool: analyze_container_artifacts
+    args:
+      root_path: ${EVIDENCE}/fs
+expect:
+  - step: 1
+    contains: "No container security issues found"
+  - step: 1
+    not_regex: "(?i)parse|invalid|json|skipp|could not"

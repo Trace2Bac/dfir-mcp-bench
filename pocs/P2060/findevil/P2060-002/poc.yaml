@@ -1,0 +1,39 @@
+# Matrix case P2060-002: verify_finding takes params as a JSON string and never
+# checks its keys, so a package_installed claim whose package name is given
+# under a key other than "name" is checked with an empty name.
+case_id: P2060-002
+problem: P2060
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: full
+summary: verify_finding(package_installed) with params {"fs_root", "package":"nmap"} accepts the unknown key without error, looks up an empty package name and returns CONTRADICTED although apt history installs nmap, which the same call with "name" confirms as SUPPORTED.
+fixture:
+  - path: fs/var/log/apt/history.log
+    text: |
+
+      Start-Date: 2024-04-15  10:00:00
+      Commandline: apt-get install -y nmap
+      Install: nmap:amd64 (7.80+dfsg1-2build1)
+      End-Date: 2024-04-15  10:00:05
+steps:
+  - tool: verify_finding
+    args:
+      claim_type: package_installed
+      params: '{"fs_root": "${EVIDENCE}/fs", "package": "nmap"}'
+  - tool: verify_finding
+    args:
+      claim_type: package_installed
+      params: '{"fs_root": "${EVIDENCE}/fs", "name": "nmap"}'
+expect:
+  - step: 1
+    contains: "**Verdict:** CONTRADICTED"
+  - step: 1
+    contains: "no apt/dpkg install event for `` found"
+  - step: 1
+    not_regex: "(?i)unknown|unexpected|unrecognized|invalid"
+  - step: 2
+    contains: "**Verdict:** SUPPORTED"

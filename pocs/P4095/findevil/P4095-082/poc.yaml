@@ -1,0 +1,35 @@
+# Matrix case P4095-082: verify_package_integrity counts a
+# file in files_checked before hashing it; when _md5_of fails (unreadable
+# file) the file is skipped silently. Here sshd is replaced (its MD5 differs
+# from the dpkg record) and made unreadable (mode 0000; the bench container
+# runs as a non-root user), and the tool reports no integrity violation.
+case_id: P4095-082
+problem: P4095
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: full
+summary: When a modified package file cannot be read, verify_package_integrity still counts it as compared and reports "No package-file integrity violations detected", so a hash failure is reported as a clean file.
+fixture:
+  - path: rootfs/var/lib/dpkg/info/openssh-server.md5sums
+    # md5 of the empty string; the sshd below is not empty, so it would mismatch if read
+    text: "d41d8cd98f00b204e9800998ecf8427e  usr/sbin/sshd\n"
+  - path: rootfs/usr/sbin/sshd
+    text: "backdoored sshd\n"
+    mode: "0000"
+steps:
+  - tool: verify_package_integrity
+    args:
+      root_path: ${EVIDENCE}/rootfs
+expect:
+  - step: 1
+    contains: "**Files compared:** 1"
+  - step: 1
+    contains: "**Modified files:** 0"
+  - step: 1
+    contains: "No package-file integrity violations detected"
+  - step: 1
+    not_regex: "(?i)could not (be )?read|unreadable|permission|failed to hash|not hashed"

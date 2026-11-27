@@ -1,0 +1,39 @@
+# Matrix case P2067-006: log_search puts pattern after "grep -E" with no -e or
+# "--", so a value starting with "-" is read as grep options. Searching for
+# the command-line flag "-version" becomes -v -e rsion (print lines NOT
+# matching "rsion"), while the audit trail records the pattern as given.
+case_id: P2067-006
+problem: P2067
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: side-effect
+level: mcp
+realism: possible
+coverage: full
+summary: Searching auth.log for the flag "-version" returns the two lines that do not contain it and leaves out the one line that does, because grep reads the pattern as -v -e rsion, and the audit trail records only the pattern "-version" as if it had been searched for.
+fixture:
+  - path: auth.log
+    text: |
+      Apr 12 14:30:04 web01 sshd[2211]: Accepted password for alice from 203.0.113.5 port 51122 ssh2
+      Apr 12 14:31:10 web01 sudo: alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/bin/cat /etc/shadow
+      Apr 12 14:32:00 web01 sudo: alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/java -version
+steps:
+  - tool: log_search
+    args:
+      path: ${EVIDENCE}/auth.log
+      pattern: "-version"
+      context_lines: 0
+  - tool: get_audit_trail
+    args:
+      filter_tool: log_search
+expect:
+  - step: 1
+    contains: "1:Apr 12 14:30:04 web01 sshd[2211]: Accepted password for alice"
+  - step: 1
+    contains: "2:Apr 12 14:31:10 web01 sudo: alice"
+  # the only line that contains "-version" is the one left out
+  - step: 1
+    not_contains: "java -version"
+  - step: 2
+    contains: "\"pattern\": \"-version\""

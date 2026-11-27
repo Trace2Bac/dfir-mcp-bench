@@ -1,0 +1,35 @@
+# Matrix case P4116-007: detect_webshell_upload_chain records every POST
+# upload first and then pairs it with any GET of the same path, without
+# checking that the GET came after the POST. A GET that happened before the
+# upload is reported as "upload-then-exec" and the verdict is LIKELY WEBSHELL
+# COMPROMISE; verify_finding agrees.
+case_id: P4116-007
+problem: P4116
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: full
+summary: When the only GET of /uploads/report.php (a 404) is on line 1 and the POST upload is on line 2, analyze_nginx_access reports an upload chain with upload line 2 and exec line 1 and says LIKELY WEBSHELL COMPROMISE, and verify_finding returns SUPPORTED.
+fixture:
+  - path: access.log
+    text: |
+      203.0.113.50 - - [12/Apr/2026:10:00:00 +0000] "GET /uploads/report.php HTTP/1.1" 404 162 "-" "Mozilla/5.0"
+      203.0.113.50 - - [12/Apr/2026:10:05:00 +0000] "POST /uploads/report.php HTTP/1.1" 200 31 "-" "Mozilla/5.0"
+steps:
+  - tool: analyze_nginx_access
+    args:
+      path: ${EVIDENCE}/access.log
+  - tool: verify_finding
+    args:
+      claim_type: webshell_upload_chain
+      params: "{\"log_path\": \"${EVIDENCE}/access.log\"}"
+expect:
+  - step: 1
+    regex: "\\| 2 \\| 12/Apr/2026:10:05:00 \\+0000 \\| `203\\.0\\.113\\.50` \\| 1 \\| `203\\.0\\.113\\.50` \\| `/uploads/report\\.php` \\|"
+  - step: 1
+    contains: "LIKELY WEBSHELL COMPROMISE"
+  - step: 2
+    contains: "**Verdict:** SUPPORTED"

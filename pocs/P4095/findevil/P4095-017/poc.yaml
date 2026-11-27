@@ -1,0 +1,49 @@
+# Matrix case P4095-017: _read_safe turns a read failure into the text
+# "[unreadable: ...]", and analyze_sudoers, analyze_sshd_config and
+# analyze_authorized_keys parse that text as file content: "No user rules
+# found", "No dangerous settings detected." and "1 key(s)" (the error
+# sentence counted as a key).
+#
+# The files are made unreadable with fixture mode 0000, like a root-owned
+# 0440 sudoers in a mounted image read by a non-root analyst. The bench
+# server runs as a non-root user; run as root the read succeeds and the PoC
+# does not reproduce.
+case_id: P4095-017
+problem: P4095
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: "partial: find_persistence hiding read failures as info"
+summary: For sudoers, sshd_config and authorized_keys files the server cannot read, the tools answer "No user rules found", "No dangerous settings detected." and "1 key(s)" instead of saying the file could not be read.
+fixture:
+  - path: fs/etc/sudoers.d/90-backdoor
+    text: "deploy ALL=(ALL) NOPASSWD: ALL\n"
+    mode: "0000"
+  - path: fs/etc/ssh/sshd_config
+    text: "PermitRootLogin yes\nPermitEmptyPasswords yes\n"
+    mode: "0000"
+  - path: fs/root/.ssh/authorized_keys
+    text: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl\n"
+    mode: "0000"
+steps:
+  - tool: analyze_sudoers
+    args:
+      path: ${EVIDENCE}/fs/etc/sudoers.d/90-backdoor
+  - tool: analyze_sshd_config
+    args:
+      path: ${EVIDENCE}/fs/etc/ssh/sshd_config
+  - tool: analyze_authorized_keys
+    args:
+      path: ${EVIDENCE}/fs/root/.ssh/authorized_keys
+expect:
+  - step: 1
+    contains: "No user rules found"
+  - step: 2
+    contains: "No dangerous settings detected."
+  - step: 3
+    contains: "1 key(s):"
+  - step: 3
+    contains: "UNPARSEABLE**: `[unreadable:"

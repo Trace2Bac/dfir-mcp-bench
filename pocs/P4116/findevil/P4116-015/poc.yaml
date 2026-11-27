@@ -1,0 +1,27 @@
+# Matrix case P4116-015: find_persistence skips a group (%name) with full ALL
+# rights, while analyze_sudoers flags the same rule.
+case_id: P4116-015
+problem: P4116
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: common
+coverage: full
+summary: For the same rule "%ops ALL=(ALL) ALL", analyze_sudoers flags "ALL sudo rights" but find_persistence reports no sudoers finding, so the result depends on which tool is called.
+fixture:
+  - path: fs/etc/sudoers.d/ops
+    text: "%ops ALL=(ALL) ALL\n"
+steps:
+  - tool: find_persistence
+    args:
+      root_path: ${EVIDENCE}/fs
+  - tool: analyze_sudoers
+    args:
+      path: ${EVIDENCE}/fs/etc/sudoers.d/ops
+expect:
+  - step: 1
+    not_contains: "%ops"
+  - step: 2
+    contains: "| `%ops` | `ALL` | `ALL` | ⚠ ALL sudo rights |"

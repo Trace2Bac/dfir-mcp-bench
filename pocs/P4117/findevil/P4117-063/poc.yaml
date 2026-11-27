@@ -1,0 +1,29 @@
+# Matrix case P4117-063: build_timeline stops collecting filesystem mtime
+# events after 500 files, in rglob order (not time order), and neither the
+# Events count nor the table says that the cap was hit.
+# 600 files are written; with a window that covers all of them and
+# max_events 1000 the timeline should hold 600 filesystem events.
+case_id: P4117-063
+problem: P4117
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: common
+coverage: full
+summary: With 600 files modified inside the window and max_events 1000, build_timeline reports "Events 500" and lists 500 filesystem events, with no note that it stopped at 500 files.
+fixture:
+  - {path: "case/fs/srv/cache/f{i}", text: "x", repeat: 600}
+steps:
+  - tool: build_timeline
+    args:
+      evidence_root: ${EVIDENCE}/case
+      since_iso: "2000-01-01T00:00:00Z"
+      until_iso: "2100-01-01T00:00:00Z"
+      max_events: 1000
+expect:
+  - step: 1
+    contains: "- **Events:** 500"
+  - step: 1
+    not_regex: "(?i)truncat|more events|\\bcap\\b|limit|first 500|stopped"

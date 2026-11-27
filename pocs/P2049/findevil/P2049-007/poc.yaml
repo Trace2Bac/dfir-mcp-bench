@@ -1,0 +1,36 @@
+# Matrix case P2049-007: auth_summary / auth_successful_logins say a login came
+# AFTER failed attempts, but they only check that the IP also failed somewhere
+# in the log, never the order of the events.
+case_id: P2049-007
+problem: P2049
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: full
+summary: When an IP logs in successfully first and only fails five times later, auth_summary still reports LIKELY COMPROMISE "authenticated AFTER failed attempts" and auth_successful_logins flags the login as brute-force-preceded, although no failure came before it.
+fixture:
+  - path: var/log/auth.log
+    text: |
+      Apr 15 10:00:00 web sshd[100]: Accepted password for alice from 198.51.100.9 port 50000 ssh2
+      Apr 15 11:00:01 web sshd[101]: Failed password for alice from 198.51.100.9 port 50001 ssh2
+      Apr 15 11:00:02 web sshd[102]: Failed password for alice from 198.51.100.9 port 50002 ssh2
+      Apr 15 11:00:03 web sshd[103]: Failed password for alice from 198.51.100.9 port 50003 ssh2
+      Apr 15 11:00:04 web sshd[104]: Failed password for alice from 198.51.100.9 port 50004 ssh2
+      Apr 15 11:00:05 web sshd[105]: Failed password for alice from 198.51.100.9 port 50005 ssh2
+steps:
+  - tool: auth_summary
+    args:
+      path: ${EVIDENCE}/var/log/auth.log
+  - tool: auth_successful_logins
+    args:
+      path: ${EVIDENCE}/var/log/auth.log
+expect:
+  - step: 1
+    contains: "LIKELY COMPROMISE"
+  - step: 1
+    regex: "authenticated AFTER failed attempts: `198\\.51\\.100\\.9`"
+  - step: 2
+    regex: "\\| 1 \\| Apr 15 10:00:00 \\| alice \\| 198\\.51\\.100\\.9 \\| password \\| ⚠ brute-force-preceded"

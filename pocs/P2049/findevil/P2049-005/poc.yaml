@@ -1,0 +1,32 @@
+# Matrix case P2049-005: build_timeline drops the nginx $time_local offset
+# (+0900) and labels the same wall-clock numbers as UTC, then sorts it with
+# sources that really are UTC.
+# A journal record ten minutes after the web request (05:40:04Z) is listed
+# before it, because the request is shown at 14:30:04+00:00.
+case_id: P2049-005
+problem: P2049
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: common
+coverage: full
+summary: An nginx access line stamped 14:30:04 +0900 (05:30:04 UTC) is shown in the timeline as 14:30:04+00:00 and sorted after a journal event at 05:40:04 UTC that happened ten minutes later, so local time is presented as UTC and the order is wrong.
+fixture:
+  - path: case/access.log
+    text: "203.0.113.7 - - [12/Apr/2026:14:30:04 +0900] \"GET /shell.php HTTP/1.1\" 200 512 \"-\" \"curl/8.0\"\n"
+  - path: case/journal.jsonl
+    # __REALTIME_TIMESTAMP 1775972404000000 = 2026-04-12T05:40:04Z
+    text: "{\"__REALTIME_TIMESTAMP\": \"1775972404000000\", \"SYSLOG_IDENTIFIER\": \"sshd\", \"_PID\": \"2211\", \"MESSAGE\": \"Accepted password for alice from 203.0.113.7 port 51122 ssh2\"}\n"
+steps:
+  - tool: build_timeline
+    args:
+      evidence_root: ${EVIDENCE}/case
+expect:
+  - step: 1
+    contains: "| 2026-04-12T14:30:04+00:00 | nginx |"
+  - step: 1
+    not_contains: "05:30:04"
+  - step: 1
+    regex: "\\| 2026-04-12T05:40:04\\+00:00 \\| journal \\|[\\s\\S]*\\| 2026-04-12T14:30:04\\+00:00 \\| nginx \\|"

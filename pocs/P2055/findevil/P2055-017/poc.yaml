@@ -1,0 +1,38 @@
+# Matrix case P2055-017: find_recent_changes
+# documents since_iso/until_iso only as "ISO 8601", but a value without an
+# offset is read as the server's local time. The same call is run with the
+# server in UTC and in Asia/Seoul; the file (mtime 10:00 UTC) is in the window
+# only in the first run.
+case_id: P2055-017
+problem: P2055
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: definition
+level: mcp
+realism: possible
+coverage: full
+summary: With since_iso/until_iso given without an offset, find_recent_changes reads them in the server's local time zone, so the same window matches the file under TZ=UTC and matches nothing under TZ=Asia/Seoul, and the tool description does not say so.
+fixture:
+  - path: var/www/html/shell.php
+    text: "<?php system($_GET['c']); ?>\n"
+    mtime: "2025-03-01T10:00:00Z"
+conditions:
+  - name: utc
+    env: {TZ: UTC}
+  - name: seoul
+    env: {TZ: Asia/Seoul}
+steps:
+  - tool: find_recent_changes
+    args:
+      root_path: ${EVIDENCE}/var
+      since_iso: "2025-03-01T09:30:00"
+      until_iso: "2025-03-01T10:30:00"
+expect:
+  - step: 1
+    condition: utc
+    contains: "**Files matched:** 1"
+  - step: 1
+    condition: seoul
+    contains: "**Files matched:** 0"
+  - differs: {step: 1, conditions: [utc, seoul]}

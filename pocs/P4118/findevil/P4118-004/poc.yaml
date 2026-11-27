@@ -1,0 +1,40 @@
+# Matrix case P4118-004: verify_finding reads only history.log / dpkg.log (no
+# rotated logs) and answers CONTRADICTED instead of INSUFFICIENT_EVIDENCE;
+# user_created goes further and asserts /etc/passwd was written directly.
+case_id: P4118-004
+problem: P4118
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: common
+coverage: "partial: CONTRADICTED for a missing file, a parent folder with no records, or an unreadable format"
+summary: An install recorded only in the rotated history.log.1 is judged CONTRADICTED, and a user missing from a log with no useradd lines is CONTRADICTED with "the attacker wrote /etc/passwd directly", although both only mean the evidence read was insufficient.
+fixture:
+  - path: case/fs/var/log/apt/history.log.1
+    text: |
+      Start-Date: 2026-04-12  14:30:04
+      Commandline: apt-get install -y xmrig
+      Install: xmrig:amd64 (6.21.0-1)
+      End-Date: 2026-04-12  14:30:09
+  - path: case/auth.log
+    text: "Apr 12 14:00:00 web sshd[800]: Accepted password for root from 203.0.113.7 port 50000 ssh2\n"
+steps:
+  - tool: verify_finding
+    args:
+      claim_type: package_installed
+      params: '{"fs_root": "${EVIDENCE}/case/fs", "name": "xmrig"}'
+  - tool: verify_finding
+    args:
+      claim_type: user_created
+      params: '{"log_path": "${EVIDENCE}/case/auth.log", "name": "backdoor"}'
+expect:
+  - step: 1
+    contains: "**Verdict:** CONTRADICTED"
+  - step: 1
+    contains: "no apt/dpkg install event for `xmrig` found"
+  - step: 2
+    contains: "**Verdict:** CONTRADICTED"
+  - step: 2
+    contains: "the attacker wrote /etc/passwd directly"

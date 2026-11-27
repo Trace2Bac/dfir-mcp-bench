@@ -1,0 +1,29 @@
+# Matrix case P2049-008: verify_finding's successful_login_after_brute_force
+# only checks that a failure from the IP exists somewhere in the file, not that
+# it came before the success.
+case_id: P2049-008
+problem: P2049
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: full
+summary: When the only failures from 203.0.113.7 come after its successful login, verify_finding still returns SUPPORTED for "successful login after brute force", so the claimed order is never checked.
+fixture:
+  - path: case/auth.log
+    text: |
+      Apr 12 14:00:00 web sshd[800]: Accepted password for alice from 203.0.113.7 port 50000 ssh2
+      Apr 12 15:00:00 web sshd[801]: Failed password for alice from 203.0.113.7 port 50001 ssh2
+      Apr 12 15:00:05 web sshd[802]: Failed password for alice from 203.0.113.7 port 50002 ssh2
+steps:
+  - tool: verify_finding
+    args:
+      claim_type: successful_login_after_brute_force
+      params: '{"log_path": "${EVIDENCE}/case/auth.log", "ip": "203.0.113.7", "user": "alice"}'
+expect:
+  - step: 1
+    contains: "**Verdict:** SUPPORTED"
+  - step: 1
+    contains: "success at line 1"

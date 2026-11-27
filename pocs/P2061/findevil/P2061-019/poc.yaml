@@ -1,0 +1,54 @@
+# Matrix case P2061-019: find_recent_changes does not check that since <= until
+# and reads a since_iso / until_iso without an offset as server local time.
+# Step 1: a window whose start is after its end is accepted.
+# Step 2: the same naive window (10:00-11:00, no offset) run on a server in
+# UTC and on a server in UTC+9 (POSIX TZ "KST-9", needs no tzdata) selects
+# different files; the file's mtime is 01:30Z (10:30 at UTC+9). Neither
+# answer says which time zone was applied.
+case_id: P2061-019
+problem: P2061
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: full
+summary: A window whose start (2030) is after its end (2020) is answered with "Files matched 0" instead of an error, and the same window without an offset matches 0 files on a UTC server and 1 file on a UTC+9 server, with no note of the time zone used.
+conditions:
+  - name: utc
+    env: {TZ: "UTC0"}
+  - name: kst
+    env: {TZ: "KST-9"}
+fixture:
+  - {path: tree/a.txt, text: "a", mtime: "2025-03-01T01:30:00Z"}
+steps:
+  - tool: find_recent_changes
+    args:
+      root_path: ${EVIDENCE}/tree
+      since_iso: "2030-01-01T00:00:00"
+      until_iso: "2020-01-01T00:00:00Z"
+  - tool: find_recent_changes
+    args:
+      root_path: ${EVIDENCE}/tree
+      since_iso: "2025-03-01T10:00:00"
+      until_iso: "2025-03-01T11:00:00"
+expect:
+  - step: 1
+    condition: utc
+    contains: "**Window:** 2030-01-01T00:00:00 → 2020-01-01T00:00:00+00:00"
+  - step: 1
+    condition: utc
+    contains: "**Files matched:** 0"
+  - step: 1
+    condition: utc
+    not_regex: "(?i)error|invalid|before|after"
+  - step: 2
+    condition: utc
+    contains: "**Files matched:** 0"
+  - step: 2
+    condition: kst
+    contains: "**Files matched:** 1"
+  - step: 2
+    condition: kst
+    contains: "**Window:** 2025-03-01T10:00:00 → 2025-03-01T11:00:00"

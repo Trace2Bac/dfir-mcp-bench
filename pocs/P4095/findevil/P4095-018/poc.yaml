@@ -1,0 +1,71 @@
+# Matrix case P4095-018: FIM drops a tracked file it can stat
+# but not read (_hash_file returns "", _stat_entry returns None).
+#   - baseline_create on host-a: etc/shadow is unreadable (mode 0000; the bench
+#     container runs as a non-root user), so the baseline silently has 1 entry
+#     (etc/passwd) instead of 2.
+#   - baseline_diff on host-b against a clean baseline that has etc/shadow:
+#     shadow is still on disk but unreadable, and the diff reports it as
+#     "File present in baseline but missing now" (a removal).
+case_id: P4095-018
+problem: P4095
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: full
+summary: An unreadable tracked file is left out of baseline_create's entries without a note, and baseline_diff reports the same file, still on disk, as "File present in baseline but missing now".
+fixture:
+  - path: host-a/etc/passwd
+    text: "root:x:0:0:root:/root:/bin/bash\n"
+  - path: host-a/etc/shadow
+    text: "root:$6$saltsalt$hash:19000:0:99999:7:::\n"
+    mode: "0000"
+  - path: host-b/etc/shadow
+    text: "root:$6$saltsalt$hash:19000:0:99999:7:::\n"
+    mode: "0000"
+  - root: db
+    path: clean-baseline.json
+    text: |
+      {
+        "_metadata": {
+          "created_at": "2025-03-01T00:00:00+00:00",
+          "root_path": "/evidence/host-b",
+          "tool_version": "findevil-fim-1",
+          "entry_count": 1
+        },
+        "entries": [
+          {
+            "path": "etc/shadow",
+            "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+            "size": 41,
+            "mode": "0640",
+            "uid": 0,
+            "gid": 42,
+            "mtime": "2025-03-01T00:00:00+00:00",
+            "severity": "critical"
+          }
+        ]
+      }
+steps:
+  - tool: baseline_create
+    args:
+      root_path: ${EVIDENCE}/host-a
+      output_file: ${DB_DIR}/host-a-baseline.json
+  - tool: baseline_diff
+    args:
+      root_path: ${EVIDENCE}/host-b
+      baseline_file: ${DB_DIR}/clean-baseline.json
+expect:
+  - step: 1
+    contains: "**Entries:** 1"
+  - step: 1
+    not_regex: "(?i)shadow|unreadable|could not|skipp|permission"
+  - step: 2
+    contains: "Removed: 1"
+  - step: 2
+    contains: "File present in baseline but missing now"
+  - step: 2
+    not_regex: "(?i)unreadable|could not read|permission"
+  - file_exists: ${EVIDENCE}/host-b/etc/shadow

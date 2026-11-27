@@ -1,0 +1,29 @@
+# Matrix case P2049-003: get_audit_trail says it lists "every tool call made
+# during this session", but it reads the whole audit.json in FINDEVIL_LOGS_DIR,
+# which is appended to across server runs. An entry left by an earlier run
+# (another case) is returned as part of this session.
+# The fixture writes that earlier entry (same format as server._audit) to
+# ${DB_DIR}/audit.json with root: db; the server is started with
+# FINDEVIL_LOGS_DIR=${DB_DIR}.
+case_id: P2049-003
+problem: P2049
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: common
+coverage: full
+summary: With an audit.json left by an earlier server run on another case, get_audit_trail in a fresh session returns that run's hash_file call as part of "every tool call made during this session", so the model reads another case's call as its own.
+fixture:
+  - path: audit.json
+    root: db
+    text: "{\"timestamp\": \"2026-01-05T09:00:00+00:00\", \"tool\": \"hash_file\", \"params\": {\"path\": \"/evidence/previous-case-77/payload.bin\"}, \"result_summary\": \"## MD5 ...\"}\n"
+steps:
+  - tool: get_audit_trail
+    args: {}
+expect:
+  - step: 1
+    contains: "previous-case-77"
+  - step: 1
+    contains: "`hash_file`: 1"

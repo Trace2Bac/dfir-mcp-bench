@@ -1,0 +1,46 @@
+# Matrix case P4117-062: assess_coverage builds its
+# evidence inventory with EVIDENCE_DIR.rglob("*") and stops after 200,000
+# paths, without saying so. The evidence has a case/var/log/auth.log; in the
+# "big" run there are also 200,001 extracted files directly under the
+# evidence root, which rglob yields before descending into case/, so the
+# inventory stops before auth.log and the tool says COVERAGE CLEAN. The
+# "small" run (no extra files) reports auth.log as never examined.
+case_id: P4117-062
+problem: P4117
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: full
+summary: When the evidence directory has more than 200,000 paths, assess_coverage stops its inventory without saying so, so an unexamined auth.log is not listed and the verdict is COVERAGE CLEAN, while the same evidence without the extra files reports the auth.log gap.
+fixture:
+  - path: case/var/log/auth.log
+    text: "Mar  1 10:00:01 web01 sshd[1201]: Failed password for root from 203.0.113.7 port 51122 ssh2\n"
+conditions:
+  - name: small
+  - name: big
+    fixture:
+      - path: f{i}.bin
+        text: ""
+        repeat: 200001
+steps:
+  - tool: assess_coverage
+    timeout_s: 600
+expect:
+  - step: 1
+    condition: small
+    contains: "auth.log"
+  - step: 1
+    condition: small
+    contains: "GAP(S) REMAIN"
+  - step: 1
+    condition: big
+    not_contains: "auth.log"
+  - step: 1
+    condition: big
+    contains: "**Verdict: COVERAGE CLEAN**"
+  - step: 1
+    condition: big
+    not_regex: "(?i)200[,_]?000|truncat|partial|stopped|not all"

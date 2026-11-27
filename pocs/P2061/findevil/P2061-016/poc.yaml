@@ -1,0 +1,29 @@
+# Matrix case P2061-016: hexdump passes a negative offset straight to
+# `xxd -s`, which reads relative to the end of the file.
+case_id: P2061-016
+problem: P2061
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: full
+summary: hexdump with offset=-16 on a 48-byte file is not rejected; xxd seeks from the end and returns the last 16 bytes at position 0x20, a region the caller did not ask for.
+fixture:
+  - path: bin/sample.bin
+    # 32 x "A" + "TAILTAILTAILTAIL"
+    text: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATAILTAILTAILTAIL"
+steps:
+  - tool: hexdump
+    args:
+      path: ${EVIDENCE}/bin/sample.bin
+      offset: -16
+      length: 16
+expect:
+  - step: 1
+    regex: "^00000020: "
+  - step: 1
+    contains: "TAILTAILTAILTAIL"
+  - step: 1
+    not_regex: "(?i)error|invalid|negative"

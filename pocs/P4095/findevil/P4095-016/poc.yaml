@@ -1,0 +1,65 @@
+# Matrix case P4095-016: analyze_memory_summary knows every vol run failed
+# (rc 127 when vol is missing, 124 on timeout, rc != 0 on plugin failure) but
+# fills the counts with 0 and gives the clean verdict.
+# vol is chosen with FINDEVIL_VOL so the result does not depend on whether
+# the image ships volatility:
+# - missing: a stub whose "--help" fails, so the server takes the
+#   "vol not installed" path (rc 127).
+# - crash: a stub that answers "--help" and fails every plugin with rc 1 and
+#   a vol3-style exception on stderr (not a symbol-table message), as vol3
+#   does on a truncated or unsupported dump.
+# External tool output is simulated.
+case_id: P4095-016
+problem: P4095
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: common
+coverage: "partial: the time-out path (rc 124) is not shown (10-minute limit)"
+summary: When volatility is missing (rc 127) or every plugin fails (rc 1), analyze_memory_summary still reports 0 processes, 0 sockets and "No strong memory-resident compromise indicators ... internally consistent" without saying no plugin ran.
+stubs:
+  - name: vol_missing
+    text: |
+      #!/bin/sh
+      echo "vol: command not usable" >&2
+      exit 127
+  - name: vol_crash
+    text: |
+      #!/bin/sh
+      if [ "$1" = "--help" ]; then echo "usage: vol [-h] [-c CONFIG] [-f FILE] PLUGIN ..."; exit 0; fi
+      echo "Volatility 3 Framework 2.7.0" >&2
+      echo "volatility3.framework.exceptions.LayerException: Offset outside of the buffer boundaries" >&2
+      exit 1
+conditions:
+  - name: missing
+    env: {FINDEVIL_VOL: "${STUBS}/vol_missing"}
+  - name: crash
+    env: {FINDEVIL_VOL: "${STUBS}/vol_crash"}
+fixture:
+  - path: mem/host.lime
+    hex: 454d694c0100000000000000000000000000000000000000
+steps:
+  - tool: analyze_memory_summary
+    args:
+      memory_dump_path: ${EVIDENCE}/mem/host.lime
+expect:
+  - step: 1
+    condition: missing
+    contains: "- Processes: 0 (0 anomalies)"
+  - step: 1
+    condition: missing
+    contains: "No strong memory-resident compromise indicators. The dump is internally consistent"
+  - step: 1
+    condition: missing
+    not_regex: "(?i)not installed|failed|rc=|could not run"
+  - step: 1
+    condition: crash
+    contains: "- Processes: 0 (0 anomalies)"
+  - step: 1
+    condition: crash
+    contains: "No strong memory-resident compromise indicators. The dump is internally consistent"
+  - step: 1
+    condition: crash
+    not_regex: "(?i)LayerException|failed|rc=|could not run"

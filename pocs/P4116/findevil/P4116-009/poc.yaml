@@ -1,0 +1,40 @@
+# Matrix case P4116-009: the PAM check compares module names against a fixed
+# stock list that misses common distribution defaults.
+case_id: P4116-009
+problem: P4116
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: common
+coverage: full
+summary: The Debian /etc/pam.d/su line that enables pam_wheel.so (shipped commented out, commonly enabled), the stock /etc/pam.d/chsh with pam_shells.so, and the distribution's own pam_exec.so / pam_shells.so files are reported as high-severity "PAM tampering" and "Unknown PAM .so module".
+fixture:
+  - path: fs/etc/pam.d/su
+    text: |
+      auth       sufficient pam_rootok.so
+      auth       required   pam_wheel.so
+      session    required   pam_env.so readenv=1
+      @include common-auth
+  - path: fs/etc/pam.d/chsh
+    text: |
+      auth       required   pam_shells.so
+      auth       sufficient pam_rootok.so
+  - path: fs/lib/x86_64-linux-gnu/security/pam_exec.so
+    hex: 7f454c46020101000000000000000000
+  - path: fs/lib/x86_64-linux-gnu/security/pam_shells.so
+    hex: 7f454c46020101000000000000000000
+steps:
+  - tool: find_persistence
+    args:
+      root_path: ${EVIDENCE}/fs
+expect:
+  - step: 1
+    contains: "PAM tampering in su"
+  - step: 1
+    contains: "non-stock PAM module referenced: pam_wheel.so"
+  - step: 1
+    contains: "Unknown PAM .so module: pam_exec.so"
+  - step: 1
+    contains: "Unknown PAM .so module: pam_shells.so"

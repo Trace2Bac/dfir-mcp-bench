@@ -1,0 +1,34 @@
+# Matrix case P4117-003: scan_llm_api_references iterates (root,) instead of
+# root/"root" for the root account's dotfiles, so /root/.bashrc, .profile,
+# .env etc. are never read. The result still says no signatures were found.
+case_id: P4117-003
+problem: P4117
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: full
+summary: An LLM API key and api.anthropic.com in /root/.bashrc give "No AI/agent-driven adversary signatures found", while the same lines in /home/alice/.bashrc are reported high, because the root home's dotfiles are never scanned.
+fixture:
+  - path: case1/root/.bashrc
+    text: |
+      export ANTHROPIC_API_KEY=sk-ant-api03-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+      alias ask='curl -s https://api.anthropic.com/v1/messages'
+  - path: case2/home/alice/.bashrc
+    text: |
+      export ANTHROPIC_API_KEY=sk-ant-api03-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+      alias ask='curl -s https://api.anthropic.com/v1/messages'
+steps:
+  - tool: find_ai_signatures
+    args:
+      root_path: ${EVIDENCE}/case1
+  - tool: find_ai_signatures
+    args:
+      root_path: ${EVIDENCE}/case2
+expect:
+  - step: 1
+    contains: "No AI/agent-driven adversary signatures found"
+  - step: 2
+    contains: "home/alice/.bashrc"

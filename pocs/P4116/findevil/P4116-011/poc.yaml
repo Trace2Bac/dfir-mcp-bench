@@ -1,0 +1,102 @@
+# Matrix case P4116-011: correlate_memory_and_disk builds the
+# disk-side module set only from backtick-quoted [A-Za-z0-9_]+ names in
+# scan_kernel_modules reasons, which in practice are the non-stock names in
+# /etc/modules. The out-of-tree module (`diamorphine.ko`, a dot inside the
+# backticks) and the modprobe.d install directive that loads it are found by
+# scan_kernel_modules but never counted, so the tool says disk has 0 modules
+# and memory and disk "agree".
+#
+# Volatility is a stub (${STUBS}/vol): it answers `--help` with rc 0 and, for
+# `-q -f <dump> -r json <plugin>`, prints what the Volatility 3 JSON renderer
+# (`-r json`, 2.x) prints for that plugin: a list of row objects with the
+# plugin's column names and an empty "__children" list.
+#   linux.lsmod columns: Offset, Module Name, Code Size, Taints, Load Arguments, File Output
+#   linux.check_modules columns: Module Address, Module Name (only modules
+#   found in sysfs but missing from the module list; none here)
+case_id: P4116-011
+problem: P4116
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: "partial: Volatility output is imitated (no real memory image or symbols)"
+summary: 'With an out-of-tree diamorphine.ko under lib/modules/*/extra and a modprobe.d install directive for it, correlate_memory_and_disk reports "Disk: 0 module name(s)" and "Memory and disk agree", because it only counts backtick names that the /etc/modules check produces.'
+env:
+  FINDEVIL_VOL: ${STUBS}/vol
+stubs:
+  - name: vol
+    text: |
+      #!/bin/sh
+      # Stub of Volatility 3 (vol) with the JSON renderer output for two plugins.
+      plugin=""
+      for a in "$@"; do
+        case "$a" in
+          --help) echo "usage: vol [-h] [-c CONFIG] ... plugin ..."; exit 0 ;;
+          linux.*|banners.*) plugin="$a" ;;
+        esac
+      done
+      case "$plugin" in
+        linux.lsmod)
+          cat <<'JSON'
+      [
+        {
+          "Code Size": 16384,
+          "File Output": "Disabled",
+          "Load Arguments": "",
+          "Module Name": "diamorphine",
+          "Offset": 18446744072646127616,
+          "Taints": "OOT_MODULE,UNSIGNED_MODULE",
+          "__children": []
+        },
+        {
+          "Code Size": 155648,
+          "File Output": "Disabled",
+          "Load Arguments": "",
+          "Module Name": "ext4",
+          "Offset": 18446744072647737344,
+          "Taints": "",
+          "__children": []
+        }
+      ]
+      JSON
+          ;;
+        linux.check_modules)
+          echo "[]"
+          ;;
+        *)
+          echo "vol: error: invalid choice: $plugin" >&2; exit 2 ;;
+      esac
+fixture:
+  - path: case01/mem.lime
+    hex: 454d694c0100000000000000
+  - path: case01/fs/lib/modules/5.15.0-91-generic/extra/diamorphine.ko
+    hex: 7f454c46020101000000000000000000
+  - path: case01/fs/etc/modprobe.d/diamorphine.conf
+    text: "install diamorphine /bin/sh -c '/sbin/insmod /lib/modules/5.15.0-91-generic/extra/diamorphine.ko'\n"
+  - path: case01/fs/etc/modules
+    text: "# /etc/modules\nloop\n"
+steps:
+  - tool: find_persistence
+    args:
+      root_path: ${EVIDENCE}/case01/fs
+  - tool: correlate_memory_and_disk
+    args:
+      memory_dump_path: ${EVIDENCE}/case01/mem.lime
+      fs_root: ${EVIDENCE}/case01/fs
+expect:
+  # the disk scanner does find the module and the install directive ...
+  - step: 1
+    contains: "diamorphine.ko"
+  - step: 1
+    contains: "install directive runs shell"
+  # ... but the correlation counts none of it and says the two sides agree
+  - step: 2
+    contains: "Memory: 2 loaded, 0 hidden"
+  - step: 2
+    contains: "Disk: 0 module name(s) in /etc/modules or modprobe.d/"
+  - step: 2
+    contains: "Memory and disk agree"
+  - step: 2
+    not_contains: "diamorphine"

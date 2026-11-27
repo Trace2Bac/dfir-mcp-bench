@@ -1,0 +1,64 @@
+# Matrix case P4111-011: find_recent_changes,
+# build_timeline (since/until) and verify_finding (file_modified_in_window)
+# all parse an ISO time without an offset with datetime.fromisoformat and
+# .timestamp(), i.e. in the server's local time zone. The same three calls are
+# run with the server in UTC and in Asia/Seoul against a file whose mtime is
+# 2025-03-01T10:00:00Z; the window 09:30-10:30 (no offset) includes it only
+# under UTC, and no response says which zone was assumed.
+case_id: P4111-011
+problem: P4111
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: source-vs-result
+level: mcp
+realism: possible
+coverage: full
+summary: For a window given without an offset, find_recent_changes, build_timeline and verify_finding(file_modified_in_window) read it in the server's local time zone, so the same file is inside the window under TZ=UTC and outside it under TZ=Asia/Seoul, with no note of the assumed zone.
+fixture:
+  - path: case/fs/var/www/html/shell.php
+    text: "<?php system($_GET['c']); ?>\n"
+    mtime: "2025-03-01T10:00:00Z"
+conditions:
+  - name: utc
+    env: {TZ: UTC}
+  - name: seoul
+    env: {TZ: Asia/Seoul}
+steps:
+  - tool: find_recent_changes
+    args:
+      root_path: ${EVIDENCE}/case/fs
+      since_iso: "2025-03-01T09:30:00"
+      until_iso: "2025-03-01T10:30:00"
+  - tool: build_timeline
+    args:
+      evidence_root: ${EVIDENCE}/case
+      fs_subpath: fs
+      since_iso: "2025-03-01T09:30:00"
+      until_iso: "2025-03-01T10:30:00"
+  - tool: verify_finding
+    args:
+      claim_type: file_modified_in_window
+      params: '{"path": "${EVIDENCE}/case/fs/var/www/html/shell.php", "since_iso": "2025-03-01T09:30:00", "until_iso": "2025-03-01T10:30:00"}'
+expect:
+  - step: 1
+    condition: utc
+    contains: "**Files matched:** 1"
+  - step: 1
+    condition: seoul
+    contains: "**Files matched:** 0"
+  - step: 2
+    condition: utc
+    contains: "mtime modified: var/www/html/shell.php"
+  - step: 2
+    condition: seoul
+    not_contains: "shell.php"
+  - step: 3
+    condition: utc
+    contains: "SUPPORTED"
+  - step: 3
+    condition: seoul
+    contains: "CONTRADICTED"
+  - step: 3
+    condition: seoul
+    not_regex: "(?i)local time|time ?zone|assum"

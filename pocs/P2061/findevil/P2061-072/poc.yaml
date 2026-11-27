@@ -1,0 +1,44 @@
+# Matrix case P2061-072: max_events is not range-checked. A negative value
+# slices from the end and the "more truncated" count is computed from it.
+# get_audit_trail's limit is not checked either: after two build_timeline
+# calls (two audit entries), limit 0 returns both and limit -1 drops the
+# older one, each labelled "showing last N".
+case_id: P2061-072
+problem: P2061
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: "partial: the hidden count in _table is not checked"
+summary: build_timeline with max_events=-1 over three auth events returns two rows and says "4 more events truncated", a count larger than the whole timeline, instead of rejecting the value; get_audit_trail with limit 0 lists every entry and with limit -1 silently drops the oldest.
+fixture:
+  - path: case/auth.log
+    text: |
+      Apr 12 14:30:00 web sshd[811]: Failed password for root from 203.0.113.7 port 50020 ssh2
+      Apr 12 14:30:05 web sshd[812]: Failed password for root from 203.0.113.7 port 50021 ssh2
+      Apr 12 14:30:10 web sshd[813]: Accepted password for root from 203.0.113.7 port 50022 ssh2
+steps:
+  - tool: build_timeline
+    args:
+      evidence_root: ${EVIDENCE}/case
+      max_events: -1
+  - tool: build_timeline
+    args:
+      evidence_root: ${EVIDENCE}/case
+  - tool: get_audit_trail
+    args:
+      limit: 0
+  - tool: get_audit_trail
+    args:
+      limit: -1
+expect:
+  - step: 1
+    contains: "**Events:** 3"
+  - step: 1
+    contains: "4 more events truncated"
+  - step: 3
+    contains: "(2 matching entries, showing last 2)"
+  - step: 4
+    contains: "(2 matching entries, showing last 1)"

@@ -1,0 +1,33 @@
+# Matrix case P4118-008: an empty history file is reported as "classic
+# evidence of history -c or truncation" / "possible tampering" with no
+# mention of ordinary causes (an account that never logged in interactively,
+# a session whose history was not yet written).
+case_id: P4118-008
+problem: P4118
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: common
+coverage: full
+summary: For an empty .bash_history of a service account whose shell is /usr/sbin/nologin, find_shell_histories says "possible tampering" and analyze_bash_history calls it "classic evidence of history -c or truncation", with no note that the account may simply never have run a shell.
+fixture:
+  - path: fs/etc/passwd
+    text: "root:x:0:0:root:/root:/bin/bash\nsvc:x:998:998::/home/svc:/usr/sbin/nologin\n"
+  - path: fs/home/svc/.bash_history
+    text: ""
+steps:
+  - tool: find_shell_histories
+    args:
+      root_path: ${EVIDENCE}/fs
+  - tool: analyze_bash_history
+    args:
+      path: ${EVIDENCE}/fs/home/svc/.bash_history
+expect:
+  - step: 1
+    contains: "⚠ empty — possible tampering"
+  - step: 2
+    contains: "classic evidence of `history -c` or truncation"
+  - step: 2
+    not_regex: "(?i)never logged|not logged in|benign|other (cause|reason)|may also|unused account"

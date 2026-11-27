@@ -1,0 +1,33 @@
+# Matrix case P2061-020: finalize_report does not check claims[].type against
+# the verifiable claim types. A misspelt type ("brute_force_ip" for
+# "brute_force_from_ip") is handled as a free-form label, so a CONFIRMED
+# claim passes on its evidence text alone without the re-check.
+case_id: P2061-020
+problem: P2061
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: full
+summary: A CONFIRMED brute-force claim against an auth.log with no failed logins is REJECTED under the type "brute_force_from_ip" but ACCEPTED under the misspelt type "brute_force_ip", which finalize_report takes as free-form and passes on its citation alone.
+fixture:
+  - path: auth.log
+    text: "Apr 12 10:00:00 web01 sshd[2211]: Accepted publickey for alice from 203.0.113.5 port 51122 ssh2\n"
+steps:
+  - tool: finalize_report
+    args:
+      claims_json: "[{\"id\": \"c1\", \"type\": \"brute_force_from_ip\", \"confidence\": \"confirmed\", \"statement\": \"203.0.113.5 brute-forced SSH\", \"log_path\": \"${EVIDENCE}/auth.log\", \"ip\": \"203.0.113.5\", \"min_attempts\": 5, \"evidence\": \"auth.log:1\"}]"
+  - tool: finalize_report
+    args:
+      claims_json: "[{\"id\": \"c1\", \"type\": \"brute_force_ip\", \"confidence\": \"confirmed\", \"statement\": \"203.0.113.5 brute-forced SSH\", \"log_path\": \"${EVIDENCE}/auth.log\", \"ip\": \"203.0.113.5\", \"min_attempts\": 5, \"evidence\": \"auth.log:1\"}]"
+expect:
+  - step: 1
+    contains: "Finalization REJECTED"
+  - step: 2
+    contains: "Finalization ACCEPTED"
+  - step: 2
+    contains: "[CONFIRMED · cited] `c1` — 203.0.113.5 brute-forced SSH"
+  - step: 2
+    not_regex: "(?i)unknown (claim )?type|did you mean|not a verifiable type"

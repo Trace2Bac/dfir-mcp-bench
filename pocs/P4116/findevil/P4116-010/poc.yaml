@@ -1,0 +1,28 @@
+# Matrix case P4116-010: the "non-RFC1918 IP in config" rule in
+# _SUSPICIOUS_CMD_PATTERNS only matches IPv4-shaped values starting with 185,
+# 45, 91 or 194. Other public IPs are not flagged, and a version string of the
+# same shape is.
+case_id: P4116-010
+problem: P4116
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: full
+summary: find_persistence flags a cron job whose only "IP" is the version string 45.10.2.1 as high with "non-RFC1918 IP in config", but leaves a cron job that talks to the public IP 203.0.113.7 unflagged, so the label does not describe what the rule matches.
+fixture:
+  - path: fs/etc/cron.d/app-upgrade
+    text: "0 3 * * * root /opt/app/bin/upgrade --to-version 45.10.2.1\n"
+  - path: fs/etc/cron.d/peer-sync
+    text: "*/5 * * * * root /usr/local/bin/sync-agent --peer 203.0.113.7 --port 9000\n"
+steps:
+  - tool: find_persistence
+    args:
+      root_path: ${EVIDENCE}/fs
+expect:
+  - step: 1
+    regex: "### `etc/cron\\.d/app-upgrade` — Suspicious cron entry\\n- \\*\\*Category:\\*\\* cron\\n- \\*\\*Reasons:\\*\\*\\n  - non-RFC1918 IP in config"
+  - step: 1
+    not_contains: "### `etc/cron.d/peer-sync`"

@@ -1,0 +1,40 @@
+# Matrix case P4118-007: analyze_package_logs reads only history.log and
+# history.log.1 (no .gz rotations, no term.log) and still gives a clean verdict.
+case_id: P4118-007
+problem: P4118
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: common
+coverage: full
+summary: An xmrig install recorded in the rotated history.log.2.gz and in term.log is not read, and the tool answers "No package-management red flags." without saying which logs it skipped.
+fixture:
+  - path: fs/var/log/apt/history.log
+    text: |
+      Start-Date: 2026-04-12  10:00:00
+      Commandline: apt-get install -y curl
+      Install: curl:amd64 (8.5.0-2)
+      End-Date: 2026-04-12  10:00:04
+  - path: fs/var/log/apt/history.log.2.gz
+    # gzip of an apt block: "Install: xmrig:amd64 (6.21.0-1)" on 2026-04-10
+    base64: "H4sIAAAAAAAAAwsuSSwq0XVJLEm1UjAyMDLTNTDRNTRQUDCwtDIwACIu5/zc3MS8lJzMPKCKxIIS3fTUEoXMvOKSxJwcBd1KhYrcosx0Lk+IgBWEa5WYm2JmoqBhpmdkqGega6jJ5ZqXgtsSUy4Arrr8xYYAAAA="
+  - path: fs/var/log/apt/term.log
+    text: |
+      Log started: 2026-04-10  09:00:00
+      Selecting previously unselected package xmrig.
+      Unpacking xmrig (6.21.0-1) ...
+      Setting up xmrig (6.21.0-1) ...
+      Log ended: 2026-04-10  09:00:05
+steps:
+  - tool: analyze_package_logs
+    args:
+      root_path: ${EVIDENCE}/fs
+expect:
+  - step: 1
+    contains: "No package-management red flags."
+  - step: 1
+    not_contains: "xmrig"
+  - step: 1
+    not_regex: "(?i)\\.gz|term\\.log|rotat|not read|skipp"

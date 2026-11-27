@@ -1,0 +1,39 @@
+# Matrix case P2054-003: log_search's own example pattern
+# '192\.168\.1\.\d+' is run with grep -E. In GNU grep \d is not a digit class
+# in ERE (it is a -P feature), so the example matches nothing.
+# Needs GNU grep (the Docker image); macOS BSD grep accepts \d.
+case_id: P2054-003
+problem: P2054
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: common
+coverage: full
+summary: Sending the pattern exactly as the log_search description gives it, 192\.168\.1\.\d+, against a log that has 192.168.1.50, returns no matching line ("No matches found", or only grep's "stray \ before d" warning) because grep -E does not treat \d as a digit.
+fixture:
+  - path: auth.log
+    text: "Apr 12 14:30:04 web01 sshd[2211]: Accepted password for root from 192.168.1.50 port 51122 ssh2\n"
+steps:
+  - tool: log_search
+    args:
+      path: ${EVIDENCE}/auth.log
+      pattern: "192\\.168\\.1\\.\\d+"
+      context_lines: 0
+  - tool: log_search
+    args:
+      path: ${EVIDENCE}/auth.log
+      pattern: "192\\.168\\.1\\.[0-9]+"
+      context_lines: 0
+expect:
+  # GNU grep 3.8+ also prints "warning: stray \ before d" on stderr; with
+  # exit code 1 the server then returns that warning instead of
+  # "No matches found", so either text is accepted. The defect is that the
+  # IP line is missing.
+  - step: 1
+    not_contains: "192.168.1.50"
+  - step: 1
+    regex: "No matches found for pattern|stray \\\\ before d"
+  - step: 2
+    contains: "192.168.1.50"

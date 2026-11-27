@@ -1,0 +1,34 @@
+# Matrix case P4118-005: verify_package_integrity compares files only with the
+# dpkg *.md5sums on the same disk. When nothing differs it says "This rules
+# out the timestomped-sshd class of attack", although an attacker with root
+# can rewrite md5sums too (a limit the debsums documentation states).
+case_id: P4118-005
+problem: P4118
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: full
+summary: With a replaced /usr/sbin/sshd whose MD5 was also written into openssh-server.md5sums, verify_package_integrity reports no violations and says this "rules out the timestomped-sshd class of attack", without noting that the md5sums on the same disk can be rewritten.
+fixture:
+  - path: fs/usr/sbin/sshd
+    text: |
+      #!/bin/sh
+      # backdoored sshd: accepts master password
+      exec /usr/sbin/sshd.real "$@"
+  - path: fs/var/lib/dpkg/info/openssh-server.md5sums
+    # aa870cc2... is the MD5 of the replaced sshd above, written by the attacker
+    text: "aa870cc2703b7a15936b332efa6b96aa  usr/sbin/sshd\n"
+steps:
+  - tool: verify_package_integrity
+    args:
+      root_path: ${EVIDENCE}/fs
+expect:
+  - step: 1
+    contains: "**Modified files:** 0"
+  - step: 1
+    contains: "This rules out the timestomped-sshd class of attack"
+  - step: 1
+    not_regex: "(?i)md5sums (can|could|may) (also )?be (rewritten|modified|tampered|altered)"

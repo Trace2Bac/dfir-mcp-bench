@@ -1,0 +1,28 @@
+# Matrix case P2049-039: extract_iocs puts 0.0.0.0, link-local, CGNAT,
+# multicast and broadcast addresses under "ipv4 public", and both
+# extract_iocs and bulk_ioc_lookup put 127.x under the private / "RFC1918
+# (private address space)" list, so the sets do not match their labels.
+case_id: P2049-039
+problem: P2049
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: common
+coverage: full
+summary: Given 0.0.0.0, 169.254.10.20, 100.64.1.1, 224.0.0.251, 255.255.255.255 and 127.0.0.1, extract_iocs lists the first five as public IPs and bulk_ioc_lookup lists 127.0.0.1 under "RFC1918 IPs (private address space)", so the labels do not describe the sets they hold.
+steps:
+  - tool: extract_iocs
+    args:
+      text: "listen 0.0.0.0:22; dhcp fallback 169.254.10.20; cgnat peer 100.64.1.1; mdns 224.0.0.251; bcast 255.255.255.255; local 127.0.0.1"
+  - tool: bulk_ioc_lookup
+    args:
+      text: "listen 0.0.0.0:22; dhcp fallback 169.254.10.20; cgnat peer 100.64.1.1; mdns 224.0.0.251; bcast 255.255.255.255; local 127.0.0.1"
+expect:
+  - step: 1
+    regex: "## ipv4 public \\(5\\)\\n- `0\\.0\\.0\\.0`\\n- `100\\.64\\.1\\.1`\\n- `169\\.254\\.10\\.20`\\n- `224\\.0\\.0\\.251`\\n- `255\\.255\\.255\\.255`"
+  - step: 2
+    regex: "## Public IPs \\(5\\)"
+  - step: 2
+    regex: "## RFC1918 IPs \\(1\\)\\n\\(not looked up — private address space\\)\\n- `127\\.0\\.0\\.1`"

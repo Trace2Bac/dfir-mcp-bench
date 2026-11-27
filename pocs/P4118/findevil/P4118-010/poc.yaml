@@ -1,0 +1,40 @@
+# Matrix case P4118-010: baseline_diff turns one changed critical file into
+# LIKELY COMPROMISE; the "patch day, config update" caveat is only given for
+# warn-level changes.
+# The baseline JSON is analyst data (baseline_file need not be in evidence);
+# it records etc/passwd before a postgres system user was added.
+case_id: P4118-010
+problem: P4118
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: common
+coverage: full
+summary: When the only change since the baseline is /etc/passwd gaining the "postgres" account that a package install creates, baseline_diff returns "LIKELY COMPROMISE" with no mention that package updates or admin work are normal causes.
+fixture:
+  - path: fs/etc/passwd
+    text: |
+      root:x:0:0:root:/root:/bin/bash
+      postgres:x:113:121:PostgreSQL administrator:/var/lib/postgresql:/bin/bash
+  - path: fs/var/log/apt/history.log
+    text: |
+      Start-Date: 2026-04-12  10:00:00
+      Commandline: apt-get install -y postgresql
+      Install: postgresql-16:amd64 (16.2-1)
+      End-Date: 2026-04-12  10:00:40
+  - path: baselines/golden.json
+    text: |
+      {"_metadata": {"created_at": "2026-04-01T00:00:00+00:00", "root_path": "/golden/fs", "tool_version": "findevil-fim-1", "entry_count": 1},
+       "entries": [{"path": "etc/passwd", "sha256": "e787b373a74594b33b77892a903647d7a6cf519d427a0b0790e11be4482696e0", "size": 32, "mode": "0644", "uid": 0, "gid": 0, "mtime": "2026-04-01T00:00:00+00:00", "severity": "critical"}]}
+steps:
+  - tool: baseline_diff
+    args:
+      root_path: ${EVIDENCE}/fs
+      baseline_file: ${EVIDENCE}/baselines/golden.json
+expect:
+  - step: 1
+    contains: "**LIKELY COMPROMISE** — 1 critical file(s) changed since baseline"
+  - step: 1
+    not_regex: "(?i)patch|package|benign|legitima|config update|admin"

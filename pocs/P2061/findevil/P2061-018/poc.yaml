@@ -1,0 +1,36 @@
+# Matrix case P2061-018: top_n / top_n_ips / limit have no minimum, so a
+# negative value reaches a [:n] slice and silently drops items from the end.
+# Shown with auth_failed_logins(top_n=-1).
+case_id: P2061-018
+problem: P2061
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: full
+summary: auth_failed_logins with top_n=-1 is accepted without error, reports "4 total attempts from 2 unique IPs" but lists only one source IP, because the [:-1] slice drops the last IP with no note.
+fixture:
+  - path: var/log/auth.log
+    text: |
+      Apr 15 10:00:01 web sshd[101]: Failed password for root from 203.0.113.5 port 40001 ssh2
+      Apr 15 10:00:02 web sshd[102]: Failed password for root from 203.0.113.5 port 40002 ssh2
+      Apr 15 10:00:03 web sshd[103]: Failed password for root from 203.0.113.5 port 40003 ssh2
+      Apr 15 10:00:04 web sshd[104]: Failed password for admin from 198.51.100.77 port 40004 ssh2
+steps:
+  - tool: auth_failed_logins
+    args:
+      path: ${EVIDENCE}/var/log/auth.log
+      top_n: -1
+expect:
+  - step: 1
+    is_error: false
+  - step: 1
+    contains: "4 total attempts from 2 unique IPs"
+  - step: 1
+    contains: "## Source IP: `203.0.113.5`"
+  - step: 1
+    not_contains: "198.51.100.77"
+  - step: 1
+    not_regex: "(?i)omitted|truncated|not shown|showing|invalid|must be"

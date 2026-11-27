@@ -1,0 +1,27 @@
+# Matrix case P4116-014: _SUSPICIOUS_CMD_PATTERNS matches "/tmp/" as a raw
+# substring of the whole file, so a cleanup job that only deletes old files
+# in /tmp is labelled as executing from a world-writable directory.
+case_id: P4116-014
+problem: P4116
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: common
+coverage: full
+summary: A cron.d job that only runs "find /tmp/ -type f -mtime +7 -delete" is reported as a high-severity "Suspicious cron entry" with the reason "executes from world-writable dir", although nothing is executed from /tmp.
+fixture:
+  - path: fs/etc/cron.d/tmp-cleanup
+    text: |
+      # remove week-old temp files
+      15 3 * * * root /usr/bin/find /tmp/ -type f -mtime +7 -delete
+steps:
+  - tool: find_persistence
+    args:
+      root_path: ${EVIDENCE}/fs
+expect:
+  - step: 1
+    regex: "etc/cron\\.d/tmp-cleanup`? — Suspicious cron entry"
+  - step: 1
+    contains: "executes from world-writable dir"

@@ -1,0 +1,32 @@
+# Matrix case P4116-016: for the same sshd_config, find_persistence assumes
+# OpenSSH defaults and reports "PasswordAuthentication yes", while
+# analyze_sshd_config only judges directives that are written and says
+# "No dangerous settings detected.".
+case_id: P4116-016
+problem: P4116
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: common
+coverage: full
+summary: For one sshd_config with no PasswordAuthentication line, find_persistence reports a high "PasswordAuthentication yes" finding and analyze_sshd_config says "No dangerous settings detected.", so the verdict depends on which tool the model calls.
+fixture:
+  - path: fs/etc/ssh/sshd_config
+    text: |
+      Port 22
+      PermitRootLogin no
+      UsePAM yes
+steps:
+  - tool: find_persistence
+    args:
+      root_path: ${EVIDENCE}/fs
+  - tool: analyze_sshd_config
+    args:
+      path: ${EVIDENCE}/fs/etc/ssh/sshd_config
+expect:
+  - step: 1
+    contains: "PasswordAuthentication yes — password-based login is enabled"
+  - step: 2
+    contains: "No dangerous settings detected."

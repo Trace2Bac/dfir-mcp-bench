@@ -1,0 +1,39 @@
+# Matrix case P2055-016: log_search only says pattern is a "Regex" and gives a
+# Perl-style example, but runs grep -i -E: \d is not a digit in GNU grep ERE,
+# and matching is always case-insensitive. Neither is in the definition.
+# Step 1 needs GNU grep (the Docker image); macOS BSD grep accepts \d.
+case_id: P2055-016
+problem: P2055
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: definition
+level: mcp
+realism: common
+coverage: full
+summary: log_search returns no match for the \d pattern style its own example uses, and a case-sensitive indicator "EvilUser" also matches the line with the different user "eviluser", because the tool silently runs grep -i -E, which the definition does not say.
+fixture:
+  - path: auth.log
+    text: |
+      Apr 12 14:30:04 web01 sshd[2211]: Accepted password for eviluser from 192.168.1.50 port 51122 ssh2
+steps:
+  - tool: log_search
+    args:
+      path: ${EVIDENCE}/auth.log
+      pattern: "from 192\\.168\\.1\\.\\d+ port"
+      context_lines: 0
+  - tool: log_search
+    args:
+      path: ${EVIDENCE}/auth.log
+      pattern: "for EvilUser from"
+      context_lines: 0
+expect:
+  # GNU grep 3.8+ prints "warning: stray \ before d" and exits 1, so the
+  # server returns that warning instead of "No matches found"; either is
+  # accepted. The defect is that the line is not returned.
+  - step: 1
+    not_contains: "Accepted password"
+  - step: 1
+    regex: "No matches found|stray \\\\ before d"
+  - step: 2
+    contains: "Accepted password for eviluser from 192.168.1.50"

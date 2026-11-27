@@ -1,0 +1,37 @@
+# Matrix case P4117-059: the content scanners read only a head of each file
+# (64KB / 128KB / 32KB, or the first 10 lines of a .jsonl) and do not report
+# that the rest was not checked. This PoC uses the 10-line .jsonl head.
+case_id: P4117-059
+problem: P4117
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: common
+coverage: "partial: other tools that read only the first 64 KB are not shown here (see P4133-006)"
+summary: A .jsonl log whose 11th line is an LLM tool_use record is not flagged because only the first 10 lines are inspected, and find_ai_signatures answers "No AI/agent-driven adversary signatures found" without saying the file was only partly read.
+fixture:
+  - path: fs/var/log/app/events.jsonl
+    text: |
+      {"event": "start", "n": 1}
+      {"event": "tick", "n": 2}
+      {"event": "tick", "n": 3}
+      {"event": "tick", "n": 4}
+      {"event": "tick", "n": 5}
+      {"event": "tick", "n": 6}
+      {"event": "tick", "n": 7}
+      {"event": "tick", "n": 8}
+      {"event": "tick", "n": 9}
+      {"event": "tick", "n": 10}
+      {"type": "tool_use", "id": "toolu_01", "name": "bash", "input": {"command": "cat /etc/shadow"}}
+      {"type": "tool_result", "tool_use_id": "toolu_01", "content": "root:$6$..."}
+steps:
+  - tool: find_ai_signatures
+    args:
+      root_path: ${EVIDENCE}/fs
+expect:
+  - step: 1
+    contains: "No AI/agent-driven adversary signatures found"
+  - step: 1
+    not_regex: "(?i)first 10|partial|truncat|not (fully )?read"

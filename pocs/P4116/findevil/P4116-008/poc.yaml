@@ -1,0 +1,53 @@
+# Matrix case P4116-008: _parse_sshd_config keeps the LAST value of each
+# keyword, but OpenSSH uses the FIRST value it reads (sshd_config(5): "the
+# first obtained value will be used"). It also ignores Match blocks, so a
+# per-user override is read as the global setting.
+# Step 2: Include is not followed. Ubuntu's default sshd_config starts with
+# "Include /etc/ssh/sshd_config.d/*.conf", and cloud images ship
+# 50-cloud-init.conf with "PasswordAuthentication yes"; that first value is
+# the effective one, but the tool reads only the main file's later "no".
+case_id: P4116-008
+problem: P4116
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: common
+coverage: "partial: case sensitivity is not checked"
+summary: An sshd_config that sets PasswordAuthentication no first and only re-enables it inside a "Match User backup" block is flagged as "PasswordAuthentication yes" and listed with yes as the effective value, although sshd uses no for every other user; and a config whose Include'd 50-cloud-init.conf enables password login is reported clean with PasswordAuthentication no.
+fixture:
+  - path: etc/ssh/sshd_config
+    text: |
+      PermitRootLogin no
+      PasswordAuthentication no
+      PubkeyAuthentication yes
+
+      Match User backup
+          PasswordAuthentication yes
+  - path: host2/etc/ssh/sshd_config
+    text: |
+      Include /etc/ssh/sshd_config.d/*.conf
+      PermitRootLogin no
+      PasswordAuthentication no
+  - path: host2/etc/ssh/sshd_config.d/50-cloud-init.conf
+    text: "PasswordAuthentication yes\n"
+steps:
+  - tool: analyze_sshd_config
+    args:
+      path: ${EVIDENCE}/etc/ssh/sshd_config
+  - tool: analyze_sshd_config
+    args:
+      path: ${EVIDENCE}/host2/etc/ssh/sshd_config
+expect:
+  - step: 1
+    contains: "⚠ **PasswordAuthentication yes**"
+  - step: 1
+    contains: "- `PasswordAuthentication`: `yes`"
+  # the Match block is not reported as a condition
+  - step: 1
+    not_regex: "(?i)match block|only for|conditional"
+  - step: 2
+    contains: "No dangerous settings detected."
+  - step: 2
+    contains: "- `PasswordAuthentication`: `no`"

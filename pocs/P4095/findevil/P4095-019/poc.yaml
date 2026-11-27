@@ -1,0 +1,46 @@
+# Matrix case P4095-019: several tools treat read / JSON failures as "nothing
+# here" and do not report the file they could not process. This PoC covers
+# the JSON part in analyze_container_artifacts (daemon.json) and a read
+# failure in find_webshells: a .php file the server cannot read (fixture mode
+# 0000; the bench server runs as a non-root user) is counted as scanned and
+# the scan says "No webshell indicators found".
+case_id: P4095-019
+problem: P4095
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: "partial: failures of find_recent_changes, find_timestamp_anomalies, find_ai_signatures and verify_package_integrity are shown through two of them"
+summary: A daemon.json exposing tcp://0.0.0.0:2375 but with a trailing comma is dropped without notice while the compose finding next to it is reported, so the report looks complete; an unreadable .php file is counted as scanned and the webshell scan reports no indicators.
+fixture:
+  - path: fs/etc/docker/daemon.json
+    text: "{\"hosts\": [\"tcp://0.0.0.0:2375\"], \"insecure-registries\": [\"10.0.0.5:5000\"],}\n"
+  - path: fs/srv/app/docker-compose.yml
+    text: |
+      services:
+        app:
+          image: nginx:1.25
+          privileged: true
+  - path: fs/var/www/html/upload/x.php
+    text: "<?php system($_GET['c']); ?>\n"
+    mode: "0000"
+steps:
+  - tool: analyze_container_artifacts
+    args:
+      root_path: ${EVIDENCE}/fs
+  - tool: find_webshells
+    args:
+      root_path: ${EVIDENCE}/fs
+expect:
+  - step: 1
+    contains: "privileged: true set on a service"
+  - step: 1
+    not_contains: "daemon.json"
+  - step: 1
+    not_regex: "(?i)parse|invalid json|skipp|could not|unreadable"
+  - step: 2
+    contains: "- **Files with executable extensions scanned:** 1"
+  - step: 2
+    contains: "No webshell indicators found in scanned files."

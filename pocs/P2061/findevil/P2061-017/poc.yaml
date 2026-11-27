@@ -1,0 +1,38 @@
+# Matrix case P2061-017: strings_extract's min_length and log_search's
+# context_lines are passed to strings / grep without range checks. With 0 or
+# a negative value the tool's error text comes back, behind "[STDERR]:", as an
+# ordinary result.
+# The strings step needs GNU binutils strings (the Docker image); macOS
+# strings has no -e option, so locally it fails for a different reason.
+case_id: P2061-017
+problem: P2061
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: full
+summary: strings_extract with min_length 0 and log_search with context_lines -1 are not rejected; the external tool's usage error comes back after "[STDERR]:" as a normal, non-error result.
+fixture:
+  - path: auth.log
+    text: "Apr 12 14:30:04 web01 sshd[2211]: Accepted password for alice from 203.0.113.5 port 51122 ssh2\n"
+steps:
+  - tool: strings_extract
+    args:
+      path: ${EVIDENCE}/auth.log
+      min_length: 0
+  - tool: log_search
+    args:
+      path: ${EVIDENCE}/auth.log
+      pattern: "Accepted"
+      context_lines: -1
+expect:
+  - step: 1
+    regex: "\\[STDERR\\]: .*(?i:minimum string length)"
+  - step: 1
+    is_error: false
+  - step: 2
+    regex: "\\[STDERR\\]: .*(?i:context)"
+  - step: 2
+    is_error: false

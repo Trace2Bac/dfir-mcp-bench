@@ -1,0 +1,88 @@
+# Matrix case P2049-038: the
+# correlate_memory_and_disk headline says "Disk: N module name(s) in
+# /etc/modules or modprobe.d/", and the docstring says it runs
+# find_persistence's kernel-module scanner. But N only counts backtick-quoted
+# [A-Za-z0-9_]+ names from the reasons, which only the /etc/modules check
+# produces. Here the hidden module diamorphine is planted on disk through
+# modprobe.d (install directive) and lib/modules/*/extra/diamorphine.ko;
+# find_persistence finds both, yet the correlation says there is no matching
+# disk artefact and calls it a memory-resident rootkit (disk scrubbed),
+# instead of the "confirmed kernel rootkit" quadrant its own table describes.
+#
+# Volatility is a stub (${STUBS}/vol): it answers `--help` with rc 0 and, for
+# `-q -f <dump> -r json <plugin>`, prints what the Volatility 3 JSON renderer
+# (`-r json`, 2.x) prints for that plugin: a list of row objects with the
+# plugin's column names and an empty "__children" list.
+#   linux.lsmod columns: Offset, Module Name, Code Size, Taints, Load Arguments, File Output
+#   linux.check_modules columns: Module Address, Module Name (modules found in
+#   sysfs but missing from the module list, i.e. hidden ones)
+case_id: P2049-038
+problem: P2049
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: common
+coverage: "partial: Volatility output is imitated (no real memory image or symbols); modules after the 10th in /etc/modules are covered by P4117-061"
+summary: 'With the hidden module diamorphine planted through modprobe.d and lib/modules/*/extra/diamorphine.ko, correlate_memory_and_disk reports "Disk: 0 module name(s) in /etc/modules or modprobe.d/" and "no matching disk artefact" (MEMORY-RESIDENT ROOTKIT), although its description says it uses the persistence scanner that finds both files.'
+env:
+  FINDEVIL_VOL: ${STUBS}/vol
+stubs:
+  - name: vol
+    text: |
+      #!/bin/sh
+      # Stub of Volatility 3 (vol) with the JSON renderer output for two plugins.
+      plugin=""
+      for a in "$@"; do
+        case "$a" in
+          --help) echo "usage: vol [-h] [-c CONFIG] ... plugin ..."; exit 0 ;;
+          linux.*|banners.*) plugin="$a" ;;
+        esac
+      done
+      case "$plugin" in
+        linux.lsmod)
+          cat <<'JSON'
+      [
+        {"Code Size": 155648, "File Output": "Disabled", "Load Arguments": "", "Module Name": "ext4", "Offset": 18446744072647737344, "Taints": "", "__children": []}
+      ]
+      JSON
+          ;;
+        linux.check_modules)
+          cat <<'JSON'
+      [
+        {"Module Address": 18446744072646127616, "Module Name": "diamorphine", "__children": []}
+      ]
+      JSON
+          ;;
+        *)
+          echo "vol: error: invalid choice: $plugin" >&2; exit 2 ;;
+      esac
+fixture:
+  - path: case01/mem.lime
+    hex: 454d694c0100000000000000
+  - path: case01/fs/lib/modules/5.15.0-91-generic/extra/diamorphine.ko
+    hex: 7f454c46020101000000000000000000
+  - path: case01/fs/etc/modprobe.d/diamorphine.conf
+    text: "install diamorphine /bin/sh -c '/sbin/insmod /lib/modules/5.15.0-91-generic/extra/diamorphine.ko'\n"
+steps:
+  - tool: find_persistence
+    args:
+      root_path: ${EVIDENCE}/case01/fs
+  - tool: correlate_memory_and_disk
+    args:
+      memory_dump_path: ${EVIDENCE}/case01/mem.lime
+      fs_root: ${EVIDENCE}/case01/fs
+expect:
+  - step: 1
+    contains: "Out-of-tree kernel module: diamorphine.ko"
+  - step: 1
+    contains: "install directive runs shell"
+  - step: 2
+    contains: "Disk: 0 module name(s) in /etc/modules or modprobe.d/"
+  - step: 2
+    contains: "`diamorphine` — loaded but hidden in memory; no matching disk artefact"
+  - step: 2
+    contains: "**MEMORY-RESIDENT ROOTKIT.**"
+  - step: 2
+    not_contains: "CONFIRMED KERNEL ROOTKIT"

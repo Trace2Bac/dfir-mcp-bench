@@ -1,0 +1,29 @@
+# Matrix case P2055-085: get_audit_trail documents filter_since as "only
+# return entries after this time", but compares with >=, so an entry whose
+# timestamp equals filter_since is returned again.
+# The fixture writes one audit entry to ${DB_DIR}/audit.json with root: db (server started
+# with FINDEVIL_LOGS_DIR=${DB_DIR}); its timestamp is then passed back as
+# filter_since, as a model would after reading it in an earlier response.
+case_id: P2055-085
+problem: P2055
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: definition
+level: mcp
+realism: possible
+coverage: full
+summary: Passing an entry's own timestamp as filter_since ("only return entries after this time") returns that same entry, because the filter compares with >=, so a model paging forward sees the entry it already read again.
+fixture:
+  - path: audit.json
+    root: db
+    text: "{\"timestamp\": \"2026-05-01T10:00:00.123456+00:00\", \"tool\": \"auth_summary\", \"params\": {\"path\": \"/evidence/auth.log\"}, \"result_summary\": \"marker-entry-already-seen\"}\n"
+steps:
+  - tool: get_audit_trail
+    args:
+      filter_since: "2026-05-01T10:00:00.123456+00:00"
+expect:
+  - step: 1
+    contains: "marker-entry-already-seen"
+  - step: 1
+    contains: "1 matching entries"

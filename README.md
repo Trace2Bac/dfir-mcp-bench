@@ -29,7 +29,7 @@ results site and in `experiments/EXP-<nnn>/`.
 
 ```
 experiments/EXP-<nnn>/      one verification: experiment.yaml + results/, see experiments/README.md
-pocs/<problem>/<server>/    a PoC: one problem shown on one server, see pocs/README.md
+pocs/<problem>/<server>/<case-id>/  a PoC: one matrix case run on its server, no model, see pocs/README.md
 checks/<problem>/           a test run the same way on every server, see checks/README.md
 cases/<id>/                 a test: questions, tools, scripted calls, briefing; names its dataset
 datasets/<id>/              where the evidence comes from and how it is fetched or built

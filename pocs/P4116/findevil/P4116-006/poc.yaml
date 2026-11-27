@@ -1,0 +1,40 @@
+# Matrix case P4116-006: "brute-force-preceded", "authenticated AFTER failed
+# attempts" and verify_finding's successful_login_after_brute_force do not
+# compare the order of failures and the success.
+case_id: P4116-006
+problem: P4116
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: full
+summary: A login at 14:00 followed only later by five failures from the same IP is flagged "brute-force-preceded", reported as "authenticated AFTER failed attempts", and verified as SUPPORTED, although no failure came first.
+fixture:
+  - path: case/auth.log
+    text: |
+      Apr 12 14:00:00 web sshd[800]: Accepted password for alice from 203.0.113.7 port 50000 ssh2
+      Apr 12 15:00:00 web sshd[801]: Failed password for alice from 203.0.113.7 port 50001 ssh2
+      Apr 12 15:00:05 web sshd[802]: Failed password for alice from 203.0.113.7 port 50002 ssh2
+      Apr 12 15:00:10 web sshd[803]: Failed password for alice from 203.0.113.7 port 50003 ssh2
+      Apr 12 15:00:15 web sshd[804]: Failed password for alice from 203.0.113.7 port 50004 ssh2
+      Apr 12 15:00:20 web sshd[805]: Failed password for alice from 203.0.113.7 port 50005 ssh2
+steps:
+  - tool: auth_successful_logins
+    args:
+      path: ${EVIDENCE}/case/auth.log
+  - tool: auth_summary
+    args:
+      path: ${EVIDENCE}/case/auth.log
+  - tool: verify_finding
+    args:
+      claim_type: successful_login_after_brute_force
+      params: '{"log_path": "${EVIDENCE}/case/auth.log", "ip": "203.0.113.7"}'
+expect:
+  - step: 1
+    regex: "\\| 1 \\| Apr 12 14:00:00 \\| alice \\| 203\\.0\\.113\\.7 \\| password \\| ⚠ brute-force-preceded \\|"
+  - step: 2
+    contains: "authenticated AFTER failed attempts"
+  - step: 3
+    contains: "**Verdict:** SUPPORTED"

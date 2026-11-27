@@ -1,0 +1,34 @@
+# Matrix case P2049-009: analyze_journal flags a login as
+# "brute-force-preceded" and reports "authenticated AFTER failed attempts" /
+# LIKELY COMPROMISE by counting failures per IP, without checking that the
+# failures came before the success.
+case_id: P2049-009
+problem: P2049
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: full
+summary: When an IP logs in successfully first and fails five times only afterwards, analyze_journal still marks the login brute-force-preceded, says the IP "authenticated AFTER failed attempts" and gives LIKELY COMPROMISE, a verdict about an order the journal does not show.
+fixture:
+  - path: journal.jsonl
+    text: |
+      {"__REALTIME_TIMESTAMP": "1775971800000000", "SYSLOG_IDENTIFIER": "sshd", "MESSAGE": "Accepted password for alice from 198.51.100.9 port 40000 ssh2"}
+      {"__REALTIME_TIMESTAMP": "1775971860000000", "SYSLOG_IDENTIFIER": "sshd", "MESSAGE": "Failed password for alice from 198.51.100.9 port 40001 ssh2"}
+      {"__REALTIME_TIMESTAMP": "1775971861000000", "SYSLOG_IDENTIFIER": "sshd", "MESSAGE": "Failed password for alice from 198.51.100.9 port 40002 ssh2"}
+      {"__REALTIME_TIMESTAMP": "1775971862000000", "SYSLOG_IDENTIFIER": "sshd", "MESSAGE": "Failed password for alice from 198.51.100.9 port 40003 ssh2"}
+      {"__REALTIME_TIMESTAMP": "1775971863000000", "SYSLOG_IDENTIFIER": "sshd", "MESSAGE": "Failed password for alice from 198.51.100.9 port 40004 ssh2"}
+      {"__REALTIME_TIMESTAMP": "1775971864000000", "SYSLOG_IDENTIFIER": "sshd", "MESSAGE": "Failed password for alice from 198.51.100.9 port 40005 ssh2"}
+steps:
+  - tool: analyze_journal
+    args:
+      path: ${EVIDENCE}/journal.jsonl
+expect:
+  - step: 1
+    regex: "\\| 1 \\| [^|]+ \\| alice \\| 198\\.51\\.100\\.9 \\| password \\| ⚠ brute-force-preceded \\|"
+  - step: 1
+    contains: "authenticated AFTER failed attempts"
+  - step: 1
+    contains: "LIKELY COMPROMISE"

@@ -1,0 +1,28 @@
+# Matrix case P2049-011: the compose network_mode regex also matches
+# "container:X", but the reason text always says "network_mode: host".
+case_id: P2049-011
+problem: P2049
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: full
+summary: 'A compose file whose only service sets network_mode "container:db" is reported as "network_mode: host set on a service", so a shared container namespace is described as host networking.'
+fixture:
+  - path: fs/srv/app/docker-compose.yml
+    text: |
+      services:
+        app:
+          image: nginx:1.25
+          network_mode: "container:db"
+steps:
+  - tool: analyze_container_artifacts
+    args:
+      root_path: ${EVIDENCE}/fs
+expect:
+  - step: 1
+    contains: "network_mode: host set on a service"
+  - step: 1
+    contains: "network_mode: \"container:db\""

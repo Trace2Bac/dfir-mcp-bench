@@ -1,0 +1,31 @@
+# Matrix case P2055-018: build_timeline does not say which time zone it uses.
+# syslog times (host local) are labelled +00:00 and sorted together with
+# journal times that really are UTC.
+case_id: P2055-018
+problem: P2055
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: definition
+level: mcp
+realism: possible
+coverage: "partial: nginx offsets and file mtime ordering are not shown here (nginx: P2049-005)"
+summary: On a host set to Asia/Seoul, one SSH login appears twice in the timeline, at 05:30:00+00:00 from the journal and at 14:30:00+00:00 from auth.log, and neither the tool definition nor the response says syslog times were assumed to be UTC.
+fixture:
+  - path: case/fs/etc/timezone
+    text: "Asia/Seoul\n"
+  - path: case/auth.log
+    text: "Apr 12 14:30:00 web sshd[811]: Accepted password for alice from 203.0.113.7 port 50022 ssh2\n"
+  - path: case/journal.jsonl
+    text: "{\"__REALTIME_TIMESTAMP\": \"1775971800000000\", \"SYSLOG_IDENTIFIER\": \"sshd\", \"MESSAGE\": \"Accepted password for alice from 203.0.113.7 port 50022 ssh2\"}\n"
+steps:
+  - tool: build_timeline
+    args:
+      evidence_root: ${EVIDENCE}/case
+expect:
+  - step: 1
+    contains: "| 2026-04-12T05:30:00+00:00 | journal |"
+  - step: 1
+    contains: "| 2026-04-12T14:30:00+00:00 | auth.log |"
+  - step: 1
+    not_regex: "(?i)local time|time ?zone|assum"

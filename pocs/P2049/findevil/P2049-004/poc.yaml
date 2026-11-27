@@ -1,0 +1,32 @@
+# Matrix case P2049-004: assess_coverage says it finds the gaps of this
+# investigation, but it only checks tool names in the cumulative audit.json
+# in FINDEVIL_LOGS_DIR. An auth_summary run and a CONTRADICTED verify_finding
+# left by an earlier server run on another case make this case's auth.log
+# "examined" and its CONFIRMED claim "verified".
+# The fixture writes that earlier run to ${DB_DIR}/audit.json (the server is
+# started with FINDEVIL_LOGS_DIR=${DB_DIR}; the fixture uses root: db).
+case_id: P2049-004
+problem: P2049
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: common
+coverage: full
+summary: With an audit.json left by an earlier run on another case (auth_summary on that case's log and a CONTRADICTED verify_finding), assess_coverage in a fresh session marks this case's never-read auth.log as examined and returns COVERAGE CLEAN for an unverified CONFIRMED claim, so the model skips work it never did.
+fixture:
+  - path: audit.json
+    root: db
+    text: "{\"timestamp\": \"2026-01-05T09:00:00+00:00\", \"tool\": \"auth_summary\", \"params\": {\"path\": \"/evidence/previous-case-77/auth.log\"}, \"result_summary\": \"## Auth summary ...\"}\n{\"timestamp\": \"2026-01-05T09:05:00+00:00\", \"tool\": \"verify_finding\", \"params\": {\"claim_type\": \"ip_in_auth_log\"}, \"result_summary\": \"CONTRADICTED\"}\n"
+  - path: auth.log
+    text: "Jan  5 10:00:01 web sshd[811]: Accepted password for root from 203.0.113.7 port 50122 ssh2\n"
+steps:
+  - tool: assess_coverage
+    args:
+      findings_json: "[{\"claim\": \"root logged in over SSH\", \"confidence\": \"CONFIRMED\"}]"
+expect:
+  - step: 1
+    regex: "auth log[^\\n]*✅ examined"
+  - step: 1
+    contains: "COVERAGE CLEAN"

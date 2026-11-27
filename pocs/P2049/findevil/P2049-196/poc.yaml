@@ -1,0 +1,36 @@
+# Matrix case P2049-196: find_timestamp_anomalies documents `limit` as the cap
+# for each category, but the identical-timestamp batch list uses a fixed 10.
+case_id: P2049-196
+problem: P2049
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: common
+coverage: full
+summary: With limit=2 and twelve files written in the same second, the identical-timestamp batch still lists ten files, so the documented per-category cap is not applied.
+fixture:
+  - {path: tree/f01, text: "1"}
+  - {path: tree/f02, text: "2"}
+  - {path: tree/f03, text: "3"}
+  - {path: tree/f04, text: "4"}
+  - {path: tree/f05, text: "5"}
+  - {path: tree/f06, text: "6"}
+  - {path: tree/f07, text: "7"}
+  - {path: tree/f08, text: "8"}
+  - {path: tree/f09, text: "9"}
+  - {path: tree/f10, text: "10"}
+  - {path: tree/f11, text: "11"}
+  - {path: tree/f12, text: "12"}
+steps:
+  - tool: find_timestamp_anomalies
+    args:
+      root_path: ${EVIDENCE}/tree
+      limit: 2
+expect:
+  - step: 1
+    contains: "## Identical-timestamp batches"
+  # more than `limit` (2) files listed under one batch heading
+  - step: 1
+    regex: "files\\):\\n  - `[^`]+`\\n  - `[^`]+`\\n  - `[^`]+`"

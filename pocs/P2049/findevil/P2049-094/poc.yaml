@@ -1,0 +1,29 @@
+# Matrix case P2049-094: analyze_sshd_config says it calls out weak
+# Ciphers/MACs/HostKeyAlgorithms, but its check list has no entry for these
+# three directives. An sshd_config that only sets weak algorithms is reported
+# as clean. (arcfour is left out: OpenSSH 7.6+ refuses to start with it.)
+case_id: P2049-094
+problem: P2049
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: possible
+coverage: full
+summary: An sshd_config that enables 3des-cbc, aes128-cbc, hmac-md5 and ssh-dss is answered with "No dangerous settings detected.", although the tool description promises to flag weak Ciphers/MACs/HostKeyAlgorithms, so the model reads a weakened server as clean.
+fixture:
+  - path: etc/ssh/sshd_config
+    text: "Port 22\nPermitRootLogin no\nPasswordAuthentication no\nCiphers 3des-cbc,aes128-cbc\nMACs hmac-md5,hmac-sha1-96\nHostKeyAlgorithms ssh-dss\n"
+steps:
+  - tool: analyze_sshd_config
+    args:
+      path: ${EVIDENCE}/etc/ssh/sshd_config
+expect:
+  - step: 1
+    contains: "No dangerous settings detected."
+  # the weak values were parsed (so the tool saw them) but not flagged
+  - step: 1
+    contains: "3des-cbc"
+  - step: 1
+    not_contains: "Flagged settings"

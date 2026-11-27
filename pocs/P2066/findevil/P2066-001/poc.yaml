@@ -1,0 +1,45 @@
+# Matrix case P2066-001: build_timeline validates evidence_root but then joins
+# fs_subpath to it without checking again, so "../" (or an absolute path)
+# points the bash_history / apt / pip / mtime readers outside the evidence
+# directory.
+# A bash history is placed in ${OUTSIDE}, a folder next to the evidence that
+# the server is not given; fs_subpath "../../outside" reaches it, and so
+# does the absolute path ${OUTSIDE} (Path join drops evidence_root).
+case_id: P2066-001
+problem: P2066
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: side-effect
+level: mcp
+realism: possible
+coverage: "partial: apt, pip and mtime readers are represented by bash_history"
+summary: build_timeline with evidence_root inside the evidence folder and fs_subpath "../../outside" reads a shell history outside the evidence directory and returns its commands as timeline events, with no access-denied error.
+fixture:
+  - path: case/auth.log
+    text: |
+      Apr 15 10:00:00 web sshd[100]: Accepted password for alice from 198.51.100.9 port 50000 ssh2
+  - path: home/bob/.bash_history
+    root: outside
+    text: |
+      #1712000000
+      echo OUTSIDE-THE-EVIDENCE-FOLDER
+steps:
+  - tool: build_timeline
+    args:
+      evidence_root: ${EVIDENCE}/case
+      fs_subpath: ../../outside
+      since_iso: "2000-01-01T00:00:00Z"
+      until_iso: "2100-01-01T00:00:00Z"
+  - tool: build_timeline
+    args:
+      evidence_root: ${EVIDENCE}/case
+      fs_subpath: ${OUTSIDE}
+expect:
+  - step: 1
+    not_contains: "Access denied"
+  # a command that exists only in the history outside ${EVIDENCE}
+  - step: 1
+    contains: "OUTSIDE-THE-EVIDENCE-FOLDER"
+  - step: 2
+    contains: "OUTSIDE-THE-EVIDENCE-FOLDER"
