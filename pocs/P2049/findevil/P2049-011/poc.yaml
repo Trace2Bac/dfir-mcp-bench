@@ -8,9 +8,12 @@ commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
 display: response
 level: mcp
 realism: possible
+realism_ko: "다른 컨테이너의 네트워크를 공유하는 `network_mode: container:X`는 사이드카 구성에서 실제로 쓰인다."
 coverage: full
 summary: 'A compose file whose only service sets network_mode "container:db" is reported as "network_mode: host set on a service", so a shared container namespace is described as host networking.'
 summary_ko: "유일한 서비스가 network_mode \"container:db\"를 설정한 compose 파일이 \"network_mode: host set on a service\"로 보고된다. 공유 컨테이너 네임스페이스가 호스트 네트워킹으로 설명된다."
+defect_ko: "정상이라면 `network_mode: container:X`는 컨테이너 사이 네임스페이스 공유로 보고해야 하는데, 이 서버는 'host 네트워크 설정'이라고 적는다. 그래서 모델은 컨테이너가 호스트 네트워크에 노출됐다고 잘못 안다."
+setup_ko: "유일한 서비스가 `network_mode: \"container:db\"`를 쓰는 compose 파일을 두었다."
 fixture:
   - path: fs/srv/app/docker-compose.yml
     text: |
@@ -20,10 +23,13 @@ fixture:
           network_mode: "container:db"
 steps:
   - tool: analyze_container_artifacts
+    note_ko: "결함이 있는 호출: 컨테이너 설정 분석"
     args:
       root_path: ${EVIDENCE}/fs
 expect:
   - step: 1
+    note_ko: "host 네트워크를 썼다는 이유가 붙는다"
     contains: "network_mode: host set on a service"
   - step: 1
+    note_ko: "같은 응답에 실제 설정값은 `container:db`로 보인다"
     contains: "network_mode: \"container:db\""

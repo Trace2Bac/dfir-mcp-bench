@@ -10,9 +10,12 @@ commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
 display: side-effect
 level: mcp
 realism: possible
+realism_ko: "`-version`, `-enc`처럼 `-`로 시작하는 명령줄 플래그를 검색하는 일은 실제로 있다."
 coverage: full
 summary: Searching auth.log for the flag "-version" returns the two lines that do not contain it and leaves out the one line that does, because grep reads the pattern as -v -e rsion, and the audit trail records only the pattern "-version" as if it had been searched for.
 summary_ko: "auth.log에서 플래그 \"-version\"을 검색하면 그것이 없는 두 줄을 돌려주고 그것이 있는 한 줄은 뺀다. grep이 패턴을 -v -e rsion으로 읽기 때문이다. 감사 기록에는 패턴 \"-version\"만 남아 그것을 검색한 것처럼 보인다."
+defect_ko: "정상이라면 `-`로 시작하는 패턴도 검색어로 써야 하는데, 이 서버는 `grep` 옵션으로 넘겨 `-v`(일치하지 않는 줄)로 실행한다. 그래서 모델은 찾는 줄은 없고 다른 줄이 일치한다고 잘못 알며, 감사 기록에는 요청한 패턴만 남는다."
+setup_ko: "세 줄 중 한 줄에만 `java -version`이 있는 `auth.log`를 두었다."
 fixture:
   - path: auth.log
     text: |
@@ -21,20 +24,26 @@ fixture:
       Apr 12 14:32:00 web01 sudo: alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/java -version
 steps:
   - tool: log_search
+    note_ko: "결함이 있는 호출: `-version`을 검색함"
     args:
       path: ${EVIDENCE}/auth.log
       pattern: "-version"
       context_lines: 0
   - tool: get_audit_trail
+    note_ko: "기록 확인: 감사 기록에 무엇이 남았는지 봄"
     args:
       filter_tool: log_search
 expect:
   - step: 1
+    note_ko: "`-version`이 없는 1번 줄이 결과에 나온다"
     contains: "1:Apr 12 14:30:04 web01 sshd[2211]: Accepted password for alice"
   - step: 1
+    note_ko: "`-version`이 없는 2번 줄도 결과에 나온다"
     contains: "2:Apr 12 14:31:10 web01 sudo: alice"
   # the only line that contains "-version" is the one left out
   - step: 1
+    note_ko: "실제로 `-version`이 있는 줄은 빠졌다"
     not_contains: "java -version"
   - step: 2
+    note_ko: "감사 기록에는 `-version`을 검색한 것으로 남는다"
     contains: "\"pattern\": \"-version\""

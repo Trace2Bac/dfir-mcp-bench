@@ -8,18 +8,25 @@ commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
 display: response
 level: mcp
 realism: possible
+realism_ko: "전원이 갑자기 꺼진 호스트의 이미지나 복구한 파일에서는 설정 파일이 중간에 잘려 있는 일이 생긴다."
 coverage: full
-summary: A container config.v2.json that declares Privileged true but has a trailing comma is skipped silently, and the tool answers "No container security issues found" without saying a file could not be parsed.
-summary_ko: "Privileged true를 선언했지만 끝에 쉼표가 있는 컨테이너 config.v2.json이 말없이 건너뛰어지고, 도구는 파일을 파싱하지 못했다는 말 없이 \"No container security issues found\"라고 답한다."
+summary: A container config.v2.json cut off mid-file (as left by a host that lost power) that already shows Privileged true is skipped silently, and the tool answers "No container security issues found" without saying a file could not be parsed.
+summary_ko: "`Privileged: true`까지 적힌 채 중간에서 잘린 컨테이너 `config.v2.json`(전원이 꺼진 호스트에 남는 꼴)을 말없이 건너뛰고, 파일을 해석하지 못했다는 말 없이 \"No container security issues found\"라고 답한다."
+defect_ko: "정상이라면 해석하지 못한 설정 파일이 있다고 알려야 하는데, 이 서버는 말없이 건너뛰고 문제가 없다고 한다. 그래서 모델은 특권 컨테이너가 있던 호스트를 깨끗하다고 안다."
+setup_ko: "`Privileged: true`와 `NetworkMode: host`까지 적힌 뒤 중간에서 끊긴 컨테이너 `config.v2.json`을 두었다."
 fixture:
   - path: fs/var/lib/docker/containers/abc123/config.v2.json
-    text: "{\"Name\": \"/miner\", \"HostConfig\": {\"Privileged\": true, \"NetworkMode\": \"host\",}}\n"
+    # Cut off mid-object, as a file still being written is left when the host loses power.
+    text: "{\"Name\": \"/miner\", \"HostConfig\": {\"Privileged\": true, \"NetworkMode\": \"host\", \"Binds\": [\"/:/host\""
 steps:
   - tool: analyze_container_artifacts
+    note_ko: "결함이 있는 호출: 컨테이너 설정 분석"
     args:
       root_path: ${EVIDENCE}/fs
 expect:
   - step: 1
+    note_ko: "컨테이너 보안 문제가 없다고 한다"
     contains: "No container security issues found"
   - step: 1
+    note_ko: "해석하지 못한 파일이 있다는 안내가 없다"
     not_regex: "(?i)parse|invalid|json|skipp|could not"

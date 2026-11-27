@@ -9,9 +9,12 @@ commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
 display: response
 level: mcp
 realism: common
+realism_ko: "문맥 줄을 붙여 검색하고 결과가 300줄을 넘는 일은 흔하다."
 coverage: full
 summary: 'A 500-line log with exactly 50 lines matching the pattern, searched with 3 context lines, comes back as "[TRUNCATED: 399 total matches]", so the count is grep output lines, not matches.'
 summary_ko: "패턴과 일치하는 줄이 정확히 50개인 500줄 로그를 문맥 3줄로 검색하면 \"[TRUNCATED: 399 total matches]\"가 나온다. 이 수는 일치 수가 아니라 grep 출력 줄 수다."
+defect_ko: "정상이라면 'total matches'는 패턴과 일치한 줄 수여야 하는데, 이 서버는 문맥 줄과 구분선까지 센 grep 출력 줄 수를 적는다. 그래서 모델은 일치 건수를 8배 가까이 부풀려 안다."
+setup_ko: "500줄 중 정확히 50줄만 `Failed password`가 들어간 로그를 두었다."
 fixture:
   - path: var/log/auth.log
     # 500 lines; every 10th line (5, 15, ..., 495) contains "Failed password" -> 50 matches
@@ -518,6 +521,7 @@ fixture:
       May  3 10:08:20 host app[500]: heartbeat ok
 steps:
   - tool: log_search
+    note_ko: "결함이 있는 호출: 문맥 3줄을 붙여 검색함"
     args:
       path: ${EVIDENCE}/var/log/auth.log
       pattern: "Failed password"
@@ -525,6 +529,8 @@ steps:
 expect:
   # 50 matches * 7 lines + 49 "--" separators = 399 output lines reported as matches
   - step: 1
+    note_ko: "일치 50건이 399건으로 보고된다"
     contains: "[TRUNCATED: 399 total matches]"
   - step: 1
+    note_ko: "실제 일치 수 50은 나오지 않는다"
     not_contains: "[TRUNCATED: 50 total matches]"

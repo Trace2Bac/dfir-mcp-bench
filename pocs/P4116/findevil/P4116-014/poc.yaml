@@ -9,9 +9,12 @@ commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
 display: response
 level: mcp
 realism: common
+realism_ko: "`/tmp`를 정리하는 cron 작업은 매우 흔하다."
 coverage: full
 summary: A cron.d job that only runs "find /tmp/ -type f -mtime +7 -delete" is reported as a high-severity "Suspicious cron entry" with the reason "executes from world-writable dir", although nothing is executed from /tmp.
 summary_ko: "\"find /tmp/ -type f -mtime +7 -delete\"만 실행하는 cron.d 작업이 \"executes from world-writable dir\"라는 이유로 high 심각도 \"Suspicious cron entry\"로 보고된다. /tmp에서 실행되는 것은 없다."
+defect_ko: "정상이라면 `/tmp`에서 무언가를 실행할 때만 `executes from world-writable dir`로 보아야 하는데, 이 서버는 파일 안에 `/tmp/` 글자만 있어도 그렇게 표시한다. 그래서 모델은 정리 작업을 high 등급 지속성으로 잘못 안다."
+setup_ko: "`find /tmp/ ... -delete`만 하는 cron.d 파일을 넣었다."
 fixture:
   - path: fs/etc/cron.d/tmp-cleanup
     text: |
@@ -19,10 +22,13 @@ fixture:
       15 3 * * * root /usr/bin/find /tmp/ -type f -mtime +7 -delete
 steps:
   - tool: find_persistence
+    note_ko: "결함이 있는 호출: 지속성 검사"
     args:
       root_path: ${EVIDENCE}/fs
 expect:
   - step: 1
+    note_ko: "정리 작업이 수상한 cron 항목으로 보고된다"
     regex: "etc/cron\\.d/tmp-cleanup`? — Suspicious cron entry"
   - step: 1
+    note_ko: "이유가 world-writable 폴더에서 실행이다"
     contains: "executes from world-writable dir"

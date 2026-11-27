@@ -9,9 +9,12 @@ commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
 display: response
 level: mcp
 realism: possible
+realism_ko: "정의된 키 `name` 대신 `package`처럼 그럴듯한 키를 쓰는 모델 실수는 실제로 생긴다."
 coverage: full
 summary: verify_finding(package_installed) with params {"fs_root", "package":"nmap"} accepts the unknown key without error, looks up an empty package name and returns CONTRADICTED although apt history installs nmap, which the same call with "name" confirms as SUPPORTED.
 summary_ko: "verify_finding(package_installed)에 params {\"fs_root\", \"package\":\"nmap\"}를 주면 모르는 키를 오류 없이 받아들이고, 빈 패키지 이름을 찾아 CONTRADICTED를 돌려준다. apt history에는 nmap 설치가 있고, \"name\"으로 한 같은 호출은 SUPPORTED로 확인한다."
+defect_ko: "정상이라면 모르는 키는 오류로 알려야 하는데, 이 서버는 키를 버리고 빈 이름으로 찾아 CONTRADICTED를 낸다. 그래서 모델은 실제로 설치된 `nmap`이 설치되지 않았다고 잘못 안다."
+setup_ko: "apt 기록에 `nmap` 설치가 있는 파일 시스템을 두었다."
 fixture:
   - path: fs/var/log/apt/history.log
     text: |
@@ -22,19 +25,25 @@ fixture:
       End-Date: 2024-04-15  10:00:05
 steps:
   - tool: verify_finding
+    note_ko: "결함이 있는 호출: 키를 `package`로 준 설치 검증"
     args:
       claim_type: package_installed
       params: '{"fs_root": "${EVIDENCE}/fs", "package": "nmap"}'
   - tool: verify_finding
+    note_ko: "비교용: 정의대로 `name`을 준 같은 검증"
     args:
       claim_type: package_installed
       params: '{"fs_root": "${EVIDENCE}/fs", "name": "nmap"}'
 expect:
   - step: 1
+    note_ko: "설치 주장이 CONTRADICTED로 판정된다"
     contains: "**Verdict:** CONTRADICTED"
   - step: 1
+    note_ko: "빈 이름으로 찾았다는 흔적이 보인다"
     contains: "no apt/dpkg install event for `` found"
   - step: 1
+    note_ko: "모르는 키라는 경고가 없다"
     not_regex: "(?i)unknown|unexpected|unrecognized|invalid"
   - step: 2
+    note_ko: "정의대로 주면 SUPPORTED가 나온다"
     contains: "**Verdict:** SUPPORTED"

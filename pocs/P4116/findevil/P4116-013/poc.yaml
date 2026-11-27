@@ -9,17 +9,24 @@ commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
 display: response
 level: mcp
 realism: possible
+realism_ko: "검증기가 없는 종류의 주장을 CONFIRMED로 내는 일은 있을 수 있다. 없는 파일을 인용한 것은 검사가 없었음을 드러내기 위한 것이다."
 coverage: full
 summary: A CONFIRMED lateral-movement claim whose only support is a citation to a file that does not exist is ACCEPTED with "Every CONFIRMED claim passed an independent re-check", though no check ran for it.
 summary_ko: "근거가 없는 파일에 대한 인용 하나뿐인 CONFIRMED 측면 이동 주장이 \"Every CONFIRMED claim passed an independent re-check\"와 함께 ACCEPTED된다. 그 주장에 대해 실행된 검사는 없다."
+defect_ko: "정상이라면 검증기가 없는 주장은 재검사하지 않았다고 밝히거나 CONFIRMED를 막아야 하는데, 이 서버는 인용만 있으면 통과시키고 모든 CONFIRMED 주장이 재검사를 통과했다고 말한다. 그래서 모델은 검증되지 않은 주장을 확인된 사실로 잘못 안다."
+setup_ko: "증거 파일 없이, 없는 파일을 인용한 CONFIRMED 측면 이동 주장 하나를 냈다."
 steps:
   - tool: finalize_report
+    note_ko: "결함이 있는 호출: 최종 보고 확정"
     args:
       claims_json: "[{\"id\": \"c1\", \"type\": \"lateral_movement\", \"confidence\": \"confirmed\", \"statement\": \"attacker moved from web01 to db01 over SSH\", \"evidence\": \"${EVIDENCE}/no-such-log.txt:42\"}]"
 expect:
   - step: 1
+    note_ko: "주장이 받아들여진다"
     contains: "Finalization ACCEPTED"
   - step: 1
+    note_ko: "모든 CONFIRMED 주장이 재검사를 통과했다고 말한다"
     contains: "Every CONFIRMED claim passed an independent re-check"
   - step: 1
+    note_ko: "주장이 `CONFIRMED · cited`로 확정된다"
     contains: "[CONFIRMED · cited] `c1`"

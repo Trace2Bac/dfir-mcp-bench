@@ -27,11 +27,6 @@ export function resultText(result: string): string {
 export function realismText(realism: string): string {
   if (realism === 'common') return translate({id: 'pocs.realism.common', message: 'common'});
   if (realism === 'possible') return translate({id: 'pocs.realism.possible', message: 'possible'});
+  if (realism === 'forced') return translate({id: 'pocs.realism.forced', message: 'forced'});
   return realism || '—';
-}
-
-export function coverageText(coverage: string): string {
-  return coverage === 'partial'
-    ? translate({id: 'pocs.coverage.partial', message: 'partial'})
-    : translate({id: 'pocs.coverage.full', message: 'full'});
 }

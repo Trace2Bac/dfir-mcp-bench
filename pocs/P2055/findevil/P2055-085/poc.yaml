@@ -12,19 +12,25 @@ commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
 display: definition
 level: mcp
 realism: possible
+realism_ko: "앞 응답에서 본 마지막 시각을 다음 조회의 시작값으로 넘기는 일은 실제로 있지만, 생기는 일은 한 건이 다시 보이는 정도다."
 coverage: full
 summary: Passing an entry's own timestamp as filter_since ("only return entries after this time") returns that same entry, because the filter compares with >=, so a model paging forward sees the entry it already read again.
 summary_ko: "항목 자신의 타임스탬프를 filter_since(\"이 시각 뒤의 항목만 돌려준다\")로 넘기면 그 항목이 다시 나온다. 필터가 >=로 비교하기 때문이다. 그래서 앞으로 넘겨 보는 모델은 이미 읽은 항목을 다시 본다."
+defect_ko: "정상이라면 설명대로 그 시각 '뒤'의 기록만 돌려줘야 하는데, 이 서버는 같은 시각의 기록도 포함한다. 그래서 모델은 이미 본 기록을 새 호출로 잘못 셀 수 있다."
+setup_ko: "한 건의 감사 기록을 `audit.json`에 넣었다."
 fixture:
   - path: audit.json
     root: db
     text: "{\"timestamp\": \"2026-05-01T10:00:00.123456+00:00\", \"tool\": \"auth_summary\", \"params\": {\"path\": \"/evidence/auth.log\"}, \"result_summary\": \"marker-entry-already-seen\"}\n"
 steps:
   - tool: get_audit_trail
+    note_ko: "결함이 있는 호출: 그 기록의 시각을 그대로 `filter_since`로 줌"
     args:
       filter_since: "2026-05-01T10:00:00.123456+00:00"
 expect:
   - step: 1
+    note_ko: "이미 본 기록이 다시 나온다"
     contains: "marker-entry-already-seen"
   - step: 1
+    note_ko: "그 시각 뒤에 아무 기록이 없는데 1건으로 센다"
     contains: "1 matching entries"

@@ -40,6 +40,7 @@ export type PocCheck = {
   step?: number; // checks on one step's response
   condition?: string; // the run it is checked on; also set when the PoC has one run
   conditions?: string[]; // differs / same
+  note: string; // what the check confirms, in plain words (expect[].note_ko); may be empty
 };
 // A response, cut to what the page shows: text, highlighted text (the checks
 // that matched it) and the length of a part left out.
@@ -48,6 +49,7 @@ export type PocStep = {
   n: number;
   kind: 'tool' | 'prompt' | 'resource' | 'list_tools';
   call: string;
+  note: string; // why this call is made (steps[].note_ko); may be empty
   args: string; // JSON
   pieces: PocPiece[];
   length: number; // characters in the full response
@@ -85,7 +87,10 @@ export type PocData = {
   commit: string;
   display: string;
   summary: string;
-  realism: string;
+  defect: string; // what is wrong: defect_ko, else the summary
+  setup: string; // the condition prepared (setup_ko); may be empty
+  realism: string; // common, possible, forced
+  realismNote: string; // realism_ko; may be empty
   coverage: 'full' | 'partial';
   coverageNote: string; // what a partial PoC leaves out
   result: string; // reproduced, not reproduced
@@ -107,20 +112,7 @@ export type PocData = {
     tools: {name: string; json: string}[]; // the tools the steps call
   };
 };
-export type PocSummary = Pick<
-  PocData,
-  | 'caseId'
-  | 'problem'
-  | 'server'
-  | 'display'
-  | 'result'
-  | 'reproducedRuns'
-  | 'realism'
-  | 'coverage'
-  | 'coverageNote'
-  | 'commit'
-  | 'ranAt'
->;
+export type PocSummary = Pick<PocData, 'caseId' | 'problem' | 'server' | 'summary' | 'result' | 'realism'>;
 
 const RULES: PocRule[] = [
   'contains',
@@ -147,8 +139,10 @@ const unTemp = (s: string) => s.replace(TEMP_ROOT, (_, root: string) => `\${${PL
 const visible = (s: string) =>
   s.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, c => `\\x${c.charCodeAt(0).toString(16).padStart(2, '0')}`);
 
+// A field in the page's language: <key>_<locale>, else <key>. The new fields
+// are only written in Korean (<key>_ko), so the English page falls back to it.
 function localized(obj: any, key: string, locale: string): string {
-  const value = (locale !== 'en' && obj?.[`${key}_${locale}`]) || obj?.[key];
+  const value = (locale !== 'en' && obj?.[`${key}_${locale}`]) || obj?.[key] || obj?.[`${key}_ko`];
   return String(value ?? '').trim();
 }
 
@@ -303,12 +297,12 @@ function readFixture(f: any, spec: any[]): PocFixture {
   };
 }
 
-function readCheck(c: any, n: number, firstCondition: string): PocCheck {
+function readCheck(c: any, n: number, firstCondition: string, note: string): PocCheck {
   const rule = RULES.find(r => r in c) ?? 'contains';
   const v = c[rule];
   if (rule === 'differs' || rule === 'same')
-    return {n, rule, value: '', ok: Boolean(c.ok), step: Number(v?.step ?? 1), conditions: (v?.conditions ?? []).map(String)};
-  const check: PocCheck = {n, rule, value: typeof v === 'string' ? v : JSON.stringify(v), ok: Boolean(c.ok)};
+    return {n, rule, value: '', ok: Boolean(c.ok), note, step: Number(v?.step ?? 1), conditions: (v?.conditions ?? []).map(String)};
+  const check: PocCheck = {n, rule, value: typeof v === 'string' ? v : JSON.stringify(v), ok: Boolean(c.ok), note};
   check.condition = String(c.condition ?? firstCondition);
   if (rule !== 'file_exists' && rule !== 'file_missing') check.step = Number(c.step ?? 1);
   return check;
@@ -334,7 +328,10 @@ function readPoc(root: string, dir: string, locale: string, repos: (server: stri
   const last = attempts[attempts.length - 1] ?? {runs: [], checks: []};
   const rawRuns: any[] = last.runs ?? [];
   const firstCondition = String(rawRuns[0]?.condition ?? 'default');
-  const checks: PocCheck[] = (last.checks ?? result.checks ?? []).map((c: any, i: number) => readCheck(c, i + 1, firstCondition));
+  const specExpect: any[] = poc.expect ?? [];
+  const checks: PocCheck[] = (last.checks ?? result.checks ?? []).map((c: any, i: number) =>
+    readCheck(c, i + 1, firstCondition, localized(specExpect[i], 'note', locale)),
+  );
   const specSteps: any[] = poc.steps ?? [];
   const conditions = (poc.conditions ?? []).map((c: any) => ({name: String(c.name ?? 'default'), env: c.env ?? {}}));
   const runs: PocRun[] = rawRuns.map(r => {
@@ -352,6 +349,7 @@ function readPoc(root: string, dir: string, locale: string, repos: (server: stri
           n: i + 1,
           kind: stepKind(specSteps[i]),
           call: String(s.call ?? ''),
+          note: localized(specSteps[i], 'note', locale),
           args: unTemp(JSON.stringify(s.args ?? {}, null, 2)),
           pieces: cut.pieces,
           length: text.length,
@@ -370,6 +368,7 @@ function readPoc(root: string, dir: string, locale: string, repos: (server: stri
   const coverage = String(poc.coverage ?? result.coverage ?? 'full');
   const partial = /^partial\b/i.test(coverage);
   const server = String(poc.server ?? result.server);
+  const summary = localized(poc, 'summary', locale);
   return {
     caseId: String(poc.case_id ?? result.case_id),
     problem: String(poc.problem ?? result.problem),
@@ -378,8 +377,12 @@ function readPoc(root: string, dir: string, locale: string, repos: (server: stri
     variant: String(poc.variant ?? ''),
     commit: String(result.commit || poc.commit || run.d),
     display: String(poc.display ?? result.display ?? 'response'),
-    summary: localized(poc, 'summary', locale),
+    summary,
+    defect: localized(poc, 'defect', locale) || summary,
+    setup: localized(poc, 'setup', locale),
     realism: String(poc.realism ?? result.realism ?? ''),
+    // `realism` is the label itself, so only realism_<locale> / realism_ko hold the note.
+    realismNote: String(poc[`realism_${locale}`] ?? poc.realism_ko ?? '').trim(),
     coverage: partial ? 'partial' : 'full',
     coverageNote: partial
       ? (localized(poc, 'coverage', locale) || coverage).replace(/^partial\s*:?\s*/i, '')
@@ -432,6 +435,6 @@ export function readPocs(root: string, locale: string, repos: (server: string, v
 }
 
 export function summarizePoc(p: PocData): PocSummary {
-  const {caseId, problem, server, display, result, reproducedRuns, realism, coverage, coverageNote, commit, ranAt} = p;
-  return {caseId, problem, server, display, result, reproducedRuns, realism, coverage, coverageNote, commit, ranAt};
+  const {caseId, problem, server, summary, result, realism} = p;
+  return {caseId, problem, server, summary, result, realism};
 }

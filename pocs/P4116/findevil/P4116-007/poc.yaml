@@ -11,9 +11,12 @@ commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
 display: response
 level: mcp
 realism: possible
+realism_ko: "공격자가 업로드 전에 같은 경로를 먼저 찔러 보는(404) 일은 일어날 수 있다."
 coverage: full
 summary: When the only GET of /uploads/report.php (a 404) is on line 1 and the POST upload is on line 2, analyze_nginx_access reports an upload chain with upload line 2 and exec line 1 and says LIKELY WEBSHELL COMPROMISE, and verify_finding returns SUPPORTED.
 summary_ko: "/uploads/report.php의 유일한 GET(404)이 1번 줄에, POST 업로드가 2번 줄에 있을 때, analyze_nginx_access는 upload line 2, exec line 1인 업로드 연쇄와 LIKELY WEBSHELL COMPROMISE를 보고하고 verify_finding은 SUPPORTED를 돌려준다."
+defect_ko: "정상이라면 POST 업로드 뒤에 온 GET만 업로드 후 실행으로 묶어야 하는데, 이 서버는 순서를 보지 않고 같은 경로의 GET이면 묶는다. 그래서 모델은 업로드 전에 실패한 요청을 웹셸 실행으로 잘못 안다."
+setup_ko: "1번 줄에 404 GET, 2번 줄에 POST 업로드가 있는 access.log를 넣었다."
 fixture:
   - path: access.log
     text: |
@@ -21,16 +24,21 @@ fixture:
       203.0.113.50 - - [12/Apr/2026:10:05:00 +0000] "POST /uploads/report.php HTTP/1.1" 200 31 "-" "Mozilla/5.0"
 steps:
   - tool: analyze_nginx_access
+    note_ko: "결함이 있는 호출: 접근 로그 분석"
     args:
       path: ${EVIDENCE}/access.log
   - tool: verify_finding
+    note_ko: "결함이 있는 호출: 주장 검증"
     args:
       claim_type: webshell_upload_chain
       params: "{\"log_path\": \"${EVIDENCE}/access.log\"}"
 expect:
   - step: 1
+    note_ko: "업로드 줄 2, 실행 줄 1인 연쇄가 표에 나온다"
     regex: "\\| 2 \\| 12/Apr/2026:10:05:00 \\+0000 \\| `203\\.0\\.113\\.50` \\| 1 \\| `203\\.0\\.113\\.50` \\| `/uploads/report\\.php` \\|"
   - step: 1
+    note_ko: "`LIKELY WEBSHELL COMPROMISE` 판정이 나온다"
     contains: "LIKELY WEBSHELL COMPROMISE"
   - step: 2
+    note_ko: "검증이 `SUPPORTED`를 돌려준다"
     contains: "**Verdict:** SUPPORTED"

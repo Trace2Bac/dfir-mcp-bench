@@ -1,4 +1,4 @@
-import {useEffect, useState, type ReactNode} from 'react';
+import {useState, type ReactNode} from 'react';
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import Layout from '@theme/Layout';
@@ -7,39 +7,18 @@ import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import type {PocCheck, PocData, PocFixture, PocRun, PocStep} from '../../../plugins/poc-data';
 import styles from '../ExperimentPage/styles.module.css';
 import poc from './styles.module.css';
-import {
-  coverageText,
-  matrixCaseUrl,
-  realismText,
-  resultText,
-  serverCommitUrl,
-  shortCommit,
-  shortDigest,
-} from './links';
+import {matrixCaseUrl, realismText, resultText, runDate, serverCommitUrl, shortCommit, shortDigest} from './links';
 
-// One PoC: the matrix case, the evidence it wrote, the stand-in tools and
-// settings, and a replay of the recorded run with each check shown under the
-// step it was checked on. The view of each step follows the PoC's `display`.
+// One PoC, read top to bottom: the verdict, what is wrong, how it was checked,
+// what the server returned, why that counts as reproduced, how realistic the
+// condition is, and the raw record folded away at the end.
 
-// Seconds between steps when the replay plays.
-const PLAY_INTERVAL_MS = 1100;
-
-function Section({title, children, note}: {title: string; children: ReactNode; note?: ReactNode}) {
+function Section({title, children}: {title: string; children: ReactNode}) {
   return (
     <section className={styles.section}>
       <h2>{title}</h2>
-      {note && <p className={styles.note}>{note}</p>}
       {children}
     </section>
-  );
-}
-
-function Row({label, children}: {label: ReactNode; children: ReactNode}) {
-  return (
-    <div className={styles.overviewRow}>
-      <span>{label}</span>
-      <p>{children}</p>
-    </div>
   );
 }
 
@@ -48,93 +27,81 @@ function useRepoTree(): string {
   return String(siteConfig.customFields?.repoTree ?? '');
 }
 
-// A check's rule as written in poc.yaml.
-function ruleText(c: PocCheck): string {
-  switch (c.rule) {
-    case 'contains':
-    case 'not_contains':
-      return `${c.rule} ${JSON.stringify(c.value)}`;
-    case 'regex':
-    case 'not_regex':
-      return `${c.rule} /${c.value}/`;
-    case 'differs':
-    case 'same':
-      return `${c.rule}: step ${c.step} in ${(c.conditions ?? []).join(', ')}`;
-    case 'max_seconds':
-      return `seconds ≤ ${c.value}`;
-    case 'min_seconds':
-      return `seconds ≥ ${c.value}`;
-    case 'min_length':
-      return `length ≥ ${c.value}`;
-    default:
-      return `${c.rule} ${c.value}`;
+const envText = (env: Record<string, string>, sep = '\n') =>
+  Object.entries(env)
+    .map(([k, v]) => `${k}=${v}`)
+    .join(sep);
+
+// The call as one line: name(args), the arguments as compact JSON.
+function callLine(step: PocStep): string {
+  let args = step.args;
+  try {
+    args = JSON.stringify(JSON.parse(step.args));
+  } catch {
+    // keep as recorded
   }
+  if (step.kind === 'list_tools') return 'tools/list';
+  const name = step.kind === 'tool' ? step.call : `${step.kind} ${step.call}`;
+  return args === '{}' ? `${name}()` : `${name}(${args})`;
 }
 
-function CheckList({checks}: {checks: PocCheck[]}) {
-  if (!checks.length) return null;
-  return (
-    <ul className={poc.checks}>
-      {checks.map(c => (
-        <li key={c.n}>
-          <span className={poc.checkNo}>{c.n}</span>
-          <span className={c.ok ? styles.pass : styles.fail}>
-            {c.ok
-              ? translate({id: 'poc.check.held', message: 'held'})
-              : translate({id: 'poc.check.notHeld', message: 'not held'})}
-          </span>{' '}
-          <code>{ruleText(c)}</code>
-        </li>
-      ))}
-    </ul>
-  );
+// ---- 1. Verdict
+
+function verdictText(data: PocData): string {
+  if (data.realism === 'forced')
+    return translate({id: 'poc.verdict.forced', message: 'The condition is forced, so this case is a candidate for removal.'});
+  if (data.result === 'reproduced')
+    return translate({
+      id: 'poc.verdict.reproduced',
+      message: 'The defect found by static analysis also happened when the server actually ran.',
+    });
+  return translate({id: 'poc.verdict.notReproduced', message: 'The defect did not show up when the server ran.'});
 }
 
-// The response as kept by the plugin: highlighted where a check matched, and
-// a note where a part was left out.
-function Response({step, transcript}: {step: PocStep; transcript: string}) {
+function Verdict({data}: {data: PocData}) {
+  const commitUrl = serverCommitUrl(data.repo, data.commit);
+  const tone = data.realism === 'forced' ? poc.verdictForced : data.result === 'reproduced' ? poc.verdictOk : poc.verdictNo;
   return (
-    <>
-      <pre className={clsx(styles.pre, poc.response)}>
-        {step.timedOut && !step.length
-          ? translate({id: 'poc.step.noResponse', message: '(no response before the time limit)'})
-          : step.pieces.map((p, i) =>
-              'gap' in p ? (
-                <span key={i} className={poc.gap}>
-                  {translate(
-                    {id: 'poc.step.gap', message: '[… {n} characters not shown …]'},
-                    {n: p.gap.toLocaleString('en')},
-                  )}
-                </span>
-              ) : p.m ? (
-                <mark key={i} className={poc.hit} title={translate({id: 'poc.step.matched', message: 'matched by check {n}'}, {n: p.m.join(', ')})}>
-                  {p.t}
-                  <sup>{p.m.join(',')}</sup>
-                </mark>
-              ) : (
-                <span key={i}>{p.t}</span>
-              ),
-            )}
-      </pre>
-      {step.cut && (
-        <p className={styles.small}>
-          <Translate
-            id="poc.step.cut"
-            values={{
-              n: step.length.toLocaleString('en'),
-              link: (
-                <a href={transcript}>
-                  <Translate id="poc.step.fullTranscript">full transcript</Translate>
-                </a>
-              ),
-            }}>
-            {'Cut on the site: the response has {n} characters; the start and the text around each match are shown. See the {link}.'}
+    <div className={clsx(poc.verdict, tone)}>
+      <p className={poc.verdictText}>{verdictText(data)}</p>
+      <div className={poc.verdictMeta}>
+        <span>
+          <Translate id="poc.meta.case">Case</Translate> <code>{data.caseId}</code>
+        </span>
+        <span>
+          <Translate id="poc.meta.problem">Problem</Translate> <code>{data.problem}</code>
+        </span>
+        <span>
+          {data.server}{' '}
+          {commitUrl ? (
+            <a href={commitUrl}>
+              <code>{shortCommit(data.commit)}</code>
+            </a>
+          ) : (
+            <code>{shortCommit(data.commit)}</code>
+          )}
+        </span>
+        <span>
+          <Translate id="poc.meta.ran" values={{date: runDate(data.ranAt)}}>
+            {'run {date}'}
           </Translate>
-        </p>
-      )}
-    </>
+        </span>
+        {data.realism === 'forced' && (
+          <span>
+            <Translate id="poc.meta.result" values={{r: resultText(data.result)}}>
+              {'run result: {r}'}
+            </Translate>
+          </span>
+        )}
+        <a href={matrixCaseUrl(data.caseId)}>
+          <Translate id="poc.meta.matrix">Case in the matrix</Translate>
+        </a>
+      </div>
+    </div>
   );
 }
+
+// ---- 3. How it was checked
 
 function FixturePreview({f}: {f: PocFixture}) {
   if (f.symlink)
@@ -174,23 +141,34 @@ const rootText = (root: string) =>
       ? translate({id: 'poc.root.db', message: "db (the server's data folder)"})
       : translate({id: 'poc.root.evidence', message: 'evidence'});
 
-function FixtureMeta({f}: {f: PocFixture}) {
-  return (
-    <div className={styles.small}>
-      {rootText(f.root)} · {f.size.toLocaleString('en')} {translate({id: 'poc.bytes', message: 'bytes'})}
-      {f.mode && ` · mode ${f.mode}`}
-      {f.mtime && ` · mtime ${f.mtime}`}
-    </div>
-  );
+function fixtureMeta(f: PocFixture): string {
+  return [
+    rootText(f.root),
+    `${f.size.toLocaleString('en')} ${translate({id: 'poc.bytes', message: 'bytes'})}`,
+    f.mode && `mode ${f.mode}`,
+    f.mtime && `mtime ${f.mtime}`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 }
 
-function Fixture({f}: {f: PocFixture}) {
+// A fixture as a line that opens to its content.
+function Fixture({f, open, only}: {f: PocFixture; open?: boolean; only?: string[]}) {
   return (
-    <div className={poc.fixture}>
-      <code className={poc.fixturePath}>{f.path}</code>
-      <FixtureMeta f={f} />
+    <details className={poc.fixture} open={open}>
+      <summary>
+        <code className={poc.fixturePath}>{f.path}</code> <span className={styles.small}>{fixtureMeta(f)}</span>
+        {only && (
+          <span className={styles.small}>
+            {' · '}
+            <Translate id="poc.evidence.only" values={{c: only.join(', ')}}>
+              {'only in: {c}'}
+            </Translate>
+          </span>
+        )}
+      </summary>
       <FixturePreview f={f} />
-    </div>
+    </details>
   );
 }
 
@@ -207,100 +185,115 @@ function allFixtures(data: PocData): {f: PocFixture; only?: string[]}[] {
   return out.map(o => ({f: o.f, only: o.in.length < data.runs.length ? o.in : undefined}));
 }
 
-function Evidence({data}: {data: PocData}) {
+// Small files are shown open; the side-by-side view shows them again under the result.
+const SHORT_FIXTURE = 600;
+
+function HowChecked({data}: {data: PocData}) {
   const fixtures = allFixtures(data);
+  const steps = data.runs[0]?.steps ?? [];
+  const sideBySide = data.display === 'source-vs-result';
   return (
-    <Section
-      title={translate({id: 'poc.evidence', message: 'Evidence'})}
-      note={translate(
-        {
-          id: 'poc.evidence.note',
-          message:
-            'The files written before the server started, as the transcript records them. {evidence} is the evidence folder the server is given, {outside} a folder next to it that it is not given.',
-        },
-        {evidence: '${EVIDENCE}', outside: '${OUTSIDE}'},
-      )}>
+    <Section title={translate({id: 'poc.how', message: 'How it was checked'})}>
+      {data.setup && <p>{data.setup}</p>}
+      {data.conditions.length > 0 && (
+        <p className={styles.small}>
+          <Translate id="poc.how.conditions">The same calls were made once under each condition:</Translate>{' '}
+          {data.conditions.map((c, i) => (
+            <span key={c.name}>
+              {i > 0 && ' · '}
+              <strong>{c.name}</strong>
+              {Object.keys(c.env).length > 0 && <code> {envText(c.env, ' ')}</code>}
+            </span>
+          ))}
+        </p>
+      )}
+      {data.stubs.length > 0 && (
+        <p className={styles.small}>
+          <Translate id="poc.how.stubs" values={{names: data.stubs.map(s => s.name).join(', ')}}>
+            {"An external tool's output is imitated by a stand-in program ({names}); see Details."}
+          </Translate>
+        </p>
+      )}
+      <h3 className={poc.h3}>
+        <Translate id="poc.how.files">Evidence files</Translate>
+      </h3>
       {fixtures.length === 0 ? (
         <p className={styles.small}>
           <Translate id="poc.evidence.none">No files are written for this PoC.</Translate>
         </p>
       ) : (
         fixtures.map(({f, only}) => (
-          <div key={`${f.root}/${f.path}`}>
-            {only && (
-              <div className={styles.small}>
-                <Translate id="poc.evidence.only" values={{c: only.join(', ')}}>
-                  {'only in: {c}'}
-                </Translate>
-              </div>
-            )}
-            <Fixture f={f} />
-          </div>
+          <Fixture
+            key={`${f.root}/${f.path}`}
+            f={f}
+            only={only}
+            open={!sideBySide && fixtures.length <= 3 && (f.text ?? f.hex ?? '').length <= SHORT_FIXTURE}
+          />
         ))
       )}
+      <h3 className={poc.h3}>
+        <Translate id="poc.how.calls">Calls to the server (over MCP, no model)</Translate>
+      </h3>
+      <ol className={poc.calls}>
+        {steps.map(s => (
+          <li key={s.n}>
+            {s.note && <div>{s.note}</div>}
+            <code className={clsx(poc.callLine, !s.note && poc.callOnly)}>{callLine(s)}</code>
+          </li>
+        ))}
+      </ol>
     </Section>
   );
 }
 
-const envText = (env: Record<string, string>) =>
-  Object.entries(env)
-    .map(([k, v]) => `${k}=${v}`)
-    .join('\n');
+// ---- 4. What came back
 
-function Setup({data}: {data: PocData}) {
-  const hasEnv = Object.keys(data.env).length > 0;
-  if (!data.stubs.length && !hasEnv && !data.conditions.length) return null;
+// The response as kept by the plugin: highlighted where a check matched, and
+// a note where a part was left out.
+function Response({step, transcript, marks = true}: {step: PocStep; transcript: string; marks?: boolean}) {
   return (
-    <Section
-      title={translate({id: 'poc.setup', message: 'Stand-ins and settings'})}
-      note={translate({
-        id: 'poc.setup.note',
-        message: 'Programs put in place of an external tool, and the environment the server is started with.',
-      })}>
-      {data.stubs.map(s => (
-        <details key={s.name} className={styles.event}>
-          <summary>
-            <code>{s.name}</code>{' '}
-            <span className={poc.stubTag}>
-              <Translate id="poc.stub.label">external tool output is imitated</Translate>
-            </span>
-          </summary>
-          <pre className={styles.pre}>{s.text}</pre>
-        </details>
-      ))}
-      {hasEnv && (
-        <>
-          <h3 className={poc.h3}>
-            <Translate id="poc.setup.env">Server environment</Translate>
-          </h3>
-          <pre className={styles.pre}>{envText(data.env)}</pre>
-        </>
+    <>
+      <pre className={clsx(styles.pre, poc.response)}>
+        {step.timedOut && !step.length
+          ? translate({id: 'poc.step.noResponse', message: '(no response before the time limit)'})
+          : step.pieces.map((p, i) =>
+              'gap' in p ? (
+                <span key={i} className={poc.gap}>
+                  {translate(
+                    {id: 'poc.step.gap', message: '[… {n} characters not shown …]'},
+                    {n: p.gap.toLocaleString('en')},
+                  )}
+                </span>
+              ) : p.m && marks ? (
+                <mark
+                  key={i}
+                  className={poc.hit}
+                  title={translate({id: 'poc.step.matched', message: 'matched by check {n}'}, {n: p.m.join(', ')})}>
+                  {p.t}
+                  <sup>{p.m.join(',')}</sup>
+                </mark>
+              ) : (
+                <span key={i}>{p.t}</span>
+              ),
+            )}
+      </pre>
+      {step.cut && (
+        <p className={styles.small}>
+          <Translate
+            id="poc.step.cut"
+            values={{
+              n: step.length.toLocaleString('en'),
+              link: (
+                <a href={transcript}>
+                  <Translate id="poc.step.fullTranscript">full transcript</Translate>
+                </a>
+              ),
+            }}>
+            {'Cut on the site: the response has {n} characters; the start and the text around each match are shown. See the {link}.'}
+          </Translate>
+        </p>
       )}
-      {data.conditions.length > 0 && (
-        <>
-          <h3 className={poc.h3}>
-            <Translate id="poc.setup.conditions">Conditions</Translate>
-          </h3>
-          <p className={styles.small}>
-            <Translate id="poc.setup.conditions.note">The same calls are made once under each condition.</Translate>
-          </p>
-          <table className={styles.table}>
-            <tbody>
-              {data.conditions.map(c => (
-                <tr key={c.name}>
-                  <td>
-                    <strong>{c.name}</strong>
-                  </td>
-                  <td>
-                    <code>{envText(c.env) || '—'}</code>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </>
-      )}
-    </Section>
+    </>
   );
 }
 
@@ -310,19 +303,14 @@ function namedFixtures(run: PocRun, step: PocStep): PocFixture[] {
   return named.length ? named : run.fixtures;
 }
 
-function StepHead({step, display}: {step: PocStep; display: string}) {
-  const kind =
-    step.kind === 'tool' ? 'tool' : step.kind === 'list_tools' ? 'tools/list' : step.kind === 'prompt' ? 'prompt' : 'resource';
+function StepHead({step}: {step: PocStep}) {
   return (
     <div className={poc.stepHead}>
       <span className={poc.stepNo}>{step.n}</span>
-      <span className={styles.kind}>{kind}</span>
-      <code className={poc.call}>{step.call}</code>
-      {display !== 'time-size' && (
-        <span className={styles.small}>
-          {step.seconds}s · {step.length.toLocaleString('en')} {translate({id: 'poc.chars', message: 'characters'})}
-        </span>
-      )}
+      <code className={poc.call}>{step.kind === 'list_tools' ? 'tools/list' : step.call}</code>
+      <span className={styles.small}>
+        {step.seconds}s · {step.length.toLocaleString('en')} {translate({id: 'poc.chars', message: 'characters'})}
+      </span>
       {step.isError && <span className={styles.errorTag}>{translate({id: 'poc.step.error', message: 'error'})}</span>}
       {step.timedOut && <span className={styles.errorTag}>{translate({id: 'poc.step.timedOut', message: 'timed out'})}</span>}
     </div>
@@ -338,52 +326,31 @@ function Labelled({label, children}: {label: ReactNode; children: ReactNode}) {
   );
 }
 
-function Step({
-  data,
-  run,
-  step,
-  checks,
-  hidden,
-  transcript,
-}: {
-  data: PocData;
-  run: PocRun;
-  step: PocStep;
-  checks: PocCheck[];
-  hidden: boolean;
-  transcript: string;
-}) {
+function Step({data, run, step, transcript}: {data: PocData; run: PocRun; step: PocStep; transcript: string}) {
   const response = (
     <Labelled label={translate({id: 'poc.step.response', message: 'Response'})}>
       <Response step={step} transcript={transcript} />
     </Labelled>
   );
-  const tool = data.given.tools.find(t => t.name === step.call);
   let body: ReactNode = response;
   if (data.display === 'source-vs-result') {
     body = (
       <div className={poc.sideBySide}>
         <Labelled label={translate({id: 'poc.step.evidence', message: 'Evidence'})}>
           {namedFixtures(run, step).map(f => (
-            <Fixture key={`${f.root}/${f.path}`} f={f} />
+            <div key={`${f.root}/${f.path}`} className={poc.fixtureOpen}>
+              <code className={poc.fixturePath}>{f.path}</code>
+              <FixturePreview f={f} />
+            </div>
           ))}
-        </Labelled>
-        {response}
-      </div>
-    );
-  } else if (data.display === 'definition' && tool) {
-    body = (
-      <div className={poc.sideBySide}>
-        <Labelled label={translate({id: 'poc.step.definition', message: 'Tool definition the model is given'})}>
-          <pre className={styles.pre}>{tool.json}</pre>
         </Labelled>
         {response}
       </div>
     );
   }
   return (
-    <li className={clsx(poc.step, hidden && poc.hiddenStep, data.display === 'multi-call' && poc.timelineStep)}>
-      <StepHead step={step} display={data.display} />
+    <li className={poc.step}>
+      <StepHead step={step} />
       {data.display === 'time-size' && (
         <div className={poc.metrics}>
           <div>
@@ -396,60 +363,59 @@ function Step({
           </div>
         </div>
       )}
-      <div className={poc.argsLabel}>{translate({id: 'poc.step.args', message: 'Arguments'})}</div>
-      <pre className={clsx(styles.pre, poc.args)}>{step.args}</pre>
       {body}
-      <CheckList checks={checks} />
     </li>
   );
 }
 
-// Files the checks looked for after the run, next to the files written before it.
-function FilesAfter({run, checks}: {run: PocRun; checks: PocCheck[]}) {
+// Files written before the run, and the files the checks looked for after it.
+function FilesAfter({run}: {run: PocRun}) {
   return (
-    <div className={poc.filesAfter}>
+    <div>
       <h3 className={poc.h3}>
         <Translate id="poc.files.title">Files before and after the run</Translate>
       </h3>
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            <th>
-              <Translate id="poc.files.col.file">file</Translate>
-            </th>
-            <th>
-              <Translate id="poc.files.col.folder">folder</Translate>
-            </th>
-            <th>
-              <Translate id="poc.files.col.when">state</Translate>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {run.fixtures.map(f => (
-            <tr key={`${f.root}/${f.path}`}>
-              <td>
-                <code>{f.path}</code>
-              </td>
-              <td className={styles.small}>{rootText(f.root)}</td>
-              <td className={styles.small}>{translate({id: 'poc.files.written', message: 'written before the run'})}</td>
+      <div className={styles.tableScroll}>
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>
+                <Translate id="poc.files.col.file">file</Translate>
+              </th>
+              <th>
+                <Translate id="poc.files.col.folder">folder</Translate>
+              </th>
+              <th>
+                <Translate id="poc.files.col.when">state</Translate>
+              </th>
             </tr>
-          ))}
-          {run.filesAfter.map(f => (
-            <tr key={f.path}>
-              <td>
-                <code>{f.path}</code>
-              </td>
-              <td className={styles.small}>—</td>
-              <td className={f.exists ? styles.fail : styles.small}>
-                {f.exists
-                  ? translate({id: 'poc.files.exists', message: 'exists after the run'})
-                  : translate({id: 'poc.files.missing', message: 'missing after the run'})}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {run.fixtures.map(f => (
+              <tr key={`${f.root}/${f.path}`}>
+                <td>
+                  <code>{f.path}</code>
+                </td>
+                <td className={styles.small}>{rootText(f.root)}</td>
+                <td className={styles.small}>{translate({id: 'poc.files.written', message: 'written before the run'})}</td>
+              </tr>
+            ))}
+            {run.filesAfter.map(f => (
+              <tr key={f.path}>
+                <td>
+                  <code>{f.path}</code>
+                </td>
+                <td className={styles.small}>—</td>
+                <td className={f.exists ? styles.fail : styles.small}>
+                  {f.exists
+                    ? translate({id: 'poc.files.exists', message: 'exists after the run'})
+                    : translate({id: 'poc.files.missing', message: 'missing after the run'})}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       {run.filesAfter.length === 0 && (
         <p className={styles.small}>
           <Translate id="poc.files.none">
@@ -458,141 +424,253 @@ function FilesAfter({run, checks}: {run: PocRun; checks: PocCheck[]}) {
           </Translate>
         </p>
       )}
-      <CheckList checks={checks} />
     </div>
   );
 }
 
-// The recorded steps of one run. Every step is shown at first (also without
-// JavaScript and when printed); Play hides them and reveals one at a time.
-function Replay({data, run, transcript}: {data: PocData; run: PocRun; transcript: string}) {
-  const [shown, setShown] = useState<number | null>(null);
-  const [playing, setPlaying] = useState(false);
-  useEffect(() => {
-    if (!playing || shown === null) return undefined;
-    if (shown >= run.steps.length) {
-      setPlaying(false);
-      return undefined;
-    }
-    const t = setTimeout(() => setShown(shown + 1), PLAY_INTERVAL_MS);
-    return () => clearTimeout(t);
-  }, [playing, shown, run.steps.length]);
-  const fileChecks = data.checks.filter(
-    c => (c.rule === 'file_exists' || c.rule === 'file_missing') && c.condition === run.condition,
-  );
+// One tab per condition; every panel is in the HTML, so all of them print.
+function ConditionTabs({runs, children}: {runs: PocRun[]; children: (run: PocRun) => ReactNode}) {
+  const [tab, setTab] = useState(0);
+  if (runs.length <= 1) return <>{runs.map(r => children(r))}</>;
   return (
     <>
-      <div className={poc.player}>
-        <button
-          type="button"
-          className={clsx(styles.tab, playing && styles.tabActive)}
-          onClick={() => {
-            setShown(1);
-            setPlaying(true);
-          }}>
-          {translate({id: 'poc.replay.play', message: 'Play'})}
-        </button>
-        <button
-          type="button"
-          className={clsx(styles.tab, shown === null && styles.tabActive)}
-          onClick={() => {
-            setPlaying(false);
-            setShown(null);
-          }}>
-          {translate({id: 'poc.replay.all', message: 'Show all'})}
-        </button>
-        {shown !== null && (
-          <span className={styles.small}>
-            {translate(
-              {id: 'poc.replay.progress', message: 'step {k} of {n}'},
-              {k: Math.min(shown, run.steps.length), n: run.steps.length},
-            )}
-          </span>
-        )}
-      </div>
-      <ol className={clsx(poc.steps, data.display === 'multi-call' && poc.timeline)}>
-        {run.steps.map(s => (
-          <Step
-            key={s.n}
-            data={data}
-            run={run}
-            step={s}
-            checks={data.checks.filter(c => c.step === s.n && c.condition === run.condition && c.rule !== 'differs' && c.rule !== 'same')}
-            hidden={shown !== null && s.n > shown}
-            transcript={transcript}
-          />
+      <div className={styles.tabs} role="tablist">
+        {runs.map((r, i) => (
+          <button
+            key={r.condition}
+            type="button"
+            role="tab"
+            aria-selected={tab === i}
+            className={clsx(styles.tab, tab === i && styles.tabActive)}
+            onClick={() => setTab(i)}>
+            {r.condition}
+          </button>
         ))}
-      </ol>
-      {(data.display === 'side-effect' || fileChecks.length > 0) && <FilesAfter run={run} checks={fileChecks} />}
+      </div>
+      {runs.map((r, i) => (
+        <div key={r.condition} role="tabpanel" className={clsx(i !== tab && poc.hiddenRun)}>
+          <p className={clsx(styles.small, poc.runLabel)}>
+            <Translate id="poc.replay.condition" values={{c: <strong>{r.condition}</strong>}}>
+              {'Condition {c}'}
+            </Translate>
+            {Object.keys(r.env).length > 0 && (
+              <>
+                {' · '}
+                <code>{envText(r.env, ' ')}</code>
+              </>
+            )}
+          </p>
+          {children(r)}
+        </div>
+      ))}
     </>
   );
 }
 
-function RecordedRun({data, transcript}: {data: PocData; transcript: string}) {
-  const [tab, setTab] = useState(0);
-  const across = data.checks.filter(c => c.rule === 'differs' || c.rule === 'same');
+function WhatCameBack({data, transcript}: {data: PocData; transcript: string}) {
+  const fileChecks = data.checks.some(c => c.rule === 'file_exists' || c.rule === 'file_missing');
+  return (
+    <Section title={translate({id: 'poc.result.title', message: 'What came back'})}>
+      <p className={styles.small}>
+        <Translate id="poc.result.note">
+          The server's responses as recorded. Text a check below matched is highlighted with the check number.
+        </Translate>
+      </p>
+      {data.display === 'definition' &&
+        data.given.tools.map(t => (
+          <div key={t.name} className={poc.definition}>
+            <Labelled label={translate({id: 'poc.step.definition', message: 'Tool definition the model is given'})}>
+              <pre className={styles.pre}>{t.json}</pre>
+            </Labelled>
+          </div>
+        ))}
+      <ConditionTabs runs={data.runs}>
+        {run => (
+          <>
+            <ol className={poc.steps}>
+              {run.steps.map(s => (
+                <Step key={s.n} data={data} run={run} step={s} transcript={transcript} />
+              ))}
+            </ol>
+            {(data.display === 'side-effect' || fileChecks) && <FilesAfter run={run} />}
+          </>
+        )}
+      </ConditionTabs>
+    </Section>
+  );
+}
+
+// ---- 5. Why it is judged so
+
+const quote = (s: string) => (s.length > 80 ? `${s.slice(0, 80)}…` : s);
+
+// A check as a plain sentence, when poc.yaml gives no note for it.
+function checkSentence(c: PocCheck): string {
+  const x = quote(c.value);
+  switch (c.rule) {
+    case 'contains':
+      return translate({id: 'poc.rule.contains', message: "The response contains '{x}'."}, {x});
+    case 'not_contains':
+      return translate({id: 'poc.rule.notContains', message: "The response does not contain '{x}'."}, {x});
+    case 'regex':
+      return translate({id: 'poc.rule.regex', message: 'The response has text matching /{x}/.'}, {x});
+    case 'not_regex':
+      return translate({id: 'poc.rule.notRegex', message: 'The response has no text matching /{x}/.'}, {x});
+    case 'is_error':
+      return c.value === 'true'
+        ? translate({id: 'poc.rule.isError', message: 'The response is an error.'})
+        : translate({id: 'poc.rule.notError', message: 'The response is not an error.'});
+    case 'timed_out':
+      return c.value === 'false'
+        ? translate({id: 'poc.rule.notTimedOut', message: 'It finished within the time limit.'})
+        : translate({id: 'poc.rule.timedOut', message: 'It did not finish within the time limit.'});
+    case 'max_seconds':
+      return translate({id: 'poc.rule.maxSeconds', message: 'It responded within {x} seconds.'}, {x});
+    case 'min_seconds':
+      return translate({id: 'poc.rule.minSeconds', message: 'It took {x} seconds or more to respond.'}, {x});
+    case 'min_length':
+      return translate({id: 'poc.rule.minLength', message: 'The response has {x} characters or more.'}, {x});
+    case 'differs':
+      return translate({id: 'poc.rule.differs', message: 'The responses under the conditions differ.'});
+    case 'same':
+      return translate({id: 'poc.rule.same', message: 'The responses under the conditions are the same.'});
+    case 'file_exists':
+      return translate({id: 'poc.rule.fileExists', message: "After the run, the file '{x}' exists."}, {x});
+    case 'file_missing':
+      return translate({id: 'poc.rule.fileMissing', message: "After the run, the file '{x}' does not exist."}, {x});
+    default:
+      return `${c.rule} ${c.value}`;
+  }
+}
+
+// A check's rule as written in poc.yaml.
+function ruleText(c: PocCheck): string {
+  switch (c.rule) {
+    case 'contains':
+    case 'not_contains':
+      return `${c.rule}: ${JSON.stringify(c.value)}`;
+    case 'regex':
+    case 'not_regex':
+      return `${c.rule}: ${JSON.stringify(c.value)}`;
+    case 'differs':
+    case 'same':
+      return `${c.rule}: {step: ${c.step}, conditions: [${(c.conditions ?? []).join(', ')}]}`;
+    default:
+      return `${c.rule}: ${c.value}`;
+  }
+}
+
+function Judgement({data}: {data: PocData}) {
+  const failed = data.checks.filter(c => !c.ok).map(c => c.n);
+  const reproduced = data.result === 'reproduced';
+  const manySteps = (data.runs[0]?.steps.length ?? 0) > 1;
+  const manyRuns = data.runs.length > 1;
+  let lead: string;
+  if (!data.checks.length) lead = translate({id: 'poc.why.none', message: 'This PoC has no checks.'});
+  else if (!failed.length && reproduced)
+    lead = translate({id: 'poc.why.allHeld', message: 'Every condition below held, so it is judged reproduced.'});
+  else if (failed.length)
+    lead = translate(
+      {id: 'poc.why.failed', message: 'Condition {list} below did not hold, so it is judged not reproduced.'},
+      {list: failed.join(', ')},
+    );
+  else
+    lead = translate(
+      {
+        id: 'poc.why.runs',
+        message: 'Every condition below held in the run shown, but not in enough runs ({k}), so it is judged not reproduced.',
+      },
+      {k: data.reproducedRuns},
+    );
   return (
     <Section
-      title={translate({id: 'poc.replay', message: 'Recorded run'})}
-      note={translate({
-        id: 'poc.replay.note',
-        message:
-          'A replay of the recorded run: each call was sent to the server over MCP with no model, and the response is the one the server returned. Text a check matched is highlighted with the check number; each check is listed under its step.',
-      })}>
-      {data.runs.length > 1 && (
-        <div className={styles.tabs} role="tablist">
-          {data.runs.map((r, i) => (
-            <button
-              key={r.condition}
-              type="button"
-              role="tab"
-              aria-selected={tab === i}
-              className={clsx(styles.tab, tab === i && styles.tabActive)}
-              onClick={() => setTab(i)}>
-              {r.condition}
-            </button>
-          ))}
-        </div>
-      )}
-      {data.runs.map((r, i) => (
-        <div key={r.condition} className={clsx(poc.runPanel, i !== tab && poc.hiddenRun)} role={data.runs.length > 1 ? 'tabpanel' : undefined}>
-          {data.runs.length > 1 && (
-            <p className={clsx(styles.small, poc.runLabel)}>
-              <Translate id="poc.replay.condition" values={{c: <strong>{r.condition}</strong>}}>
-                {'Condition {c}'}
-              </Translate>
-              {Object.keys(r.env).length > 0 && (
-                <>
-                  {' · '}
-                  <code>{envText(r.env).replace(/\n/g, ' ')}</code>
-                </>
-              )}
-            </p>
-          )}
-          <Replay data={data} run={r} transcript={transcript} />
-        </div>
-      ))}
-      {across.length > 0 && (
-        <div className={poc.filesAfter}>
-          <h3 className={poc.h3}>
-            <Translate id="poc.replay.across">Checks across conditions</Translate>
-          </h3>
-          <CheckList checks={across} />
-        </div>
+      title={
+        reproduced
+          ? translate({id: 'poc.why.reproduced', message: 'Why it is judged reproduced'})
+          : translate({id: 'poc.why.notReproduced', message: 'Why it is judged not reproduced'})
+      }>
+      <p>{lead}</p>
+      <ul className={poc.checks}>
+        {data.checks.map(c => (
+          <li key={c.n}>
+            <span className={clsx(poc.checkMark, c.ok ? styles.pass : styles.fail)} aria-label={c.ok ? 'held' : 'not held'}>
+              {c.ok ? '✔' : '✘'}
+            </span>
+            <span className={poc.checkNo}>{c.n}</span>
+            <div className={poc.checkBody}>
+              <div>
+                {manyRuns && c.condition && c.rule !== 'differs' && c.rule !== 'same' && (
+                  <span className={poc.tag}>{c.condition}</span>
+                )}
+                {manySteps && c.step && (
+                  <span className={poc.tag}>
+                    {translate({id: 'poc.why.call', message: 'call {n}'}, {n: c.step})}
+                  </span>
+                )}
+                {c.note || checkSentence(c)}
+              </div>
+              <code className={poc.rule}>{ruleText(c)}</code>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </Section>
+  );
+}
+
+// ---- 6. How realistic
+
+function Realism({data}: {data: PocData}) {
+  return (
+    <Section title={translate({id: 'poc.realism.title', message: 'How realistic is it'})}>
+      <p>
+        <span className={clsx(poc.realismLabel, data.realism === 'forced' && poc.realismForced)}>
+          {realismText(data.realism)}
+        </span>{' '}
+        {data.realismNote}
+      </p>
+      {data.coverage === 'partial' && (
+        <p>
+          <Translate id="poc.coverage.partial" values={{note: data.coverageNote}}>
+            {'This PoC shows only part of the case: {note}'}
+          </Translate>
+        </p>
       )}
     </Section>
   );
 }
 
-function Given({data}: {data: PocData}) {
+// ---- 7. Details
+
+function Details({data, transcript, repoTree}: {data: PocData; transcript: string; repoTree: string}) {
   return (
-    <Section
-      title={translate({id: 'poc.given', message: 'What the model is given'})}
-      note={translate({
-        id: 'poc.given.note',
-        message:
-          'What a model connected to this server would read before calling it: the server instructions, and the definitions of the tools called here.',
-      })}>
+    <details className={clsx(styles.section, poc.more)}>
+      <summary>
+        <Translate id="poc.more">Details</Translate>
+      </summary>
+      <h3 className={poc.h3}>
+        <Translate id="poc.more.calls">Each call as recorded</Translate>
+      </h3>
+      {data.runs.map(r =>
+        r.steps.map(s => (
+          <details key={`${r.condition}-${s.n}`} className={styles.event}>
+            <summary>
+              {data.runs.length > 1 && <span className={poc.tag}>{r.condition}</span>}
+              {s.n}. <code>{s.kind === 'list_tools' ? 'tools/list' : s.call}</code>{' '}
+              <span className={styles.small}>
+                {s.seconds}s · {s.length.toLocaleString('en')} {translate({id: 'poc.chars', message: 'characters'})}
+              </span>
+            </summary>
+            <div className={poc.columnLabel}>{translate({id: 'poc.step.args', message: 'Arguments'})}</div>
+            <pre className={styles.pre}>{s.args}</pre>
+            <div className={poc.columnLabel}>{translate({id: 'poc.step.response', message: 'Response'})}</div>
+            <Response step={s} transcript={transcript} marks={false} />
+          </details>
+        )),
+      )}
+      <h3 className={poc.h3}>
+        <Translate id="poc.given">What the model is given</Translate>
+      </h3>
       <details className={styles.event}>
         <summary>
           <Translate id="poc.given.instructions">Server instructions</Translate>
@@ -611,19 +689,73 @@ function Given({data}: {data: PocData}) {
           <pre className={styles.pre}>{t.json}</pre>
         </details>
       ))}
-    </Section>
+      {(data.stubs.length > 0 || Object.keys(data.env).length > 0) && (
+        <>
+          <h3 className={poc.h3}>
+            <Translate id="poc.setup">Stand-ins and settings</Translate>
+          </h3>
+          {data.stubs.map(s => (
+            <details key={s.name} className={styles.event}>
+              <summary>
+                <code>{s.name}</code>{' '}
+                <span className={styles.small}>
+                  <Translate id="poc.stub.label">external tool output is imitated</Translate>
+                </span>
+              </summary>
+              <pre className={styles.pre}>{s.text}</pre>
+            </details>
+          ))}
+          {Object.keys(data.env).length > 0 && <pre className={styles.pre}>{envText(data.env)}</pre>}
+        </>
+      )}
+      <h3 className={poc.h3}>
+        <Translate id="poc.more.env">Run environment</Translate>
+      </h3>
+      <ul className={poc.facts}>
+        <li>
+          <Translate id="poc.more.variant">variant</Translate> <code>{data.variant}</code>
+        </li>
+        {data.image && (
+          <li>
+            image <code title={data.image}>{shortDigest(data.image)}</code>
+          </li>
+        )}
+        <li>
+          <Translate id="poc.ranAt">Run</Translate> {data.ranAt.replace('T', ' ').replace(/\+00:00$/, ' UTC')}
+        </li>
+        <li>
+          <Translate id="poc.more.runs" values={{k: data.reproducedRuns}}>
+            {'reproduced in {k} runs'}
+          </Translate>
+          {data.attempts > 1 && (
+            <>
+              {' · '}
+              {translate({id: 'poc.attempts', message: 'the last of {n} attempts is shown'}, {n: data.attempts})}
+            </>
+          )}
+        </li>
+        <li>
+          display <code>{data.display}</code>
+        </li>
+      </ul>
+      <p>
+        <a href={`${repoTree}/${data.folder}`} className={styles.link}>
+          <Translate id="poc.folderLink">PoC folder on GitHub</Translate>
+        </a>
+        <a href={transcript} className={styles.link}>
+          <Translate id="poc.transcriptLink">Full transcript</Translate>
+        </a>
+      </p>
+    </details>
   );
 }
 
 export default function PocPage({data}: {data: PocData}) {
   const repoTree = useRepoTree();
-  const blob = repoTree.replace('/tree/', '/blob/');
-  const transcript = `${blob}/${data.runDir}/transcript.json`;
-  const checksHeld = data.checks.filter(c => c.ok).length;
-  const commitUrl = serverCommitUrl(data.repo, data.commit);
+  const transcript = `${repoTree.replace('/tree/', '/blob/')}/${data.runDir}/transcript.json`;
   return (
     <Layout title={data.caseId} description={data.summary}>
-      <main className={styles.main}>
+      <main className={clsx(styles.main, poc.page)}>
         <div className={styles.crumb}>
           <Link to="/pocs">
             <Translate id="pocs.title">PoCs</Translate>
@@ -631,63 +763,15 @@ export default function PocPage({data}: {data: PocData}) {
           / <code>{data.server}</code>
         </div>
         <h1>{data.caseId}</h1>
-        <p className={styles.purpose}>{data.summary}</p>
-        <div className={styles.overview}>
-          <Row label={<Translate id="poc.result">Result</Translate>}>
-            <strong className={data.result === 'reproduced' ? styles.pass : undefined}>{resultText(data.result)}</strong>{' '}
-            {data.reproducedRuns}
-            <span className={styles.small}>
-              {' · '}
-              {translate({id: 'poc.checksHeld', message: '{k} of {n} checks held'}, {k: checksHeld, n: data.checks.length})}
-            </span>
-          </Row>
-          <Row label={<Translate id="poc.problem">Problem</Translate>}>
-            <code>{data.problem}</code>
-          </Row>
-          <Row label={<Translate id="poc.server">Server</Translate>}>
-            {data.server}{' '}
-            {commitUrl ? (
-              <a href={commitUrl}>
-                <code>{shortCommit(data.commit)}</code>
-              </a>
-            ) : (
-              <code>{shortCommit(data.commit)}</code>
-            )}
-            {data.image && <span className={styles.small}> · image <code>{shortDigest(data.image)}</code></span>}
-          </Row>
-          <Row label={<Translate id="poc.ranAt">Run</Translate>}>
-            {data.ranAt.replace('T', ' ').replace(/\+00:00$/, ' UTC')}
-            {data.attempts > 1 && (
-              <span className={styles.small}>
-                {' · '}
-                {translate({id: 'poc.attempts', message: 'the last of {n} attempts is shown'}, {n: data.attempts})}
-              </span>
-            )}
-          </Row>
-          <Row label={<Translate id="poc.realism">Realism</Translate>}>{realismText(data.realism)}</Row>
-          <Row label={<Translate id="poc.coverage">Coverage</Translate>}>
-            {coverageText(data.coverage)}
-            {data.coverageNote && <span className={styles.small}>: {data.coverageNote}</span>}
-          </Row>
-          <Row label={<Translate id="poc.display">Display</Translate>}>
-            <code>{data.display}</code>
-          </Row>
-          <Row label={<Translate id="poc.links">Links</Translate>}>
-            <a href={matrixCaseUrl(data.caseId)} className={styles.link}>
-              {translate({id: 'poc.matrixLink', message: 'Case {id} in dfir-mcp-matrix'}, {id: data.caseId})}
-            </a>
-            <a href={`${repoTree}/${data.folder}`} className={styles.link}>
-              <Translate id="poc.folderLink">PoC folder on GitHub</Translate>
-            </a>
-            <a href={transcript} className={styles.link}>
-              <Translate id="poc.transcriptLink">Full transcript</Translate>
-            </a>
-          </Row>
-        </div>
-        <Evidence data={data} />
-        <Setup data={data} />
-        <RecordedRun data={data} transcript={transcript} />
-        <Given data={data} />
+        <Verdict data={data} />
+        <Section title={translate({id: 'poc.defect', message: 'What is wrong'})}>
+          <p>{data.defect}</p>
+        </Section>
+        <HowChecked data={data} />
+        <WhatCameBack data={data} transcript={transcript} />
+        <Judgement data={data} />
+        <Realism data={data} />
+        <Details data={data} transcript={transcript} repoTree={repoTree} />
       </main>
     </Layout>
   );

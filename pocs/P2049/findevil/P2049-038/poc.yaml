@@ -23,11 +23,14 @@ variant: findevil-d1a8d25
 commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
 display: response
 level: mcp
-realism: common
+realism: possible
+realism_ko: "숨겨진 커널 모듈 사례 자체는 드물지만, 그런 루트킷을 modprobe.d와 `extra/*.ko`로 심는 것은 흔한 방식이다."
 coverage: "partial: Volatility output is imitated (no real memory image or symbols); modules after the 10th in /etc/modules are covered by P4117-061"
 coverage_ko: "Volatility 출력은 흉내 낸 것이다(실제 메모리 이미지나 심볼 없음). /etc/modules의 10번째 이후 모듈은 P4117-061에서 다룬다"
 summary: 'With the hidden module diamorphine planted through modprobe.d and lib/modules/*/extra/diamorphine.ko, correlate_memory_and_disk reports "Disk: 0 module name(s) in /etc/modules or modprobe.d/" and "no matching disk artefact" (MEMORY-RESIDENT ROOTKIT), although its description says it uses the persistence scanner that finds both files.'
 summary_ko: "숨겨진 모듈 diamorphine을 modprobe.d와 lib/modules/*/extra/diamorphine.ko로 심어 두면, correlate_memory_and_disk는 \"Disk: 0 module name(s) in /etc/modules or modprobe.d/\"와 \"no matching disk artefact\"(MEMORY-RESIDENT ROOTKIT)를 보고한다. 도구 설명은 두 파일을 모두 찾는 지속성 스캐너를 쓴다고 한다."
+defect_ko: "정상이라면 설명대로 지속성 스캐너가 찾은 modprobe.d·`extra/*.ko` 모듈을 디스크 흔적으로 대조해야 하는데, 이 서버는 `/etc/modules` 이름만 센다. 그래서 모델은 디스크에 흔적이 있는 루트킷을 디스크 흔적이 지워진 메모리 상주 루트킷으로 잘못 안다."
+setup_ko: "modprobe.d 설정과 `extra/diamorphine.ko`로 심은 모듈 파일을 두고, Volatility는 `diamorphine`을 숨겨진 모듈로 내놓는 흉내 스크립트로 바꿨다."
 env:
   FINDEVIL_VOL: ${STUBS}/vol
 stubs:
@@ -69,22 +72,30 @@ fixture:
     text: "install diamorphine /bin/sh -c '/sbin/insmod /lib/modules/5.15.0-91-generic/extra/diamorphine.ko'\n"
 steps:
   - tool: find_persistence
+    note_ko: "비교용: 같은 파일 시스템에서 지속성 스캐너가 두 흔적을 찾는지 확인함"
     args:
       root_path: ${EVIDENCE}/case01/fs
   - tool: correlate_memory_and_disk
+    note_ko: "결함이 있는 호출: 메모리와 디스크를 대조함"
     args:
       memory_dump_path: ${EVIDENCE}/case01/mem.lime
       fs_root: ${EVIDENCE}/case01/fs
 expect:
   - step: 1
+    note_ko: "지속성 스캐너는 `extra/`의 모듈 파일을 찾는다"
     contains: "Out-of-tree kernel module: diamorphine.ko"
   - step: 1
+    note_ko: "지속성 스캐너는 modprobe.d의 설치 지시도 찾는다"
     contains: "install directive runs shell"
   - step: 2
+    note_ko: "대조 도구는 디스크 모듈을 0개로 센다"
     contains: "Disk: 0 module name(s) in /etc/modules or modprobe.d/"
   - step: 2
+    note_ko: "대조 도구는 `diamorphine`에 맞는 디스크 흔적이 없다고 한다"
     contains: "`diamorphine` — loaded but hidden in memory; no matching disk artefact"
   - step: 2
+    note_ko: "메모리 상주 루트킷 판정이 나온다"
     contains: "**MEMORY-RESIDENT ROOTKIT.**"
   - step: 2
+    note_ko: "디스크와 메모리 양쪽에서 확인된 루트킷 판정은 나오지 않는다"
     not_contains: "CONFIRMED KERNEL ROOTKIT"

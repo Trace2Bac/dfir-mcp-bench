@@ -10,21 +10,28 @@ commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
 display: response
 level: mcp
 realism: possible
+realism_ko: "오래된 서버나 호환성 때문에 약한 암호를 켠 `sshd_config`는 드물지만 실제로 있다."
 coverage: full
 summary: An sshd_config that enables 3des-cbc, aes128-cbc, hmac-md5 and ssh-dss is answered with "No dangerous settings detected.", although the tool description promises to flag weak Ciphers/MACs/HostKeyAlgorithms, so the model reads a weakened server as clean.
 summary_ko: "3des-cbc, aes128-cbc, hmac-md5, ssh-dss를 켠 sshd_config에 \"No dangerous settings detected.\"라고 답한다. 도구 설명은 약한 Ciphers/MACs/HostKeyAlgorithms를 표시한다고 약속한다. 그래서 모델은 약해진 서버를 깨끗하다고 읽는다."
+defect_ko: "정상이라면 설명대로 약한 Ciphers·MACs·HostKeyAlgorithms를 표시해야 하는데, 이 서버는 이 세 지시어를 검사하지 않는다. 그래서 모델은 약한 알고리즘을 켠 서버를 안전하다고 잘못 안다."
+setup_ko: "`3des-cbc`, `hmac-md5`, `ssh-dss` 같은 약한 알고리즘만 켠 `sshd_config`를 두었다."
 fixture:
   - path: etc/ssh/sshd_config
     text: "Port 22\nPermitRootLogin no\nPasswordAuthentication no\nCiphers 3des-cbc,aes128-cbc\nMACs hmac-md5,hmac-sha1-96\nHostKeyAlgorithms ssh-dss\n"
 steps:
   - tool: analyze_sshd_config
+    note_ko: "결함이 있는 호출: sshd 설정 분석"
     args:
       path: ${EVIDENCE}/etc/ssh/sshd_config
 expect:
   - step: 1
+    note_ko: "위험한 설정이 없다는 판정이 나온다"
     contains: "No dangerous settings detected."
   # the weak values were parsed (so the tool saw them) but not flagged
   - step: 1
+    note_ko: "약한 값 `3des-cbc`는 읽혀서 목록에 보인다"
     contains: "3des-cbc"
   - step: 1
+    note_ko: "표시된 설정 항목이 하나도 없다"
     not_contains: "Flagged settings"

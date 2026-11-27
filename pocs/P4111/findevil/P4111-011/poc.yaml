@@ -13,9 +13,12 @@ commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
 display: source-vs-result
 level: mcp
 realism: possible
+realism_ko: "모델이 오프셋 없는 ISO 시각을 넘기는 일은 흔하지만, 서버가 UTC가 아닌 시간대로 도는 환경은 드물다."
 coverage: full
 summary: For a window given without an offset, find_recent_changes, build_timeline and verify_finding(file_modified_in_window) read it in the server's local time zone, so the same file is inside the window under TZ=UTC and outside it under TZ=Asia/Seoul, with no note of the assumed zone.
 summary_ko: "오프셋 없이 준 구간을 find_recent_changes, build_timeline, verify_finding(file_modified_in_window)이 서버의 현지 시간대로 읽는다. 그래서 같은 파일이 TZ=UTC에서는 구간 안, TZ=Asia/Seoul에서는 구간 밖이 되고, 가정한 시간대에 대한 말은 없다."
+defect_ko: "정상이라면 오프셋 없는 시각을 UTC로 읽거나 어떤 시간대로 읽었는지 밝혀야 하는데, 이 서버는 실행 호스트의 현지 시간대로 읽는다. 그래서 같은 파일이 서버 설정에 따라 구간 안이 되기도 하고 밖이 되기도 하며, 모델은 `CONTRADICTED`를 사실로 잘못 안다."
+setup_ko: "mtime이 2025-03-01T10:00:00Z인 웹셸 파일을 두고, 서버를 `TZ=UTC`와 `TZ=Asia/Seoul`로 각각 띄웠다."
 fixture:
   - path: case/fs/var/www/html/shell.php
     text: "<?php system($_GET['c']); ?>\n"
@@ -27,39 +30,49 @@ conditions:
     env: {TZ: Asia/Seoul}
 steps:
   - tool: find_recent_changes
+    note_ko: "결함이 있는 호출: 오프셋 없는 구간으로 최근 변경 조회"
     args:
       root_path: ${EVIDENCE}/case/fs
       since_iso: "2025-03-01T09:30:00"
       until_iso: "2025-03-01T10:30:00"
   - tool: build_timeline
+    note_ko: "결함이 있는 호출: 오프셋 없는 구간으로 타임라인 생성"
     args:
       evidence_root: ${EVIDENCE}/case
       fs_subpath: fs
       since_iso: "2025-03-01T09:30:00"
       until_iso: "2025-03-01T10:30:00"
   - tool: verify_finding
+    note_ko: "결함이 있는 호출: 오프셋 없는 구간으로 주장 검증"
     args:
       claim_type: file_modified_in_window
       params: '{"path": "${EVIDENCE}/case/fs/var/www/html/shell.php", "since_iso": "2025-03-01T09:30:00", "until_iso": "2025-03-01T10:30:00"}'
 expect:
   - step: 1
+    note_ko: "UTC 서버에서는 파일 1개가 잡힌다"
     condition: utc
     contains: "**Files matched:** 1"
   - step: 1
+    note_ko: "서울 서버에서는 같은 파일이 잡히지 않는다"
     condition: seoul
     contains: "**Files matched:** 0"
   - step: 2
+    note_ko: "UTC 서버에서는 타임라인에 파일 수정이 있다"
     condition: utc
     contains: "mtime modified: var/www/html/shell.php"
   - step: 2
+    note_ko: "서울 서버에서는 타임라인에 그 파일이 없다"
     condition: seoul
     not_contains: "shell.php"
   - step: 3
+    note_ko: "UTC 서버에서는 검증이 `SUPPORTED`다"
     condition: utc
     contains: "SUPPORTED"
   - step: 3
+    note_ko: "서울 서버에서는 같은 주장이 `CONTRADICTED`다"
     condition: seoul
     contains: "CONTRADICTED"
   - step: 3
+    note_ko: "서울 서버 응답에 시간대를 가정했다는 말이 없다"
     condition: seoul
     not_regex: "(?i)local time|time ?zone|assum"

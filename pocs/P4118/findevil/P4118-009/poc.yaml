@@ -28,10 +28,13 @@ commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
 display: response
 level: mcp
 realism: common
+realism_ko: "node·java 같은 JIT 프로세스의 RWX 영역은 malfind의 흔한 오탐이다. 수집 중 모듈 전환은 드물다. Volatility 출력은 흉내 낸 것이다."
 coverage: "partial: Volatility output is imitated (no real memory image or symbols)"
 coverage_ko: "Volatility 출력은 흉내 낸 것이다(실제 메모리 이미지나 심볼 없음)"
 summary: A malfind hit in a node JIT region alone makes analyze_memory_summary report LIKELY MEMORY-RESIDENT COMPROMISE, and a module in transition makes analyze_memory_modules report LIKELY KERNEL ROOTKIT, with no note on JIT RWX regions or capture-time changes.
 summary_ko: "node JIT 영역의 malfind 탐지 하나만으로 analyze_memory_summary가 LIKELY MEMORY-RESIDENT COMPROMISE를 보고하고, 전환 중인 모듈 하나로 analyze_memory_modules가 LIKELY KERNEL ROOTKIT을 보고한다. JIT RWX 영역이나 수집 시점의 변화에 대한 말은 없다."
+defect_ko: "정상이라면 malfind 결과와 숨은 모듈 하나에는 JIT 영역이나 수집 중 변화 같은 다른 원인을 함께 알려야 하는데, 이 서버는 곧바로 메모리 상주 침해·커널 루트킷이라고 판정한다. 그래서 모델은 정상 JIT 영역과 전환 중 모듈을 침해 증거로 잘못 안다."
+setup_ko: "Volatility 대역이 한 조건에서는 node의 JIT RWX 영역만, 다른 조건에서는 숨은 것처럼 보이는 `nf_conntrack_netlink`만 돌려주게 했다."
 env:
   FINDEVIL_VOL: ${STUBS}/vol
 conditions:
@@ -111,38 +114,49 @@ fixture:
     hex: 454d694c0100000000000000
 steps:
   - tool: analyze_memory_summary
+    note_ko: "결함이 있는 호출: 메모리 요약 판정"
     args:
       memory_dump_path: ${EVIDENCE}/case01/mem.lime
   - tool: analyze_memory_malfind
+    note_ko: "결함이 있는 호출: malfind 결과"
     args:
       memory_dump_path: ${EVIDENCE}/case01/mem.lime
   - tool: analyze_memory_modules
+    note_ko: "결함이 있는 호출: 커널 모듈 판정"
     args:
       memory_dump_path: ${EVIDENCE}/case01/mem.lime
 expect:
   # jit: only node JIT regions, yet the summary verdict is compromise
   - step: 1
+    note_ko: "JIT 조건에서 숨은 모듈은 0개다"
     condition: jit
     contains: "Hidden modules (lsmod-vs-check_modules): **0**"
   - step: 1
+    note_ko: "JIT 영역만으로 메모리 상주 침해 판정이 나온다"
     condition: jit
     contains: "LIKELY MEMORY-RESIDENT COMPROMISE** — 2 suspicious memory region(s) (malfind)"
   - step: 1
+    note_ko: "요약에 JIT나 오탐 가능성 말이 없다"
     condition: jit
     not_regex: "(?i)JIT|just-in-time|false positive|benign|legitimate"
   - step: 2
+    note_ko: "malfind 결과가 `node` 영역이다"
     condition: jit
     contains: "`node`"
   - step: 2
+    note_ko: "malfind 결과에도 JIT나 오탐 가능성 말이 없다"
     condition: jit
     not_regex: "(?i)JIT|just-in-time|false positive|benign|legitimate"
   # hidden: one module only in check_modules, reported as a rootkit
   - step: 3
+    note_ko: "전환 중 모듈 하나로 커널 루트킷 판정이 나온다"
     condition: hidden
     contains: "LIKELY KERNEL ROOTKIT"
   - step: 3
+    note_ko: "판정 대상이 `nf_conntrack_netlink`다"
     condition: hidden
     contains: "`nf_conntrack_netlink`"
   - step: 3
+    note_ko: "수집 중 변화 가능성 말이 없다"
     condition: hidden
     not_regex: "(?i)smear|acquisition|capture|unload|in transition|being loaded|false positive"

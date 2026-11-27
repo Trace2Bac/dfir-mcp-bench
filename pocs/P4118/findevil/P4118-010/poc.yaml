@@ -11,9 +11,12 @@ commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
 display: response
 level: mcp
 realism: common
+realism_ko: "기준선 뒤에 패키지 설치로 `/etc/passwd`에 시스템 계정이 늘어나는 것은 흔하다."
 coverage: full
 summary: When the only change since the baseline is /etc/passwd gaining the "postgres" account that a package install creates, baseline_diff returns "LIKELY COMPROMISE" with no mention that package updates or admin work are normal causes.
 summary_ko: "기준선 이후의 유일한 변화가 패키지 설치가 만드는 \"postgres\" 계정이 /etc/passwd에 추가된 것일 때, baseline_diff는 \"LIKELY COMPROMISE\"를 돌려주고 패키지 업데이트나 관리 작업이 흔한 원인이라는 말은 하지 않는다."
+defect_ko: "정상이라면 critical 파일 변경에도 패키지 갱신·관리 작업 같은 정상 원인을 함께 알려야 하는데, 이 서버는 하나만 바뀌어도 `LIKELY COMPROMISE`라고 판정한다. 그래서 모델은 postgresql 설치를 침해로 잘못 안다."
+setup_ko: "postgres 계정이 추가된 `/etc/passwd`, postgresql 설치 기록, 추가 전 `/etc/passwd`를 적은 기준선 파일을 넣었다."
 fixture:
   - path: fs/etc/passwd
     text: |
@@ -31,11 +34,14 @@ fixture:
        "entries": [{"path": "etc/passwd", "sha256": "e787b373a74594b33b77892a903647d7a6cf519d427a0b0790e11be4482696e0", "size": 32, "mode": "0644", "uid": 0, "gid": 0, "mtime": "2026-04-01T00:00:00+00:00", "severity": "critical"}]}
 steps:
   - tool: baseline_diff
+    note_ko: "결함이 있는 호출: 기준선과 비교"
     args:
       root_path: ${EVIDENCE}/fs
       baseline_file: ${EVIDENCE}/baselines/golden.json
 expect:
   - step: 1
+    note_ko: "critical 파일 1개 변경으로 `LIKELY COMPROMISE` 판정이 나온다"
     contains: "**LIKELY COMPROMISE** — 1 critical file(s) changed since baseline"
   - step: 1
+    note_ko: "패키지 설치 같은 정상 원인 말이 없다"
     not_regex: "(?i)patch|package|benign|legitima|config update|admin"

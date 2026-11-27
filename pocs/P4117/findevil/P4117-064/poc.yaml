@@ -14,9 +14,12 @@ commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
 display: response
 level: mcp
 realism: possible
+realism_ko: "1 GiB가 넘는 파일을 담은 패키지는 드물지만 있다."
 coverage: full
 summary: For an unmodified package file larger than 1 GiB, verify_package_integrity hashes only the first 1 GiB, so the MD5 differs from the dpkg record and the file is listed as Modified with no note that it was partly hashed.
 summary_ko: "1 GiB보다 큰 수정되지 않은 패키지 파일에 대해 verify_package_integrity는 처음 1 GiB만 해시한다. 그래서 MD5가 dpkg 기록과 달라지고, 일부만 해시했다는 말 없이 파일이 Modified로 나열된다."
+defect_ko: "정상이라면 파일 전체를 해시하거나 일부만 해시했다고 밝혀야 하는데, 이 서버는 1 GiB까지만 해시하고 dpkg 기록과 비교한다. 그래서 모델은 바뀌지 않은 파일을 변조된 파일로 잘못 안다."
+setup_ko: "1 GiB보다 4 KiB 큰 패키지 파일과, 파일 전체의 MD5를 적은 dpkg md5sums를 넣었다."
 fixture:
   - path: rootfs/var/lib/dpkg/info/big-model-data.md5sums
     text: "e05e5bb07c97fc74d0bd6bb64948bdf3  usr/share/big-model-data/model.bin\n"
@@ -24,13 +27,17 @@ fixture:
     size: 1073745920
 steps:
   - tool: verify_package_integrity
+    note_ko: "결함이 있는 호출: 패키지 무결성 검사"
     args:
       root_path: ${EVIDENCE}/rootfs
     timeout_s: 300
 expect:
   - step: 1
+    note_ko: "바뀐 파일이 1개로 나온다"
     contains: "**Modified files:** 1"
   - step: 1
+    note_ko: "기록된 MD5와 앞 1 GiB만 해시한 MD5가 나란히 나온다"
     contains: "`e05e5bb07c97fc74d0bd6bb64948bdf3` | `cd573cfaace07e7949bc0c46028904ff`"
   - step: 1
+    note_ko: "일부만 해시했다는 말이 없다"
     not_regex: "(?i)1 GiB|partial|first .*bytes|truncat"

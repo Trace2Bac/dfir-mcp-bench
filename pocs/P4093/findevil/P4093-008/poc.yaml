@@ -10,22 +10,29 @@ variant: findevil-d1a8d25
 commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
 display: response
 level: mcp
-realism: possible
+realism: forced
+realism_ko: "응답의 파일 종류 자리에 '읽기 권한 없음'이 그대로 적혀 서버가 실패를 드러내고 있어 모델이 파일 종류로 오해하기 어렵다."
 coverage: full
 summary: For an evidence file the server cannot read, file_info returns the message of `file -b` for an unreadable file ("cannot open" or "regular file, no read permission", depending on the file version) under "## File Type" as if it were the identified type, because `file` exits 0 and the server only checks the exit code.
 summary_ko: "서버가 읽을 수 없는 증거 파일에 대해 file_info가 읽을 수 없는 파일에 대한 `file -b`의 문구(file 버전에 따라 \"cannot open\" 또는 \"regular file, no read permission\")를 \"## File Type\" 아래에 식별된 종류처럼 돌려준다. `file`이 0으로 끝나고 서버는 종료 코드만 검사하기 때문이다."
+defect_ko: "정상이라면 읽지 못한 파일은 오류로 알려야 하는데, 이 서버는 `file`의 '읽기 권한 없음' 문구를 파일 종류 자리에 정상 응답으로 싣는다. 다만 문구 자체가 실패를 말하고 있다."
+setup_ko: "읽기 권한을 없앤(`0000`) PE 머리의 파일을 두었다."
 fixture:
   - path: case01/suspicious.bin
     hex: 4d5a90000300000004000000ffff0000
     mode: "0000"
 steps:
   - tool: file_info
+    note_ko: "결함이 있는 호출: 파일 정보 조회"
     args:
       path: ${EVIDENCE}/case01/suspicious.bin
 expect:
   - step: 1
+    note_ko: "파일 종류 자리에 읽기 실패 문구가 나온다"
     regex: "## File Type\\n[^\\n]*(cannot open|no read permission)"
   - step: 1
+    note_ko: "실패 문구에 `[STDERR]` 표시가 붙지 않는다"
     not_regex: "## File Type\\n(?:[^#]*\\n)?\\[STDERR\\]"
   - step: 1
+    note_ko: "응답이 오류가 아니라 정상으로 왔다"
     is_error: false

@@ -27,14 +27,17 @@ within the problem (`P4192-010`).
 | `display` | how the result is shown: `response`, `source-vs-result`, `multi-call`, `side-effect`, `time-size`, `network`, `definition`, `secret` |
 | `summary` | one sentence: the condition, what the server returns, why it is the problem |
 | `summary_ko` | the same sentence in Korean, shown on the Korean site |
-| `realism` | how likely the condition is in real use: common, possible |
+| `defect_ko` | in Korean: what is wrong, as normal behaviour against what this server does, and what a model then gets wrong; the page falls back to `summary_ko` |
+| `setup_ko` | in Korean: the condition the PoC prepares, in plain words |
+| `realism` | how likely the condition is in real use: common, possible, forced; a forced case is a candidate for removal from the matrix |
+| `realism_ko` | in Korean: why the condition is that likely |
 | `coverage` | whether the PoC shows the whole case or part of it, and what is left out |
 | `coverage_ko` | what a partial PoC leaves out (the text after `partial:`), in Korean |
 | `fixture` | files written before the server starts (text, bytes, size, mode, modification time, symbolic link, many generated files), in the evidence folder, the server's data folder or a folder next to the evidence that the server is not given |
 | `stubs`, `env` | stand-in programs and server environment variables, for an external tool whose output the case depends on; a stub imitates the tool's real output format and says which in a comment |
 | `conditions`, `repeat` | the same calls under different settings (for example two time zones) or several times |
-| `steps` | MCP calls in order: tools, prompts, resources, the tool list |
-| `expect` | checks on the responses; the case is reproduced only if every check holds |
+| `steps` | MCP calls in order: tools, prompts, resources, the tool list; `note_ko` on a step says in Korean why the call is made |
+| `expect` | checks on the responses; the case is reproduced only if every check holds; `note_ko` on a check says in Korean what it confirms (without it, the page writes a sentence from the rule) |
 
 A result is reported in dfir-mcp-matrix as `reproduced` or `not reproduced`
 for the case and the commit it ran on.

@@ -9,10 +9,13 @@ variant: findevil-d1a8d25
 commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
 display: response
 level: mcp
-realism: common
+realism: possible
+realism_ko: "`tlsverify`를 켠 TCP 데몬은 원격 관리의 권장 구성이라 실제로 있지만, 응답에 'mTLS 필요' 문구와 `tlsverify` 설정이 함께 보인다."
 coverage: full
-summary: A daemon.json with tcp://0.0.0.0:2376 and tlsverify true (mutual TLS) is reported as a TCP listener weakening isolation, the case the tool description reserves for listeners without TLS.
-summary_ko: "tcp://0.0.0.0:2376과 tlsverify true(상호 TLS)를 가진 daemon.json이 격리를 약화하는 TCP 리스너로 보고된다. 도구 설명은 이 판정을 TLS 없는 리스너에만 쓴다고 한다."
+summary: A daemon.json with tcp://0.0.0.0:2376 and tlsverify true (mutual TLS) is still raised as a MEDIUM finding that the daemon configuration weakens isolation, with only a "(must be firewalled / mTLS)" note, although the tool description reserves this finding for listeners without TLS.
+summary_ko: tcp://0.0.0.0:2376과 tlsverify true(상호 TLS)를 가진 daemon.json을 "(must be firewalled / mTLS)" 메모만 붙인 채 격리를 약화하는 MEDIUM 발견으로 낸다. 도구 설명은 이 판정을 TLS 없는 리스너에만 쓴다고 한다.
+defect_ko: "정상이라면 설명대로 TLS가 없는 TCP 리스너만 격리 약화로 표시해야 하는데, 이 서버는 `tls`·`tlsverify`를 보지 않고 모든 TCP 리스너를 표시한다. 그래서 모델은 상호 TLS로 보호된 데몬을 노출된 데몬으로 잘못 알 수 있다."
+setup_ko: "`tcp://0.0.0.0:2376`과 `tlsverify: true`, 인증서 경로를 설정한 `daemon.json`을 두었다."
 fixture:
   - path: fs/etc/docker/daemon.json
     text: |
@@ -27,10 +30,13 @@ fixture:
       }
 steps:
   - tool: analyze_container_artifacts
+    note_ko: "결함이 있는 호출: 컨테이너 설정 분석"
     args:
       root_path: ${EVIDENCE}/fs
 expect:
   - step: 1
+    note_ko: "TCP 리스너가 격리 약화 사유로 표시된다"
     contains: "daemon listens on TCP: tcp://0.0.0.0:2376"
   - step: 1
+    note_ko: "같은 파일에 `tlsverify: true`가 켜져 있다"
     contains: "\"tlsverify\": true"

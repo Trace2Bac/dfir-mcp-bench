@@ -13,18 +13,24 @@ commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
 display: response
 level: mcp
 realism: common
+realism_ko: "서버를 여러 사건에 이어 쓰면 기본 로그 폴더의 `audit.json`에 앞 사건 기록이 그대로 남는다."
 coverage: full
 summary: With an audit.json left by an earlier server run on another case, get_audit_trail in a fresh session returns that run's hash_file call as part of "every tool call made during this session", so the model reads another case's call as its own.
 summary_ko: "다른 사건에서 이전에 실행한 서버가 남긴 audit.json이 있으면, 새 세션의 get_audit_trail이 그 실행의 hash_file 호출을 \"이 세션에서 한 모든 도구 호출\"의 일부로 돌려준다. 그래서 모델은 다른 사건의 호출을 자기 호출로 읽는다."
+defect_ko: "정상이라면 `get_audit_trail`은 이번 세션의 호출만 보여야 하는데, 이 서버는 누적된 `audit.json` 전체를 이번 세션 기록으로 돌려준다. 그래서 모델은 다른 사건의 호출을 자기가 한 호출로 잘못 안다."
+setup_ko: "앞 실행이 다른 사건 파일(`previous-case-77`)에 `hash_file`을 부른 기록 한 줄을 `audit.json`에 미리 넣었다."
 fixture:
   - path: audit.json
     root: db
     text: "{\"timestamp\": \"2026-01-05T09:00:00+00:00\", \"tool\": \"hash_file\", \"params\": {\"path\": \"/evidence/previous-case-77/payload.bin\"}, \"result_summary\": \"## MD5 ...\"}\n"
 steps:
   - tool: get_audit_trail
+    note_ko: "결함이 있는 호출: 새 세션에서 감사 기록을 처음 요청함"
     args: {}
 expect:
   - step: 1
+    note_ko: "응답에 다른 사건의 파일 경로가 들어 있다"
     contains: "previous-case-77"
   - step: 1
+    note_ko: "이번 세션에서 하지 않은 `hash_file` 호출이 1회로 집계된다"
     contains: "`hash_file`: 1"

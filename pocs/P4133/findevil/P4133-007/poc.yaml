@@ -10,9 +10,12 @@ commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
 display: source-vs-result
 level: mcp
 realism: common
+realism_ko: "privileged 컨테이너에 bind mount가 여러 개 있는 설정은 흔하다."
 coverage: full
 summary: For a privileged container with many bind mounts, the sample JSON ends in the middle of a string at 500 characters, with no closing brackets and no note that it was cut.
 summary_ko: "bind mount가 많은 privileged 컨테이너에 대해 예시 JSON이 500자에서 문자열 한가운데에 끝난다. 닫는 괄호도, 잘렸다는 알림도 없다."
+defect_ko: "정상이라면 예시 JSON을 온전한 모양으로 자르거나 잘렸다고 표시해야 하는데, 이 서버는 500자에서 문자 단위로 잘라 문자열 한가운데서 끝낸다. 그래서 모델은 깨진 JSON을 원래 설정으로 읽고 뒤의 mount를 못 본다."
+setup_ko: "privileged·host 모드에 bind mount 12개가 든 컨테이너 `config.v2.json`을 넣었다."
 fixture:
   - path: fs/var/lib/docker/containers/abc123/config.v2.json
     text: |
@@ -20,15 +23,20 @@ fixture:
        "Binds": ["/:/host:rw", "/etc:/host-etc:ro", "/var/run/docker.sock:/var/run/docker.sock", "/srv/data/volume-0001:/data/0001", "/srv/data/volume-0002:/data/0002", "/srv/data/volume-0003:/data/0003", "/srv/data/volume-0004:/data/0004", "/srv/data/volume-0005:/data/0005", "/srv/data/volume-0006:/data/0006", "/srv/data/volume-0007:/data/0007", "/srv/data/volume-0008:/data/0008", "/root/.ssh:/keys:ro"]}}
 steps:
   - tool: analyze_container_artifacts
+    note_ko: "결함이 있는 호출: 컨테이너 분석"
     args:
       root_path: ${EVIDENCE}/fs
 expect:
   - step: 1
+    note_ko: "예시 JSON에 컨테이너 이름이 있다"
     contains: "\"Name\": \"backup-agent\""
   - step: 1
+    note_ko: "예시 JSON에 마지막 mount(`/root/.ssh`)가 없다"
     not_contains: "/root/.ssh:/keys:ro"
   # the sample ends inside a string (an unclosed quote, then the fence)
   - step: 1
+    note_ko: "예시 JSON이 문자열 한가운데서 끝난다"
     regex: "\\n    \"/srv/data/volume-0006:/d\\n```"
   - step: 1
+    note_ko: "잘랐다는 표시가 없다"
     not_regex: "(?i)truncat|\\.\\.\\.\\s*```|cut at"

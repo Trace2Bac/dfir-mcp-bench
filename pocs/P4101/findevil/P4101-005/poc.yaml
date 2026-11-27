@@ -9,34 +9,46 @@ commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
 display: response
 level: mcp
 realism: common
+realism_ko: "없는 파일, 증거 밖 경로, 외부 도구 오류는 실제 사용에서 흔히 생긴다."
 coverage: full
 summary: A missing file, a path outside the evidence folder and a grep failure all come back with isError false, so a client that reads the status sees three successful calls.
 summary_ko: "없는 파일, 증거 폴더 밖의 경로, grep 실패가 모두 isError false로 돌아온다. 그래서 상태를 읽는 클라이언트는 세 호출이 모두 성공했다고 본다."
+defect_ko: "정상이라면 실패한 호출은 상태 값 `isError`를 참으로 돌려야 하는데, 이 서버는 실패 문구를 본문에만 싣고 상태는 성공으로 둔다. 그래서 상태로 판단하는 클라이언트와 모델은 실패한 호출을 성공으로 잘못 안다."
+setup_ko: "SSH 로그인 한 줄이 있는 `auth.log`를 두었다."
 fixture:
   - path: auth.log
     text: "Apr 12 14:30:04 web01 sshd[2211]: Accepted password for alice from 203.0.113.5 port 51122 ssh2\n"
 steps:
   - tool: hash_file
+    note_ko: "결함이 있는 호출: 없는 파일 해시"
     args:
       path: ${EVIDENCE}/no-such-file.bin
   - tool: hash_file
+    note_ko: "결함이 있는 호출: 증거 밖 파일 해시"
     args:
       path: /etc/hosts
   - tool: log_search
+    note_ko: "결함이 있는 호출: 외부 도구가 실패하는 검색"
     args:
       path: ${EVIDENCE}/auth.log
       pattern: "Accepted"
       context_lines: -1
 expect:
   - step: 1
+    note_ko: "본문은 파일이 없다고 한다"
     contains: "File not found:"
   - step: 1
+    note_ko: "그래도 상태는 성공이다"
     is_error: false
   - step: 2
+    note_ko: "본문은 접근 거부라고 한다"
     contains: "Error: Access denied"
   - step: 2
+    note_ko: "그래도 상태는 성공이다"
     is_error: false
   - step: 3
+    note_ko: "본문에 외부 도구의 오류 문구가 있다"
     contains: "[STDERR]:"
   - step: 3
+    note_ko: "그래도 상태는 성공이다"
     is_error: false

@@ -11,9 +11,12 @@ commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
 display: response
 level: mcp
 realism: common
+realism_ko: "깨끗함 판정마다 붙는 안내라 모델이 그대로 따라 부르는 일이 흔하다."
 coverage: full
 summary: The clean-verdict text of verify_package_integrity points the model to `scan_devshm_executables`, a name that is not among the server's MCP tools, so following the hint fails with Unknown tool.
 summary_ko: "verify_package_integrity의 깨끗함 판정 문구가 모델에게 `scan_devshm_executables`를 가리키는데, 이 이름은 서버의 MCP 도구에 없다. 안내를 따르면 Unknown tool로 실패한다."
+defect_ko: "정상이라면 응답이 가리키는 도구는 실제로 부를 수 있어야 하는데, 이 서버는 MCP 도구가 아닌 내부 함수 `scan_devshm_executables`를 안내한다. 그래서 모델은 없는 도구를 불러 호출을 낭비하고 그 검사를 빠뜨린다."
+setup_ko: "MD5가 맞는 정상 패키지 파일 하나와 dpkg `.md5sums`를 두었다."
 fixture:
   - path: fs/var/lib/dpkg/info/hello.md5sums
     # md5 of "hello\n"
@@ -22,17 +25,23 @@ fixture:
     text: "hello\n"
 steps:
   - tool: verify_package_integrity
+    note_ko: "결함이 있는 안내를 받는 호출: 패키지 무결성 검사"
     args:
       root_path: ${EVIDENCE}/fs
   - tool: scan_devshm_executables
+    note_ko: "안내를 그대로 따라 그 이름을 부름"
     args:
       root_path: ${EVIDENCE}/fs
 expect:
   - step: 1
+    note_ko: "무결성 위반 없음 판정이 나온다"
     contains: "No package-file integrity violations detected."
   - step: 1
+    note_ko: "판정 문구가 `scan_devshm_executables`를 보라고 한다"
     contains: "`scan_devshm_executables`"
   - step: 2
+    note_ko: "그 이름을 부르면 오류가 난다"
     is_error: true
   - step: 2
+    note_ko: "오류 내용이 없는 도구(Unknown tool)다"
     regex: "(?i)unknown tool"
