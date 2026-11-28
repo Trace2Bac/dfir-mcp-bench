@@ -1,0 +1,52 @@
+{
+  "case_id": "P4116-039",
+  "problem": "P4116",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: encoded_powershell from windows.cmdline is shown; the other per-PID checks (privs, envars, dlllist, netscan) take the window the same way, and suspicious_environment also fires on COMSPEC alone",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "명령줄 출력이 window 하나로 적재된다",
+      "regex": "windows_indexed\\\\\": 1,",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "31개 프로세스 모두가 의심 프로세스로 나온다",
+      "regex": "\"result_count\": 31,",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "System(PID 4)이 `encoded_powershell`로 나온다",
+      "regex": "\"pid\": 4,[^{}]*\"suspicion_reasons\": \\[\\s*\"encoded_powershell\"\\s*\\]",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "`lsass.exe`(PID 684)도 `encoded_powershell`로 나온다",
+      "regex": "\"pid\": 684,[^{}]*\"suspicion_reasons\": \\[\\s*\"encoded_powershell\"\\s*\\]",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "`notepad.exe`(PID 7044)도 `encoded_powershell`로 나온다",
+      "regex": "\"pid\": 7044,[^{}]*\"suspicion_reasons\": \\[\\s*\"encoded_powershell\"\\s*\\]",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "원문에서 인코딩된 명령은 PID 6488 `powershell.exe` 한 줄뿐이고, `notepad.exe`(7044)는 메모 파일을 연 명령줄이다",
+      "regex": "6488\\\\tpowershell\\.exe\\\\tpowershell\\.exe -nop -w hidden -enc [\\s\\S]*7044\\\\tnotepad\\.exe\\\\t\\\\\"C:\\\\\\\\Windows\\\\\\\\system32\\\\\\\\notepad\\.exe\\\\\" C:",
+      "ok": true
+    }
+  ],
+  "image": "sha256:59077f0d63481c7792edea6e725a4ec86b5ce6c15e3be7ab03635447441e496e",
+  "ran_at": "2026-11-28T05:53:34+00:00"
+}

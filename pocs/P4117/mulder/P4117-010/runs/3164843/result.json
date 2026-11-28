@@ -1,0 +1,40 @@
+{
+  "case_id": "P4117-010",
+  "problem": "P4117",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 3,
+      "note_ko": "아무 것도 찾지 못했다고 답한다",
+      "contains": "\"status\": \"no_results\"",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "window 여러 개를 모두 분석했다고 적는다",
+      "regex": "No timestomping indicators found in ([2-9]|\\d\\d+) MFT windows",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "wuauhelper.exe 행은 머리줄이 없는 마지막 window 13에 있다",
+      "regex": "\"window_id\": 13,[\\s\\S]*\"line_start\": 148",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "적재된 MFT 행에는 $SI 생성 2019-03-19, $FN 생성 2026-11-28, MFTECmd의 SI<FN=True가 있다",
+      "regex": "wuauhelper\\.exe,\\.exe,4096,1,,False,False,False,True,[^,]*,[^,]*,[^,]*,[^,]*,2019-03-19 04:52:11\\.0000000,2026-11-28",
+      "ok": true
+    }
+  ],
+  "image": "sha256:71db7189e300c903caee9519d00440274d90e727e82ee62340508ce810d8c6dd",
+  "ran_at": "2026-11-28T05:54:24+00:00"
+}

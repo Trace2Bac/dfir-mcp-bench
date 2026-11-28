@@ -142,6 +142,10 @@
   overflow-wrap: anywhere;
 }
 
+.labelled {
+  min-width: 0;
+}
+
 .columnLabel {
   color: var(--bench-muted);
   font-size: 0.75rem;
@@ -348,3 +352,370 @@
   font-weight: 700;
 }
 
+
+/* A long response, folded to its start until opened. */
+.folded pre {
+  max-height: 13rem;
+  overflow: hidden;
+  mask-image: linear-gradient(to bottom, #000 65%, transparent);
+}
+
+.unfolded pre {
+  max-height: none;
+}
+
+.foldButton {
+  margin-top: 0.3rem;
+  padding: 0.15rem 0.7rem;
+  border: 1px solid var(--site-border);
+  border-radius: 999px;
+  background: var(--ifm-background-color);
+  color: var(--ifm-color-primary);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.foldButton:hover {
+  background: var(--site-subtle);
+}
+
+@media print {
+  .folded pre {
+    max-height: none;
+    mask-image: none;
+  }
+  .foldButton {
+    display: none;
+  }
+}
+
+/* /pocs: filters on top, then one framed box with the case list on the left
+   and the selected case on the right. Each side scrolls on its own; the box
+   sticks under the navbar, so the page only scrolls the header away. */
+
+.browser {
+  width: 100%;
+  max-width: 1680px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 0.5rem;
+}
+
+.browser > h1 {
+  margin-bottom: 0.4rem;
+}
+
+.intro {
+  max-width: 900px;
+  color: var(--bench-muted);
+  font-size: 0.9rem;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.6rem 0.8rem;
+  margin-top: 1rem;
+}
+
+.filter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  color: var(--bench-muted);
+  font-size: 0.75rem;
+}
+
+.filter select,
+.searchInput {
+  min-height: 2.1rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--site-border);
+  border-radius: 8px;
+  background: var(--ifm-background-color);
+  color: var(--ifm-font-color-base);
+  font: inherit;
+  font-size: 0.88rem;
+}
+
+.filter select {
+  max-width: 18rem;
+}
+
+.searchFilter {
+  flex: 1 1 14rem;
+}
+
+.searchInput:focus,
+.filter select:focus {
+  outline: none;
+  border-color: var(--ifm-color-primary);
+  box-shadow: 0 0 0 1px var(--ifm-color-primary);
+}
+
+.counts {
+  margin: 0.7rem 0 0;
+  color: var(--bench-muted);
+  font-size: 0.85rem;
+}
+
+.reset {
+  margin-left: 0.6rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ifm-color-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.columns {
+  position: sticky;
+  top: calc(var(--ifm-navbar-height) + 0.5rem);
+  display: grid;
+  grid-template-columns: minmax(30rem, 5fr) minmax(0, 6fr);
+  height: calc(100vh - var(--ifm-navbar-height) - 1rem);
+  margin-top: 0.8rem;
+  border: 1px solid var(--site-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.listBox {
+  min-height: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--site-border);
+  outline: none;
+}
+
+.listBox:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--ifm-color-primary);
+}
+
+.caseTable {
+  display: table;
+  width: 100%;
+  margin: 0;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.85rem;
+}
+
+.caseTable th,
+.caseTable td {
+  border: none;
+  padding: 0.5rem 0.6rem;
+  text-align: left;
+  vertical-align: top;
+  background: transparent;
+}
+
+.caseTable tr {
+  border: none;
+  background: none !important;
+}
+
+/* Opaque header that sticks to the top of the list box. */
+.caseTable thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--ifm-background-color);
+  box-shadow: inset 0 -1px 0 var(--site-border);
+  color: var(--bench-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.caseTable tbody tr {
+  cursor: pointer;
+}
+
+.caseTable tbody tr + tr td {
+  border-top: 1px solid var(--site-border);
+}
+
+.caseTable tbody tr:hover td,
+.caseTable tbody tr.active td {
+  background: var(--site-subtle);
+}
+
+.caseTable tbody tr.selected td {
+  background: color-mix(in srgb, var(--ifm-color-primary) 12%, transparent);
+}
+
+.caseTable tbody tr.selected td:first-child {
+  box-shadow: inset 3px 0 0 var(--ifm-color-primary);
+}
+
+.colId {
+  width: 6.8rem;
+}
+
+.colProblem {
+  width: 8.5rem;
+}
+
+.colRealism {
+  width: 5.8rem;
+}
+
+.colModel {
+  width: 5rem;
+}
+
+.caseId {
+  display: block;
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sub {
+  display: block;
+  overflow: hidden;
+  color: var(--bench-muted);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Two lines of the summary, then an ellipsis. */
+.summaryCell {
+  display: -webkit-box;
+  overflow: hidden;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+}
+
+.problemId {
+  font-family: var(--ifm-font-family-monospace);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.chip {
+  display: inline-block;
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  background: var(--ifm-color-emphasis-200);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.chipCommon {
+  color: var(--bench-fail);
+  background: color-mix(in srgb, var(--bench-fail) 12%, transparent);
+}
+
+.badge {
+  display: inline-block;
+  padding: 0 0.4rem;
+  border-radius: 4px;
+  border: 1px solid var(--site-border-strong);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.badgeMisled {
+  border-color: var(--bench-side-a);
+  color: var(--bench-side-a);
+  background: var(--bench-side-a-bg);
+}
+
+.empty {
+  padding: 1.5rem 1rem;
+  color: var(--bench-muted);
+  text-align: center;
+}
+
+.pane {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1.2rem 1.6rem 3rem;
+}
+
+.pane section {
+  margin-top: 1.8rem;
+}
+
+.pane .title {
+  font-size: 1.5rem;
+}
+
+.paneHint {
+  color: var(--bench-muted);
+  padding: 2rem 0;
+}
+
+.backButton {
+  display: none;
+}
+
+/* Narrow screens: the list, or the selected case, in the normal page flow. */
+@media (max-width: 996px) {
+  .columns {
+    position: static;
+    display: block;
+    height: auto;
+    border: none;
+    border-radius: 0;
+    overflow: visible;
+  }
+
+  .listBox {
+    overflow: visible;
+    border: 1px solid var(--site-border);
+    border-radius: 10px;
+  }
+
+  .caseTable thead th {
+    top: var(--ifm-navbar-height);
+  }
+
+  .colRealism,
+  .caseTable td.colRealism {
+    display: none;
+  }
+
+  .columns.showDetail .listBox {
+    display: none;
+  }
+
+  .columns:not(.showDetail) .pane {
+    display: none;
+  }
+
+  .pane {
+    overflow: visible;
+    padding: 0;
+  }
+
+  .backButton {
+    display: inline-block;
+    margin-bottom: 0.6rem;
+    padding: 0.25rem 0.8rem;
+    border: 1px solid var(--site-border);
+    border-radius: 999px;
+    background: var(--ifm-background-color);
+    color: var(--ifm-color-primary);
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+}
+
+@media (max-width: 560px) {
+  .colModel,
+  .caseTable td.colModel {
+    display: none;
+  }
+}

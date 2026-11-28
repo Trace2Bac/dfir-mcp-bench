@@ -1,0 +1,34 @@
+{
+  "case_id": "P4111-034",
+  "problem": "P4111",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: the dropped offset and fraction and the assumed year are shown; a window whose first date is not the event time (detect_masquerading's mtime) is not",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 4,
+      "note_ko": "그날 하루에 window가 하나(web02)만 나온다",
+      "regex": "\"result_count\": 1\\b",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "web02 window의 시각이 원문의 `+09:00`·소수점을 버린 `2025-12-28T03:20:15`다",
+      "regex": "\"event_time\": \"2025-12-28T03:20:15\",[^}]*\"raw_text\": \"2025-12-28T03:20:15\\.482113\\+09:00 web02",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "web01의 2025년 로그온이 분석하는 해(2026년 이후)의 12월 28일로 나온다",
+      "regex": "\"event_time\": \"20(2[6-9]|[3-9]\\d)-12-28T03:14:07\",[^}]*\"raw_text\": \"Dec 28 03:14:07 web01 sshd\\[2211\\]: Accepted password for root from 198\\.51\\.100\\.23",
+      "ok": true
+    }
+  ],
+  "image": "sha256:2f94c19e1772000cfa507bc55bd61fd083616fc366d7028b1f6d5f963675fa60",
+  "ran_at": "2026-11-28T05:47:25+00:00"
+}

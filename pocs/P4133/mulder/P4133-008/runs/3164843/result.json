@@ -1,0 +1,28 @@
+{
+  "case_id": "P4133-008",
+  "problem": "P4133",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "source-vs-result",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "Zeek가 dns 로그에 레코드 360건을 썼다",
+      "regex": "log_type\\\\\": \\\\\"dns\\\\\", \\\\\"record_count\\\\\": 360",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "적재된 dns 로그의 마지막 레코드가 닫는 `}` 없이 중간에서 끝난다",
+      "regex": "\\{\\\\\"ts\\\\\":[0-9.]+,\\\\\"uid\\\\\":\\\\\"C\\w+\\\\\",[^}]{0,500}\",\\s*\"tool_call_id\"",
+      "ok": true
+    }
+  ],
+  "image": "sha256:02100290408c17fa7619413da83df8cae751ea466b50f589c7adf0097c7a6e44",
+  "ran_at": "2026-11-28T06:05:06+00:00"
+}

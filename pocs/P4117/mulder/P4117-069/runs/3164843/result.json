@@ -1,0 +1,52 @@
+{
+  "case_id": "P4117-069",
+  "problem": "P4117",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: bulk.email is shown; bulk.url and bulk.domain are cut the same way",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "bulk.email이 window 200개를 넘게 적재된다",
+      "regex": "bulk\\.email\\\\\", \\\\\"windows_indexed\\\\\": (\\d{4,}|[2-9]\\d\\d)",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "요약에 동료 주소는 있다",
+      "contains": "anna.berg@northwind-traders.example",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "요약의 이메일 목록에 피싱 발신자가 없다",
+      "not_regex": "\"email_addresses\": \\[[^\\]]*it-helpdesk@northwind-traders-support\\.example",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "읽은 범위나 건너뛴 window에 대한 표시가 없다",
+      "not_regex": "(?i)truncat|limit|first 200|skipped|partial",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "bulk.email에는 피싱 발신자가 있다",
+      "contains": "it-helpdesk@northwind-traders-support.example",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "그 주소는 bulk.email의 마지막 줄들(9,004~9,010행)에 있다",
+      "contains": "\"line_start\": 9004,",
+      "ok": true
+    }
+  ],
+  "image": "sha256:bc0eb79ffbe5bff94279e6938aa6b07712deada6d267eaacd345c6c4ef9230a2",
+  "ran_at": "2026-11-28T05:59:58+00:00"
+}

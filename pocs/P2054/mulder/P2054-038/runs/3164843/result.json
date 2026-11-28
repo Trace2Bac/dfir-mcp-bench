@@ -1,0 +1,40 @@
+{
+  "case_id": "P2054-038",
+  "problem": "P2054",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: shows correlate_across_sources' query filter only; the guide's other inputs that are not in the schema (get_raw_output tool, list_directory source, index_evtx_file channel/time, read_evidence_file inode) are not called",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 3,
+      "note_ko": "안내서가 `correlate_across_sources`에 `query` 필터가 있다고 적는다",
+      "regex": "\"tool\": \"correlate_across_sources\",\\s*\"description\": \"[^\"]*\",\\s*\"input\": \"Time range \\(t_start, t_end\\), optional query filter\"",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "`query`를 붙인 호출이 오류 없이 success로 돌아온다",
+      "regex": "\"status\": \"success\"",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "그 시간의 사건 창 2개가 거르지 않은 채 온다",
+      "regex": "\"total_windows\": 2\\b",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "같은 시간에 `Invoke-Mimikatz`가 든 창은 0건이다",
+      "regex": "\"total_matches\": 0\\b",
+      "ok": true
+    }
+  ],
+  "image": "sha256:f1968dece68cd50950573bf7b12736432f681b3cbb5cb1b93d530bc3a5171950",
+  "ran_at": "2026-11-28T05:37:24+00:00"
+}

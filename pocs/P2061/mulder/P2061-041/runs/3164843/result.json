@@ -1,0 +1,40 @@
+{
+  "case_id": "P2061-041",
+  "problem": "P2061",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: submit_finding with one deprecated ID is shown; update_finding stores the IDs the same way",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "서버의 기법 표에는 T1086이 없다",
+      "contains": "\"match_count\": 0",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "표에 없는 ID인데 발견 사항이 accepted된다",
+      "contains": "\"status\": \"accepted\"",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "ID에 대한 경고가 없다",
+      "not_regex": "(?i)mitre|attack|T1086",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "저장된 발견 사항의 기법이 T1086이다",
+      "regex": "\"mitre_attack_ids\": \\[\\s*\"T1086\"\\s*\\]",
+      "ok": true
+    }
+  ],
+  "image": "sha256:e86de0c5cc0e04e11926021176109587df09dbd7e7e0210312dde296e9637159",
+  "ran_at": "2026-11-28T05:33:58+00:00"
+}

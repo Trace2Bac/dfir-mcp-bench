@@ -1,0 +1,46 @@
+{
+  "case_id": "P4116-036",
+  "problem": "P4116",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: both parts are shown with a log_clearing item and one window of fls output; the EvtxECmd CSV is imitated",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "흔적 지우기 항목은 로그 삭제 하나뿐이다",
+      "regex": "\"anti_forensics_detected\": \\[\\s*\\{\\s*\"type\": \"log_clearing\",\\s*\"source\": \"evtx\\.security\"[^\\]]*\\],\\s*\"anti_forensics_count\": 1,",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "그런데 '보안 삭제 도구가 탐지됐다'는 증거 공백이 붙는다",
+      "contains": "\"Secure delete tools detected -- some deleted files may be unrecoverable\"",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "삭제 파일 수가 1로 나온다",
+      "regex": "\"total_deleted_files\": 1,",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "fls 목록에는 지운 폴더·파일이 여럿 있다(예: Finance의 원장 파일)",
+      "regex": "r/r \\* 39:\\\\tBackup/Finance/Q1-2026-ledger-1\\.xlsx\\\\nr/r \\* 42:\\\\tBackup/Finance/Q2-2026-ledger-2\\.xlsx",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "같은 window 끝까지 삭제된 고아 파일이 이어진다",
+      "contains": "-/r * 4142:\\t$OrphanFiles/_ALCO~14.PDF",
+      "ok": true
+    }
+  ],
+  "image": "sha256:e00bb0cdd9bfa3c9117d1ceb70fd6c76b55d8b18ec62c6ee6386d610c15eb0b7",
+  "ran_at": "2026-11-28T06:01:58+00:00"
+}

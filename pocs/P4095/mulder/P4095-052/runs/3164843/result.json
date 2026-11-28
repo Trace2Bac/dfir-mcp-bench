@@ -1,0 +1,46 @@
+{
+  "case_id": "P4095-052",
+  "problem": "P4095",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "source-vs-result",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: plugins missing from RegRipper are shown; the per-hive failures counted in hives_parsed (recmd_timeout, regripper_empty_output) are not",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 3,
+      "note_ko": "jdoe의 사용자 하이브가 적재됐다(indexed)고 한다",
+      "regex": "registry\\.ntuser\\.jdoe\\\\?\"[^}]*\\\\?\"status\\\\?\": \\\\?\"indexed",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "적재된 글에는 Run 플러그인 결과가 있다(하이브는 읽혔다)",
+      "contains": "WinUpdate",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "그러나 MountPoints2의 공유 폴더 항목은 없다",
+      "not_contains": "fs01",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "같은 하이브에 MountPoints2 하위 키 ##fs01#finance$가 있다",
+      "contains": "##fs01#finance$",
+      "ok": true
+    },
+    {
+      "file_contains": "${OUTSIDE}/regripper-stderr.log",
+      "note_ko": "서버가 부른 mountpoints2 플러그인은 RegRipper에 없어 실행되지 않았다(이 실패는 응답 어디에도 없다)",
+      "text": "/usr/lib/regripper/plugins/mountpoints2.pl not found.",
+      "ok": true
+    }
+  ],
+  "image": "sha256:fd474b0f041502c96e447cbbb8ed1f945fb29df0836cf4776c482d155cea11dc",
+  "ran_at": "2026-11-28T05:53:37+00:00"
+}

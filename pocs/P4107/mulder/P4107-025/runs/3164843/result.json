@@ -1,0 +1,40 @@
+{
+  "case_id": "P4107-025",
+  "problem": "P4107",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 3,
+      "note_ko": "`[NEGATIVE]` 발견 사항이 받아들여진다",
+      "contains": "\"status\": \"accepted\"",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "배제한 주소 198.51.100.23이 203.0.113.7과 같은 IP 목록에 나온다",
+      "regex": "\"ip_addresses\": \\{[^}]*\"198\\.51\\.100\\.23\"[^}]*\\}|\"ip_addresses\": \\{[^}]*\"203\\.0\\.113\\.7\"[^}]*\"198\\.51\\.100\\.23\"",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "배제한 드로퍼 경로가 파일 경로 IOC로 나온다",
+      "regex": "\"file_paths\": \\[[^\\]]*svchost32\\.exe",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "198.51.100.23이 나온 발견 사항은 `[NEGATIVE]` 하나뿐이다",
+      "regex": "\"title\": \"\\[NEGATIVE\\] No second-stage C2[^\"]*\",\\s*\"description\": \"[^\"]*198\\.51\\.100\\.23",
+      "ok": true
+    }
+  ],
+  "image": "sha256:f2fb3dbe2a422ec500267001836da12a10bba982736f98bd349609b499e13140",
+  "ran_at": "2026-11-28T05:46:29+00:00"
+}

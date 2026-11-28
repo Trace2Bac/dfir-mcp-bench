@@ -1,0 +1,72 @@
+# Matrix case P4093-027: run_clamav runs clamscan and indexes its stdout
+# without looking at the exit code. clamscan exits 1 when it finds a
+# signature and 2 on an error; a file the server user cannot open is printed
+# as "<path>: Access denied" with exit 2, and the response is still success
+# with detections 0.
+# The triage tree is a Linux collection unpacked as a normal user: files that
+# were root-owned 0600 on the host (root's home, /etc/shadow) cannot be read
+# by the server user. The fixture cannot chown, so those files are mode 0000,
+# which the server user (uid 1000) cannot open either. The planted binary is
+# the EICAR test file, which ClamAV 1.5.3 reports as Eicar-Test-Signature.
+case_id: P4093-027
+problem: P4093
+server: mulder
+variant: mulder-3164843
+commit: 3164843baf74c7fe69e7121dbd6150f8f77ce660
+display: response
+level: mcp
+realism: possible
+realism_ko: "리눅스 수집본을 일반 사용자로 풀면 root만 읽을 수 있던 파일(root 홈, /etc/shadow)이 그대로 남아, 서버 사용자로 돌린 clamscan이 그 파일을 열지 못하는 일은 흔하다."
+coverage: full
+summary: >-
+  On a Linux triage tree where /root/.local/bin/kworkerd (the EICAR test
+  file) and /etc/shadow cannot be opened by the server user, run_clamav
+  returns success with detections 0, while clamscan exited 2 and printed
+  "Access denied" for both files, which only the indexed raw output shows.
+summary_ko: "서버 사용자가 `/root/.local/bin/kworkerd`(EICAR 시험 파일)와 `/etc/shadow`를 열 수 없는 리눅스 수집본에 `run_clamav`를 부르면 success에 `detections: 0`이 온다. clamscan은 종료 코드 2로 끝났고 두 파일에 `Access denied`를 찍었는데, 그것은 적재된 원문에만 남는다."
+defect_ko: "이 서버는 clamscan의 종료 코드를 보지 않아, 파일을 열지 못한 오류 실행(종료 코드 2)도 success와 `detections: 0`으로 알린다. 정상이라면 오류로 알리거나 검사하지 못한 파일이 있다고 밝혀야 한다. 모델은 수집본 전체를 검사해 악성 파일이 없다고 잘못 안다."
+setup_ko: "웹 루트의 PHP 파일 하나와, 서버 사용자가 읽을 수 없는 `/etc/shadow`·`/root/.local/bin/kworkerd`(EICAR 시험 파일)가 든 리눅스 수집본을 넣었다."
+fixture:
+  - path: triage/var/www/html/index.php
+    text: |
+      <?php
+      header('Content-Type: text/html; charset=utf-8');
+      echo '<h1>Intranet</h1>';
+      ?>
+  - path: triage/etc/shadow
+    mode: "0000"
+    text: |
+      root:$6$Qm1x9Kp2$4yJc8m0l3QeY1d0Ue3m1pX0r8f9vS2bB7jH5kL1nR6tW0zA3cE5gI7oU9qY2sD4fG6hJ8kL0zX2cV4bN6mM8q.:20240:0:99999:7:::
+      daemon:*:20240:0:99999:7:::
+      www-data:*:20240:0:99999:7:::
+      alice:$6$Zt8wP1sQ$Hk2nF6vB9xC3mL7qR1tY5uI0oP4aS8dG2jK6lZ0xV3bN7mQ1wE5rT9yU2iO6pA4sD8fG0hJ3kL7zX1cV5bN9m.:20240:0:99999:7:::
+  - path: triage/root/.local/bin/kworkerd
+    mode: "0000"
+    text: 'X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*'
+steps:
+  - tool: scan_evidence
+    note_ko: "사건 만들기"
+    args:
+      evidence_path: ${EVIDENCE}
+      case_id: clamav-exit-code
+  - tool: run_clamav
+    note_ko: "결함 호출: 수집본 전체를 ClamAV로 검사"
+    args:
+      target_path: ${EVIDENCE}/triage
+  - tool: get_raw_output
+    note_ko: "적재된 clamscan 원문 보기"
+    args:
+      source_name: clamav.scan
+expect:
+  - step: 2
+    note_ko: "검사가 success로 돌아온다"
+    regex: '"status": "success"'
+  - step: 2
+    note_ko: "탐지 수가 0이다"
+    regex: 'detections\\": 0\b'
+  - step: 3
+    note_ko: "원문에는 `kworkerd`를 열지 못했다는 `Access denied`가 있다"
+    contains: "kworkerd: Access denied"
+  - step: 3
+    note_ko: "`/etc/shadow`도 열지 못했다"
+    contains: "shadow: Access denied"

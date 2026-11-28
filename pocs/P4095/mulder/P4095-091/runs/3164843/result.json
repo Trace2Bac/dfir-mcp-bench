@@ -1,0 +1,46 @@
+{
+  "case_id": "P4095-091",
+  "problem": "P4095",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: Volatility is a stub that prints the real text layout; the comparison is the same evidence after pslist is indexed",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "도구 설명은 psscan이나 pslist가 없으면 빈 결과라고 한다",
+      "contains": "Empty results when psscan or pslist data is not yet indexed.",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "psscan의 프로세스 11개가 모두 숨은 프로세스로 나온다",
+      "regex": "\"status\": \"success\"[\\s\\S]*\"result_count\": 11\\b",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "그중에는 lsass.exe(PID 684)·explorer.exe(PID 4120) 같은 정상 프로세스가 있다",
+      "regex": "\"pid\": 684,[\\s\\S]*\"pid\": 4120,",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "pslist가 없다는 안내(hint)가 없다",
+      "not_contains": "\"hint\"",
+      "ok": true
+    },
+    {
+      "step": 6,
+      "note_ko": "pslist가 있으면 같은 증거에서 숨은 것으로 나오는 것은 종료된 rundll32.exe 1개뿐이다",
+      "regex": "\"result_count\": 1\\b",
+      "ok": true
+    }
+  ],
+  "image": "sha256:a743d648390ebf5436ce32a7fe98eedc3ef93e49195a8625a8c48eab814fce61",
+  "ran_at": "2026-11-28T05:51:01+00:00"
+}

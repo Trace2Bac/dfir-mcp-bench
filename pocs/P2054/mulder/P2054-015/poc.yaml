@@ -1,0 +1,101 @@
+# Matrix case P2054-015: search says that without `source` it searches all
+# ingested evidence, but with regex=True the handler turns source=None into
+# '' and get_windows_page then matches only source_name = '' OR LIKE '.%',
+# so a regex search over all evidence returns total_matches 0 even when the
+# text is indexed. The description adds that zero results mean a claim is
+# unsupported by evidence.
+case_id: P2054-015
+problem: P2054
+server: mulder
+variant: mulder-3164843
+commit: 3164843baf74c7fe69e7121dbd6150f8f77ce660
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "IP·파일 이름 패턴을 정규식으로 전체 증거에서 찾는 것은 흔하고, 설명이 `source`를 생략하면 전체를 찾는다고 하므로 모델은 `source` 없이 부른다."
+coverage: full
+summary: >-
+  After run_pcap_analysis indexes an HTTP download of /dl/svchost.exe from
+  203.0.113.7, search with regex=True and no source returns success with
+  total_matches 0, while the same regex with source='pcap' and a keyword
+  search without source both find the request.
+summary_ko: "`run_pcap_analysis`가 203.0.113.7에서 `/dl/svchost.exe`를 받은 HTTP 요청을 적재한 뒤, `source` 없이 `regex=True`로 찾으면 success에 `total_matches: 0`이 온다. 같은 정규식에 `source='pcap'`을 주거나 `source` 없이 키워드로 찾으면 그 요청이 나온다."
+defect_ko: "이 서버는 정규식 검색에서 생략된 `source`를 빈 문자열로 바꿔 어떤 출처와도 맞지 않는 조건으로 찾는다. 설명대로라면 `source`를 생략하면 적재된 모든 증거를 찾아야 한다. 모델은 0건을 보고 그 IP·파일이 증거에 없다(설명대로 '주장이 뒷받침되지 않는다')고 잘못 안다."
+setup_ko: "업데이트 서버에서 받은 요청 하나와 203.0.113.7에서 `/dl/svchost.exe`를 받은 요청 하나가 든 pcap을 두고 HTTP 모드로 적재했다."
+fixture:
+  # Classic pcap (tcpdump format, Ethernet), two HTTP/1.1 sessions with full
+  # TCP handshake and teardown:
+  #   2026-11-03 08:14:05 UTC 10.0.2.42 -> 93.184.216.34 GET /office/kb5031455.msu (Host updates.example.com)
+  #   2026-11-03 09:41:27 UTC 10.0.2.42 -> 203.0.113.7   GET /dl/svchost.exe        (Host 203.0.113.7)
+  - path: net/capture.pcap
+    base64: |
+      1MOyoQIABAAAAAAAAAAAAP//AAABAAAAzZfpagAAAAA2AAAANgAAAAARIjNEVWZ3iJmquwgARQAA
+      KAABAABABjjLCgACKl242CLCMABQAAAD6AAAAABQAv//p3UAAM2X6WroAwAANgAAADYAAAAAESIz
+      RFVmd4iZqrsIAEUAACgAAQAAQAY4y1242CIKAAIqAFDCMAAAE4gAAAPpUBL//5PcAADNl+lq0AcA
+      ADYAAAA2AAAAABEiM0RVZneImaq7CABFAAAoAAEAAEAGOMsKAAIqXbjYIsIwAFAAAAPpAAATiVAQ
+      //+T3QAAzZfpargLAAC7AAAAuwAAAAARIjNEVWZ3iJmquwgARQAArQABAABABjhGCgACKl242CLC
+      MABQAAAD6QAAE4lQGP//drUAAEdFVCAvb2ZmaWNlL2tiNTAzMTQ1NS5tc3UgSFRUUC8xLjENCkhv
+      c3Q6IHVwZGF0ZXMuZXhhbXBsZS5jb20NClVzZXItQWdlbnQ6IE1vemlsbGEvNS4wIChXaW5kb3dz
+      IE5UIDEwLjA7IFdpbjY0OyB4NjQpDQpBY2NlcHQ6ICovKg0KDQrNl+lqoA8AAIgAAACIAAAAABEi
+      M0RVZneImaq7CABFAAB6AAEAAEAGOHlduNgiCgACKgBQwjAAABOJAAAEblAY///s9QAASFRUUC8x
+      LjEgMjAwIE9LDQpDb250ZW50LVR5cGU6IGFwcGxpY2F0aW9uL29jdGV0LXN0cmVhbQ0KQ29udGVu
+      dC1MZW5ndGg6IDQNCg0KTVqQAM2X6WqIEwAANgAAADYAAAAAESIzRFVmd4iZqrsIAEUAACgAAQAA
+      QAY4ywoAAipduNgiwjAAUAAABG4AABPbUBH//5MFAADNl+lqcBcAADYAAAA2AAAAABEiM0RVZneI
+      maq7CABFAAAoAAEAAEAGOMtduNgiCgACKgBQwjAAABPbAAAEb1AR//+TBAAAzZfpalgbAAA2AAAA
+      NgAAAAARIjNEVWZ3iJmquwgARQAAKAABAABABjjLCgACKl242CLCMABQAAAEbwAAE9xQEP//kwQA
+      AEes6WoAAAAANgAAADYAAAAAESIzRFVmd4iZqrsIAEUAACgAAQAAQAYyngoAAirLAHEHwlsAUAAA
+      A+gAAAAAUAL//6EdAABHrOlq6AMAADYAAAA2AAAAABEiM0RVZneImaq7CABFAAAoAAEAAEAGMp7L
+      AHEHCgACKgBQwlsAABOIAAAD6VAS//+NhAAAR6zpatAHAAA2AAAANgAAAAARIjNEVWZ3iJmquwgA
+      RQAAKAABAABABjKeCgACKssAcQfCWwBQAAAD6QAAE4lQEP//jYUAAEes6Wq4CwAArQAAAK0AAAAA
+      ESIzRFVmd4iZqrsIAEUAAJ8AAQAAQAYyJwoAAirLAHEHwlsAUAAAA+kAABOJUBj//9FLAABHRVQg
+      L2RsL3N2Y2hvc3QuZXhlIEhUVFAvMS4xDQpIb3N0OiAyMDMuMC4xMTMuNw0KVXNlci1BZ2VudDog
+      TW96aWxsYS81LjAgKFdpbmRvd3MgTlQgMTAuMDsgV2luNjQ7IHg2NCkNCkFjY2VwdDogKi8qDQoN
+      Ckes6WqgDwAAiAAAAIgAAAAAESIzRFVmd4iZqrsIAEUAAHoAAQAAQAYyTMsAcQcKAAIqAFDCWwAA
+      E4kAAARgUBj//+arAABIVFRQLzEuMSAyMDAgT0sNCkNvbnRlbnQtVHlwZTogYXBwbGljYXRpb24v
+      b2N0ZXQtc3RyZWFtDQpDb250ZW50LUxlbmd0aDogNA0KDQpNWpAAR6zpaogTAAA2AAAANgAAAAAR
+      IjNEVWZ3iJmquwgARQAAKAABAABABjKeCgACKssAcQfCWwBQAAAEYAAAE9tQEf//jLsAAEes6Wpw
+      FwAANgAAADYAAAAAESIzRFVmd4iZqrsIAEUAACgAAQAAQAYynssAcQcKAAIqAFDCWwAAE9sAAARh
+      UBH//4y6AABHrOlqWBsAADYAAAA2AAAAABEiM0RVZneImaq7CABFAAAoAAEAAEAGMp4KAAIqywBx
+      B8JbAFAAAARhAAAT3FAQ//+MugAA
+steps:
+  - tool: scan_evidence
+    note_ko: "사건 만들기"
+    args:
+      evidence_path: ${EVIDENCE}
+      case_id: regex-no-source
+  - tool: run_pcap_analysis
+    note_ko: "pcap의 HTTP 요청 적재"
+    args:
+      pcap_path: ${EVIDENCE}/net/capture.pcap
+      mode: http
+  - tool: search
+    note_ko: "결함 호출: `source` 없이 정규식으로 전체 증거 검색"
+    args:
+      query: "203\\.0\\.113\\.\\d+"
+      regex: true
+  - tool: search
+    note_ko: "비교 호출: 같은 정규식에 `source='pcap'`"
+    args:
+      query: "203\\.0\\.113\\.\\d+"
+      regex: true
+      source: pcap
+  - tool: search
+    note_ko: "비교 호출: `source` 없이 키워드 검색"
+    args:
+      query: "203.0.113.7"
+expect:
+  - step: 2
+    note_ko: "HTTP 출력이 `pcap.http`로 적재된다"
+    contains: "pcap.http"
+  - step: 3
+    note_ko: "`source` 없는 정규식 검색이 success로 돌아온다"
+    regex: '"status": "success"'
+  - step: 3
+    note_ko: "`source` 없는 정규식 검색이 0건이다"
+    regex: '"total_matches": 0\b'
+  - step: 4
+    note_ko: "같은 정규식에 `source='pcap'`을 주면 `pcap.http` 창 1건이 나온다"
+    regex: '"total_matches": 1\b[\s\S]*"sources_matched": \[\s*"pcap.http"'
+  - step: 5
+    note_ko: "`source` 없는 키워드 검색도 `pcap.http` 창 1건을 찾는다"
+    regex: '"total_matches": 1\b[\s\S]*"sources_matched": \[\s*"pcap.http"'

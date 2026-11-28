@@ -1,0 +1,105 @@
+# Matrix case P2054-016: run_zeek_analysis lists "smb" among the valid
+# `protocols` values, but the handler keeps a Zeek log only when its file
+# stem equals a listed value, and Zeek writes SMB as smb_files.log and
+# smb_mapping.log. protocols=["smb"] therefore drops every SMB log and
+# returns success with nothing.
+case_id: P2054-016
+problem: P2054
+server: mulder
+variant: mulder-3164843
+commit: 3164843baf74c7fe69e7121dbd6150f8f77ce660
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "측면 이동을 볼 때 SMB만 골라 보는 것은 흔하고, `smb`는 설명이 허용 값으로 적은 값이다."
+coverage: full
+summary: >-
+  On a pcap where 10.0.2.42 maps \\10.0.1.5\ADMIN$ and writes PSEXESVC.exe
+  over SMB2, run_zeek_analysis with protocols=["smb"] returns success with
+  empty log_summaries and no connections, while protocols=["smb_files",
+  "smb_mapping"] returns both SMB logs.
+summary_ko: "10.0.2.42가 SMB2로 `\\\\10.0.1.5\\ADMIN$`에 연결해 `PSEXESVC.exe`를 쓰는 pcap에서, `run_zeek_analysis`를 `protocols=[\"smb\"]`로 부르면 success에 `log_summaries`가 비어 있다. `protocols=[\"smb_files\", \"smb_mapping\"]`으로 부르면 SMB 로그 두 개가 나온다."
+defect_ko: "이 서버는 `smb`를 허용 값으로 알리지만 Zeek 로그 파일 이름과 정확히 같은 값만 남겨, `smb_files.log`·`smb_mapping.log`가 모두 빠진다. `smb`를 주면 SMB 로그(`smb_*`)를 모두 남겨야 한다. 모델은 이 pcap에 SMB 활동(PsExec 흔적)이 없다고 잘못 안다."
+setup_ko: "10.0.2.42가 10.0.1.5의 `ADMIN$` 공유에 연결해 `PSEXESVC.exe`를 만들고 쓰는 SMB2 세션 하나(협상, 세션 설정, 트리 연결, 파일 생성·쓰기·닫기)가 든 pcap을 두었다."
+fixture:
+  # Classic pcap (tcpdump format, Ethernet), one TCP session
+  # 10.0.2.42:49820 -> 10.0.1.5:445 at 2026-11-03 09:52:10 UTC with SMB2
+  # over NetBIOS session framing: NEGOTIATE (dialect 2.1), SESSION_SETUP,
+  # TREE_CONNECT \\10.0.1.5\ADMIN$ (disk), CREATE PSEXESVC.exe, WRITE 64
+  # bytes starting "MZ", CLOSE. Zeek 6 writes smb_mapping.log and
+  # smb_files.log for it (checked with zeek -r in the image).
+  - path: net/lateral.pcap
+    base64: |
+      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
+steps:
+  - tool: scan_evidence
+    note_ko: "사건 만들기"
+    args:
+      evidence_path: ${EVIDENCE}
+      case_id: zeek-smb-filter
+  - tool: run_zeek_analysis
+    note_ko: "결함 호출: 설명의 허용 값 `smb`로 SMB 로그만 보기"
+    args:
+      pcap_path: ${EVIDENCE}/net/lateral.pcap
+      protocols: ["smb"]
+  - tool: run_zeek_analysis
+    note_ko: "비교 호출: Zeek 로그 파일 이름(`smb_files`, `smb_mapping`)으로 보기"
+    args:
+      pcap_path: ${EVIDENCE}/net/lateral.pcap
+      protocols: ["smb_files", "smb_mapping"]
+expect:
+  - step: 2
+    note_ko: "`smb`로 부르면 success에 로그 요약이 비어 있다"
+    regex: '"status": "success"[\s\S]*\\"log_summaries\\": \[\]'
+  - step: 3
+    note_ko: "파일 이름으로 부르면 `smb_files` 로그가 나온다"
+    contains: '\"log_type\": \"smb_files\"'
+  - step: 3
+    note_ko: "파일 이름으로 부르면 `smb_mapping` 로그가 나온다"
+    contains: '\"log_type\": \"smb_mapping\"'

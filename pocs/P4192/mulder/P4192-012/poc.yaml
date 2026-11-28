@@ -1,0 +1,61 @@
+# Matrix case P4192-012 (run_tcpflow part): run_tcpflow reads each
+# reassembled stream with read_text(encoding="utf-8", errors="replace")
+# (misc.py 1116-1121), so every byte that is not UTF-8 becomes U+FFFD before
+# the stream is indexed and returned, and nothing says so. Here the stream is
+# a phishing page served as EUC-KR (Content-Type: text/html;
+# charset=euc-kr), as Korean sites commonly still are: every Korean
+# character of its title and text comes back as replacement characters (a
+# few byte pairs that happen to be valid UTF-8 become other letters, such as
+# U+01AE and U+0233), and the original bytes cannot be recovered from the
+# case. read_text also turns the stream's CRLF line ends into LF.
+#
+# The capture (written for this PoC, real pcap format) is one HTTP GET from
+# ws0142 to 203.0.113.7 for /kb/notice.html.
+case_id: P4192-012
+problem: P4192
+server: mulder
+variant: mulder-3164843
+commit: 3164843baf74c7fe69e7121dbd6150f8f77ce660
+display: source-vs-result
+level: mcp
+realism: common
+realism_ko: "국내 웹 페이지·메일·로그에는 EUC-KR(CP949) 글이 여전히 흔하고, 피싱·악성 코드 배포 페이지도 그렇다. 캡처의 HTTP 내용을 보려고 `run_tcpflow`를 돌리는 것은 기본 분석이다."
+coverage: "partial: run_tcpflow only; extract_file_by_inode and extract_steganography, which decode the same way, are not run"
+coverage_ko: "`run_tcpflow`만 확인했다. 같은 방식으로 디코딩하는 `extract_file_by_inode`·`extract_steganography`는 돌리지 않았다."
+summary: >-
+  run_tcpflow on an HTTP capture of a phishing page served as EUC-KR indexes
+  the server's stream with every Korean character replaced by U+FFFD:
+  get_raw_output('tcpflow.streams') shows "Content-Type: text/html;
+  charset=euc-kr" followed by a title and text made of replacement
+  characters and a few wrong letters, with no mark that bytes were
+  replaced.
+summary_ko: "EUC-KR로 내려온 피싱 페이지의 HTTP 캡처에 `run_tcpflow`를 돌리면 서버 쪽 stream의 한글이 모두 U+FFFD로 바뀐 채 적재된다. `get_raw_output('tcpflow.streams')`에는 `Content-Type: text/html; charset=euc-kr` 뒤에 대체 문자와 엉뚱한 글자(Ʈ·ȳ)로 된 제목·본문이 나오고, 바이트를 바꿨다는 표시는 없다."
+defect_ko: "이 서버는 재조립한 TCP stream을 UTF-8로 억지로 디코딩해, UTF-8이 아닌 바이트를 U+FFFD로 바꾼 채 적재·반환하고 그 사실과 원래 인코딩을 알리지 않는다. 정상이라면 원래 바이트를 보존(예: 16진수·base64)하거나 선언된 문자셋으로 디코딩하고, 바꿨다면 표시해야 한다. 모델은 피싱 문구(계정·비밀번호 재입력 요구)를 읽지 못하고, 깨진 글을 바이너리나 암호화된 내용으로 잘못 본다."
+setup_ko: "워크스테이션 ws0142가 203.0.113.7에서 `/kb/notice.html`을 받는 HTTP 캡처를 두었다. 응답은 `charset=euc-kr`로 선언된 \"보안 업데이트 안내\" 피싱 페이지로, 보안 모듈 설치와 메일 계정·비밀번호 재입력을 요구한다."
+fixture:
+  - path: ws0142/http_notice.pcap
+    base64: 1MOyoQIABAAAAAAAAAAAAP//AAABAAAAELO0aQAAAAA2AAAANgAAAFJUAKvN71JUABI0VggARQAAKAAAQABABvKeCgACKssAcQfJWABQAAAD6AAAAABQAvrwny8AABCztGkPJwAANgAAADYAAABSVACrze9SVAASNFYIAEUAACgAAEAAQAbynssAcQcKAAIqAFDJWAAAw1AAAAPpUBL68NvNAAAQs7RpH04AADYAAAA2AAAAUlQAq83vUlQAEjRWCABFAAAoAABAAEAG8p4KAAIqywBxB8lYAFAAAAPpAADDUVAQ+vDbzgAAELO0aS91AAApAQAAKQEAAFJUAKvN71JUABI0VggARQABGwAAQABABvGrCgACKssAcQfJWABQAAAD6QAAw1FQGPrwvk4AAEdFVCAva2Ivbm90aWNlLmh0bWwgSFRUUC8xLjENCkhvc3Q6IDIwMy4wLjExMy43DQpVc2VyLUFnZW50OiBNb3ppbGxhLzUuMCAoV2luZG93cyBOVCAxMC4wOyBXaW42NDsgeDY0KSBBcHBsZVdlYktpdC81MzcuMzYgKEtIVE1MLCBsaWtlIEdlY2tvKSBDaHJvbWUvMTIyLjAgU2FmYXJpLzUzNy4zNg0KQWNjZXB0OiB0ZXh0L2h0bWwNCkFjY2VwdC1MYW5ndWFnZToga28tS1Isa287cT0wLjkNCkNvbm5lY3Rpb246IGNsb3NlDQoNChCztGk/nAAANgAAADYAAABSVACrze9SVAASNFYIAEUAACgAAEAAQAbynssAcQcKAAIqAFDJWAAAw1EAAATcUBD68NrbAAAQs7RpT8MAANsBAADbAQAAUlQAq83vUlQAEjRWCABFAAHNAABAAEAG8PnLAHEHCgACKgBQyVgAAMNRAAAE3FAY+vAJYwAASFRUUC8xLjEgMjAwIE9LDQpTZXJ2ZXI6IG5naW54DQpDb250ZW50LVR5cGU6IHRleHQvaHRtbDsgY2hhcnNldD1ldWMta3INCkNvbnRlbnQtTGVuZ3RoOiAzMDYNCkNvbm5lY3Rpb246IGNsb3NlDQoNCjxodG1sPjxoZWFkPjxtZXRhIGNoYXJzZXQ9ImV1Yy1rciI+PHRpdGxlPrq4vsggvve1pcDMxq4gvsizuzwvdGl0bGU+PC9oZWFkPjxib2R5Pg0KPHA+sO2wtLTUwMcgsOjBpCC6uMijuKYgwKfH2CC+xrehILq4vsgguPC14sC7ILyzxKHH2CDB1r3KvcO/wC48L3A+DQo8cD68s8ShIMjEILvns7sguN7AzyCw6MGksPoguvG50Ln4yKO4piC02b3DIMDUt8LH2L7fIMfVtM+02S48L3A+DQo8YSBocmVmPSJodHRwOi8vMjAzLjAuMTEzLjcvZGwvU2VjdXJlTW9kdWxlLmV4ZSI+uri+yCC48LXiILO7t8G53rHiPC9hPg0KPC9ib2R5PjwvaHRtbD4NChCztGlf6gAANgAAADYAAABSVACrze9SVAASNFYIAEUAACgAAEAAQAbyngoAAirLAHEHyVgAUAAABNwAAMT2UBD68Nk2AAAQs7RpbxEBADYAAAA2AAAAUlQAq83vUlQAEjRWCABFAAAoAABAAEAG8p4KAAIqywBxB8lYAFAAAATcAADE9lAR+vDZNQAAELO0aX84AQA2AAAANgAAAFJUAKvN71JUABI0VggARQAAKAAAQABABvKeywBxBwoAAioAUMlYAADE9gAABN1QEfrw2TQAABCztGmPXwEANgAAADYAAABSVACrze9SVAASNFYIAEUAACgAAEAAQAbyngoAAirLAHEHyVgAUAAABN0AAMT3UBD68Nk0AAA=
+steps:
+  - tool: scan_evidence
+    note_ko: "준비: 사건 만들기"
+    args:
+      evidence_path: ${EVIDENCE}
+      case_id: ws0142-phish
+  - tool: run_tcpflow
+    note_ko: "준비: TCP stream 재조립·적재"
+    args:
+      pcap_path: ${EVIDENCE}/ws0142/http_notice.pcap
+  - tool: get_raw_output
+    note_ko: "결함 호출: 적재된 stream 원문"
+    args:
+      source_name: tcpflow.streams
+expect:
+  - step: 3
+    note_ko: "응답 머리는 EUC-KR 페이지라고 선언한다"
+    contains: "Content-Type: text/html; charset=euc-kr"
+  - step: 3
+    note_ko: "페이지 제목 \"보안 업데이트 안내\"가 대체 문자(U+FFFD)와 엉뚱한 글자(Ʈ·ȳ)로 나온다"
+    contains: "<title>���� ������Ʈ �ȳ�</title>"
+  - step: 3
+    note_ko: "본문의 한글도 대체 문자로 바뀌고 링크 주소만 남는다"
+    contains: "SecureModule.exe\\\">���� ��� �����ޱ�</a>"

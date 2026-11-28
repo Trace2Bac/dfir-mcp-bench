@@ -1,0 +1,46 @@
+{
+  "case_id": "P4107-023",
+  "problem": "P4107",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: find_lateral_movement_indicators is shown; the other composite tools that label indicators with constants, window prefixes or composite_analysis are not",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 4,
+      "note_ko": "같은 응답이 조회한 source가 0개이고 `evtx.security`·`evtx.system`이 적재되지 않았다고 한다",
+      "regex": "\"sources_queried\": 0,[\\s\\S]*Sources not yet indexed: \\['evtx.security', 'evtx.system'",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "LocalSessionManager 기록으로 만든 로그온 지표의 출처가 `evtx.security`다",
+      "regex": "\"type\": \"network_logon\",[^}]*\"source\": \"evtx.security\",[^}]*Microsoft-Windows-TerminalServices-LocalSessionManager/Operational",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "같은 기록이 적재되지 않은 `plaso.timeline`에서 나온 RDP 흔적으로도 나온다",
+      "regex": "\"type\": \"rdp_artifact\",[^}]*\"source\": \"plaso.timeline\",[^}]*Microsoft-Windows-TerminalServices-LocalSessionManager/Operational",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "지표가 단 출처 `evtx.security`로 찾으면 0건이다",
+      "regex": "\"total_matches\": 0\\b",
+      "ok": true
+    },
+    {
+      "step": 6,
+      "note_ko": "적재된 이벤트 로그는 LocalSessionManager 로그 하나뿐이다",
+      "regex": "\"source_name\": \"evtx.microsoft-windows-terminalservices-localsessionmanager4operational\"",
+      "ok": true
+    }
+  ],
+  "image": "sha256:9a85cee0e982c77313458e8ab4100c09dcf092f7fcd018cfbb52669f0e2d178c",
+  "ran_at": "2026-11-28T05:45:39+00:00"
+}

@@ -1,0 +1,94 @@
+# Matrix case P4116-037: audit_tool_coverage builds tools_run for each
+# evidence item from the set of tool names in the audit log
+# (audit.summary().tool_call_counts), not from the calls made on that item
+# (review.py 174-240). A tool run on one capture is then listed as run on
+# every capture, and tools_not_run and total_gaps leave the other out.
+# Upstream PR #270 changes this to match calls by their evidence path.
+#
+# Evidence: two classic pcaps written by a small script (Ethernet/IPv4,
+# correct checksums), one per sensor: a DNS lookup and an HTTP CRL/OCSP fetch
+# from 10.0.2.42 (ws0142) and from 10.0.3.17 (db01).
+case_id: P4116-037
+problem: P4116
+server: mulder
+variant: mulder-3164843
+commit: 3164843baf74c7fe69e7121dbd6150f8f77ce660
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "사고 하나에 호스트·센서별 캡처가 여러 개 모이는 일은 흔하고, 그중 일부만 분석한 뒤 보고서 전에 이 도구로 빠진 분석을 확인하는 것이 도구 설명대로의 쓰임이다."
+coverage: "partial: a call on another evidence item is shown; a call that ended in an error is counted the same way"
+coverage_ko: "다른 증거에 돌린 호출만 보인다. 오류로 끝난 호출도 같은 방식으로 실행한 것으로 센다."
+summary: >-
+  With two packet captures in the case and run_pcap_analysis called on only
+  one of them, audit_tool_coverage lists run_pcap_analysis under tools_run
+  for both captures, with empty tools_not_run and total_gaps 0.
+summary_ko: "사건에 캡처 두 개가 있고 `run_pcap_analysis`를 그중 하나에만 돌렸는데, `audit_tool_coverage`는 두 캡처 모두 `tools_run`에 `run_pcap_analysis`를 적고 `tools_not_run`은 비우며 `total_gaps: 0`을 낸다."
+defect_ko: "이 서버는 증거 항목별 `tools_run`을 그 항목에 돌린 호출이 아니라 감사 로그에 도구 이름이 한 번이라도 있는지로 정한다. 정상이라면 그 증거 경로를 인자로 받은 호출만 세야 한다. 모델은 분석하지 않은 캡처까지 분석이 끝났다고 잘못 안다."
+setup_ko: "워크스테이션 ws0142와 DB 서버 db01에서 각각 받은 캡처 두 개를 두고, ws0142 캡처에만 `run_pcap_analysis`를 돌렸다."
+fixture:
+  - path: net/ws0142-span.pcap
+    base64: |
+      1MOyoQIABAAAAAAAAAAAAP//AAABAAAA5YnfauCTBABLAAAASwAAAABQVsAACAAMKUobLAgARQAA
+      PRABQABAERKFCgACKgoAAgHP2wA1ACmX0jpRAQAAAQAAAAAAAANjcmwHZXhhbXBsZQNjb20AAAEA
+      AeWJ32rYvgQAWwAAAFsAAAAADClKGywAUFbAAAgIAEUAAE0QAkAAQBESdAoAAgEKAAIqADXP2wA5
+      /Tk6UYGAAAEAAQAAAAADY3JsB2V4YW1wbGUDY29tAAABAAHADAABAAEAAAEsAARduNgi5YnfagDi
+      BAA2AAAANgAAAABQVsAACAAMKUobLAgARQAAKBADQABABujICgACKl242CLCngBQF3NEpAAAAABQ
+      AvrwU+cAAOWJ32owVwUANgAAADYAAAAADClKGywAUFbAAAgIAEUAACgQBEAANAb0x1242CIKAAIq
+      AFDCngkSuOQXc0SlUBL68JHfAADlid9qJFkFADYAAAA2AAAAAFBWwAAIAAwpShssCABFAAAoEAVA
+      AEAG6MYKAAIqXbjYIsKeAFAXc0SlCRK45VAQ+vCR4AAA5YnfakB+BQCeAAAAngAAAABQVsAACAAM
+      KUobLAgARQAAkBAGQABABuhdCgACKl242CLCngBQF3NEpQkSuOVQGPrwTf8AAEdFVCAvcGtpL3Jv
+      b3QuY3JsIEhUVFAvMS4xDQpIb3N0OiBjcmwuZXhhbXBsZS5jb20NClVzZXItQWdlbnQ6IE1pY3Jv
+      c29mdC1DcnlwdG9BUEkvMTAuMA0KQWNjZXB0OiAqLyoNCg0K5YnfanDzBQCNAAAAjQAAAAAMKUob
+      LABQVsAACAgARQAAfxAHQAA0BvRtXbjYIgoAAioAUMKeCRK45RdzRQ1QGPrwCAgAAEhUVFAvMS4x
+      IDIwMCBPSw0KQ29udGVudC1UeXBlOiBhcHBsaWNhdGlvbi9wa2l4LWNybA0KQ29udGVudC1MZW5n
+      dGg6IDEyDQoNCjCCAQowgfMCAQEwDeWJ32oA9QUANgAAADYAAAAAUFbAAAgADClKGywIAEUAACgQ
+      CEAAQAbowwoAAipduNgiwp4AUBdzRQ0JErk8UBD68JEhAADlid9qIKEHADYAAAA2AAAAAFBWwAAI
+      AAwpShssCABFAAAoEAlAAEAG6MIKAAIqXbjYIsKeAFAXc0UNCRK5PFAR+vCRIAAA5YnfalAWCAA2
+      AAAANgAAAAAMKUobLABQVsAACAgARQAAKBAKQAA0BvTBXbjYIgoAAioAUMKeCRK5PBdzRQ5QEfrw
+      kR8AAOWJ32pEGAgANgAAADYAAAAAUFbAAAgADClKGywIAEUAACgQC0AAQAbowAoAAipduNgiwp4A
+      UBdzRQ4JErk9UBD68JEfAAA=
+  - path: net/db01-span.pcap
+    base64: |
+      1MOyoQIABAAAAAAAAAAAAP//AAABAAAAA4vfamCuCgBMAAAATAAAAABQVsAACAAMKUobLAgARQAA
+      PhABQABAERGdCgADEQoAAgHP2wA1ACqEfjpRAQAAAQAAAAAAAARvY3NwB2V4YW1wbGUDbmV0AAAB
+      AAEDi99qWNkKAFwAAABcAAAAAAwpShssAFBWwAAICABFAABOEAJAAEAREYwKAAIBCgADEQA1z9sA
+      OhgaOlGBgAABAAEAAAAABG9jc3AHZXhhbXBsZQNuZXQAAAEAAcAMAAEAAQAAASwABMYzZFADi99q
+      gPwKADYAAAA2AAAAAFBWwAAIAAwpShssCABFAAAoEANAAEAG8zgKAAMRxjNkUMKeAFBehdi0AAAA
+      AFAC+vCDNAAAA4vfarBxCwA2AAAANgAAAAAMKUobLABQVsAACAgARQAAKBAEQAA0Bv83xjNkUAoA
+      AxEAUMKecA/bHV6F2LVQEvrwN/YAAAOL32qkcwsANgAAADYAAAAAUFbAAAgADClKGywIAEUAACgQ
+      BUAAQAbzNgoAAxHGM2RQwp4AUF6F2LVwD9seUBD68Df3AAADi99qwJgLAJwAAACcAAAAAFBWwAAI
+      AAwpShssCABFAACOEAZAAEAG8s8KAAMRxjNkUMKeAFBehdi1cA/bHlAY+vCNdgAAR0VUIC9vY3Nw
+      L01GRXcgSFRUUC8xLjENCkhvc3Q6IG9jc3AuZXhhbXBsZS5uZXQNClVzZXItQWdlbnQ6IE1pY3Jv
+      c29mdC1DcnlwdG9BUEkvMTAuMA0KQWNjZXB0OiAqLyoNCg0KA4vfavANDACNAAAAjQAAAAAMKUob
+      LABQVsAACAgARQAAfxAHQAA0Bv7dxjNkUAoAAxEAUMKecA/bHl6F2RtQGPrwriAAAEhUVFAvMS4x
+      IDIwMCBPSw0KQ29udGVudC1UeXBlOiBhcHBsaWNhdGlvbi9wa2l4LWNybA0KQ29udGVudC1MZW5n
+      dGg6IDEyDQoNCjCCAQowgfMCAQEwDQOL32qADwwANgAAADYAAAAAUFbAAAgADClKGywIAEUAACgQ
+      CEAAQAbzMwoAAxHGM2RQwp4AUF6F2RtwD9t1UBD68Dc6AAADi99qoLsNADYAAAA2AAAAAFBWwAAI
+      AAwpShssCABFAAAoEAlAAEAG8zIKAAMRxjNkUMKeAFBehdkbcA/bdVAR+vA3OQAAA4vfatAwDgA2
+      AAAANgAAAAAMKUobLABQVsAACAgARQAAKBAKQAA0Bv8xxjNkUAoAAxEAUMKecA/bdV6F2RxQEfrw
+      NzgAAAOL32rEMg4ANgAAADYAAAAAUFbAAAgADClKGywIAEUAACgQC0AAQAbzMAoAAxHGM2RQwp4A
+      UF6F2RxwD9t2UBD68Dc4AAA=
+steps:
+  - tool: scan_evidence
+    note_ko: "사건 만들기"
+    args:
+      evidence_path: ${EVIDENCE}
+      case_id: two-captures
+  - tool: run_pcap_analysis
+    note_ko: "ws0142 캡처만 분석"
+    args:
+      pcap_path: ${EVIDENCE}/net/ws0142-span.pcap
+      mode: conversations
+  - tool: audit_tool_coverage
+    note_ko: "결함 호출: 증거별 도구 실행 현황"
+expect:
+  - step: 2
+    note_ko: "ws0142 캡처 분석이 성공한다"
+    contains: 'pcap.conversations\", \"source_id\": 1, \"windows_indexed\": 1'
+  - step: 3
+    note_ko: "분석하지 않은 db01 캡처도 `run_pcap_analysis`를 돌린 것으로 나온다"
+    regex: 'db01-span\.pcap",\s*"artifact_type": "network_capture",\s*"tools_run": \[\s*"run_pcap_analysis"\s*\],\s*"tools_not_run": \[\]'
+  - step: 3
+    note_ko: "빠진 분석이 0건으로 나온다"
+    regex: '"total_gaps": 0\b'

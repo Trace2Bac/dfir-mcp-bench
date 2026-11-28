@@ -1,0 +1,79 @@
+# Matrix case P4116-044: analyze_pdf sets risk_level "malicious" whenever
+# pdfid counts one /Launch (documents.py _compute_pdf_risk 749-758:
+# `if has_launch or (...)`), the same level as auto-run obfuscated
+# JavaScript, without looking at what the action launches.
+#
+# Evidence: a one-page PDF 1.7 written by a small script (uncompressed, valid
+# xref): a supplier's product catalog whose only action is a link annotation
+# with /Launch /F (pricelist-2026.xlsx), to open the price list kept next to
+# it. No JavaScript, no /OpenAction or /AA, no embedded file. pdfid 0.2.10
+# (in the image) counts /Launch 1 and every other keyword 0.
+case_id: P4116-044
+problem: P4116
+server: mulder
+variant: mulder-3164843
+commit: 3164843baf74c7fe69e7121dbd6150f8f77ce660
+display: response
+level: mcp
+realism: possible
+realism_ko: "카탈로그·설명서 PDF가 같은 폴더의 엑셀·워드 파일을 여는 링크를 `/Launch` 동작으로 넣는 일이 있고, 오래된 배포 자료에서 흔히 보인다."
+coverage: full
+summary: >-
+  For a product catalog PDF whose only action is a link that launches the
+  price list pricelist-2026.xlsx (no JavaScript, no auto action, no embedded
+  file), analyze_pdf returns risk_level "malicious".
+summary_ko: "유일한 동작이 같은 폴더의 가격표 `pricelist-2026.xlsx`를 여는 링크인 제품 카탈로그 PDF(JavaScript·자동 실행·내장 파일 없음)에 `analyze_pdf`는 `risk_level: malicious`를 낸다."
+defect_ko: "이 서버는 `/Launch` 동작이 하나라도 있으면 무엇을 실행하는지 보지 않고 `malicious`로 판정한다. 정상이라면 실행 대상(실행 파일·명령인지)과 자동 실행 여부를 보고 의심 수준을 매겨야 한다. 모델은 가격표를 여는 링크뿐인 카탈로그를 악성 PDF로 잘못 안다."
+setup_ko: "가격표 엑셀 파일을 여는 링크 하나만 있는 공급사 제품 카탈로그 PDF를 내려받기 폴더에 두었다."
+fixture:
+  - path: Users/alice/Downloads/catalog-2026.pdf
+    base64: |
+      JVBERi0xLjcKJeLjz9MKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4K
+      ZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4K
+      ZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAg
+      MCA2MTIgNzkyXSAvQ29udGVudHMgNCAwIFIgL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgNSAw
+      IFIgPj4gPj4gL0Fubm90cyBbNiAwIFJdID4+CmVuZG9iago0IDAgb2JqCjw8IC9MZW5ndGggMzQy
+      ID4+CnN0cmVhbQpCVCAvRjEgMjAgVGYgNzIgNzQwIFRkIChOb3J0aHdpbmQgRml0dGluZ3MgLSBQ
+      cm9kdWN0IENhdGFsb2cgMjAyNikgVGogRVQKQlQgL0YxIDExIFRmIDcyIDcxMiBUZCAoQnJhc3Mg
+      Y29tcHJlc3Npb24gZml0dGluZ3MsIHZhbHZlcyBhbmQgbWFuaWZvbGRzLiBQcmljZXMgYXJlIGlu
+      IHRoZSBwcmljZSBsaXN0LikgVGogRVQKQlQgL0YxIDExIFRmIDcyIDY5MCBUZCAoT3BlbiB0aGUg
+      MjAyNiBwcmljZSBsaXN0IFwocHJpY2VsaXN0LTIwMjYueGxzeCwgaW4gdGhlIHNhbWUgZm9sZGVy
+      XCkpIFRqIEVUCjAgMCAxIHJnIEJUIC9GMSAxMSBUZiA3MiA2NzAgVGQgKD4gUHJpY2UgbGlzdCAy
+      MDI2KSBUaiBFVAplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5
+      cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhID4+CmVuZG9iago2IDAgb2JqCjw8IC9UeXBl
+      IC9Bbm5vdCAvU3VidHlwZSAvTGluayAvUmVjdCBbNzAgNjY0IDE5MCA2ODRdIC9Cb3JkZXIgWzAg
+      MCAwXSAvQSA3IDAgUiA+PgplbmRvYmoKNyAwIG9iago8PCAvUyAvTGF1bmNoIC9GIChwcmljZWxp
+      c3QtMjAyNi54bHN4KSAvV2luIDw8IC9GIChwcmljZWxpc3QtMjAyNi54bHN4KSAvTyAob3Blbikg
+      Pj4gL05ld1dpbmRvdyB0cnVlID4+CmVuZG9iago4IDAgb2JqCjw8IC9UaXRsZSAoUHJvZHVjdCBD
+      YXRhbG9nIDIwMjYpIC9BdXRob3IgKE5vcnRod2luZCBGaXR0aW5ncykgL1Byb2R1Y2VyIChNaWNy
+      b3NvZnRcMjU2IFdvcmQgMjAxNikgL0NyZWF0aW9uRGF0ZSAoRDoyMDI2MDExMjA5MzAwMCswMScw
+      MCcpID4+CmVuZG9iagp4cmVmCjAgOQowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMTUgMDAw
+      MDAgbiAKMDAwMDAwMDA2NCAwMDAwMCBuIAowMDAwMDAwMTIxIDAwMDAwIG4gCjAwMDAwMDAyNjMg
+      MDAwMDAgbiAKMDAwMDAwMDY1NSAwMDAwMCBuIAowMDAwMDAwNzI1IDAwMDAwIG4gCjAwMDAwMDA4
+      MjIgMDAwMDAgbiAKMDAwMDAwMDk0MSAwMDAwMCBuIAp0cmFpbGVyCjw8IC9TaXplIDkgL1Jvb3Qg
+      MSAwIFIgL0luZm8gOCAwIFIgPj4Kc3RhcnR4cmVmCjEwOTcKJSVFT0YK
+steps:
+  - tool: scan_evidence
+    note_ko: "사건 만들기"
+    args:
+      evidence_path: ${EVIDENCE}
+      case_id: pdf-launch
+  - tool: analyze_pdf
+    note_ko: "결함 호출: 카탈로그 PDF 분석"
+    args:
+      case_id: pdf-launch
+      file_path: ${EVIDENCE}/Users/alice/Downloads/catalog-2026.pdf
+  - tool: read_evidence_file
+    note_ko: "비교 호출: PDF 원문에서 Launch 동작의 대상 확인"
+    args:
+      file_path: ${EVIDENCE}/Users/alice/Downloads/catalog-2026.pdf
+expect:
+  - step: 2
+    note_ko: "`/Launch` 하나로 악성 판정이 나온다"
+    regex: 'risk_assessment\\": \{\\"risk_level\\": \\"malicious\\"'
+  - step: 2
+    note_ko: "JavaScript도 자동 실행 동작도 없다"
+    regex: 'has_javascript\\": false, \\"has_auto_action\\": false, \\"has_embedded_files\\": false'
+  - step: 3
+    note_ko: "Launch 동작이 여는 것은 같은 폴더의 가격표 엑셀 파일이다"
+    contains: "/S /Launch /F (pricelist-2026.xlsx)"

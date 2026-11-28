@@ -1,0 +1,52 @@
+{
+  "case_id": "P2054-017",
+  "problem": "P2054",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "로그가 `ez.evtx`로 적재된다",
+      "regex": "\"status\": \"success\"[\\s\\S]*\"source\": \"ez.evtx\"",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "날짜만 준 하루 범위가 success에 0건이다",
+      "regex": "\"status\": \"success\"[\\s\\S]*\"total_events\": 0\\b",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "KST 오프셋을 준 10분 범위가 success에 0건이다",
+      "regex": "\"status\": \"success\"[\\s\\S]*\"total_events\": 0\\b",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "같은 10분을 UTC로 주면 14:24:08의 스크립트 블록이 나온다",
+      "contains": "\"event_time\": \"2020-06-30T14:24:08\"",
+      "ok": true
+    },
+    {
+      "step": 6,
+      "note_ko": "날짜만 준 범위의 검색이 success에 0건이다",
+      "regex": "\"status\": \"success\"[\\s\\S]*\"total_matches\": 0\\b",
+      "ok": true
+    },
+    {
+      "step": 7,
+      "note_ko": "범위 없이 찾으면 같은 날 14:24:08의 창이 나온다",
+      "contains": "\"event_time\": \"2020-06-30T14:24:08\"",
+      "ok": true
+    }
+  ],
+  "image": "sha256:23abeaf691d07879f61d9f715312702a3d3d8cca7b434a4b6e6a876eeda488fc",
+  "ran_at": "2026-11-28T05:37:16+00:00"
+}

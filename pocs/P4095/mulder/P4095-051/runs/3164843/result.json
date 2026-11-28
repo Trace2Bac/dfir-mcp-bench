@@ -1,0 +1,40 @@
+{
+  "case_id": "P4095-051",
+  "problem": "P4095",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: custom mode with a filter tshark rejects is shown; the other modes index tshark's error text the same way (dns and smtp mode: see P2049-107)",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 3,
+      "note_ko": "캡처에는 TLS ClientHello가 있다(캡처 파일은 멀쩡하다)",
+      "contains": "cdn.update-check.net",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "custom 모드는 오류가 아닌 응답으로 돌아온다",
+      "is_error": false,
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "응답은 성공이고 pcap.filtered가 적재됐다(indexed)고 한다",
+      "regex": "\"status\": \"success\"[\\s\\S]*pcap\\.filtered\\\\?\"[^}]*\\\\?\"status\\\\?\": \\\\?\"indexed",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "pcap.filtered에 적재된 것은 패킷이 아니라 tls.handshake.ja4가 필드가 아니라는 tshark 오류다",
+      "regex": "tshark error \\(exit \\d+\\): tshark: Neither \\\\?\"tls\\.handshake\\.ja4\\\\?\"",
+      "ok": true
+    }
+  ],
+  "image": "sha256:dc34d74229c076f3aeb8532e79a224183a33df79bb52dce1058c3e191dc52119",
+  "ran_at": "2026-11-28T05:46:19+00:00"
+}

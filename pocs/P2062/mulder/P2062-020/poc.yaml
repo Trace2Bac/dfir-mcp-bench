@@ -1,0 +1,101 @@
+# Matrix case P2062-020: run_mvt_android and run_mvt_ios add --iocs only when
+# Path(iocs).is_file(); any other value (a folder of STIX2 files, a mistyped
+# path) is dropped without a word, MVT runs with no indicators, and the
+# response still carries the requested path as iocs_file.
+#
+# MVT runs for real (mvt 2026.9.7 in the image). MVT_NETWORK_ACCESS_ALLOWED is
+# off so MVT does not check PyPI for updates.
+case_id: P2062-020
+problem: P2062
+server: mulder
+variant: mulder-3164843
+commit: 3164843baf74c7fe69e7121dbd6150f8f77ce660
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "공개 IOC 저장소(Amnesty investigations 등)는 사건마다 폴더에 STIX2 파일을 두므로, 모델이 `iocs`에 그 폴더를 주는 일이 있을 수 있다."
+coverage: "partial: run_mvt_android with a folder is shown; run_mvt_ios drops iocs the same way"
+coverage_ko: "`run_mvt_android`에 폴더를 준 경우만 보인다. `run_mvt_ios`도 같은 방식으로 버린다."
+summary: run_mvt_android with iocs set to the folder holding pegasus.stix2 runs MVT without indicators and returns success with detections 0 and iocs_file set to that folder, while the same backup with iocs set to the file finds the Pegasus domain in an SMS (sms_detected).
+summary_ko: "`iocs`에 `pegasus.stix2`가 든 폴더를 주면 MVT가 지표 없이 돌고, 응답은 `iocs_file`에 그 폴더를 실은 채 `detections: 0`으로 success다. 같은 백업에 파일 경로를 주면 SMS 속 Pegasus 도메인이 잡힌다(`sms_detected`)."
+defect_ko: "이 서버는 파일이 아닌 `iocs` 값을 알리지 않고 빼고 MVT를 돌린다. 정상이라면 파일이 아니라고 거부하거나 지표 대조를 하지 않았다고 알려야 한다. 모델은 IOC와 대조해 아무것도 없었다고 잘못 안다."
+setup_ko: "Pegasus 도메인 링크가 든 SMS가 있는 안드로이드 백업(`apps/com.android.providers.telephony/d_f/000000_sms_backup`)과, 그 도메인을 담은 STIX2 파일이 든 IOC 폴더(`iocs/2021-07-18_nso/`)를 넣었다."
+env:
+  MVT_NETWORK_ACCESS_ALLOWED: "false"
+fixture:
+  - path: android_backup/apps/com.android.providers.telephony/d_f/000000_sms_backup
+    # zlib-compressed JSON, the format of Android's telephony backup agent
+    # (three SMS; the first links to free247downloads.com).
+    base64: eJylkNFOAyEQRX9lwqurW2i3lP0M30zTGApTl5QFAqxmY/x3l60mNdYm6rxd7gxz7mxfidQ6YkqkBXJDm7kWdMVJBWTv9VjeH/wQIcio0IJJ0KHVIDPkDkFj8LkC5d3BxH6S1jxjHFvocg6pretDRGQrrv2Ls17qdKd8X/dLydRmX5clWmYsSyjnrFk260WpT+MxoctnbiM2H27KMg8z9S0tOo/h9E0REZUJZhotDduvuXazL/Wp+a2CH04g6PkJ7gfnjHsCO0FVkBBh9EM5Av+eQbBrGQQV4l8ZJrC/ZfDHS6zri6xX+dgv+Xbvu6ilWA==
+  - path: iocs/2021-07-18_nso/pegasus.stix2
+    # STIX 2.1 bundle in the layout of Amnesty Tech's investigations repository;
+    # free247downloads.com is one of the published Pegasus domains.
+    text: |
+      {
+       "type": "bundle",
+       "id": "bundle--5b2d9d1e-7f0c-4a0e-9a57-3c3a3f0c6a11",
+       "objects": [
+        {
+         "type": "malware",
+         "spec_version": "2.1",
+         "id": "malware--a6e1c0b4-9b0e-4c55-8f2b-0d0c2b5c7f10",
+         "created": "2021-07-18T00:00:00.000Z",
+         "modified": "2021-07-18T00:00:00.000Z",
+         "name": "Pegasus",
+         "description": "IOCs for Pegasus",
+         "is_family": false
+        },
+        {
+         "type": "indicator",
+         "spec_version": "2.1",
+         "id": "indicator--0f3c6b7e-2d8a-4d1b-9f7e-6c1a2b3d4e5f",
+         "created": "2021-07-18T00:00:00.000Z",
+         "modified": "2021-07-18T00:00:00.000Z",
+         "indicator_types": [
+          "malicious-activity"
+         ],
+         "pattern": "[domain-name:value='free247downloads.com']",
+         "pattern_type": "stix",
+         "pattern_version": "2.1",
+         "valid_from": "2021-07-18T00:00:00Z"
+        },
+        {
+         "type": "relationship",
+         "spec_version": "2.1",
+         "id": "relationship--1d2c3b4a-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+         "created": "2021-07-18T00:00:00.000Z",
+         "modified": "2021-07-18T00:00:00.000Z",
+         "relationship_type": "indicates",
+         "source_ref": "indicator--0f3c6b7e-2d8a-4d1b-9f7e-6c1a2b3d4e5f",
+         "target_ref": "malware--a6e1c0b4-9b0e-4c55-8f2b-0d0c2b5c7f10"
+        }
+       ]
+      }
+steps:
+  - tool: scan_evidence
+    note_ko: "준비: 사건 생성"
+    args:
+      evidence_path: ${EVIDENCE}
+      case_id: p2062-020
+  - tool: run_mvt_android
+    note_ko: "결함 호출: `iocs`에 IOC 폴더를 준 MVT 검사"
+    timeout_s: 600
+    args:
+      evidence_path: ${EVIDENCE}/android_backup
+      iocs: ${EVIDENCE}/iocs/2021-07-18_nso
+  - tool: run_mvt_android
+    note_ko: "비교 호출: `iocs`에 그 폴더의 STIX2 파일을 준 MVT 검사"
+    timeout_s: 600
+    args:
+      evidence_path: ${EVIDENCE}/android_backup
+      iocs: ${EVIDENCE}/iocs/2021-07-18_nso/pegasus.stix2
+expect:
+  - step: 2
+    note_ko: "응답은 success다"
+    contains: '"status": "success"'
+  - step: 2
+    note_ko: "탐지 0건인데 요청한 폴더가 `iocs_file`로 실려 있다"
+    regex: 'detections\\": 0, \\"iocs_file\\": \\"[^"\\]*/iocs/2021-07-18_nso\\"'
+  - step: 3
+    note_ko: "파일을 주면 같은 백업에서 SMS 탐지가 나온다"
+    regex: 'sms_detected\\": 1'

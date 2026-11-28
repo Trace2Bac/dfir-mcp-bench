@@ -1,0 +1,34 @@
+{
+  "case_id": "P4192-012",
+  "problem": "P4192",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "source-vs-result",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: run_tcpflow only; extract_file_by_inode and extract_steganography, which decode the same way, are not run",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 3,
+      "note_ko": "응답 머리는 EUC-KR 페이지라고 선언한다",
+      "contains": "Content-Type: text/html; charset=euc-kr",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "페이지 제목 \"보안 업데이트 안내\"가 대체 문자(U+FFFD)와 엉뚱한 글자(Ʈ·ȳ)로 나온다",
+      "contains": "<title>���� ������Ʈ �ȳ�</title>",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "본문의 한글도 대체 문자로 바뀌고 링크 주소만 남는다",
+      "contains": "SecureModule.exe\\\">���� ��� �����ޱ�</a>",
+      "ok": true
+    }
+  ],
+  "image": "sha256:406aab97cb687f67558252bcdb08a5d4662b4d193e8ce20520dd1ab6b9402670",
+  "ran_at": "2026-11-28T06:06:44+00:00"
+}

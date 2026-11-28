@@ -1,0 +1,39 @@
+{
+  "case_id": "P4117-012",
+  "problem": "P4117",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "폴더에 사진이 세 장인데 한 장만 보고 숨긴 데이터가 없다고 답한다",
+      "contains": "No steganographic content detected in 1 files",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "contains": "\"files_scanned\": 1,",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "파일 하나로 부르면 결과 2줄을 적재한다",
+      "contains": "\"result_count\": 2,",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "같은 도구가 파일 하나로는 JPEG 뒤에 붙은 ZIP을 찾는다",
+      "regex": "IMG_0412\\.JPG[^\"]*appended|IMG_0412\\.JPG: \\d+ bytes after JPEG EOI",
+      "ok": true
+    }
+  ],
+  "image": "sha256:50a9e374a6719c56d4ea15f33b959059f0cffdc489d05ea891bd3a7fe31bd9a8",
+  "ran_at": "2026-11-28T05:57:30+00:00"
+}

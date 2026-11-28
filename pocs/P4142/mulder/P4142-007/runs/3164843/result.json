@@ -1,0 +1,40 @@
+{
+  "case_id": "P4142-007",
+  "problem": "P4142",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 3,
+      "note_ko": "원문은 500자로 잘렸는데 커서는 마지막 window 31이고 `has_more`는 거짓이다",
+      "regex": "\"total_windows\": 31,\\s*\"returned_windows\": 31,\\s*\"next_after_id\": 31,\\s*\"has_more\": false,\\s*\"raw_text\": \"[^\"]{0,520}\",\\s*\"tool_call_id\": \"[^\"]+\",\\s*\"raw_text_truncated\": true",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "그 커서로 이어 읽으면 window가 하나도 없다",
+      "regex": "\"returned_windows\": 0,\\s*\"next_after_id\": 31,\\s*\"has_more\": false",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "svc_backup이 나오는 곳은 커서가 건너뛴 window 29다",
+      "regex": "\"window_id\": 29,",
+      "ok": true
+    },
+    {
+      "step": 6,
+      "note_ko": "window 29에 svc_backup의 비밀번호 로그인이 있다",
+      "regex": "\"next_after_id\": 29,[^}]*Accepted password for svc_backup from 198\\.51\\.100\\.23",
+      "ok": true
+    }
+  ],
+  "image": "sha256:f7e9bdf130bc6a19f90dc2ba2ff565c162a0faada4fc1b4f7231839dd4e910eb",
+  "ran_at": "2026-11-28T06:02:14+00:00"
+}

@@ -1,0 +1,110 @@
+# Matrix case P2055-078: search says t_start/t_end filter by ISO 8601 time
+# and regex is a Python regex, but the keyword path (FTS) drops windows whose
+# event_time is NULL while the regex path keeps them, so the same source and
+# time range give different results by search mode. pcap windows have no
+# event_time in mulder (tshark's "Nov  3, 2026 09:41:27" matches none of
+# _parse_timestamp's patterns).
+case_id: P2055-078
+problem: P2055
+server: mulder
+variant: mulder-3164843
+commit: 3164843baf74c7fe69e7121dbd6150f8f77ce660
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "사고 시각 전후로 범위를 좁혀 pcap 결과를 찾는 것은 흔하고, 설명이 시간 범위가 검색 방식에 따라 다르게 적용된다고 알리지 않으므로 모델은 키워드와 정규식을 섞어 쓴다."
+coverage: full
+summary: >-
+  For a pcap whose HTTP download of /dl/svchost.exe happened at 2026-11-03
+  09:41:27 UTC, search on source 'pcap' for 09:00-10:00 that day returns 0
+  matches as a keyword search and 1 match as a regex search; the regex search
+  also returns the same window for a 2020 range it is not in.
+summary_ko: "2026-11-03 09:41:27 UTC에 `/dl/svchost.exe`를 받은 HTTP 요청이 든 pcap에서, `source='pcap'`으로 그날 09:00~10:00을 키워드 검색하면 0건이고 정규식 검색하면 1건이다. 정규식 검색은 이 요청과 상관없는 2020년 범위에서도 같은 창을 돌려준다."
+defect_ko: "이 서버는 시각을 못 읽은 창(`event_time` 없음)을 키워드 검색에서는 시간 범위로 빼고 정규식 검색에서는 범위와 상관없이 남긴다. 시간 범위는 검색 방식과 상관없이 같게 적용되거나, 시각이 없는 창을 어떻게 다루는지 밝혀야 한다. 모델은 키워드 검색 0건을 보고 그 시간에 다운로드가 없었다고 잘못 알거나, 정규식 결과를 그 시간대 사건으로 잘못 안다."
+setup_ko: "업데이트 서버 요청(08:14:05)과 203.0.113.7에서 `/dl/svchost.exe`를 받은 요청(09:41:27)이 든 pcap을 HTTP 모드로 적재했다. mulder는 tshark 시각 형식을 읽지 못해 이 창의 `event_time`이 비어 있다."
+fixture:
+  # Classic pcap (tcpdump format, Ethernet), two HTTP/1.1 sessions with full
+  # TCP handshake and teardown:
+  #   2026-11-03 08:14:05 UTC 10.0.2.42 -> 93.184.216.34 GET /office/kb5031455.msu (Host updates.example.com)
+  #   2026-11-03 09:41:27 UTC 10.0.2.42 -> 203.0.113.7   GET /dl/svchost.exe        (Host 203.0.113.7)
+  - path: net/capture.pcap
+    base64: |
+      1MOyoQIABAAAAAAAAAAAAP//AAABAAAAzZfpagAAAAA2AAAANgAAAAARIjNEVWZ3iJmquwgARQAA
+      KAABAABABjjLCgACKl242CLCMABQAAAD6AAAAABQAv//p3UAAM2X6WroAwAANgAAADYAAAAAESIz
+      RFVmd4iZqrsIAEUAACgAAQAAQAY4y1242CIKAAIqAFDCMAAAE4gAAAPpUBL//5PcAADNl+lq0AcA
+      ADYAAAA2AAAAABEiM0RVZneImaq7CABFAAAoAAEAAEAGOMsKAAIqXbjYIsIwAFAAAAPpAAATiVAQ
+      //+T3QAAzZfpargLAAC7AAAAuwAAAAARIjNEVWZ3iJmquwgARQAArQABAABABjhGCgACKl242CLC
+      MABQAAAD6QAAE4lQGP//drUAAEdFVCAvb2ZmaWNlL2tiNTAzMTQ1NS5tc3UgSFRUUC8xLjENCkhv
+      c3Q6IHVwZGF0ZXMuZXhhbXBsZS5jb20NClVzZXItQWdlbnQ6IE1vemlsbGEvNS4wIChXaW5kb3dz
+      IE5UIDEwLjA7IFdpbjY0OyB4NjQpDQpBY2NlcHQ6ICovKg0KDQrNl+lqoA8AAIgAAACIAAAAABEi
+      M0RVZneImaq7CABFAAB6AAEAAEAGOHlduNgiCgACKgBQwjAAABOJAAAEblAY///s9QAASFRUUC8x
+      LjEgMjAwIE9LDQpDb250ZW50LVR5cGU6IGFwcGxpY2F0aW9uL29jdGV0LXN0cmVhbQ0KQ29udGVu
+      dC1MZW5ndGg6IDQNCg0KTVqQAM2X6WqIEwAANgAAADYAAAAAESIzRFVmd4iZqrsIAEUAACgAAQAA
+      QAY4ywoAAipduNgiwjAAUAAABG4AABPbUBH//5MFAADNl+lqcBcAADYAAAA2AAAAABEiM0RVZneI
+      maq7CABFAAAoAAEAAEAGOMtduNgiCgACKgBQwjAAABPbAAAEb1AR//+TBAAAzZfpalgbAAA2AAAA
+      NgAAAAARIjNEVWZ3iJmquwgARQAAKAABAABABjjLCgACKl242CLCMABQAAAEbwAAE9xQEP//kwQA
+      AEes6WoAAAAANgAAADYAAAAAESIzRFVmd4iZqrsIAEUAACgAAQAAQAYyngoAAirLAHEHwlsAUAAA
+      A+gAAAAAUAL//6EdAABHrOlq6AMAADYAAAA2AAAAABEiM0RVZneImaq7CABFAAAoAAEAAEAGMp7L
+      AHEHCgACKgBQwlsAABOIAAAD6VAS//+NhAAAR6zpatAHAAA2AAAANgAAAAARIjNEVWZ3iJmquwgA
+      RQAAKAABAABABjKeCgACKssAcQfCWwBQAAAD6QAAE4lQEP//jYUAAEes6Wq4CwAArQAAAK0AAAAA
+      ESIzRFVmd4iZqrsIAEUAAJ8AAQAAQAYyJwoAAirLAHEHwlsAUAAAA+kAABOJUBj//9FLAABHRVQg
+      L2RsL3N2Y2hvc3QuZXhlIEhUVFAvMS4xDQpIb3N0OiAyMDMuMC4xMTMuNw0KVXNlci1BZ2VudDog
+      TW96aWxsYS81LjAgKFdpbmRvd3MgTlQgMTAuMDsgV2luNjQ7IHg2NCkNCkFjY2VwdDogKi8qDQoN
+      Ckes6WqgDwAAiAAAAIgAAAAAESIzRFVmd4iZqrsIAEUAAHoAAQAAQAYyTMsAcQcKAAIqAFDCWwAA
+      E4kAAARgUBj//+arAABIVFRQLzEuMSAyMDAgT0sNCkNvbnRlbnQtVHlwZTogYXBwbGljYXRpb24v
+      b2N0ZXQtc3RyZWFtDQpDb250ZW50LUxlbmd0aDogNA0KDQpNWpAAR6zpaogTAAA2AAAANgAAAAAR
+      IjNEVWZ3iJmquwgARQAAKAABAABABjKeCgACKssAcQfCWwBQAAAEYAAAE9tQEf//jLsAAEes6Wpw
+      FwAANgAAADYAAAAAESIzRFVmd4iZqrsIAEUAACgAAQAAQAYynssAcQcKAAIqAFDCWwAAE9sAAARh
+      UBH//4y6AABHrOlqWBsAADYAAAA2AAAAABEiM0RVZneImaq7CABFAAAoAAEAAEAGMp4KAAIqywBx
+      B8JbAFAAAARhAAAT3FAQ//+MugAA
+steps:
+  - tool: scan_evidence
+    note_ko: "사건 만들기"
+    args:
+      evidence_path: ${EVIDENCE}
+      case_id: time-range-by-mode
+  - tool: run_pcap_analysis
+    note_ko: "pcap의 HTTP 요청 적재"
+    args:
+      pcap_path: ${EVIDENCE}/net/capture.pcap
+      mode: http
+  - tool: search
+    note_ko: "결함 호출: 다운로드 시각(09:41)을 포함한 한 시간을 키워드로 검색"
+    args:
+      query: svchost.exe
+      source: pcap
+      t_start: "2026-11-03T09:00:00"
+      t_end: "2026-11-03T10:00:00"
+  - tool: search
+    note_ko: "결함 호출: 같은 출처·같은 한 시간을 정규식으로 검색"
+    args:
+      query: "svchost\\.exe"
+      regex: true
+      source: pcap
+      t_start: "2026-11-03T09:00:00"
+      t_end: "2026-11-03T10:00:00"
+  - tool: search
+    note_ko: "결함 호출: 다운로드와 상관없는 2020년 하루를 정규식으로 검색"
+    args:
+      query: "svchost\\.exe"
+      regex: true
+      source: pcap
+      t_start: "2020-06-30T00:00:00"
+      t_end: "2020-06-30T23:59:59"
+  - tool: get_raw_output
+    note_ko: "비교 호출: 적재된 HTTP 출력 원문(09:41:27의 요청)"
+    args:
+      source_name: pcap.http
+expect:
+  - step: 6
+    note_ko: "적재된 원문에 09:41:27의 `/dl/svchost.exe` 요청이 있다"
+    regex: 'Nov  3, 2026 09:41:27\.\d+ UTC\\t10\.0\.2\.42\\t203\.0\.113\.7\\tGET\\t/dl/svchost\.exe'
+  - step: 3
+    note_ko: "키워드 검색은 그 시간 범위에서 success에 0건이다"
+    regex: '"status": "success"[\s\S]*"total_matches": 0\b'
+  - step: 4
+    note_ko: "같은 범위의 정규식 검색은 `pcap.http` 창 1건을 돌려준다"
+    regex: '"event_time": null[\s\S]*"total_matches": 1\b'
+  - step: 5
+    note_ko: "정규식 검색은 2020년 범위에서도 같은 창을 돌려준다"
+    regex: '"event_time": null[\s\S]*"total_matches": 1\b'

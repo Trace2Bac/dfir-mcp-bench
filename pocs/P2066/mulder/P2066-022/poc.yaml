@@ -1,0 +1,64 @@
+# Matrix case P2066-022: only list_directory and read_evidence_file pass their
+# path through resolve_allowed_path (the evidence root and the case folder);
+# run_strings, run_hashdeep, run_exiftool and the other tools that take a
+# path run on whatever path they are given. A path written from the evidence
+# system's point of view (/etc/passwd) therefore reads the analysis host's
+# file and indexes it as a case source.
+case_id: P2066-022
+problem: P2066
+server: mulder
+variant: mulder-3164843
+commit: 3164843baf74c7fe69e7121dbd6150f8f77ce660
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "리눅스 증거를 볼 때는 증거 안 경로(`/etc/passwd`)와 분석 호스트 경로가 같은 모양이라, 모델이 증거 루트를 빠뜨리고 절대 경로를 주는 일이 있을 수 있다."
+coverage: "partial: run_strings is shown; the other tools that take a path without the check (run_hashdeep, run_exiftool and about 70 more) are not"
+coverage_ko: "`run_strings`만 보인다. 검사 없이 경로를 받는 다른 도구(`run_hashdeep`, `run_exiftool` 등 약 70개)는 보이지 않는다."
+summary: read_evidence_file refuses /etc/passwd as outside the evidence, but run_strings on /etc/passwd reads the analysis host's file and indexes it as strings.output, and get_raw_output returns the host's accounts (mulder, clamav) instead of the evidence's.
+summary_ko: "`read_evidence_file`은 `/etc/passwd`를 증거 밖이라고 거부하지만, `run_strings`는 분석 호스트의 `/etc/passwd`를 읽어 `strings.output`으로 색인하고, `get_raw_output`은 증거가 아닌 호스트의 계정(`mulder`, `clamav`)을 돌려준다."
+defect_ko: "이 서버는 대부분의 도구에서 경로를 증거 루트·사건 폴더와 대조하지 않는다. 정상이라면 `read_evidence_file`처럼 증거 밖 경로를 거부해야 한다. 모델은 호스트 파일의 내용을 증거로 잘못 안다."
+setup_ko: "리눅스 웹 서버의 루트 파일 시스템(`rootfs/etc/passwd`에 `deploy` 계정)을 증거에 넣었다."
+fixture:
+  - path: rootfs/etc/passwd
+    text: |
+      root:x:0:0:root:/root:/bin/bash
+      daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+      www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+      sshd:x:110:65534::/run/sshd:/usr/sbin/nologin
+      deploy:x:1001:1001:Deploy User,,,:/home/deploy:/bin/bash
+      backup2:x:1002:1002::/home/backup2:/bin/bash
+  - path: rootfs/etc/hostname
+    text: "web01\n"
+steps:
+  - tool: scan_evidence
+    note_ko: "준비: 사건 생성"
+    args:
+      evidence_path: ${EVIDENCE}/rootfs
+      case_id: p2066-022
+  - tool: read_evidence_file
+    note_ko: "비교 호출: `read_evidence_file`로 `/etc/passwd`"
+    args:
+      file_path: /etc/passwd
+  - tool: run_strings
+    note_ko: "결함 호출: `run_strings`로 `/etc/passwd`"
+    args:
+      target_path: /etc/passwd
+      min_length: 4
+  - tool: get_raw_output
+    note_ko: "확인 호출: 색인된 `strings.output` 읽기"
+    args:
+      source_name: strings.output
+expect:
+  - step: 2
+    note_ko: "`read_evidence_file`은 증거 밖 경로라며 거부한다"
+    contains: '"status": "error"'
+  - step: 3
+    note_ko: "`run_strings`는 같은 경로를 success로 색인한다"
+    contains: '"status": "success"'
+  - step: 4
+    note_ko: "색인된 내용은 분석 호스트의 계정(`mulder`)이다"
+    contains: "mulder:x:1000:1000::/home/mulder:/bin/bash"
+  - step: 4
+    note_ko: "증거의 `deploy` 계정은 없다"
+    not_contains: "deploy:x:1001"

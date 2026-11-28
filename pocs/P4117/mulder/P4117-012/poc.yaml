@@ -1,0 +1,242 @@
+# Matrix case P4117-012: detect_steganography collects a folder's images with
+# rglob("*.jpg"), rglob("*.jpeg") and rglob("*.png") (artifacts.py), which are
+# case-sensitive on Linux, so .JPG/.PNG files are never examined (the HEIC
+# glob does include "*.HEIC"). The response counts only the lowercase files:
+# "No steganographic content detected in 1 files", files_scanned 1.
+#
+# Evidence: JPEGs written with Pillow 12.3 in this image (192x144, EXIF
+# Apple / iPhone 13). IMG_0412.JPG is a photo with a ZIP archive
+# (q4_customers.csv) appended after the EOI marker, as `copy /b photo.jpg +
+# data.zip` makes; stegdetect in this image reports it as
+# "appended(514)<[nonrandom][data][PK...". IMG_0411.JPG and
+# Downloads/wallpaper.jpg are the same kind of photo without appended data.
+case_id: P4117-012
+problem: P4117
+server: mulder
+variant: mulder-3164843
+commit: 3164843baf74c7fe69e7121dbd6150f8f77ce660
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "iPhone·디지털카메라는 사진을 `IMG_0412.JPG`처럼 대문자 확장자로 저장하고, mulder는 대소문자를 가리는 Linux 파일시스템(컨테이너)에서 증거를 읽는다."
+coverage: full
+summary: >-
+  In a folder with three photos, detect_steganography on the folder returns
+  "No steganographic content detected in 1 files" (files_scanned 1): only
+  Downloads/wallpaper.jpg was examined, and the two camera files
+  DCIM/100APPLE/IMG_0411.JPG and IMG_0412.JPG were skipped for their
+  uppercase extension, although the same tool on IMG_0412.JPG alone reports
+  a ZIP appended after the JPEG data.
+summary_ko: "사진 세 장이 든 폴더에 `detect_steganography`를 부르면 `No steganographic content detected in 1 files`(`files_scanned: 1`)를 낸다. 실제로 본 것은 `Downloads/wallpaper.jpg`뿐이고, 카메라 파일 `DCIM/100APPLE/IMG_0411.JPG`·`IMG_0412.JPG`는 확장자가 대문자라 건너뛰었다. 같은 도구를 `IMG_0412.JPG` 하나에 부르면 JPEG 뒤에 붙은 ZIP을 찾아낸다."
+defect_ko: "이 서버는 폴더에서 이미지를 고를 때 소문자 확장자(`.jpg`·`.jpeg`·`.png`)만 찾고, 건너뛴 파일이 있다는 것을 알리지 않는다. 정상이라면 확장자의 대소문자를 가리지 않고 모든 이미지를 보거나, 건너뛴 파일 수를 밝혀야 한다. 모델은 폴더의 사진에 숨긴 데이터가 없다고 잘못 안다."
+setup_ko: "휴대폰 사진 폴더 `DCIM/100APPLE`에 `IMG_0411.JPG`와, 뒤에 고객 목록 ZIP을 붙인 `IMG_0412.JPG`를 두고, `Downloads/wallpaper.jpg`를 하나 더 두었다."
+fixture:
+  - path: phone/DCIM/100APPLE/IMG_0411.JPG
+    base64: |
+      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
+      qWS0f//Z
+  - path: phone/DCIM/100APPLE/IMG_0412.JPG
+    base64: |
+      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
+  - path: phone/Downloads/wallpaper.jpg
+    base64: |
+      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
+      qWS0f//Z
+steps:
+  - tool: scan_evidence
+    note_ko: "사건 만들기"
+    args:
+      evidence_path: ${EVIDENCE}
+      case_id: phone-steg
+  - tool: detect_steganography
+    note_ko: "결함 호출: 사진 폴더 전체 검사"
+    args:
+      target_path: ${EVIDENCE}/phone
+  - tool: detect_steganography
+    note_ko: "비교 호출: 같은 폴더의 IMG_0412.JPG 하나만 검사"
+    args:
+      target_path: ${EVIDENCE}/phone/DCIM/100APPLE/IMG_0412.JPG
+  - tool: get_raw_output
+    note_ko: "비교 호출: 파일 하나 검사의 결과 원문"
+    args:
+      source_name: steg.detection
+expect:
+  - step: 2
+    note_ko: "폴더에 사진이 세 장인데 한 장만 보고 숨긴 데이터가 없다고 답한다"
+    contains: 'No steganographic content detected in 1 files'
+  - step: 2
+    contains: '"files_scanned": 1,'
+  - step: 3
+    note_ko: "파일 하나로 부르면 결과 2줄을 적재한다"
+    contains: '"result_count": 2,'
+  - step: 4
+    note_ko: "같은 도구가 파일 하나로는 JPEG 뒤에 붙은 ZIP을 찾는다"
+    regex: 'IMG_0412\.JPG[^"]*appended|IMG_0412\.JPG: \d+ bytes after JPEG EOI'

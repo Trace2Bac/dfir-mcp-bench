@@ -188,10 +188,10 @@ const RULES: PocRule[] = [
 const TEMP_ROOT = /(?:\/private)?(?:\/tmp|\/var\/folders\/[^/\s]+\/[^/\s]+\/T)\/tmp[A-Za-z0-9_]+\/(evidence|db|outside|stubs)\b/g;
 const PLACEHOLDER: Record<string, string> = {evidence: 'EVIDENCE', db: 'DB_DIR', outside: 'OUTSIDE', stubs: 'STUBS'};
 const unTemp = (s: string) => s.replace(TEMP_ROOT, (_, root: string) => `\${${PLACEHOLDER[root]}}`);
-// Control characters (other than tab and line breaks) as \xNN, so the page
+// Control characters (other than tab and line breaks, C1 too) as \xNN, so the page
 // shows them and the HTML stays valid.
 const visible = (s: string) =>
-  s.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, c => `\\x${c.charCodeAt(0).toString(16).padStart(2, '0')}`);
+  s.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]/g, c => `\\x${c.charCodeAt(0).toString(16).padStart(2, '0')}`);
 
 // A field in the page's language: <key>_<locale>, else <key>. The new fields
 // are only written in Korean (<key>_ko), so the English page falls back to it.

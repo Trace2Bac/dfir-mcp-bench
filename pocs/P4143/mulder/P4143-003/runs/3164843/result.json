@@ -1,0 +1,40 @@
+{
+  "case_id": "P4143-003",
+  "problem": "P4143",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "source-vs-result",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: run_zeek_analysis only; the other cuts named in the case (run_bulk_extractor, run_tcpflow, run_suricata, query_sqlite_from_image, extract_file_by_inode, index_app_files) are not run",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "응답은 dns 레코드 360건, 주목할 것 30건이라 한다",
+      "regex": "log_type\\\\\": \\\\\"dns\\\\\", \\\\\"record_count\\\\\": 360, [^}]*\\\\\"notable_count\\\\\": 30",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "응답은 전체 출력을 색인했다고 안내한다",
+      "contains": "Full output indexed as 'zeek.summary'",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "적재된 `zeek.dns`는 360건이 아니라 100여 줄이다",
+      "regex": "\"source_name\": \"zeek.dns\",[^}]*\"line_count\": 1[01]\\d,",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "캡처에 있는 cdn-sync 질의가 사건 어디에서도 검색되지 않는다",
+      "regex": "\"result_count\": 0,\\s*\"total_matches\": 0",
+      "ok": true
+    }
+  ],
+  "image": "sha256:d8473f52e763cb0fdbec4603730411152d71b7a05345c56fbc458c5ff6f08a35",
+  "ran_at": "2026-11-28T06:05:33+00:00"
+}

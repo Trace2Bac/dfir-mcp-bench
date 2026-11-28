@@ -1,0 +1,34 @@
+{
+  "case_id": "P2055-028",
+  "problem": "P2055",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "source-vs-result",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: shows the 1,000-row SMS limit of parse_android_artifacts only; the other Android types and parse_ios_artifacts' limits are not run",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "문자 적재가 success이고 머리글 포함 1,002줄(문자 1,000건)만 적재된다",
+      "regex": "\"status\": \"success\"[\\s\\S]*\\\\\"line_count\\\\\": 1002\\b",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "적재된 문자에서 가장 오래된 메시지가 0건이다",
+      "regex": "\"status\": \"success\"[\\s\\S]*\"total_matches\": 0\\b",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "DB 문자열에서는 같은 메시지가 나온다",
+      "regex": "\"total_matches\": 1\\b",
+      "ok": true
+    }
+  ],
+  "image": "sha256:affe5d81cb18f5a6ab352ac5de196c3dfc7537814e6a498c80dac2de50be2688",
+  "ran_at": "2026-11-28T05:37:32+00:00"
+}

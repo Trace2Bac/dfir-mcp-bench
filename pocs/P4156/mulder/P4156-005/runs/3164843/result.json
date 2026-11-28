@@ -1,0 +1,34 @@
+{
+  "case_id": "P4156-005",
+  "problem": "P4156",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "network",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: the default ip-api query is shown; the analyst prompt's instruction is cited from the source, not run (no model)",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 3,
+      "note_ko": "응답에 ip-api의 답이 실린다(외부 질의가 일어났다)",
+      "regex": "\"source\": \"ip-api\",\\s*\"ioc\": \"198\\.51\\.100\\.23\",[^}]*\"error\": \"reserved range\"",
+      "ok": true
+    },
+    {
+      "file_contains": "${OUTSIDE}/received.log",
+      "note_ko": "키 없이 ip-api.com에 조사 주소를 평문 HTTP로 보낸다",
+      "text": "proxy: GET http://ip-api.com/json/198.51.100.23?",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${OUTSIDE}/received.log",
+      "note_ko": "키가 없는 서비스(AbuseIPDB·VirusTotal)로는 가지 않는다(외부로 간 것은 기본 ip-api 질의다)",
+      "text": "CONNECT",
+      "ok": true
+    }
+  ],
+  "image": "sha256:23a0e005d88a3be509faa34b4bd211866197acc30626cd0f44c1afec0e6a51c8",
+  "ran_at": "2026-11-28T06:16:48+00:00"
+}

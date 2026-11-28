@@ -1,0 +1,50 @@
+# Matrix case P4101-023: error_response (helpers.py) returns a plain dict with
+# status "error"; FastMCP sends it as an ordinary tool result, so the MCP
+# result's isError stays false. Only an exception that escapes the tool (or an
+# argument the schema rejects) reaches the client with isError true.
+case_id: P4101-023
+problem: P4101
+server: mulder
+variant: mulder-3164843
+commit: 3164843baf74c7fe69e7121dbd6150f8f77ce660
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "증거 폴더에 없는 경로(회전된 로그의 원래 이름 등)를 읽으려는 호출은 조사 중 흔히 생기고, 이런 실패는 모두 `error_response`를 거친다."
+coverage: "partial: one error_response path (read_evidence_file, file not found) is shown; every other tool that returns error_response behaves the same way"
+coverage_ko: "`read_evidence_file`의 파일 없음 오류 하나만 보인다. `error_response`를 쓰는 다른 도구도 같은 방식으로 답한다."
+summary: read_evidence_file on a path that does not exist answers with status "error" and "File not found", but the MCP result has isError false; the same tool given a max_bytes the schema rejects comes back with isError true.
+summary_ko: "없는 경로로 `read_evidence_file`을 부르면 본문은 `status: error`, `File not found`인데 MCP 결과의 `isError`는 false다. 같은 도구에 스키마가 거부하는 `max_bytes`를 주면 `isError: true`로 온다."
+defect_ko: "이 서버는 도구가 알아챈 실패를 `status: error`가 든 보통 결과로 보내고 MCP의 `isError`를 켜지 않는다. 정상이라면 실패한 호출은 `isError: true`로 알려야 한다. `isError`로 성공·실패를 가르는 클라이언트와 모델은 이 호출을 성공으로 처리한다."
+setup_ko: "로그가 회전되어 `var/log/auth.log.1`만 있는 증거 폴더에서 `var/log/auth.log`를 읽게 했다."
+fixture:
+  - path: var/log/auth.log.1
+    text: |
+      Mar  3 09:41:05 web01 sshd[1388]: Failed password for invalid user admin from 198.51.100.23 port 40122 ssh2
+      Mar  3 10:12:01 web01 sshd[2211]: Accepted password for root from 198.51.100.23 port 51122 ssh2
+      Mar  3 10:14:20 web01 useradd[2290]: new user: name=backup2, UID=1002, GID=1002, home=/home/backup2, shell=/bin/bash, from=/dev/pts/1
+steps:
+  - tool: scan_evidence
+    note_ko: "준비: 사건 만들기"
+    args:
+      evidence_path: ${EVIDENCE}
+      case_id: p4101-023
+  - tool: read_evidence_file
+    note_ko: "결함 호출: 없는 경로 읽기"
+    args:
+      file_path: ${EVIDENCE}/var/log/auth.log
+  - tool: read_evidence_file
+    note_ko: "비교 호출: 스키마가 거부하는 인자(`max_bytes: \"all\"`)로 부르기"
+    args:
+      file_path: ${EVIDENCE}/var/log/auth.log.1
+      max_bytes: all
+expect:
+  - step: 2
+    note_ko: "본문은 실패(`status: error`, 파일 없음)다"
+    regex: '"status": "error"[\s\S]*File not found'
+  - step: 2
+    note_ko: "그런데 MCP 결과의 `isError`는 꺼져 있다"
+    is_error: false
+  - step: 3
+    note_ko: "같은 서버도 스키마 오류는 `isError: true`로 보낸다(클라이언트가 실패 표시를 받을 수 있다)"
+    is_error: true

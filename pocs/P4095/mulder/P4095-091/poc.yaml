@@ -1,0 +1,106 @@
+# Matrix case P4095-091: scan_hidden_processes takes PIDs in psscan minus PIDs
+# in pslist (core.py). It warns only when psscan is missing; with psscan
+# indexed and pslist not, the pslist set is empty and every psscan PID is
+# reported as hidden, with no hint, although the tool description says the
+# result is empty when psscan or pslist data is not yet indexed.
+# No Windows memory image is shipped. The stub named vol stands in for
+# Volatility 3 2.28.2 (/usr/local/bin/vol in the image) and prints the quick
+# text renderer's layout for windows.psscan.PsScan and windows.pslist.PsList
+# (banner, blank line, the plugins' TreeGrid columns, blank line, one
+# tab-separated row per process). psscan lists the same ten live processes as
+# pslist plus one that has exited (ExitTime set), as psscan does.
+case_id: P4095-091
+problem: P4095
+server: mulder
+variant: mulder-3164843
+commit: 3164843baf74c7fe69e7121dbd6150f8f77ce660
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "숨은 프로세스를 찾으려는 모델이 psscan만 먼저 돌리고(서버의 안내 문구도 `run_volatility('psscan', ...)`를 권한다) `scan_hidden_processes`를 부르는 일은 있을 수 있고, pslist가 실패한 이미지에서도 같은 상태가 된다."
+coverage: "partial: Volatility is a stub that prints the real text layout; the comparison is the same evidence after pslist is indexed"
+coverage_ko: "Volatility는 실제 출력 형식을 따른 stub이다. 비교는 pslist를 적재한 뒤의 같은 증거다."
+summary: >-
+  With only psscan indexed, scan_hidden_processes answers success with all
+  eleven psscan processes (System, lsass.exe, explorer.exe, ...) as hidden and
+  no hint that pslist is missing; after pslist is indexed the same call
+  returns only the one exited process.
+summary_ko: "psscan만 적재된 상태에서 `scan_hidden_processes`는 psscan의 프로세스 11개 전부(`System`, `lsass.exe`, `explorer.exe` 등)를 숨은 프로세스로 돌려주고, pslist가 없다는 안내는 없다. pslist를 적재한 뒤 같은 호출은 종료된 프로세스 1개만 돌려준다."
+defect_ko: "이 서버는 비교 대상인 pslist가 없는데도 psscan의 모든 PID를 숨은 프로세스로 내고 pslist 부재를 알리지 않는다. 정상이라면 도구 설명대로 빈 결과와 pslist를 먼저 돌리라는 안내를 줘야 한다. 모델은 `lsass.exe`·`explorer.exe` 같은 정상 프로세스가 연결 목록에서 숨겨졌다(루트킷)고 잘못 안다."
+setup_ko: "Windows 메모리 덤프 `mem/WKS-0412.raw`를 넣고, Volatility 3(stub)로 psscan만 먼저 적재했다. 비교로 pslist를 적재한 뒤 다시 불렀다."
+fixture:
+  - path: mem/WKS-0412.raw
+    size: 1048576
+stubs:
+  - name: vol
+    text: |
+      #!/usr/bin/env python3
+      # Stand-in for Volatility 3 2.28.2: the quick text renderer's output of
+      # windows.psscan.PsScan / windows.pslist.PsList (columns from the
+      # plugins' TreeGrid in the image), exit code 0.
+      import sys
+      plugin = sys.argv[-1]
+      live = [
+          ("4", "0", "System", "0xe58f4c46e040", "158", "-", "N/A", "False", "2024-11-12 07:58:11.000000 UTC", "N/A"),
+          ("108", "4", "Registry", "0xe58f4c4b2080", "4", "-", "N/A", "False", "2024-11-12 07:58:05.000000 UTC", "N/A"),
+          ("344", "4", "smss.exe", "0xe58f4f7a9040", "2", "-", "N/A", "False", "2024-11-12 07:58:11.000000 UTC", "N/A"),
+          ("452", "440", "csrss.exe", "0xe58f50a5e140", "11", "-", "0", "False", "2024-11-12 07:58:14.000000 UTC", "N/A"),
+          ("528", "440", "wininit.exe", "0xe58f50b1d080", "1", "-", "0", "False", "2024-11-12 07:58:14.000000 UTC", "N/A"),
+          ("668", "528", "services.exe", "0xe58f50b8f0c0", "7", "-", "0", "False", "2024-11-12 07:58:14.000000 UTC", "N/A"),
+          ("684", "528", "lsass.exe", "0xe58f50b93080", "9", "-", "0", "False", "2024-11-12 07:58:14.000000 UTC", "N/A"),
+          ("812", "668", "svchost.exe", "0xe58f50c1e2c0", "18", "-", "0", "False", "2024-11-12 07:58:15.000000 UTC", "N/A"),
+          ("4120", "4096", "explorer.exe", "0xe58f5230a080", "71", "-", "1", "False", "2024-11-12 08:01:37.000000 UTC", "N/A"),
+          ("6232", "4120", "powershell.exe", "0xe58f52d71080", "14", "-", "1", "False", "2024-11-12 08:26:02.000000 UTC", "N/A"),
+      ]
+      exited = [("5980", "6232", "rundll32.exe", "0xe58f52f4e080", "0", "-", "1", "False", "2024-11-12 08:26:31.000000 UTC", "2024-11-12 08:26:33.000000 UTC")]
+      if plugin.endswith("PsScan"):
+          rows = sorted(live + exited, key=lambda r: r[3])
+      elif plugin.endswith("PsList"):
+          rows = live
+      else:
+          sys.stdout.write("Volatility 3 Framework 2.28.2\n")
+          sys.exit(1)
+      out = ["Volatility 3 Framework 2.28.2", "",
+             "PID\tPPID\tImageFileName\tOffset(V)\tThreads\tHandles\tSessionId\tWow64\tCreateTime\tExitTime\tFile output", ""]
+      out += ["\t".join(r + ("Disabled",)) for r in rows]
+      sys.stdout.write("\n".join(out) + "\n")
+env:
+  PATH: ${STUBS}:${PATH}
+steps:
+  - list_tools: true
+    note_ko: "도구 설명 확인"
+  - tool: scan_evidence
+    note_ko: "준비: 사건 만들기"
+    args:
+      evidence_path: ${EVIDENCE}
+      case_id: p4095-091
+  - tool: run_volatility
+    note_ko: "준비: psscan만 적재"
+    args:
+      plugin: psscan
+      memory_path: ${EVIDENCE}/mem/WKS-0412.raw
+  - tool: scan_hidden_processes
+    note_ko: "결함 호출: pslist 없이 숨은 프로세스 찾기"
+  - tool: run_volatility
+    note_ko: "비교 준비: pslist 적재"
+    args:
+      plugin: pslist
+      memory_path: ${EVIDENCE}/mem/WKS-0412.raw
+  - tool: scan_hidden_processes
+    note_ko: "비교 호출: pslist를 적재한 뒤 같은 호출"
+expect:
+  - step: 1
+    note_ko: "도구 설명은 psscan이나 pslist가 없으면 빈 결과라고 한다"
+    contains: "Empty results when psscan or pslist data is not yet indexed."
+  - step: 4
+    note_ko: "psscan의 프로세스 11개가 모두 숨은 프로세스로 나온다"
+    regex: '"status": "success"[\s\S]*"result_count": 11\b'
+  - step: 4
+    note_ko: "그중에는 lsass.exe(PID 684)·explorer.exe(PID 4120) 같은 정상 프로세스가 있다"
+    regex: '"pid": 684,[\s\S]*"pid": 4120,'
+  - step: 4
+    note_ko: "pslist가 없다는 안내(hint)가 없다"
+    not_contains: '"hint"'
+  - step: 6
+    note_ko: "pslist가 있으면 같은 증거에서 숨은 것으로 나오는 것은 종료된 rundll32.exe 1개뿐이다"
+    regex: '"result_count": 1\b'

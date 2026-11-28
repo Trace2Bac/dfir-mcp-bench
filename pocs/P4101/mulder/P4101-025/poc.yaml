@@ -1,0 +1,79 @@
+# Matrix case P4101-025: run_volatility (and run_bulk_extractor,
+# run_zeek_analysis, run_suricata, run_pcap_analysis mode=all) hand their
+# sub-result to tool_response, which always answers status "success" with the
+# sub-result only inside a 500-character JSON "preview", plus a hint that the
+# full output is indexed under the source name. When the Volatility plugin
+# fails, the sub-result says status "error", nothing is indexed, and the
+# top-level answer is still success with "Full output indexed as
+# 'volatility.pslist'".
+# No Windows memory image is shipped. The stub named vol stands in for
+# Volatility 3 2.28.2 (/usr/local/bin/vol in the image) and prints what it
+# prints when the kernel's symbol table cannot be found (no matching ISF, and
+# the PDB cannot be downloaded): the "Unsatisfied requirement ...
+# symbol_table_name" text on stdout, the "Unable to validate the plugin
+# requirements" line on stderr, exit code 1. The message layout was taken from
+# a run of that vol in the image.
+case_id: P4101-025
+problem: P4101
+server: mulder
+variant: mulder-3164843
+commit: 3164843baf74c7fe69e7121dbd6150f8f77ce660
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "Volatility 3는 커널 심볼을 Microsoft 서버에서 내려받아야 하는 경우가 많아, 인터넷이 막힌 분석 환경이나 새 Windows 빌드에서는 플러그인이 심볼 요구 조건 미충족으로 실패하는 일이 흔하다."
+coverage: "partial: run_volatility with a failing plugin is shown (Volatility is a stub); run_bulk_extractor, run_zeek_analysis, run_suricata, run_pcap_analysis mode=all and the batch status completed are not"
+coverage_ko: "실패하는 플러그인을 준 `run_volatility`만 보인다(Volatility는 stub). `run_bulk_extractor`·`run_zeek_analysis`·`run_suricata`·`run_pcap_analysis` mode=all과 배치의 `completed` 상태는 보이지 않는다."
+summary: >-
+  When Volatility cannot load the kernel symbol table, run_volatility pslist
+  answers status success with the hint "Full output indexed as
+  'volatility.pslist'", the plugin's error appearing only inside the preview
+  string; get_raw_output then finds no volatility.pslist source.
+summary_ko: "Volatility가 커널 심볼 테이블을 불러오지 못하면 `run_volatility`(pslist)는 `status: success`와 \"Full output indexed as 'volatility.pslist'\" 안내를 돌려주고, 플러그인 오류는 `preview` 문자열 안에만 있다. 이어 `get_raw_output`은 `volatility.pslist` source를 찾지 못한다."
+defect_ko: "이 서버는 하위 도구가 실패해도 최상위 상태를 `success`로 두고 결과가 적재됐다고 안내한다. 정상이라면 최상위 `status`가 `error`여야 하고 없는 source를 안내하지 않아야 한다. 상태로 판단하는 모델은 프로세스 목록이 적재됐다고 보고, 검색 결과가 없으면 프로세스가 없다고 잘못 안다."
+setup_ko: "Windows 메모리 덤프 `mem/WKS-0412.raw`를 넣고, 커널 심볼을 찾지 못하는 Volatility 3(stub)로 pslist를 돌렸다."
+fixture:
+  - path: mem/WKS-0412.raw
+    size: 1048576
+stubs:
+  - name: vol
+    text: |
+      #!/bin/sh
+      # Stand-in for Volatility 3 2.28.2 when the kernel symbol table is not
+      # found: same stdout text, stderr line and exit code as the real vol.
+      plugin=""
+      for a in "$@"; do plugin="$a"; done
+      short=$(echo "$plugin" | awk -F. '{print $NF}')
+      printf 'Volatility 3 Framework 2.28.2\n\nUnsatisfied requirement plugins.%s.kernel.symbol_table_name: \n\nA symbol table requirement was not fulfilled.  Please verify that:\n\tThe associated translation layer requirement was fulfilled\n\tYou have the correct symbol file for the requirement\n\tThe symbol file is under the correct directory or zip file\n\tThe symbol file is named appropriately or contains the correct banner\n\n' "$short"
+      printf '\nProgress:  100.00\t\tPDB scanning finished                  \nUnable to validate the plugin requirements: ['"'"'plugins.%s.kernel.symbol_table_name'"'"']\n' "$short" >&2
+      exit 1
+env:
+  PATH: ${STUBS}:${PATH}
+steps:
+  - tool: scan_evidence
+    note_ko: "준비: 사건 만들기"
+    args:
+      evidence_path: ${EVIDENCE}
+      case_id: p4101-025
+  - tool: run_volatility
+    note_ko: "결함 호출: 프로세스 목록(pslist) 추출"
+    args:
+      plugin: pslist
+      memory_path: ${EVIDENCE}/mem/WKS-0412.raw
+  - tool: get_raw_output
+    note_ko: "비교 호출: 적재됐다는 volatility.pslist 읽기"
+    args:
+      source_name: volatility.pslist
+expect:
+  - step: 2
+    note_ko: "최상위 상태는 성공이고 결과가 volatility.pslist로 적재됐다고 안내한다"
+    regex: '^\{\s*"tool_call_id": "[^"]+",\s*"status": "success",\s*"source": "volatility\.pslist"[\s\S]*Full output indexed as ''volatility\.pslist'''
+  - step: 2
+    note_ko: "플러그인 실패(status error, 심볼 요구 조건 미충족)는 preview 문자열 안에만 있다"
+    regex: '"preview": "[^\n]*\\"status\\": \\"error\\"[^\n]*Unable to validate the plugin requirements'
+  - step: 2
+    note_ko: "오류 표시가 없다"
+    is_error: false
+  - step: 3
+    note_ko: "안내한 source에는 아무것도 적재되지 않았다(빈 결과도 success로 온다)"
+    regex: '"total_windows": 0,[\s\S]*"raw_text": ""'

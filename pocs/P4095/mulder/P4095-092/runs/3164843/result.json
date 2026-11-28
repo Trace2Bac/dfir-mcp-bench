@@ -1,0 +1,40 @@
+{
+  "case_id": "P4095-092",
+  "problem": "P4095",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: stegdetect failing on grayscale JPEGs is shown; timeouts and zsteg failures are dropped the same way (zsteg is not in the image)",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "두 파일을 검사했고 숨긴 내용이 없다고 답한다",
+      "regex": "\"message\": \"No steganographic content detected in 2 files\"[\\s\\S]*\"files_scanned\": 2",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "stegdetect를 썼다고 알린다",
+      "contains": "\"stegdetect\": true",
+      "ok": true
+    },
+    {
+      "file_contains": "${OUTSIDE}/stegdetect-stderr.log",
+      "note_ko": "stegdetect는 scan_0007.jpg를 분석하지 못했다(RGB가 아님)",
+      "text": "scan_0007.jpg : error: is not a RGB image",
+      "ok": true
+    },
+    {
+      "file_contains": "${OUTSIDE}/stegdetect-stderr.log",
+      "note_ko": "scan_0008.jpg도 분석하지 못했다",
+      "text": "scan_0008.jpg : error: is not a RGB image",
+      "ok": true
+    }
+  ],
+  "image": "sha256:e171f8c377dd44b64826f199250c0461378484240bbb9d4e4ebc72f8fc7848ee",
+  "ran_at": "2026-11-28T05:48:45+00:00"
+}

@@ -1,0 +1,40 @@
+{
+  "case_id": "P4095-047",
+  "problem": "P4095",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: get_eventlog_anomalies is shown; the other fixed-source tools (list_processes_from_memory, get_process_tree, extract_mft_timeline, parse_prefetch, get_amcache, get_userassist, get_process_environment, get_process_privileges, parse_mft, parse_usn_journal, get_plaso_stats, list_partitions, get_fs_timeline, get_deleted_files) and search with a source that does not exist answer the same way but are not called",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "로그는 `ez.evtx`로 적재됐다",
+      "regex": "ez\\.evtx\\\\?\", \\\\?\"source_id\\\\?\": \\d+, \\\\?\"windows_indexed\\\\?\": [1-9]",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "없는 source를 읽고 0건을 성공으로 돌려준다",
+      "regex": "\"status\": \"success\"[\\s\\S]*\"source\": \"evtx\\.Microsoft-Windows-TerminalServices-LocalSessionManager/Operational\"[\\s\\S]*\"total_windows\": 0\\b",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "오류 표시가 없다",
+      "is_error": false,
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "같은 기간에 그 로그의 사건이 실제로 있다",
+      "regex": "\"total_matches\": [1-9]",
+      "ok": true
+    }
+  ],
+  "image": "sha256:3283b35d8b8120926e0bc0d8b8f906ba5f41b8ae919b86b1a29d70e16ea5d151",
+  "ran_at": "2026-11-28T05:47:41+00:00"
+}

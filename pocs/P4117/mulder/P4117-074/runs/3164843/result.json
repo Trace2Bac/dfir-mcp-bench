@@ -1,0 +1,52 @@
+{
+  "case_id": "P4117-074",
+  "problem": "P4117",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 3,
+      "note_ko": "텍스트 파일 2개 중 1개를 바이너리로 건너뛰었다고 적는다",
+      "regex": "\"files_discovered\": 2,[\\s\\S]*\"files_extracted\": 1,[\\s\\S]*\"files_skipped_binary\": 1,",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "적재된 것은 Connections_incoming.txt뿐이다",
+      "regex": "\"sample_files\": \\[\\s*\"Program Files/TeamViewer/Connections_incoming\\.txt\"\\s*\\]",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "크기 상한 때문에 건너뛰었다는 표시가 없다",
+      "not_regex": "(?i)too large|size limit|max_file_size|skipped_size|larger than",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "로그는 적재되지 않았다",
+      "not_contains": "teamviewer15_logfile",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "크기 상한을 올리면 건너뛴 파일이 텍스트 로그로 적재된다",
+      "regex": "\"files_skipped_binary\": 0,[\\s\\S]*\"Program Files/TeamViewer/TeamViewer15_Logfile\\.log\"",
+      "ok": true
+    },
+    {
+      "step": 6,
+      "note_ko": "건너뛴 파일은 바이너리가 아니라 TeamViewer 텍스트 로그다",
+      "regex": "=== Program Files/TeamViewer/TeamViewer15_Logfile\\.log ===\\\\nStart Logging \\(Version 15\\.59\\.3",
+      "ok": true
+    }
+  ],
+  "image": "sha256:281fd77d01fd40f693a66f843ca5a88877bcfb60c699cb5116d62f4c1059d1d0",
+  "ran_at": "2026-11-28T06:10:44+00:00"
+}

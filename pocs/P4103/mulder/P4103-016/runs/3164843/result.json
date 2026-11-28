@@ -1,0 +1,40 @@
+{
+  "case_id": "P4103-016",
+  "problem": "P4103",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "호출 전체가 오류로 끝난다",
+      "is_error": true,
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "오류 글은 원인 없는 `Error executing tool run_parallel` 한 줄이다",
+      "regex": "^Error executing tool run_parallel\\s*$",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "서버가 만들어 둔 작업별 안내가 응답에 없다",
+      "not_contains": "missing required",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "첫 작업은 실행돼 `update.ps1`의 문자열이 적재돼 있다",
+      "contains": "DownloadString",
+      "ok": true
+    }
+  ],
+  "image": "sha256:0d963905034630836c1e2e5b88c877dcd6147ca09213d90454006e950e96265b",
+  "ran_at": "2026-11-28T05:43:16+00:00"
+}

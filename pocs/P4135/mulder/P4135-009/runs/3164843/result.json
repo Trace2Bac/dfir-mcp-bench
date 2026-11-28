@@ -1,0 +1,34 @@
+{
+  "case_id": "P4135-009",
+  "problem": "P4135",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: parse_shimcache only; parse_amcache and parse_prefetch_detailed share the code but were not run (PECmd refuses to run on Linux), and parse_jump_lists, parse_lnk_files, parse_shellbags and parse_srum have no extractor that fills their source",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 3,
+      "note_ko": "CSV 98줄이 window 4개로 적재된다",
+      "regex": "\"line_count\": 98,\\s*\"windows_indexed\": 4",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "요약은 항목 4개 중 4개를 보였다고 한다",
+      "contains": "Showing 4 of 4 entries.",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "적재된 CSV에는 위치 0부터 95까지 항목 96개가 있다",
+      "regex": "\\\\n1,0,C:\\\\\\\\WINDOWS\\\\\\\\system32\\\\\\\\services\\.exe,[\\s\\S]*\\\\n1,95,",
+      "ok": true
+    }
+  ],
+  "image": "sha256:97bf9646801104eb12c8e436a2e2d0cbb6e53bb11ebacd01b620207f5f51e148",
+  "ran_at": "2026-11-28T06:11:23+00:00"
+}

@@ -1,0 +1,40 @@
+{
+  "case_id": "P2055-078",
+  "problem": "P2055",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 6,
+      "note_ko": "적재된 원문에 09:41:27의 `/dl/svchost.exe` 요청이 있다",
+      "regex": "Nov  3, 2026 09:41:27\\.\\d+ UTC\\\\t10\\.0\\.2\\.42\\\\t203\\.0\\.113\\.7\\\\tGET\\\\t/dl/svchost\\.exe",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "키워드 검색은 그 시간 범위에서 success에 0건이다",
+      "regex": "\"status\": \"success\"[\\s\\S]*\"total_matches\": 0\\b",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "같은 범위의 정규식 검색은 `pcap.http` 창 1건을 돌려준다",
+      "regex": "\"event_time\": null[\\s\\S]*\"total_matches\": 1\\b",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "정규식 검색은 2020년 범위에서도 같은 창을 돌려준다",
+      "regex": "\"event_time\": null[\\s\\S]*\"total_matches\": 1\\b",
+      "ok": true
+    }
+  ],
+  "image": "sha256:ec499f6793493d3884c03efcd50a1f2e2fccaffe1814cfa7b2ff7391936d6b7e",
+  "ran_at": "2026-11-28T05:37:41+00:00"
+}

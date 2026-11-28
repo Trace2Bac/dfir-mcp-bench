@@ -1,0 +1,40 @@
+{
+  "case_id": "P2049-101",
+  "problem": "P2049",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 3,
+      "note_ko": "로그는 기록 37줄(머리줄 포함), window 5개로 적재됐다",
+      "regex": "windows_indexed\\\\?\": 5, \\\\?\"line_count\\\\?\": 37",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "상위 10%를 요청했는데 window 5개 전부가 돌아온다",
+      "regex": "\"result_count\": 5,\\s*\"total_windows\": 5\\b",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "첫 결과는 점수 매긴 사건이 아니라 CSV 머리줄(RecordNumber,EventRecordId,…)로 시작하는 첫 window다",
+      "regex": "\"results\": \\[\\s*\\{\\s*\"window_id\": \\d+,\\s*\"source_id\": \\d+,\\s*\"line_start\": 1,[\\s\\S]*?\"raw_text\": \"\\S*RecordNumber,EventRecordId,TimeCreated",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "같은 source의 원문도 window 5개다(이상치 도구가 전체를 그대로 돌려준 것이다)",
+      "regex": "\"total_windows\": 5,\\s*\"returned_windows\": 5",
+      "ok": true
+    }
+  ],
+  "image": "sha256:558e5a96bb12e617332ee980e0f927453a641032fc776f2196153ce0b04384aa",
+  "ran_at": "2026-11-28T05:28:44+00:00"
+}

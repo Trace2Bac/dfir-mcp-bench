@@ -1,0 +1,46 @@
+{
+  "case_id": "P4135-010",
+  "problem": "P4135",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "fls 목록 236줄이 window 3개로 적재된다",
+      "regex": "\"line_count\": 236,\\s*\"windows_indexed\": 3",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "삭제 항목이 17개라고 한다",
+      "regex": "\"approx_deleted_count\": 17,[\\s\\S]*\"hint\": \"17 deleted entries found",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "같은 응답의 상위 폴더 집계는 삭제 항목 3개다",
+      "regex": "\"name\": \"Projects\",\\s*\"entries\": 3\\s*\\}\\s*\\]",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "Orion 경로 파일이 124개라 하고, 경로에 Orion이 없는 DCIM 70개를 상위 폴더로 싣는다",
+      "regex": "\"approx_file_count\": 124,\\s*\"top_directories\": \\[\\s*\\{\\s*\"name\": \"DCIM\",\\s*\"entries\": 70",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "실제 삭제 표시(`*`)가 붙은 항목은 Orion 문서 3개다",
+      "regex": "r/r 712:\\\\tProjects/Orion/Orion_Roadmap_Q2\\.docx\\\\nr/r \\* 715:\\\\tProjects/Orion/Orion_Pricing_2026\\.xlsx\\\\nr/r \\* 718:\\\\tProjects/Orion/Orion_Customer_List\\.xlsx\\\\nr/r \\* 721:\\\\tProjects/Orion/Orion_Source_Escrow\\.zip\\\\nr/r 724:",
+      "ok": true
+    }
+  ],
+  "image": "sha256:5c359592794744229030fcd08edf9b8a6330a565ad0e2ad0ad1ef9355e8ba037",
+  "ran_at": "2026-11-28T06:08:38+00:00"
+}

@@ -1,4 +1,4 @@
-import {useState, type ReactNode} from 'react';
+import {Fragment, useState, type ReactNode} from 'react';
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import Layout from '@theme/Layout';
@@ -18,6 +18,7 @@ import type {
 } from '../../../plugins/poc-data';
 import styles from '../ExperimentPage/styles.module.css';
 import poc from './styles.module.css';
+import {inline} from '../RichText';
 import {matrixCaseUrl, modelName, realismText, runDate, serverCommitUrl, shortCommit, shortDigest} from './links';
 
 // One PoC in the order of a bug report: title, summary, what is wrong, the
@@ -59,15 +60,15 @@ function callLine(step: PocStep): string {
 
 // ---- Title and meta line
 
-function TitleBlock({data}: {data: PocData}) {
+function TitleBlock({data, as: Title}: {data: PocData; as: 'h1' | 'h2'}) {
   const commitUrl = serverCommitUrl(data.repo, data.commit);
   return (
     <>
-      <h1 className={poc.title}>
+      <Title className={poc.title}>
         <span>
           {data.caseId} <span className={poc.titleProblem}>· {data.problem}</span>
         </span>
-      </h1>
+      </Title>
       <div className={poc.meta}>
         <span>
           {data.server}{' '}
@@ -185,7 +186,7 @@ function Setup({data}: {data: PocData}) {
   const sideBySide = data.display === 'source-vs-result';
   return (
     <Section title={translate({id: 'poc.setup.title', message: 'Setup'})}>
-      {data.setup && <p>{data.setup}</p>}
+      {data.setup && <p>{inline(data.setup)}</p>}
       {data.conditions.length > 0 && (
         <p className={styles.small}>
           <Translate id="poc.how.conditions">The same calls are made once under each condition:</Translate>{' '}
@@ -236,7 +237,7 @@ function StepsToReproduce({data}: {data: PocData}) {
       <ol className={poc.calls}>
         {steps.map(s => (
           <li key={s.n}>
-            {s.note && <div>{s.note}</div>}
+            {s.note && <div>{inline(s.note)}</div>}
             <code className={clsx(poc.callLine, !s.note && poc.callOnly)}>{callLine(s)}</code>
           </li>
         ))}
@@ -318,17 +319,35 @@ function StepHead({step}: {step: PocStep}) {
 
 function Labelled({label, children}: {label: ReactNode; children: ReactNode}) {
   return (
-    <div className={styles.column}>
+    <div className={poc.labelled}>
       <div className={poc.columnLabel}>{label}</div>
       {children}
     </div>
   );
 }
 
+// A response longer than this is shown folded, with a button to open it.
+const FOLD_CHARS = 1200;
+
+function shownChars(step: PocStep): number {
+  return step.pieces.reduce((n, p) => n + ('t' in p ? p.t.length : 0), 0);
+}
+
 function Step({data, run, step, transcript}: {data: PocData; run: PocRun; step: PocStep; transcript: string}) {
+  const foldable = shownChars(step) > FOLD_CHARS;
+  const [open, setOpen] = useState(false);
   const response = (
     <Labelled label={translate({id: 'poc.step.response', message: 'Response'})}>
-      <Response step={step} transcript={transcript} />
+      <div className={clsx(foldable && (open ? poc.unfolded : poc.folded))}>
+        <Response step={step} transcript={transcript} />
+      </div>
+      {foldable && (
+        <button type="button" className={poc.foldButton} aria-expanded={open} onClick={() => setOpen(!open)}>
+          {open
+            ? translate({id: 'poc.step.less', message: 'Show less'})
+            : translate({id: 'poc.step.more', message: 'Show more'})}
+        </button>
+      )}
     </Labelled>
   );
   let body: ReactNode = response;
@@ -430,7 +449,7 @@ function FilesAfter({run}: {run: PocRun}) {
 // One tab per condition; every panel is in the HTML, so all of them print.
 function ConditionTabs({runs, children}: {runs: PocRun[]; children: (run: PocRun) => ReactNode}) {
   const [tab, setTab] = useState(0);
-  if (runs.length <= 1) return <>{runs.map(r => children(r))}</>;
+  if (runs.length <= 1) return <>{runs.map(r => <Fragment key={r.condition}>{children(r)}</Fragment>)}</>;
   return (
     <>
       <div className={styles.tabs} role="tablist">
@@ -723,7 +742,7 @@ function ModelImpact({model}: {model: PocModel}) {
         <ul>
           {model.rules.map(r => (
             <li key={r.n} title={`${r.rule}: ${JSON.stringify(r.value)}`}>
-              {r.note || modelRuleText(r)}
+              {r.note ? inline(r.note) : modelRuleText(r)}
             </li>
           ))}
         </ul>
@@ -865,7 +884,7 @@ function Judgement({data}: {data: PocData}) {
                     {translate({id: 'poc.why.call', message: 'step {n}'}, {n: c.step})}
                   </span>
                 )}
-                {c.note || checkSentence(c)}
+                {c.note ? inline(c.note) : checkSentence(c)}
               </div>
               <code className={poc.rule}>{ruleText(c)}</code>
             </div>
@@ -883,11 +902,11 @@ function Realism({data}: {data: PocData}) {
     <Section title={translate({id: 'poc.realism.title', message: 'Realism'})}>
       <p>
         <span className={poc.realismLabel}>{realismText(data.realism)}</span>{' '}
-        {data.realismNote}
+        {inline(data.realismNote)}
       </p>
       {data.coverage === 'partial' && (
         <p>
-          <Translate id="poc.coverage.partial" values={{note: data.coverageNote}}>
+          <Translate id="poc.coverage.partial" values={{note: inline(data.coverageNote)}}>
             {'Shows only part of the case: {note}'}
           </Translate>
         </p>
@@ -998,9 +1017,37 @@ function Details({data, transcript, repoTree}: {data: PocData; transcript: strin
   );
 }
 
-export default function PocPage({data}: {data: PocData}) {
+// The case as one block: on its own page and in the right column of /pocs.
+// `as` is the title's heading; the list page has its own h1.
+export function PocDetail({data, as: Title = 'h1'}: {data: PocData; as?: 'h1' | 'h2'}) {
   const repoTree = useRepoTree();
   const transcript = `${repoTree.replace('/tree/', '/blob/')}/${data.runDir}/transcript.json`;
+  return (
+    <>
+      <TitleBlock data={data} as={Title} />
+      {data.summary && (
+        <Section title={translate({id: 'poc.summary', message: 'Summary'})}>
+          <p>{inline(data.summary)}</p>
+        </Section>
+      )}
+      {data.defect && data.defect !== data.summary && (
+        <Section title={translate({id: 'poc.defect', message: 'Problem'})}>
+          <p>{inline(data.defect)}</p>
+        </Section>
+      )}
+      <Setup data={data} />
+      <StepsToReproduce data={data} />
+      <WhatCameBack data={data} transcript={transcript} />
+      {data.model && <ModelImpact model={data.model} />}
+      <Judgement data={data} />
+      <Realism data={data} />
+      <Details data={data} transcript={transcript} repoTree={repoTree} />
+    </>
+  );
+}
+
+// /pocs/<case-id>: the matrix links here.
+export default function PocPage({data}: {data: PocData}) {
   return (
     <Layout title={data.caseId} description={data.summary}>
       <main className={clsx(styles.main, poc.page)}>
@@ -1008,26 +1055,12 @@ export default function PocPage({data}: {data: PocData}) {
           <Link to="/pocs">
             <Translate id="pocs.title">PoC results</Translate>
           </Link>{' '}
-          / <code>{data.server}</code>
+          / <code>{data.server}</code> ·{' '}
+          <Link to={`/pocs?case=${data.caseId}`}>
+            <Translate id="poc.inList">Show in the list</Translate>
+          </Link>
         </div>
-        <TitleBlock data={data} />
-        {data.summary && (
-          <Section title={translate({id: 'poc.summary', message: 'Summary'})}>
-            <p>{data.summary}</p>
-          </Section>
-        )}
-        {data.defect && data.defect !== data.summary && (
-          <Section title={translate({id: 'poc.defect', message: 'Problem'})}>
-            <p>{data.defect}</p>
-          </Section>
-        )}
-        <Setup data={data} />
-        <StepsToReproduce data={data} />
-        <WhatCameBack data={data} transcript={transcript} />
-        {data.model && <ModelImpact model={data.model} />}
-        <Judgement data={data} />
-        <Realism data={data} />
-        <Details data={data} transcript={transcript} repoTree={repoTree} />
+        <PocDetail data={data} />
       </main>
     </Layout>
   );

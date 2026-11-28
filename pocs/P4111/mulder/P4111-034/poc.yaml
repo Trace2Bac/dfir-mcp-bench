@@ -1,0 +1,85 @@
+# Matrix case P4111-034: each window's event_time comes from
+# _parse_timestamp (extract_helpers.py 52-100), which takes the first
+# date-shaped string in the window. An ISO time keeps only
+# YYYY-MM-DDTHH:MM:SS (the regex stops before the fraction and the offset),
+# and a classic syslog time, which has no year, gets the year the analysis
+# runs in (reference_year is never passed, line 211). Neither is said in any
+# response.
+#
+# Evidence: two Linux auth logs in their distributions' default formats.
+#   web01 (Debian 11, rsyslog traditional format, no year): auth.log.1,
+#     rotated on 2025-12-29, with an SSH root logon from 198.51.100.23 on
+#     Dec 28 03:14:07 (local time).
+#   web02 (Ubuntu 24.04, rsyslog high-precision RFC 3339 format):
+#     auth.log, with a logon at 2025-12-28T03:20:15.482113+09:00.
+case_id: P4111-034
+problem: P4111
+server: mulder
+variant: mulder-3164843
+commit: 3164843baf74c7fe69e7121dbd6150f8f77ce660
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "연도 없는 전통 syslog 형식과 오프셋이 붙은 RFC 3339 형식은 각각 Debian·RHEL 계열과 Ubuntu 24.04의 기본 로그 형식이고, 지난해 로그를 올해 분석하는 일도 흔하다."
+coverage: "partial: the dropped offset and fraction and the assumed year are shown; a window whose first date is not the event time (detect_masquerading's mtime) is not"
+coverage_ko: "오프셋·소수점이 버려지는 것과 연도를 지어 넣는 것만 보인다. window의 첫 날짜가 사건 시각이 아닌 경우(`detect_masquerading`의 `mtime`)는 보이지 않는다."
+summary: >-
+  After run_strings indexes web01's auth.log.1 (rotated 2025-12-29, a root
+  logon from 198.51.100.23 at "Dec 28 03:14:07") and web02's auth.log
+  ("2025-12-28T03:20:15.482113+09:00"), get_timeline for all of 2025-12-28
+  returns only web02's window, with event_time 2025-12-28T03:20:15 (offset and
+  fraction gone), and web01's logon comes back only when the range covers the
+  analysis year, with event_time <analysis year>-12-28T03:14:07.
+summary_ko: "web01의 `auth.log.1`(2025-12-29에 순환, 198.51.100.23의 root 로그온이 `Dec 28 03:14:07`)과 web02의 `auth.log`(`2025-12-28T03:20:15.482113+09:00`)를 `run_strings`로 적재하면, 2025-12-28 하루의 `get_timeline`에는 web02의 window만 나오고 그 `event_time`은 오프셋·소수점이 빠진 `2025-12-28T03:20:15`다. web01의 로그온은 범위를 분석하는 해로 옮겨야 `<분석 연도>-12-28T03:14:07`로 나온다."
+defect_ko: "이 서버는 window 시각을 뽑을 때 ISO 시각의 오프셋·소수점을 버리고, 연도 없는 syslog 시각에는 분석하는 해를 넣으며, 그 사실을 알리지 않는다. 정상이라면 오프셋을 반영해(또는 그대로 두어) 저장하고, 연도는 파일 시각 등 근거로 정하거나 가정했다고 밝혀야 한다. 모델은 web01 침입이 그 날에는 없었다고 보거나 미래 날짜로 적고, web02 시각을 UTC로 잘못 안다."
+setup_ko: "기본 형식이 다른 두 리눅스 서버의 인증 로그를 두었다. web01(Debian 11)은 연도 없는 전통 형식의 `auth.log.1`(2025-12-29 순환)이고, web02(Ubuntu 24.04)는 `+09:00` 오프셋이 붙은 RFC 3339 형식의 `auth.log`다. 둘 다 `run_strings`로 적재했다."
+fixture:
+  - path: web01/var/log/auth.log.1
+    mtime: "2025-12-29T00:00:01Z"
+    text: |
+      Dec 28 03:14:07 web01 sshd[2211]: Accepted password for root from 198.51.100.23 port 51122 ssh2
+      Dec 28 03:14:07 web01 sshd[2211]: pam_unix(sshd:session): session opened for user root(uid=0) by (uid=0)
+      Dec 28 03:14:07 web01 systemd-logind[512]: New session 41 of user root.
+      Dec 28 03:16:52 web01 sudo:     root : TTY=pts/0 ; PWD=/root ; USER=root ; COMMAND=/usr/bin/crontab -e
+      Dec 28 03:21:30 web01 sshd[2211]: pam_unix(sshd:session): session closed for user root
+  - path: web02/var/log/auth.log
+    mtime: "2025-12-28T18:30:00Z"
+    text: |
+      2025-12-28T03:20:15.482113+09:00 web02 sshd[1873]: Accepted publickey for deploy from 10.0.5.11 port 40022 ssh2: ED25519 SHA256:Xq3f0lB0w1m2a9JcV7mYtS8Kp4nR6eD5uH2gZ1iO0aQ
+      2025-12-28T03:20:15.490215+09:00 web02 sshd[1873]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by deploy(uid=0)
+      2025-12-28T03:20:15.512998+09:00 web02 systemd-logind[688]: New session 7 of user deploy.
+      2025-12-28T03:24:02.104431+09:00 web02 sshd[1873]: pam_unix(sshd:session): session closed for user deploy
+steps:
+  - tool: scan_evidence
+    note_ko: "준비: 사건 만들기"
+    args:
+      evidence_path: ${EVIDENCE}
+      case_id: syslog-times
+  - tool: run_strings
+    note_ko: "준비: web01 인증 로그 적재"
+    args:
+      target_path: ${EVIDENCE}/web01/var/log/auth.log.1
+  - tool: run_strings
+    note_ko: "준비: web02 인증 로그 적재"
+    args:
+      target_path: ${EVIDENCE}/web02/var/log/auth.log
+  - tool: get_timeline
+    note_ko: "결함 호출: 2025-12-28 하루의 타임라인"
+    args:
+      t_start: "2025-12-28T00:00:00"
+      t_end: "2025-12-28T23:59:59"
+  - tool: get_timeline
+    note_ko: "비교 호출: 2026년 이후 범위의 타임라인"
+    args:
+      t_start: "2026-01-01T00:00:00"
+      t_end: "2099-12-31T23:59:59"
+expect:
+  - step: 4
+    note_ko: "그날 하루에 window가 하나(web02)만 나온다"
+    regex: '"result_count": 1\b'
+  - step: 4
+    note_ko: "web02 window의 시각이 원문의 `+09:00`·소수점을 버린 `2025-12-28T03:20:15`다"
+    regex: '"event_time": "2025-12-28T03:20:15",[^}]*"raw_text": "2025-12-28T03:20:15\.482113\+09:00 web02'
+  - step: 5
+    note_ko: "web01의 2025년 로그온이 분석하는 해(2026년 이후)의 12월 28일로 나온다"
+    regex: '"event_time": "20(2[6-9]|[3-9]\d)-12-28T03:14:07",[^}]*"raw_text": "Dec 28 03:14:07 web01 sshd\[2211\]: Accepted password for root from 198\.51\.100\.23'

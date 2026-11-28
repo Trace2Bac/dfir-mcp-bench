@@ -1,0 +1,46 @@
+{
+  "case_id": "P4093-029",
+  "problem": "P4093",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: run_chainsaw only; the other 15 extraction tools and run_volatility_batch are not run",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "`mimikatz` 검색은 0건이다",
+      "regex": "total_findings\\\\\": 0\\b",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "새 검색어 호출이 최상위 success다",
+      "regex": "^\\{\\s*\"tool_call_id\": \"[^\"]+\",\\s*\"status\": \"success\"",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "실행하지 않고 건너뛰었고, 앞 검색의 `chainsaw.search`를 가리킨다",
+      "regex": "status\\\\\": \\\\\"skipped[\\s\\S]*existing_sources\\\\\": \\[\\\\\"chainsaw.search",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "그 source에는 0건 결과만 있다",
+      "contains": "Total findings: 0",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "`force=True`로 실행하면 1건이 나온다",
+      "regex": "total_findings\\\\\": 1\\b",
+      "ok": true
+    }
+  ],
+  "image": "sha256:5cbf50b88260c0fda2262056e75025a605d975812ba8b26512c08db3291de90d",
+  "ran_at": "2026-11-28T05:41:25+00:00"
+}

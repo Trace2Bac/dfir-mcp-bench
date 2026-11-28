@@ -1,0 +1,34 @@
+{
+  "case_id": "P2062-020",
+  "problem": "P2062",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: run_mvt_android with a folder is shown; run_mvt_ios drops iocs the same way",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "응답은 success다",
+      "contains": "\"status\": \"success\"",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "탐지 0건인데 요청한 폴더가 `iocs_file`로 실려 있다",
+      "regex": "detections\\\\\": 0, \\\\\"iocs_file\\\\\": \\\\\"[^\"\\\\]*/iocs/2021-07-18_nso\\\\\"",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "파일을 주면 같은 백업에서 SMS 탐지가 나온다",
+      "regex": "sms_detected\\\\\": 1",
+      "ok": true
+    }
+  ],
+  "image": "sha256:2ac4032edd38a0833038d7615e7f51de8addb4010df6e5a000bbd37315d95256",
+  "ran_at": "2026-11-28T05:34:10+00:00"
+}

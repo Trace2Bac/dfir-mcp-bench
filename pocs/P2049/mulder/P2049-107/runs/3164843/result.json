@@ -1,0 +1,52 @@
+{
+  "case_id": "P2049-107",
+  "problem": "P2049",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "response",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "dns 모드가 오류가 아닌 응답으로 돌아온다",
+      "is_error": false,
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "응답은 성공이고 pcap.dns가 적재됐다(indexed)고 한다",
+      "regex": "\"status\": \"success\"[\\s\\S]*pcap\\.dns\\\\?\"[^}]*\\\\?\"status\\\\?\": \\\\?\"indexed",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "pcap.dns에 적재된 것은 DNS 기록이 아니라 dns.resp.addr이 유효하지 않다는 tshark 오류다",
+      "regex": "tshark error \\(exit 1\\): tshark: Some fields aren't valid:\\\\n\\\\tdns\\.resp\\.addr",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "smtp 모드도 성공이고 pcap.smtp가 적재됐다고 한다",
+      "regex": "\"status\": \"success\"[\\s\\S]*pcap\\.smtp\\\\?\"[^}]*\\\\?\"status\\\\?\": \\\\?\"indexed",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "pcap.smtp에 적재된 것은 smtp.response.parameter가 유효하지 않다는 tshark 오류다",
+      "regex": "Some fields aren't valid:\\\\n\\\\tsmtp\\.response\\.parameter",
+      "ok": true
+    },
+    {
+      "step": 7,
+      "note_ko": "같은 캡처의 다른 모드는 SMTP 서버 주소를 정상으로 뽑는다(캡처 파일은 멀쩡하다)",
+      "contains": "198.51.100.25",
+      "ok": true
+    }
+  ],
+  "image": "sha256:96d34070ca7a1b83f14243a0516bde43c1aa4bf3bbb9be543338145fe389646c",
+  "ran_at": "2026-11-28T05:24:09+00:00"
+}

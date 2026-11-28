@@ -1,0 +1,40 @@
+{
+  "case_id": "P4153-001",
+  "problem": "P4153",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "network",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: ip-api, AbuseIPDB and VirusTotal; OTX (same code path with OTX_API_KEY) is not set; the services are a local stand-in",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 3,
+      "note_ko": "응답에는 내부 값 10.0.2.15가 보통 IOC처럼 조회 결과로 실린다",
+      "regex": "\"ioc\": \"10\\.0\\.2\\.15\",\\s*\"ioc_type\": \"ipv4\"",
+      "ok": true
+    },
+    {
+      "file_contains": "${OUTSIDE}/received.log",
+      "note_ko": "내부 서버 주소가 ip-api.com에 평문 HTTP로 간다",
+      "text": "proxy: GET http://ip-api.com/json/10.0.2.15?",
+      "ok": true
+    },
+    {
+      "file_regex": "${OUTSIDE}/received.log",
+      "note_ko": "같은 주소가 API 키와 함께 AbuseIPDB에 간다",
+      "pattern": "proxy: CONNECT api\\.abuseipdb\\.com:443[^\\n]*\\n  GET /api/v2/check\\?ipAddress=10\\.0\\.2\\.15",
+      "ok": true
+    },
+    {
+      "file_contains": "${OUTSIDE}/received.log",
+      "note_ko": "내부 파일 서버 이름이 VirusTotal에 간다",
+      "text": "GET /api/v3/domains/fs01.corp.example",
+      "ok": true
+    }
+  ],
+  "image": "sha256:59d6d307ce6a1c530ad92a5b48860656b610757e6440a8b5dd89a9b8901e1226",
+  "ran_at": "2026-11-28T06:16:18+00:00"
+}

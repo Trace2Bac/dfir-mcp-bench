@@ -1,0 +1,40 @@
+{
+  "case_id": "P4192-011",
+  "problem": "P4192",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "source-vs-result",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "151줄이 window 6개로 적재된다",
+      "regex": "\"line_count\": 151,\\s*\"windows_indexed\": 6",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "한 번에 window 6개를 모두 받는다",
+      "regex": "\"total_windows\": 6,\\s*\"returned_windows\": 6,[^}]*\"has_more\": false",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "빈 줄이 없는 기록인데 명령 사이에 빈 줄이 생긴다",
+      "regex": "gpupdate /force \\}\\\\n\\\\npowershell\\.exe -NoP -W Hidden",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "`-EncodedCommand` 한 줄의 base64 가운데에 줄바꿈이 들어간다",
+      "regex": "-EncodedCommand JAB[A-Za-z0-9+/]*\\\\n[A-Za-z0-9+/]+",
+      "ok": true
+    }
+  ],
+  "image": "sha256:97bbb08c1942b920eaf9ea113ab7d8a32a9b59e37d2cbba4d7ec8778265a254d",
+  "ran_at": "2026-11-28T05:59:35+00:00"
+}

@@ -1,0 +1,40 @@
+{
+  "case_id": "P4117-070",
+  "problem": "P4117",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: the beaconing mode is shown; the other modes pass the same -c cap",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 3,
+      "note_ko": "기본 상한으로는 비콘이 없다고 낸다",
+      "contains": "Potential beacons flagged: 0",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "상한에 닿았거나 일부 패킷만 읽었다는 표시가 없다",
+      "not_regex": "(?i)max_packets|limit|truncat|first 10000|10,000|packets read|of \\d+ packets",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "같은 캡처는 12,080패킷이다",
+      "contains": "Number of packets = 12080",
+      "ok": true
+    },
+    {
+      "step": 7,
+      "note_ko": "상한을 올리면 같은 모드가 198.51.100.53:53을 비콘으로 잡는다",
+      "contains": "POTENTIAL BEACON: 198.51.100.53:53 **",
+      "ok": true
+    }
+  ],
+  "image": "sha256:d75262850459197aa0a64a4a616423296970457fb628e95fdda57825cdc97f1b",
+  "ran_at": "2026-11-28T06:02:18+00:00"
+}

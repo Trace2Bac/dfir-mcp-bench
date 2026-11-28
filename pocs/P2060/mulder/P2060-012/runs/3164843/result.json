@@ -1,0 +1,40 @@
+{
+  "case_id": "P2060-012",
+  "problem": "P2060",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: one tool (search) and one misnamed argument are shown; the cause is in the shared argument model and applies to every tool",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 4,
+      "note_ko": "정의에 없는 인자인데 오류 없이 성공한다",
+      "contains": "\"status\": \"success\"",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "요청한 출처 밖(`strings.output`)의 결과가 섞여 온다",
+      "contains": "\"source_name\": \"strings.output\"",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "응답의 범위는 지정되지 않은 값(null)이다",
+      "contains": "\"source\": null",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "정의된 이름으로 주면 `strings.output` 결과가 없다",
+      "not_contains": "\"source_name\": \"strings.output\"",
+      "ok": true
+    }
+  ],
+  "image": "sha256:1c78364ae06935a9747086c19d6659cf7a4f436fb6b8c854ca1003a0111475af",
+  "ran_at": "2026-11-28T05:33:43+00:00"
+}

@@ -1,0 +1,40 @@
+{
+  "case_id": "P4095-046",
+  "problem": "P4095",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "덤프 안에 sms 테이블이 있는 SQLite DB가 있다",
+      "regex": "tables\\\\?\": \\[[^\\]]*\\\\?\"sms\\\\?\"",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "같은 덤프의 SMS 파싱은 오류 없이 \"안드로이드 기록 없음\"으로 끝난다",
+      "regex": "no_results[\\s\\S]*No Android artifacts found",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "오류 표시도 없다",
+      "is_error": false,
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "같은 DB를 이름이 있는 파일로 주면 SMS가 나온다(DB는 온전하다)",
+      "regex": "parsed_types\\\\?\": \\[\\\\?\"sms",
+      "ok": true
+    }
+  ],
+  "image": "sha256:81576e1c53f567b2df1c2d1920da5e1b81613285f47cdefaf8c528fced546254",
+  "ran_at": "2026-11-28T05:44:59+00:00"
+}

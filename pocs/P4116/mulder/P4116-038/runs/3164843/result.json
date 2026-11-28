@@ -1,0 +1,46 @@
+{
+  "case_id": "P4116-038",
+  "problem": "P4116",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: winrm_connection (91/168/169) and log_clearing (104) are shown; the other substring and co-occurrence indicators of the case (scheduled tasks, services, timestomp, USN close, @ for email, ports) are built the same way; the EvtxECmd CSV is imitated",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "서비스 상태 변경(7036) 행이 WinRM 연결 지표가 된다",
+      "regex": "\"type\": \"winrm_connection\",\\s*\"source\": \"evtx\\.system\",\\s*\"event_time\": \"2026-10-26T07:58:18\",\\s*\"evidence_text\": \"52618,52618,2026-10-26 07:58:18\\.\\d+,7036,Info,Service Control Manager",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "WinRM 연결 지표가 2건이다",
+      "regex": "\"type\": \"winrm_connection\"[\\s\\S]*\"type\": \"winrm_connection\"",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "시각 동기화(Time-Service 37) 행이 로그 삭제 지표가 된다",
+      "regex": "\"type\": \"log_clearing\",\\s*\"event_time\": \"2026-10-26T07:58:57\",\\s*\"evidence_text\": \"52634,52634,2026-10-26 07:58:57\\.\\d+,37,Info,Microsoft-Windows-Time-Service",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "첫 WinRM 지표 window의 '91'은 다음 행 시각의 소수 자리(07:58:22.8859194)다",
+      "contains": "52620,52620,2026-10-26 07:58:22.8859194,7036,Info,Service Control Manager",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "로그 삭제 지표 window의 '104'는 Winlogon 7001 행의 스레드 ID 7104와 사용자 SID 끝 -1104다",
+      "regex": "7001,Info,Microsoft-Windows-Winlogon,System,620,7104,[\\s\\S]{0,200}-1104",
+      "ok": true
+    }
+  ],
+  "image": "sha256:36c45ec928812f1ac0d5f05f2f6f25ad6a282fd56f8dc43f735b1cdcf0e72bd0",
+  "ran_at": "2026-11-28T05:59:51+00:00"
+}

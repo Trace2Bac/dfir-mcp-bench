@@ -1,0 +1,46 @@
+{
+  "case_id": "P4107-022",
+  "problem": "P4107",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "적재 응답이 `get_raw_output('strings.output')`을 안내한다",
+      "contains": "get_raw_output('strings.output')",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "두 파일의 출력이 window 2개로 함께 나온다",
+      "regex": "\"total_windows\": 2\\b",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "한 `raw_text` 안에 다운로드 구문과 로그온 스크립트가 이어져 있다",
+      "regex": "DownloadString\\(\\\\\"http://203\\.0\\.113\\.7/a\\\\\"\\)\\)\\\\n# Corp logon script",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "응답에 어느 파일의 출력인지 가르는 경로가 없다",
+      "not_contains": "invoice.ps1",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "`strings.output`이라는 같은 이름의 source가 두 경로로 있다",
+      "regex": "\"source_name\": \"strings.output\"[\\s\\S]*invoice.ps1[\\s\\S]*\"source_name\": \"strings.output\"[\\s\\S]*logon.ps1|\"source_name\": \"strings.output\"[\\s\\S]*logon.ps1[\\s\\S]*\"source_name\": \"strings.output\"[\\s\\S]*invoice.ps1",
+      "ok": true
+    }
+  ],
+  "image": "sha256:32ab80f65c8e97e87af2ecff9a51a597530a2ef5783cbb7ae8a3a5282aacbbd6",
+  "ran_at": "2026-11-28T05:44:00+00:00"
+}

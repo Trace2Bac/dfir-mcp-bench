@@ -1,0 +1,46 @@
+{
+  "case_id": "P4117-131",
+  "problem": "P4117",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: find_lateral_movement_indicators (explicit credentials, k=20) is shown; the other composite tools use the same top-k sub-query",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 4,
+      "note_ko": "결과에 명시적 자격 증명(4648) 지표가 있다",
+      "regex": "\"type\": \"explicit_credentials\",[^}]*,4648,",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "Company-PC로의 4648 로그온은 결과에 하나도 없다",
+      "not_contains": "Company-PC",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "상위 k개 window만 봤다는 표시가 없다",
+      "not_regex": "(?i)top[ _-]?\\d+|top_k|\"k\":|max_results|truncat|limited to",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "적재된 로그에는 Company-PC가 든 window가 있다",
+      "contains": "\"line_start\": 1111,",
+      "ok": true
+    },
+    {
+      "step": 6,
+      "note_ko": "그 window에 2015-03-24 13:47:06 Company-PC 4648 로그온이 있다",
+      "regex": "2015-03-24 13:47:06\\.0751875,4648,[^\\n]*Company-PC",
+      "ok": true
+    }
+  ],
+  "image": "sha256:ecac13a871db6306a78b2d567cd90236a9c248c2dd41eaa8657359336ee61b35",
+  "ran_at": "2026-11-28T06:16:56+00:00"
+}

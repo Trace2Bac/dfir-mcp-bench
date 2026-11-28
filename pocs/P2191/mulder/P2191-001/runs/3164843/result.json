@@ -1,0 +1,46 @@
+{
+  "case_id": "P2191-001",
+  "problem": "P2191",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 3,
+      "note_ko": "mmls가 섹터 252에서 시작하는 3,844섹터 파티션(가장 큼)을 보인다",
+      "contains": "0000000252   0000004095   0000003844",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "오프셋을 생략한 재실행이 success로 `tsk.filelist`를 적재한다",
+      "regex": "\"status\": \"success\"[\\s\\S]*\"source\": \"tsk.filelist\"",
+      "ok": true
+    },
+    {
+      "step": 6,
+      "note_ko": "그 뒤 `tsk.filelist`에는 RECOVERY 파티션 목록(AUTORUN.INF)이 두 번 들어 있다",
+      "regex": "\"total_windows\": 2\\b[\\s\\S]*AUTORUN\\.INF[\\s\\S]*AUTORUN\\.INF",
+      "ok": true
+    },
+    {
+      "step": 6,
+      "note_ko": "DATA 파티션의 파일은 목록에 없다",
+      "not_contains": "FALCON.TXT",
+      "ok": true
+    },
+    {
+      "step": 8,
+      "note_ko": "오프셋 252를 주면 DATA 파티션의 FALCON.TXT가 나온다",
+      "contains": "FALCON.TXT",
+      "ok": true
+    }
+  ],
+  "image": "sha256:d477e544af1492d9f4ed8b9ebd4a6f9ae5e8ae2085e1d46a6eca433962eb0497",
+  "ran_at": "2026-11-28T05:36:41+00:00"
+}

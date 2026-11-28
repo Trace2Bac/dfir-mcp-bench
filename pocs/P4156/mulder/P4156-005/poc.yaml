@@ -1,0 +1,185 @@
+# Matrix case P4156-005: enrich_iocs always queries ip-api.com for an IPv4,
+# over plain HTTP, with no API key and no setting that turns it on
+# (enrichment.py 130-182, 474-475); only the keyed services wait for a key.
+# mulder's analyst prompt tells the model to use enrich_iocs whenever it
+# finds a suspicious connection (extract_analyst.md 187-188). With nothing
+# configured, a call sends the investigated address, in clear text, to a
+# third-party service.
+#
+# No request leaves the container: HTTP_PROXY and HTTPS_PROXY point httpx at
+# a stand-in proxy on 127.0.0.1:18443 (the `recorder` service), which logs
+# what it is sent and answers as ip-api.com answers a reserved address. No
+# API key is set.
+case_id: P4156-005
+problem: P4156
+server: mulder
+variant: mulder-3164843
+commit: 3164843baf74c7fe69e7121dbd6150f8f77ce660
+display: network
+level: mcp
+realism: common
+realism_ko: "API 키 없이 설치한 그대로 쓰는 것이 보통이고, 분석가 프롬프트가 의심 연결마다 `enrich_iocs`를 부르라고 하므로 키·설정 없이도 이 호출은 흔하게 일어난다."
+coverage: "partial: the default ip-api query is shown; the analyst prompt's instruction is cited from the source, not run (no model)"
+coverage_ko: "기본 ip-api 질의만 보였다. 분석가 프롬프트의 지시는 소스에서 확인했고 모델로 돌리지 않았다."
+summary: >-
+  With no API key or setting, enrich_iocs on the C2 address 198.51.100.23
+  sends GET http://ip-api.com/json/198.51.100.23 in plaintext through the
+  stand-in proxy and answers with the ip-api result; nothing asked the user
+  to allow the outside query.
+summary_ko: "API 키도 설정도 없이 C2 주소 198.51.100.23으로 `enrich_iocs`를 부르면 서버는 `GET http://ip-api.com/json/198.51.100.23`을 평문으로 보내고(대역 프록시가 기록) ip-api 결과로 답한다. 외부 조회를 허락할지 사용자에게 묻는 단계는 없다."
+defect_ko: "이 서버는 사용자가 켜지 않아도 `enrich_iocs`의 ip-api 평문 HTTP 질의를 기본으로 보낸다. 정상이라면 외부 통신은 사용자가 설정으로 켰을 때만 하고, 기본은 꺼져 있어야 한다. 조사 중인 주소와 조사 사실이 암호화되지 않은 채 제3자에게 가고, 공격자가 운영하는 주소라면 공격자 쪽에 조사가 알려질 수 있다."
+setup_ko: "감염 PC의 `netstat -ano` 결과(PowerShell이 C2 198.51.100.23:443에 연결)를 적재하고, API 키는 하나도 넣지 않은 채 서버의 HTTP·HTTPS 요청이 컨테이너 안 대역 프록시로 가게 했다."
+env:
+  HTTP_PROXY: http://127.0.0.1:18443
+  HTTPS_PROXY: http://127.0.0.1:18443
+  SSL_CERT_FILE: ${OUTSIDE}/cert.pem
+services:
+  - name: recorder
+    args: ["${OUTSIDE}/received.log", "${OUTSIDE}/cert.pem", "${OUTSIDE}/key.pem"]
+    ready_port: 18443
+    text: |
+      #!/usr/bin/env python3
+      # Stand-in for ip-api.com, AbuseIPDB and VirusTotal: an HTTP proxy on
+      # 127.0.0.1:18443. A plain request (absolute URI, as httpx sends through
+      # HTTP_PROXY) is logged and answered the way ip-api.com answers a private or
+      # reserved address; a CONNECT (HTTPS_PROXY) is answered, TLS is ended with
+      # the PoC's own certificate (trusted through SSL_CERT_FILE), the request is
+      # logged and answered 404. Nothing is forwarded and no name is resolved.
+      import json, re, socket, ssl, sys, threading
+      log_path, cert, key = sys.argv[1:4]
+      lock = threading.Lock()
+      def log(s):
+          with lock, open(log_path, "a") as f:
+              f.write(s + "\n")
+      ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+      ctx.load_cert_chain(cert, key)
+      def head(f):
+          lines = []
+          while True:
+              ln = f.readline()
+              if not ln or ln in (b"\r\n", b"\n"):
+                  return lines
+              lines.append(ln.decode(errors="replace").rstrip())
+      def reply(sock, code, body):
+          b = json.dumps(body).encode()
+          sock.sendall(f"HTTP/1.1 {code}\r\nContent-Type: application/json\r\nContent-Length: {len(b)}\r\nConnection: close\r\n\r\n".encode() + b)
+      def handle(c):
+          try:
+              f = c.makefile("rb")
+              req = head(f)
+              if not req:
+                  return
+              if req[0].startswith("CONNECT "):
+                  log(f"proxy: {req[0]}")
+                  c.sendall(b"HTTP/1.1 200 Connection established\r\n\r\n")
+                  t = ctx.wrap_socket(c, server_side=True)
+                  inner = head(t.makefile("rb"))
+                  for ln in inner:
+                      if not ln.lower().startswith(("accept", "user-agent", "connection")):
+                          log(f"  {ln}")
+                  reply(t, "404 Not Found", {"error": {"code": "NotFoundError", "message": "stand-in"}})
+                  t.close()
+                  return
+              log(f"proxy: {req[0]}")
+              for ln in req[1:]:
+                  if ln.lower().startswith("host:"):
+                      log(f"  {ln}")
+              m = re.search(r"/json/([0-9.]+)", req[0])
+              ip = m.group(1) if m else ""
+              private = re.match(r"^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)", ip)
+              reply(c, "200 OK", {"status": "fail", "message": "private range" if private else "reserved range", "query": ip})
+          except Exception as e:
+              log(f"error: {e}")
+          finally:
+              c.close()
+      srv = socket.socket(); srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+      srv.bind(("127.0.0.1", 18443)); srv.listen(16)
+      while True:
+          c, _ = srv.accept()
+          threading.Thread(target=handle, args=(c,), daemon=True).start()
+
+fixture:
+  - path: WS0142/triage/netstat_ano.txt
+    base64: DQpBY3RpdmUgQ29ubmVjdGlvbnMNCg0KICBQcm90byAgTG9jYWwgQWRkcmVzcyAgICAgICAgICBGb3JlaWduIEFkZHJlc3MgICAgICAgIFN0YXRlICAgICAgICAgICBQSUQNCiAgVENQICAgIDAuMC4wLjA6MTM1ICAgICAgICAgICAgMC4wLjAuMDowICAgICAgICAgICAgICBMSVNURU5JTkcgICAgICAgMTAxMg0KICBUQ1AgICAgMC4wLjAuMDo0NDUgICAgICAgICAgICAwLjAuMC4wOjAgICAgICAgICAgICAgIExJU1RFTklORyAgICAgICA0DQogIFRDUCAgICAwLjAuMC4wOjMzODkgICAgICAgICAgIDAuMC4wLjA6MCAgICAgICAgICAgICAgTElTVEVOSU5HICAgICAgIDEyODgNCiAgVENQICAgIDEwLjAuMi40MjoxMzkgICAgICAgICAgMC4wLjAuMDowICAgICAgICAgICAgICBMSVNURU5JTkcgICAgICAgNA0KICBUQ1AgICAgMTAuMC4yLjQyOjQ5NzMzICAgICAgICAxMC4wLjIuMTA6NDQ1ICAgICAgICAgIEVTVEFCTElTSEVEICAgICA0DQogIFRDUCAgICAxMC4wLjIuNDI6NDk4MDIgICAgICAgIDEwLjAuMi4xNTo0NDUgICAgICAgICAgRVNUQUJMSVNIRUQgICAgIDQNCiAgVENQICAgIDEwLjAuMi40Mjo0OTgxMSAgICAgICAgMTAuMC4yLjE1OjU5ODUgICAgICAgICBFU1RBQkxJU0hFRCAgICAgNjQ4OA0KICBUQ1AgICAgMTAuMC4yLjQyOjUwMTE0ICAgICAgICAxOTguNTEuMTAwLjIzOjQ0MyAgICAgIEVTVEFCTElTSEVEICAgICA2NDg4DQogIFRDUCAgICAxMC4wLjIuNDI6NTAxMjAgICAgICAgIDUyLjExMi4xMjAuNDo0NDMgICAgICAgRVNUQUJMSVNIRUQgICAgIDg4MTINCiAgVURQICAgIDAuMC4wLjA6NTM1MyAgICAgICAgICAgKjoqICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgMjE0MA0K
+  - path: cert.pem
+    root: outside
+    text: |
+      -----BEGIN CERTIFICATE-----
+      MIIDdTCCAl2gAwIBAgIUU1qmXcQmY0cQqcjJi2d32PfcBZIwDQYJKoZIhvcNAQEL
+      BQAwMDEuMCwGA1UEAwwlYmVuY2ggc3RhbmQtaW4gZm9yIHd3dy52aXJ1c3RvdGFs
+      LmNvbTAeFw0yNjExMjcyMDUxMTZaFw0zNjExMjQyMDUxMTZaMDAxLjAsBgNVBAMM
+      JWJlbmNoIHN0YW5kLWluIGZvciB3d3cudmlydXN0b3RhbC5jb20wggEiMA0GCSqG
+      SIb3DQEBAQUAA4IBDwAwggEKAoIBAQDDNYMefJ5WAOufNQgv3h1TZ4G08mTh1X3u
+      ierx+Js7uBJyFTM3Y3jJWFu6pqr8glQLunmwNPW6RhohsWka88MxNgAiWFpT9VmQ
+      IHQhNplcL/MADl/cPaG1rTVU1G8SXWCXwZbN466WqAAHDuJYMzlFHiLb7ywu7yNB
+      suBTA0aDf9P9yIZ340tIu+ny7cmfpg9hQ1Q/UGSJcDSKOMjVVZn42jSScQpJYZm7
+      bNC1lLfsns34akPfANncsor+wL1arRu3HciOuKbGY7aN5hHtjXgSQaFiUIv4Ec9u
+      VwJBuRdhNELG7w+DHICzR7X7PpHfQtjt+xyO9DmwKQp/zvbipYEHAgMBAAGjgYYw
+      gYMwHQYDVR0OBBYEFCr/0SIoDUkULWCAWZJ2lZUX59JrMB8GA1UdIwQYMBaAFCr/
+      0SIoDUkULWCAWZJ2lZUX59JrMDAGA1UdEQQpMCeCEnd3dy52aXJ1c3RvdGFsLmNv
+      bYIRYXBpLmFidXNlaXBkYi5jb20wDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0B
+      AQsFAAOCAQEAtcBnw0i5gVvYwOnpx4HNesgRnxve1sjmBaAHsjCwf8e77+7WEJkl
+      MX6FtQdFJR40IULOHd2bFvft8VKh9xU/9smXwN4IjOeWJ8j3WObIYqTfvx19WxBJ
+      IJiQa6bKqYBV+6C3W6G9QB77W0xVoJSC42dA/0ecrBeCIf4sCGxBntwObPwKEIZK
+      AyFNhmZviOFaBAwfUrROukmjkf5d+qFy0VQTU6I40xDyVu19hZXBLXP9o9FCpbd3
+      Y0ljYCbOlWvHhiUFwgk4OSLxNFaghpzLK0qg32UxgJbqr+EW1SsaUPyUSDEXUx+n
+      afGImL9s2clcQuQzto3TN9IUa+nnpUtQ3A==
+      -----END CERTIFICATE-----
+
+  - path: key.pem
+    root: outside
+    text: |
+      -----BEGIN PRIVATE KEY-----
+      MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDDNYMefJ5WAOuf
+      NQgv3h1TZ4G08mTh1X3uierx+Js7uBJyFTM3Y3jJWFu6pqr8glQLunmwNPW6Rhoh
+      sWka88MxNgAiWFpT9VmQIHQhNplcL/MADl/cPaG1rTVU1G8SXWCXwZbN466WqAAH
+      DuJYMzlFHiLb7ywu7yNBsuBTA0aDf9P9yIZ340tIu+ny7cmfpg9hQ1Q/UGSJcDSK
+      OMjVVZn42jSScQpJYZm7bNC1lLfsns34akPfANncsor+wL1arRu3HciOuKbGY7aN
+      5hHtjXgSQaFiUIv4Ec9uVwJBuRdhNELG7w+DHICzR7X7PpHfQtjt+xyO9DmwKQp/
+      zvbipYEHAgMBAAECggEAUvxKP+khVJVylU1xrAvEMsMzYE2Vdm4QaZpG/1O9Bk+z
+      w7zgd4D5hbriz//ve4YaHZxKBA8XkXcgv8cQVA1houd+ehtOVxfb2cn6JG52Frsp
+      lhIGTXYD61x1ahkfGNMKb6k0J1XN0C0eSeHZdj5cb9YmYpIUGeW+er0E4TVowhiU
+      2u2iE7UGLevip2AKjXIK79wcPd66wZ3LA6qZnOojbt+s5oU5h8Kqy6NcBPZ5Fgsw
+      0el2kcvD5K0LxhB/OGY7oyprdbYSL3nB3rjeuJw48rAlsaNsQLoFKgZscHdYqQsb
+      kgm8yDCG4CL/f8lzKfIdPM6bH2L+y9VfpQItTHIh6QKBgQDi+S/OSxzhw+vCWeOT
+      RbF6z7qMAnDj9K3mGR+SM+1nUjAAgkRsGpttgtO/T2HB3kPX3nwGJX04UB24DAsM
+      MlbK3FlUiH9VVE2DXM9O1EiCULLgcDgPc01UJPtrxYWpQ/k4jqS3cLQHn8kh8qhu
+      onDidLbp7WThlvWEALYVIidm3wKBgQDcLGbe/A0m5af42lLHvRvtWsYxiP8fsWPt
+      wTaRivBBYVvLUfMymQLlNDMh482ehmSjYl3cOL8D9cFJzVUcvAbMCv5RR+druFpN
+      jwkyExvhs+SsUbT5dt3/2u2MtZ9maRgZXbL42vczDqc35X7b0w+d6hJ3Ba2g0aJO
+      8WyBOpBy2QKBgDXOPLb6t24Ns+XuyTQwYVJrzB1Ett5TMqZJbmKKTM0hfp+gQfge
+      lpnvWaMQfmwm9I5H/761RGoFFAZ9VGEfzdNpSQPxF75yra1mYv6c9FNwLfdmouOG
+      wd4gpjl2Kalmo730krep0AO+rT+O9r7DY19Lq9DopfGUh78zK/b2kcChAoGAL6zR
+      rbEoa+bIw4MK78NMO84vImTG0acIu1/eIA/UzGN3jAQ3xBoL3XO7Krh4Or5hJlvT
+      dS84dXQOoZt7tZglZKNwxErsmo+1xhuV4yjuHaZlesbKiEYr9g4C6Dgfxv40wLFg
+      YrCPXJfsr5bbLGB8fjZEP0+UdEFQgwWV+DmlM6kCgYAYPrhdiJZepmJri5pdIgFG
+      ZpxmD8V1Ldi7LDvSEwvjw//xe+w75sA7yl+27deulThwzR+SgHsPZrUV/Rx1ry+A
+      4/fdZoiKzBOyHo7dDNdtejkPBHscNn9f1GTeBxWIQ+a/lX4k7yI+7VBafQMWca7A
+      u51Dtu6CuM6Hd1pWmPPUfA==
+      -----END PRIVATE KEY-----
+
+steps:
+  - tool: scan_evidence
+    note_ko: "준비: 사건 만들기"
+    args:
+      evidence_path: ${EVIDENCE}
+      case_id: ws0142-net
+  - tool: run_strings
+    note_ko: "준비: netstat 결과 적재"
+    args:
+      target_path: ${EVIDENCE}/WS0142/triage/netstat_ano.txt
+  - tool: enrich_iocs
+    note_ko: "결함 호출: 키·설정 없이 C2 주소 조회"
+    args:
+      case_id: ws0142-net
+      iocs: ["198.51.100.23"]
+expect:
+  - step: 3
+    note_ko: "응답에 ip-api의 답이 실린다(외부 질의가 일어났다)"
+    regex: '"source": "ip-api",\s*"ioc": "198\.51\.100\.23",[^}]*"error": "reserved range"'
+  - file_contains: ${OUTSIDE}/received.log
+    note_ko: "키 없이 ip-api.com에 조사 주소를 평문 HTTP로 보낸다"
+    text: "proxy: GET http://ip-api.com/json/198.51.100.23?"
+  - file_not_contains: ${OUTSIDE}/received.log
+    note_ko: "키가 없는 서비스(AbuseIPDB·VirusTotal)로는 가지 않는다(외부로 간 것은 기본 ip-api 질의다)"
+    text: "CONNECT"

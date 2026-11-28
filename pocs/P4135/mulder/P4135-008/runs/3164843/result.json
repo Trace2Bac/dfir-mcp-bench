@@ -1,0 +1,40 @@
+{
+  "case_id": "P4135-008",
+  "problem": "P4135",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 3,
+      "note_ko": "실린 목록이 window 20에서 끝나는데 8개를 모두 돌려줬고 남은 것이 없다고 한다",
+      "regex": "\"window_id\": 20,[\\s\\S]{0,900}?\"source_name\": \"strings.output\"\\s*\\}\\s*\\],\\s*\"source\": \"strings.output\",\\s*\"result_count\": 8,\\s*\"total_matches\": 8,\\s*\"returned\": 8,\\s*\"has_more\": false,\\s*\"remaining\": 0",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "목록이 줄었다는 표시도 함께 붙는다(서로 맞지 않는 값)",
+      "regex": "\"results_truncated\": true,\\s*\"results_total\": 8",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "따로 부르면 8개가 모두 실리고 window 29도 들어 있다",
+      "regex": "\"window_id\": 29,[\\s\\S]*\"result_count\": 8,\\s*\"total_matches\": 8",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "window 29는 svc_backup의 비밀번호 로그인이 든 곳이다",
+      "regex": "\"next_after_id\": 29,[^}]*Accepted password for svc_backup from 198\\.51\\.100\\.23",
+      "ok": true
+    }
+  ],
+  "image": "sha256:418707562bff0d8624b55e6916166757af76072ab20f365bb89cfaa5f8ad9a4d",
+  "ran_at": "2026-11-28T06:02:10+00:00"
+}

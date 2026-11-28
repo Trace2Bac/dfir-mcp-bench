@@ -1,0 +1,40 @@
+{
+  "case_id": "P4116-041",
+  "problem": "P4116",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 4,
+      "note_ko": "상관 결과가 12건이다(10.0.2.42가 든 netscan 줄 전부)",
+      "regex": "\"result_count\": 12,",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "파일 서버 SMB 연결이 호스트 자신의 주소로만 맞아 상관 결과가 된다",
+      "regex": "\"matched_ips\": \\[\\s*\"10\\.0\\.2\\.42\"\\s*\\],[^{}]*\"netscan_text\": \"0xa50e2c11a8a0\\\\tTCPv4\\\\t10\\.0\\.2\\.42\\\\t49821\\\\t10\\.0\\.2\\.10\\\\t445",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "OneDrive 연결도 같은 식으로 상관 결과가 된다",
+      "regex": "\"matched_ips\": \\[\\s*\"10\\.0\\.2\\.42\"\\s*\\],[^{}]*\"netscan_text\": \"0xa50e2c2071d0\\\\tTCPv4\\\\t10\\.0\\.2\\.42\\\\t49844\\\\t20\\.190\\.151\\.7\\\\t443",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "캡처의 대화는 10.0.2.42와 DNS 서버 10.0.2.1, 203.0.113.7 사이뿐이다",
+      "regex": "IPv4 Conversations[\\s\\S]*Duration[^\\n]*\\|\\\\n10\\.0\\.2\\.42\\s+<-> 203\\.0\\.113\\.7[^\\n]*\\\\n10\\.0\\.2\\.42\\s+<-> 10\\.0\\.2\\.1 [^\\n]*\\\\n=====",
+      "ok": true
+    }
+  ],
+  "image": "sha256:75e33fa4b260c6edc38e6aeea1f3df6ab51b63ef31fee8ae031d694c5e13fca2",
+  "ran_at": "2026-11-28T05:54:59+00:00"
+}

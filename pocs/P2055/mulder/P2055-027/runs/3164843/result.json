@@ -1,0 +1,46 @@
+{
+  "case_id": "P2055-027",
+  "problem": "P2055",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "source-vs-result",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 4,
+      "note_ko": "파일 목록에서 inode 67은 `Users/alice/Desktop/run.bat`이다",
+      "contains": "r/r 67-128-2:\\tUsers/alice/Desktop/run.bat",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "inode 67을 꺼내면 success에 8,192바이트 바이너리가 온다(run.bat은 269바이트 텍스트)",
+      "regex": "\"status\": \"success\"[\\s\\S]*\"type\": \"binary\"[\\s\\S]*\"size_bytes\": 8192",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "돌아온 해시는 System Reserved의 `BOOTSECT.BAK` 해시다",
+      "contains": "0ef18a82c93e6b370ad5a6c83b7f335fb4777069cc456e1751171c8424b474fd",
+      "ok": true
+    },
+    {
+      "step": 6,
+      "note_ko": "메타데이터 호출도 success다",
+      "regex": "\"status\": \"success\"",
+      "ok": true
+    },
+    {
+      "step": 7,
+      "note_ko": "적재된 메타데이터의 파일 이름은 `BOOTSECT.BAK`이다",
+      "contains": "BOOTSECT.BAK",
+      "ok": true
+    }
+  ],
+  "image": "sha256:28b28c7af19df781cf96ba0e6f49e09d5276365fa317aa338ae87bb7e62700f8",
+  "ran_at": "2026-11-28T05:37:28+00:00"
+}

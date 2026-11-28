@@ -1,0 +1,52 @@
+{
+  "case_id": "P4116-040",
+  "problem": "P4116",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: dropped rows and a false amcache_only_no_prefetch are shown; a run count or SHA1 from another row is attached the same way when the window's first values belong to another row; the EZ Tools CSVs are imitated",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "prefetch 11건과 Amcache 12건에서 7건만 나온다",
+      "regex": "\"result_count\": 7,",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "prefetch가 있는 winword.exe에 'prefetch 없이 Amcache에만 있다(정리 흔적)'가 붙는다",
+      "regex": "winword\\.exe,winword\\.exe,\\.exe\",\\s*\"sources\": \\[\\s*\"amcache\"\\s*\\],[^{}]*\"anomaly_flags\": \\[\\s*\"amcache_only_no_prefetch\"\\s*\\]",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "타임라인에 RAR 실행이 없다",
+      "not_regex": "(?i)rar\\.exe",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "prefetch에는 USB에서 한 번 실행된 RAR.EXE가 있다",
+      "contains": "RAR.EXE,6B1C8E2A,20324,Windows 10 or Windows 11,1,2026-10-26 10:09:15",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "prefetch에는 64번 실행된 WINWORD.EXE도 있다",
+      "contains": "WINWORD.EXE,B0B5D97F,58526,Windows 10 or Windows 11,64,",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "Amcache에도 USB의 rar.exe가 있다",
+      "contains": "e:\\\\tools\\\\rar.exe,rar.exe,.exe",
+      "ok": true
+    }
+  ],
+  "image": "sha256:9ac11477038597566a87526e4cb6ecaed2086b18143f2bbfa3398b8e0cbf8702",
+  "ran_at": "2026-11-28T06:04:26+00:00"
+}

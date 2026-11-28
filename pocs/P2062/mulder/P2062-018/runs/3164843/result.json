@@ -1,0 +1,40 @@
+{
+  "case_id": "P2062-018",
+  "problem": "P2062",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: Hayabusa is a stub (the image has no Hayabusa rules); the same silent fallback in hindsight, mvt, binary and yara listed for this case is not shown",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "`info`로 부르면 경보 0건이 success로 온다",
+      "contains": "total_alerts\\\": 0,",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "응답은 성공이다",
+      "contains": "\"status\": \"success\"",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "같은 폴더에 `informational`을 주면 informational 경보 25건이 나온다",
+      "contains": "total_alerts\\\": 25, \\\"by_severity\\\": {\\\"info\\\": 25}",
+      "ok": true
+    },
+    {
+      "file_regex": "${OUTSIDE}/hayabusa-args.log",
+      "note_ko": "`info`를 준 첫 실행이 Hayabusa에 `-m medium`으로 넘어갔다",
+      "pattern": "\\A[^\\n]*-m medium\\n[^\\n]*-m informational\\n",
+      "ok": true
+    }
+  ],
+  "image": "sha256:e5127e9430abb9e3718aec5263276477f2f584c60893901b9ba1bfc65b36bfe1",
+  "ran_at": "2026-11-28T05:34:05+00:00"
+}

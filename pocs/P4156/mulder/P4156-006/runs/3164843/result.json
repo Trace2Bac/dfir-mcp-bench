@@ -1,0 +1,22 @@
+{
+  "case_id": "P4156-006",
+  "problem": "P4156",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "network",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: run_volatility through the vol CLI only; the library path of run_volatility_batch is not run; the memory dump is a minimal one holding only what vol needs to find the kernel; the symbol server is a local stand-in",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "file_contains": "${OUTSIDE}/received.log",
+      "note_ko": "vol이 커널 PDB GUID를 담아 Microsoft 심볼 서버에 요청한다",
+      "text": "proxy: GET http://msdl.microsoft.com/download/symbols/ntkrnlmp.pdb/B9DB443817206749BE7AA4A2C20430FA1/ntkrnlmp.pdb HTTP/1.1",
+      "ok": true
+    }
+  ],
+  "image": "sha256:4ed0c6cf091277a7968600ff1019315eff7d78053aa34624060ddca850fa8a4a",
+  "ran_at": "2026-11-28T06:18:00+00:00"
+}

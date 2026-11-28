@@ -1,0 +1,34 @@
+{
+  "case_id": "P2054-034",
+  "problem": "P2054",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "Chainsaw가 `Z`가 붙은 시각을 `--from` 값으로 거부한다",
+      "contains": "invalid value '2020-06-30T14:00:00Z' for '--from <FROM>'",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "hunt 결과가 적재되지 않는다(status error)",
+      "regex": "\"status\": \"error\"",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "`Z`를 빼면 같은 범위에서 14:24:08의 스크립트 블록이 Sigma 규칙에 걸린다",
+      "regex": "\"status\": \"success\"[\\s\\S]*\"timestamp\\\\\": \\\\\"2020-06-30T14:24:08[^,]*, \\\\\"rule_name\\\\\": ",
+      "ok": true
+    }
+  ],
+  "image": "sha256:28b9368aa65f40efe6ae27ee5d990267294c8501cfa7c6667246072108abaa99",
+  "ran_at": "2026-11-28T05:37:20+00:00"
+}

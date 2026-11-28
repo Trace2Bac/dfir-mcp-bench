@@ -129,6 +129,13 @@ CLAUDE_BIN=/usr/local/lib/python3.12/dist-packages/claude_agent_sdk/_bundled/cla
 # Its sign-in (`./bench.sh login`) lives in data/claude/ on the host. Mounted
 # under ~/.mulder, which the image's entrypoint hands to the mulder user.
 CLAUDE_CONFIG=/home/mulder/.mulder/claude
+# Containers run as the host user so files they write under the repo are the
+# user's own. On macOS that uid (501) has no passwd entry in the images, and
+# tools that look themselves up (bulk_extractor, capa) crash; Docker Desktop
+# shares files without ownership checks, so there they run as the image's
+# mulder user (1000), the uid a Linux host gives them.
+RUN_AS="$(id -u):$(id -g)"
+[ "$(uname -s)" = Darwin ] && RUN_AS=1000:1000
 # Docker Desktop on macOS shows that folder's files to the container as root's
 # with mode 600, so the mulder user cannot read the sign-in. There, a token from
 # `claude setup-token` kept in data/oauth-token is passed as CLAUDE_CODE_OAUTH_TOKEN.
@@ -138,7 +145,7 @@ if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ -s data/oauth-token ]; then
 fi
 
 in_tools() {
-    docker run --rm --entrypoint "" --user "$(id -u):$(id -g)" -e HOME=/tmp \
+    docker run --rm --entrypoint "" --user "$RUN_AS" -e HOME=/tmp \
         -v "$ROOT:/bench" -w /bench "$TOOLS_IMAGE" "$@"
 }
 
@@ -190,7 +197,7 @@ claude_investigate() {
             --mcp-config /work/mcp.json --strict-mcp-config --tools "" \
             --no-session-persistence --output-format stream-json --verbose' \
         | tee "$work/claude/stream.jsonl" \
-        | docker run --rm -i --entrypoint "" --user "$(id -u):$(id -g)" -e HOME=/tmp \
+        | docker run --rm -i --entrypoint "" --user "$RUN_AS" -e HOME=/tmp \
             -v "$ROOT:/bench" -w /bench -e PYTHONPATH=runner "$TOOLS_IMAGE" python3 -m bench claude-progress \
         || echo "claude on $label exited with a failure" >&2
     # Imported only when Claude Code finished without an error (an API or
@@ -301,7 +308,7 @@ run_poc() {
     else
         no_model=--no-model
     fi
-    docker run --rm --entrypoint "" --user "$(id -u):$(id -g)" -e HOME=/tmp \
+    docker run --rm --entrypoint "" --user "$RUN_AS" -e HOME=/tmp \
         -e BENCH_IMAGE_ID="$(docker image inspect -f '{{.Id}}' "$image")" \
         -e BENCH_SERVER_CMD="$(server_cmd "$v")" ${model[@]+"${model[@]}"} \
         -v "$ROOT/pocs:/pocs:ro" -v "$ROOT/$dir:/out" \
@@ -398,7 +405,7 @@ run)
             # Run as the host user, as `prepare` does, so results/ stays writable
             # and owned by that user on Linux too (the image's entrypoint would
             # switch to its own mulder user).
-            docker run --rm --entrypoint "" --user "$(id -u):$(id -g)" -e HOME=/tmp \
+            docker run --rm --entrypoint "" --user "$RUN_AS" -e HOME=/tmp \
                 --add-host=host.docker.internal:host-gateway \
                 -e MODEL_BASE_URL="${MODEL_BASE_URL:-http://host.docker.internal:1234/v1}" \
                 -e MODEL_NAME="${MODEL_NAME:-}" -e MODEL_API_KEY="${MODEL_API_KEY:-lm-studio}" \
@@ -433,7 +440,7 @@ review)
     [ -d "$dir" ] || { echo "no results for $e" >&2; exit 1; }
     reviewer=${REVIEWER:-}
     [ -n "$reviewer" ] || reviewer=$(git config user.name 2>/dev/null || true)
-    docker run --rm -it --entrypoint "" --user "$(id -u):$(id -g)" -e HOME=/tmp \
+    docker run --rm -it --entrypoint "" --user "$RUN_AS" -e HOME=/tmp \
         -e PYTHONPATH=runner -v "$ROOT:/bench" -w /bench "$TOOLS_IMAGE" \
         python3 -m bench review "cases/$c/case.yaml" "$dir" --reviewer "$reviewer" \
         ${2:+--model "$2"}

@@ -1,0 +1,34 @@
+{
+  "case_id": "P2061-074",
+  "problem": "P2061",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: read_evidence_file with max_bytes -1 is shown; the other size and offset arguments listed for this case (get_raw_output, search, get_timeline, get_findings and others) are not",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "파일의 마지막 줄까지 다 왔다",
+      "contains": "Session 41 logged out. Waiting for processes to exit.",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "그런데 잘렸다고 표시한다",
+      "contains": "\"truncated\": true",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "기본 한도로 읽으면 같은 파일이 잘리지 않았다고 표시된다",
+      "contains": "\"truncated\": false",
+      "ok": true
+    }
+  ],
+  "image": "sha256:df2b5cf5fc124e2b5d42caa6915d14531b91384c5d223e7948260bd5c5e67b81",
+  "ran_at": "2026-11-28T05:34:02+00:00"
+}

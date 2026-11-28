@@ -1,0 +1,53 @@
+# Matrix case P2060-013: run_parallel reads each task's arguments from the
+# "args" key only (task.get("args", {})); a task written the way MCP itself
+# names tool arguments ("arguments") loses them without an error and the tool
+# runs with its defaults.
+case_id: P2060-013
+problem: P2060
+server: mulder
+variant: mulder-3164843
+commit: 3164843baf74c7fe69e7121dbd6150f8f77ce660
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "MCP의 tools/call은 인자를 `arguments`라는 키로 보내므로, 모델이 `run_parallel`의 작업도 같은 키로 적는 일이 있을 수 있다."
+coverage: "partial: run_parallel with run_chkrootkit is shown; start_extraction_batch reads the same key the same way"
+coverage_ko: "`run_parallel`과 `run_chkrootkit`만 보인다. `start_extraction_batch`도 같은 키를 같은 방식으로 읽는다."
+summary: A run_parallel task {"tool":"run_chkrootkit","arguments":{"target_path":"<evidence rootfs>"}} loses its arguments without an error, so chkrootkit checks the analysis host's own "/" and the batch reports success, indexed as chkrootkit.scan.
+summary_ko: "`run_parallel` 작업을 `{\"tool\":\"run_chkrootkit\",\"arguments\":{\"target_path\":\"<증거 루트>\"}}`로 주면 인자가 오류 없이 버려져, chkrootkit이 분석 호스트의 `/`를 검사하고 결과가 success로 `chkrootkit.scan`에 색인된다."
+defect_ko: "이 서버는 작업의 `arguments` 키를 알리지 않고 버리고 도구를 기본값으로 실행한다. 정상이라면 모르는 키라고 거부하거나 인자가 없다고 알려야 한다. 모델은 증거의 루트 파일 시스템을 검사한 결과로 잘못 안다."
+setup_ko: "증거에 리눅스 루트 파일 시스템 모양의 폴더(`rootfs/`)를 넣고, 사건을 만든 뒤 `run_parallel`로 chkrootkit을 돌렸다."
+fixture:
+  - path: rootfs/etc/passwd
+    text: |
+      root:x:0:0:root:/root:/bin/bash
+      www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+  - path: rootfs/etc/hostname
+    text: "web01\n"
+  - path: rootfs/var/log/auth.log
+    text: "Mar  3 10:12:01 web01 sshd[2211]: Accepted password for root from 198.51.100.23 port 51122 ssh2\n"
+  - path: rootfs/tmp/.ICE-unix/.x/xmrig
+    text: "ELF\n"
+steps:
+  - tool: scan_evidence
+    note_ko: "준비: 사건 생성"
+    args:
+      evidence_path: ${EVIDENCE}
+      case_id: p2060-013
+  - tool: run_parallel
+    note_ko: "결함 호출: 작업 인자를 `arguments` 키로 적은 일괄 실행"
+    timeout_s: 900
+    args:
+      tasks:
+        - tool: run_chkrootkit
+          arguments:
+            target_path: ${EVIDENCE}/rootfs
+  - tool: list_sources
+    note_ko: "확인 호출: 색인된 출처와 그 경로"
+expect:
+  - step: 2
+    note_ko: "인자가 버려졌는데 작업이 success로 끝난다"
+    regex: '"tool": "run_chkrootkit",\s*"result": \{[^}]*"status": "success"'
+  - step: 3
+    note_ko: "색인된 `chkrootkit.scan`의 경로가 증거가 아니라 분석 호스트의 `/`다"
+    regex: '"source_name": "chkrootkit.scan"[^}]*"source_path": "/"'

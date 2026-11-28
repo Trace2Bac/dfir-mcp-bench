@@ -1,0 +1,28 @@
+{
+  "case_id": "P2060-013",
+  "problem": "P2060",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: run_parallel with run_chkrootkit is shown; start_extraction_batch reads the same key the same way",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "인자가 버려졌는데 작업이 success로 끝난다",
+      "regex": "\"tool\": \"run_chkrootkit\",\\s*\"result\": \\{[^}]*\"status\": \"success\"",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "색인된 `chkrootkit.scan`의 경로가 증거가 아니라 분석 호스트의 `/`다",
+      "regex": "\"source_name\": \"chkrootkit.scan\"[^}]*\"source_path\": \"/\"",
+      "ok": true
+    }
+  ],
+  "image": "sha256:a9e3cad3eb38f62a54dccbd53b03c31ee59f776a6e4a610c856e1c372d728d3c",
+  "ran_at": "2026-11-28T05:33:46+00:00"
+}

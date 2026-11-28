@@ -1,0 +1,34 @@
+{
+  "case_id": "P2064-003",
+  "problem": "P2064",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: run_parallel with run_chainsaw is shown; start_extraction_batch reaches the function the same way",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "직접 호출은 허용 값 검사에서 거부된다",
+      "is_error": true,
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "일괄 실행에서는 같은 값이 success로 끝난다",
+      "regex": "\"tool\": \"run_chainsaw\",\\s*\"result\": \\{[^}]*\"status\": \"success\"",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "실제로 돈 것은 timeline 모드다",
+      "contains": "\"source\": \"chainsaw.timeline\"",
+      "ok": true
+    }
+  ],
+  "image": "sha256:611afe8516592060af3f7fa25a4e693ff9674981509e39a0f50b88d8cdbc8300",
+  "ran_at": "2026-11-28T05:34:18+00:00"
+}

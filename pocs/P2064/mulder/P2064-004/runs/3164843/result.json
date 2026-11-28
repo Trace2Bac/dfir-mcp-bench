@@ -1,0 +1,46 @@
+{
+  "case_id": "P2064-004",
+  "problem": "P2064",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: an invalid confidence is shown; severity and an empty evidence_refs reach the database the same way",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "갱신 전에는 발견 사항을 읽을 수 있다",
+      "contains": "\"finding_id\": \"f_8087ed40\"",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "`submit_finding`은 `high`를 검사에서 거부한다",
+      "regex": "Validation error[\\s\\S]*confidence",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "갱신 뒤에는 발견 사항 읽기가 실패한다",
+      "is_error": true,
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "`update_finding`은 실패로 끝나지만",
+      "is_error": true,
+      "ok": true
+    },
+    {
+      "step": 7,
+      "note_ko": "confidence를 되돌리면 다시 읽힌다(실패한 갱신의 `high`가 저장돼 있었다)",
+      "contains": "\"confidence\": \"inference\"",
+      "ok": true
+    }
+  ],
+  "image": "sha256:d180a5b6e1848505d10a09218b41c5878d3ec08336c12b10e267bc27e6765284",
+  "ran_at": "2026-11-28T05:34:22+00:00"
+}

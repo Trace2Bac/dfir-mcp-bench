@@ -1,0 +1,40 @@
+{
+  "case_id": "P4117-072",
+  "problem": "P4117",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: get_deleted_files is shown; list_files builds top_directories the same way",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 3,
+      "note_ko": "지워진 항목이 든 window가 50개보다 많다",
+      "regex": "\"total_windows\": (5[1-9]|[6-9]\\d|\\d{3,}),",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "상위 디렉터리 분포에 Users만 있다",
+      "regex": "\"top_directories\": \\[\\s*\\{\\s*\"name\": \"Users\",\\s*\"entries\": \\d+\\s*\\}\\s*\\]",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "rclone은 마지막 window 64에 있다",
+      "contains": "\"window_id\": 64,",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "파일 목록에는 지워진 Windows/Temp/rclone.exe가 있다",
+      "regex": "\\* \\d+-128-\\d+:\\\\tWindows/Temp/rclone\\.exe",
+      "ok": true
+    }
+  ],
+  "image": "sha256:25fbdfc2d9cdaf4c7317d7d5027d98995ff6fc96a050be9720638c8a1a178a90",
+  "ran_at": "2026-11-28T06:06:12+00:00"
+}

@@ -1,0 +1,40 @@
+{
+  "case_id": "P4101-025",
+  "problem": "P4101",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: run_volatility with a failing plugin is shown (Volatility is a stub); run_bulk_extractor, run_zeek_analysis, run_suricata, run_pcap_analysis mode=all and the batch status completed are not",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "최상위 상태는 성공이고 결과가 volatility.pslist로 적재됐다고 안내한다",
+      "regex": "^\\{\\s*\"tool_call_id\": \"[^\"]+\",\\s*\"status\": \"success\",\\s*\"source\": \"volatility\\.pslist\"[\\s\\S]*Full output indexed as 'volatility\\.pslist'",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "플러그인 실패(status error, 심볼 요구 조건 미충족)는 preview 문자열 안에만 있다",
+      "regex": "\"preview\": \"[^\\n]*\\\\\"status\\\\\": \\\\\"error\\\\\"[^\\n]*Unable to validate the plugin requirements",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "오류 표시가 없다",
+      "is_error": false,
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "안내한 source에는 아무것도 적재되지 않았다(빈 결과도 success로 온다)",
+      "regex": "\"total_windows\": 0,[\\s\\S]*\"raw_text\": \"\"",
+      "ok": true
+    }
+  ],
+  "image": "sha256:34e46c5be2be2223265511d3f7204e5853e4d289c720fb451ce8670a3056c6d1",
+  "ran_at": "2026-11-28T05:49:56+00:00"
+}

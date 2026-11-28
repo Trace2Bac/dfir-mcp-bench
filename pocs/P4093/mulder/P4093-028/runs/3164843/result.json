@@ -1,0 +1,34 @@
+{
+  "case_id": "P4093-028",
+  "problem": "P4093",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "response",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: exiftool only; capa, floss, Detect It Easy, Hayabusa, MVT, YARA, Zircolite, Plaso, PhotoRec and readpst are not run",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "exiftool이 종료 코드 1로 끝났는데 success로 돌아온다",
+      "regex": "\"status\": \"success\"",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "첫 사진의 촬영 시각은 적재됐다",
+      "contains": "2026:10:03 14:22:51",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "두 번째 사진은 열지 못했다는 오류만 남았다",
+      "regex": "IMG_0413\\.JPG[\\s\\S]*Error opening file",
+      "ok": true
+    }
+  ],
+  "image": "sha256:8f78ee73396e7fb6dc1ff340551ef406320b43b322d739586de944c7f7172a19",
+  "ran_at": "2026-11-28T05:40:39+00:00"
+}

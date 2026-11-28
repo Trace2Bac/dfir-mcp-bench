@@ -1,0 +1,105 @@
+# Matrix case P4093-028: run_cli_tool (used by run_exiftool, run_strings,
+# run_hashdeep and others) turns a nonzero exit into an error only when the
+# tool wrote nothing to stdout. exiftool exits 1 when it cannot open one of
+# the files under a folder, but it still prints the others, so run_exiftool
+# returns success as if every file had been read.
+# The two JPEGs were made with Pillow 12.3.0 and tagged with ExifTool 12.40
+# in the server image (Apple iPhone 12, DateTimeOriginal, GPS). The second
+# photo was root-owned 0600 in the collection; the fixture cannot chown, so
+# it is mode 0000, which the server user (uid 1000) cannot open either.
+case_id: P4093-028
+problem: P4093
+server: mulder
+variant: mulder-3164843
+commit: 3164843baf74c7fe69e7121dbd6150f8f77ce660
+display: response
+level: mcp
+realism: possible
+realism_ko: "root 권한으로 뜬 수집본을 일반 사용자로 분석하면 일부 파일을 열지 못하는 일이 흔하고, 그때 exiftool은 나머지 파일을 출력하고 종료 코드 1로 끝난다."
+coverage: "partial: exiftool only; capa, floss, Detect It Easy, Hayabusa, MVT, YARA, Zircolite, Plaso, PhotoRec and readpst are not run"
+coverage_ko: "exiftool만 보였다. capa·floss·Detect It Easy·Hayabusa·MVT·YARA·Zircolite·Plaso·PhotoRec·readpst는 돌리지 않았다."
+summary: >-
+  On a DCIM folder with two iPhone photos, one of which the server user
+  cannot open, run_exiftool returns success while exiftool exited 1; the
+  indexed output has the first photo's GPS and time and only
+  "Error opening file" for IMG_0413.JPG, and the response does not say a file
+  was skipped.
+summary_ko: "iPhone 사진 두 장 중 한 장을 서버 사용자가 열 수 없는 DCIM 폴더에 `run_exiftool`을 부르면, exiftool은 종료 코드 1로 끝났는데 응답은 success다. 적재된 출력에는 첫 사진의 GPS·시각만 있고 IMG_0413.JPG에는 `Error opening file`만 있다."
+defect_ko: "이 서버는 exiftool이 0이 아닌 코드로 끝나도 출력이 조금이라도 있으면 종료 코드를 버리고 완전한 결과처럼 success를 돌려준다. 정상이라면 일부 파일을 읽지 못했다고 상태로 알려야 한다. 모델은 폴더의 사진 메타데이터를 모두 받았다고 믿고, 23:41 인천 위치가 찍힌 두 번째 사진의 정보가 없다는 것을 놓친다."
+setup_ko: "서울(14:22)과 인천공항 부근(23:41)에서 찍힌 iPhone 사진 두 장이 든 DCIM 폴더를 넣고, 두 번째 사진은 서버 사용자가 읽을 수 없게 했다."
+fixture:
+  - path: phone/DCIM/100APPLE/IMG_0412.JPG
+    base64: |
+      /9j/4AAQSkZJRgABAQAAAQABAAD/4QF+RXhpZgAATU0AKgAAAAgACAEPAAIAAAAGAAAAbgEQAAIA
+      AAAKAAAAdAEaAAUAAAABAAAAfgEbAAUAAAABAAAAhgEoAAMAAAABAAEAAAITAAMAAAABAAEAAIdp
+      AAQAAAABAAAAjoglAAQAAAABAAABBAAAAABBcHBsZQBpUGhvbmUgMTIAAAAAAQAAAAEAAAABAAAA
+      AQAGkAAABwAAAAQwMjMykAMAAgAAABQAAADckAQAAgAAABQAAADwkQEABwAAAAQBAgMAoAAABwAA
+      AAQwMTAwoAEAAwAAAAH//wAAAAAAADIwMjY6MTA6MDMgMTQ6MjI6NTEAMjAyNjoxMDowMyAxNDoy
+      Mjo1MQAABQAAAAEAAAAEAgMAAAABAAIAAAACTgAAAAACAAUAAAADAAABRgADAAIAAAACRQAAAAAE
+      AAUAAAADAAABXgAAAAAAAAAlAAAAAQAAACEAAAABAAABKQAAAAUAAAB+AAAAAQAAADoAAAABAAAA
+      zAAAAAX/2wBDAAoHBwgHBgoICAgLCgoLDhgQDg0NDh0VFhEYIx8lJCIfIiEmKzcvJik0KSEiMEEx
+      NDk7Pj4+JS5ESUM8SDc9Pjv/2wBDAQoLCw4NDhwQEBw7KCIoOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7
+      Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozv/wAARCAAwAEADASIAAhEBAxEB/8QAHwAAAQUB
+      AQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEG
+      E1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVW
+      V1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLD
+      xMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAA
+      AAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKR
+      obHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hp
+      anN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU
+      1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwCrRRXaaBoGl3ui29xcWu+V925v
+      MYZwxHY+1ejOagrs44xcnZHF0V6L/wAIrov/AD5f+RX/AMaP+EV0X/ny/wDIr/41n9YiX7KR51RX
+      ov8Awiui/wDPl/5Ff/GuD1GJINTuoYl2pHM6qM5wASBVwqKexMoOO5WooorQgK9F8K/8i5a/8D/9
+      DavOq7zw1qNjBoFtFNe28brvyryqCPmPYmsK6vE1pfEdBRVP+19M/wCgja/9/l/xo/tfTP8AoI2v
+      /f5f8a4+V9joui5Xl+r/APIZvf8Ar4k/9CNeif2vpn/QRtf+/wAv+Nec6o6yateOjBladyrKcgjc
+      ea6KCabMar0RVooorrMAooooAKKKKACiiigAooooA//Z
+  - path: phone/DCIM/100APPLE/IMG_0413.JPG
+    mode: "0000"
+    base64: |
+      /9j/4AAQSkZJRgABAQAAAQABAAD/4QF+RXhpZgAATU0AKgAAAAgACAEPAAIAAAAGAAAAbgEQAAIA
+      AAAKAAAAdAEaAAUAAAABAAAAfgEbAAUAAAABAAAAhgEoAAMAAAABAAEAAAITAAMAAAABAAEAAIdp
+      AAQAAAABAAAAjoglAAQAAAABAAABBAAAAABBcHBsZQBpUGhvbmUgMTIAAAAAAQAAAAEAAAABAAAA
+      AQAGkAAABwAAAAQwMjMykAMAAgAAABQAAADckAQAAgAAABQAAADwkQEABwAAAAQBAgMAoAAABwAA
+      AAQwMTAwoAEAAwAAAAH//wAAAAAAADIwMjY6MTA6MDMgMjM6NDE6MDcAMjAyNjoxMDowMyAyMzo0
+      MTowNwAABQAAAAEAAAAEAgMAAAABAAIAAAACTgAAAAACAAUAAAADAAABRgADAAIAAAACRQAAAAAE
+      AAUAAAADAAABXgAAAAAAAAAlAAAAAQAAABsAAAABAAADlgAAABkAAAB+AAAAAQAAABoAAAABAAAC
+      lwAAABn/2wBDAAoHBwgHBgoICAgLCgoLDhgQDg0NDh0VFhEYIx8lJCIfIiEmKzcvJik0KSEiMEEx
+      NDk7Pj4+JS5ESUM8SDc9Pjv/2wBDAQoLCw4NDhwQEBw7KCIoOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7
+      Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozv/wAARCAAwAEADASIAAhEBAxEB/8QAHwAAAQUB
+      AQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEG
+      E1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVW
+      V1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLD
+      xMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAA
+      AAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKR
+      obHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hp
+      anN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU
+      1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwCCiiuy0HQdMvdFt7i4tt8r7tze
+      YwzhiOx9q4IQcnZHfOairs42ivQv+EW0X/nz/wDIr/40f8Itov8Az5/+RX/xrT2EjP28Tz2ivQv+
+      EW0X/nz/APIr/wCNcLqMSQaldQxrtSOZ1UZzgAkConTcdy4VFLYr0UUVmaBXoXhb/kXbX/gf/obV
+      57XdeG9RsYNBto5ry3jdd2VeVQR8x7E1vRfvGFZe6b9FVP7W03/oIWv/AH+X/Gj+1tN/6CFr/wB/
+      l/xrqujlsy3XmOrf8hi9/wCviT/0I16H/a2m/wDQQtf+/wAv+Ned6m6yardujBladyrA5BG481hX
+      aaRvQTTZVooorlOoKKKKACiiigAooooAKKKKAP/Z
+steps:
+  - tool: scan_evidence
+    note_ko: "사건 만들기"
+    args:
+      evidence_path: ${EVIDENCE}
+      case_id: exiftool-exit-code
+  - tool: run_exiftool
+    note_ko: "결함 호출: DCIM 폴더 전체의 메타데이터 뽑기"
+    args:
+      target_path: ${EVIDENCE}/phone/DCIM
+  - tool: get_raw_output
+    note_ko: "적재된 exiftool 출력 보기"
+    args:
+      source_name: exiftool.metadata
+expect:
+  - step: 2
+    note_ko: "exiftool이 종료 코드 1로 끝났는데 success로 돌아온다"
+    regex: '"status": "success"'
+  - step: 3
+    note_ko: "첫 사진의 촬영 시각은 적재됐다"
+    contains: "2026:10:03 14:22:51"
+  - step: 3
+    note_ko: "두 번째 사진은 열지 못했다는 오류만 남았다"
+    regex: 'IMG_0413\.JPG[\s\S]*Error opening file'

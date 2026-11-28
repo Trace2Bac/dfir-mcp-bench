@@ -1,0 +1,46 @@
+{
+  "case_id": "P2054-015",
+  "problem": "P2054",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "HTTP 출력이 `pcap.http`로 적재된다",
+      "contains": "pcap.http",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "`source` 없는 정규식 검색이 success로 돌아온다",
+      "regex": "\"status\": \"success\"",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "`source` 없는 정규식 검색이 0건이다",
+      "regex": "\"total_matches\": 0\\b",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "같은 정규식에 `source='pcap'`을 주면 `pcap.http` 창 1건이 나온다",
+      "regex": "\"total_matches\": 1\\b[\\s\\S]*\"sources_matched\": \\[\\s*\"pcap.http\"",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "`source` 없는 키워드 검색도 `pcap.http` 창 1건을 찾는다",
+      "regex": "\"total_matches\": 1\\b[\\s\\S]*\"sources_matched\": \\[\\s*\"pcap.http\"",
+      "ok": true
+    }
+  ],
+  "image": "sha256:8629c0fdb89301400781290bd1f5f7384954ff70a92026e6da9e8860960aaf8a",
+  "ran_at": "2026-11-28T05:37:08+00:00"
+}

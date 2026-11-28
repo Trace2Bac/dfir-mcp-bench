@@ -1,0 +1,119 @@
+# Matrix case P4095-051: when tshark exits non-zero with nothing on stdout,
+# _tshark_output_or_error (pcap.py) turns stderr into the text
+# "[tshark error (exit N): ...]", and run_pcap_analysis indexes that text as
+# the mode's source (here pcap.filtered) and answers success with status
+# "indexed". The response preview is the indexing summary, not the text, so the
+# failure shows only when the source is read back.
+# The trigger is a display filter on tls.handshake.ja4: JA4 fields exist from
+# Wireshark 4.2, and the image ships TShark 3.6.2, which rejects the filter
+# (exit 2). The capture is a real libpcap file written by a script: three
+# TCP sessions to 185.199.110.42:443, each with a TLS ClientHello (SNI
+# cdn.update-check.net or login.microsoftonline.com), valid checksums.
+case_id: P4095-051
+problem: P4095
+server: mulder
+variant: mulder-3164843
+commit: 3164843baf74c7fe69e7121dbd6150f8f77ce660
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "JA4 지문으로 악성 TLS 클라이언트를 찾는 것은 요즘 흔한 사냥 방식인데, 이미지의 TShark 3.6.2에는 그 필드가 없어 필터가 거부된다. 오타·버전 차이로 tshark가 실패하는 일은 실제로 생긴다."
+coverage: "partial: custom mode with a filter tshark rejects is shown; the other modes index tshark's error text the same way (dns and smtp mode: see P2049-107)"
+coverage_ko: "tshark가 거부하는 필터를 준 custom 모드만 보인다. 다른 모드도 tshark 오류 문구를 같은 방식으로 적재한다(dns·smtp 모드는 P2049-107)."
+summary: >-
+  run_pcap_analysis in custom mode with a tls.handshake.ja4 filter answers
+  success with pcap.filtered "indexed", but the indexed text is TShark 3.6.2's
+  error that tls.handshake.ja4 is not a field; tls mode on the same capture
+  lists the three ClientHellos.
+summary_ko: "`tls.handshake.ja4` 필터로 `run_pcap_analysis`를 custom 모드로 부르면 `pcap.filtered`가 `indexed`인 성공 응답이 온다. 그러나 적재된 것은 `tls.handshake.ja4`가 필드가 아니라는 TShark 3.6.2의 오류 문구다. 같은 캡처의 tls 모드는 ClientHello 3건을 보여 준다."
+defect_ko: "이 서버는 tshark가 실패해도 그 오류 문구를 분석 결과로 적재하고 성공(`indexed`)으로 답한다. 정상이라면 실패를 `status: error`와 tshark 메시지로 알려야 한다. 모델은 필터가 적용됐다고 보고, `pcap.filtered`에 해당 패킷이 없으니 그런 TLS 클라이언트가 없었다고 잘못 안다."
+setup_ko: "`10.0.5.21`이 `185.199.110.42:443`으로 TLS 연결 3건(SNI `cdn.update-check.net` 2건, `login.microsoftonline.com` 1건)을 맺는 pcap 파일을 넣었다."
+fixture:
+  - path: net/egress.pcap
+    hex: |
+      d4c3b2a1020004000000000000000000ffff000001000000401133670000000036000000360000000050568a1b2c000c
+      29aa01f308004500002879d64000800649f30a000515b9c76e2ac29301bb000003e8000000005002faf0b5b400004011
+      3367204e00003600000036000000000c29aa01f30050568a1b2c08004500002842c640003406cd03b9c76e2a0a000515
+      01bbc29300001388000003e95012faf0a21b0000401133670852000036000000360000000050568a1b2c000c29aa01f3
+      080045000028bd6a40008006065f0a000515b9c76e2ac29301bb000003e9000013895010faf0a21c000040113367f055
+      0000f1000000f10000000050568a1b2c000c29aa01f30800450000e344af400080067e5f0a000515b9c76e2ac29301bb
+      000003e9000013895018faf0b3d0000016030100b6010000b20303ea9a79a094109b03e8d678428d3b31feb7788ad68c
+      7965a3dc263ba226deed852063bd03abc61028c2f5970a4dc707d2dd447998b8ebe063b6c9eb6d65bacd93710018c02b
+      c02fc02cc030cca9cca8c013c014009c009d002f00350100005100000019001700001463646e2e7570646174652d6368
+      65636b2e6e657400170000ff01000100000a00060004001d0017000b00020100000d000800060401080404030010000b
+      000908687474702f312e3140113367c8af00003600000036000000000c29aa01f30050568a1b2c080045000028bb2540
+      00340654a4b9c76e2a0a00051501bbc29300001389000004a45010faf0a161000040113367e093040036000000360000
+      000050568a1b2c000c29aa01f308004500002831e54000800691e40a000515b9c76e2ac29301bb000004a40000138950
+      11faf0a16000004011336700e204003600000036000000000c29aa01f30050568a1b2c080045000028125f40003406fd
+      6ab9c76e2a0a00051501bbc29300001389000004a55011faf0a15f000040113367e8e504003600000036000000005056
+      8a1b2c000c29aa01f3080045000028459d400080067e2c0a000515b9c76e2ac29301bb000004a50000138a5010faf0a1
+      5f00005e1133670000000036000000360000000050568a1b2c000c29aa01f3080045000028fd6140008006c6670a0005
+      15b9c76e2ac29401bb00002249000000005002faf0975200005e113367204e00003600000036000000000c29aa01f300
+      50568a1b2c0800450000286f1840003406a0b1b9c76e2a0a00051501bbc2940000176f0000224a5012faf07fd200005e
+      1133670852000036000000360000000050568a1b2c000c29aa01f30800450000288416400080063fb30a000515b9c76e
+      2ac29401bb0000224a000017705010faf07fd300005e113367f0550000f6000000f60000000050568a1b2c000c29aa01
+      f30800450000e89678400080062c910a000515b9c76e2ac29401bb0000224a000017705018faf01d65000016030100bb
+      010000b70303f7ac6fc7a0da4d6b81d5629259889568953be756aeeaed07db47fd9babb229b220dc53f68ae792911ab6
+      a736a2d4fc9244481f107bdaa3fd7b1658cc1169e526050018c02bc02fc02cc030cca9cca8c013c014009c009d002f00
+      35010000560000001e001c0000196c6f67696e2e6d6963726f736f66746f6e6c696e652e636f6d00170000ff01000100
+      000a00060004001d0017000b00020100000d000800060401080404030010000b000908687474702f312e315e113367c8
+      af00003600000036000000000c29aa01f30050568a1b2c080045000028dab2400034063517b9c76e2a0a00051501bbc2
+      94000017700000230a5010faf07f1300005e113367e093040036000000360000000050568a1b2c000c29aa01f3080045
+      000028d49440008006ef340a000515b9c76e2ac29401bb0000230a000017705011faf07f1200005e11336700e2040036
+      00000036000000000c29aa01f30050568a1b2c0800450000283ce240003406d2e7b9c76e2a0a00051501bbc294000017
+      700000230b5011faf07f1100005e113367e8e5040036000000360000000050568a1b2c000c29aa01f308004500002816
+      a040008006ad290a000515b9c76e2ac29401bb0000230b000017715010faf07f1100007c113367000000003600000036
+      0000000050568a1b2c000c29aa01f3080045000028170240008006acc70a000515b9c76e2ac29501bb000040aa000000
+      005002faf078f000007c113367204e00003600000036000000000c29aa01f30050568a1b2c080045000028c16f400034
+      064e5ab9c76e2a0a00051501bbc29500001b56000040ab5012faf05d8900007c11336708520000360000003600000000
+      50568a1b2c000c29aa01f3080045000028a972400080061a570a000515b9c76e2ac29501bb000040ab00001b575010fa
+      f05d8a00007c113367f0550000f1000000f10000000050568a1b2c000c29aa01f30800450000e39b214000800627ed0a
+      000515b9c76e2ac29501bb000040ab00001b575018faf009dd000016030100b6010000b203038de1ecfb47813cff094f
+      01131b998908f232f8684a9c4327b00afade56505cf52023e5dc606075de8562a4dd98ae8f1a9ef9f0cf81456ea2b8b7
+      3cef4d6ffa42850018c02bc02fc02cc030cca9cca8c013c014009c009d002f0035010000510000001900170000146364
+      6e2e7570646174652d636865636b2e6e657400170000ff01000100000a00060004001d0017000b00020100000d000800
+      060401080404030010000b000908687474702f312e317c113367c8af00003600000036000000000c29aa01f30050568a
+      1b2c080045000028ad85400034066244b9c76e2a0a00051501bbc29500001b57000041665010faf05ccf00007c113367
+      e093040036000000360000000050568a1b2c000c29aa01f308004500002805dd40008006bdec0a000515b9c76e2ac295
+      01bb0000416600001b575011faf05cce00007c11336700e204003600000036000000000c29aa01f30050568a1b2c0800
+      45000028d496400034063b33b9c76e2a0a00051501bbc29500001b57000041675011faf05ccd00007c113367e8e50400
+      36000000360000000050568a1b2c000c29aa01f3080045000028a1374000800622920a000515b9c76e2ac29501bb0000
+      416700001b585010faf05ccd0000
+steps:
+  - tool: scan_evidence
+    note_ko: "준비: 사건 만들기"
+    args:
+      evidence_path: ${EVIDENCE}
+      case_id: p4095-051
+  - tool: run_pcap_analysis
+    note_ko: "비교 호출: 같은 캡처의 TLS 핸드셰이크(정상 동작하는 모드)"
+    args:
+      pcap_path: ${EVIDENCE}/net/egress.pcap
+      mode: tls
+  - tool: get_raw_output
+    note_ko: "비교 호출: 적재된 pcap.tls 원문 읽기"
+    args:
+      source_name: pcap.tls
+  - tool: run_pcap_analysis
+    note_ko: "결함 호출: JA4 지문 필터로 custom 모드 실행"
+    args:
+      pcap_path: ${EVIDENCE}/net/egress.pcap
+      mode: custom
+      display_filter: tls.handshake.ja4 == "t12d1207h1_c866b44c5a26_e8cd2fbbe8b9"
+  - tool: get_raw_output
+    note_ko: "결함 호출: 적재된 pcap.filtered 원문 읽기"
+    args:
+      source_name: pcap.filtered
+expect:
+  - step: 3
+    note_ko: "캡처에는 TLS ClientHello가 있다(캡처 파일은 멀쩡하다)"
+    contains: "cdn.update-check.net"
+  - step: 4
+    note_ko: "custom 모드는 오류가 아닌 응답으로 돌아온다"
+    is_error: false
+  - step: 4
+    note_ko: "응답은 성공이고 pcap.filtered가 적재됐다(indexed)고 한다"
+    regex: '"status": "success"[\s\S]*pcap\.filtered\\?"[^}]*\\?"status\\?": \\?"indexed'
+  - step: 5
+    note_ko: "pcap.filtered에 적재된 것은 패킷이 아니라 tls.handshake.ja4가 필드가 아니라는 tshark 오류다"
+    regex: 'tshark error \(exit \d+\): tshark: Neither \\?"tls\.handshake\.ja4\\?"'

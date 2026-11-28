@@ -1,0 +1,195 @@
+# Matrix case P4153-001: enrich_iocs sends every IPv4 it is given to
+# ip-api.com, and with API keys every IOC to AbuseIPDB, OTX and VirusTotal
+# (enrichment.py 474-484); classify_ioc (46-70) only tells IPv4, hashes and
+# domains apart, so RFC 1918 addresses and internal host names go out like
+# any other value. Here the analyst enriches the remote ends of a suspicious
+# PowerShell process's connections: the internal server 10.0.2.15 (WinRM
+# 5985) and fs01.corp.example go to the outside services next to the C2
+# address.
+#
+# No request leaves the container: HTTP_PROXY and HTTPS_PROXY point httpx at
+# a stand-in proxy on 127.0.0.1:18443 (the `recorder` service), which logs
+# what it is sent, answers ip-api requests as ip-api.com answers private and
+# reserved addresses, ends TLS with its own certificate (SSL_CERT_FILE;
+# self-signed for www.virustotal.com and api.abuseipdb.com, made for these
+# PoCs) and answers 404. The API keys are fake.
+case_id: P4153-001
+problem: P4153
+server: mulder
+variant: mulder-3164843
+commit: 3164843baf74c7fe69e7121dbd6150f8f77ce660
+display: network
+level: mcp
+realism: common
+realism_ko: "mulder의 분석가 프롬프트는 의심 연결을 찾으면 `enrich_iocs`를 쓰라고 하고, 의심 프로세스의 연결 상대에는 횡적 이동 대상인 내부 서버가 흔히 섞인다. 평판 API 키를 넣어 두는 것도 흔한 설정이다."
+coverage: "partial: ip-api, AbuseIPDB and VirusTotal; OTX (same code path with OTX_API_KEY) is not set; the services are a local stand-in"
+coverage_ko: "ip-api·AbuseIPDB·VirusTotal만 보였다. 같은 경로인 OTX는 키를 넣지 않았다. 외부 서비스는 로컬 대역이다."
+summary: >-
+  enrich_iocs with the C2 address 198.51.100.23, the internal server
+  10.0.2.15 and the internal name fs01.corp.example sends
+  http://ip-api.com/json/10.0.2.15 in plaintext, 10.0.2.15 to
+  api.abuseipdb.com and VirusTotal, and fs01.corp.example to VirusTotal, as
+  the stand-in proxy records; the response gives no sign that internal
+  values were sent out.
+summary_ko: "C2 주소 198.51.100.23, 내부 서버 10.0.2.15, 내부 이름 fs01.corp.example로 `enrich_iocs`를 부르면 `http://ip-api.com/json/10.0.2.15`를 평문으로 보내고, 10.0.2.15를 api.abuseipdb.com과 VirusTotal에, fs01.corp.example을 VirusTotal에 보낸다(대역 프록시가 기록). 응답에는 내부 값을 밖으로 보냈다는 표시가 없다."
+defect_ko: "이 서버는 외부 평판·위치 서비스로 보내는 IOC에서 사설 주소와 내부 도메인을 거르지 않는다. 정상이라면 RFC 1918 주소·내부 이름은 보내지 않고 건너뛰거나, 보내기 전에 알려야 한다. 조사 대상 조직의 내부 서버 주소·이름과 그 서버가 조사 대상이라는 사실이 제3자 서비스(평문 ip-api 포함)에 남는다."
+setup_ko: "감염 PC의 `netstat -ano` 결과(PID 6488 PowerShell이 내부 서버 10.0.2.15의 WinRM과 C2 198.51.100.23에 연결)를 적재하고, 가짜 AbuseIPDB·VirusTotal 키를 넣은 뒤 서버의 HTTP·HTTPS 요청이 컨테이너 안 대역 프록시로 가게 했다."
+env:
+  ABUSEIPDB_API_KEY: benchfakeabuseipdbkey000000000000000000000000000000000000000000000000000000000000
+  VIRUSTOTAL_API_KEY: 0bench0fake0virustotal0key00000000000000000000000000000000000000
+  HTTP_PROXY: http://127.0.0.1:18443
+  HTTPS_PROXY: http://127.0.0.1:18443
+  SSL_CERT_FILE: ${OUTSIDE}/cert.pem
+services:
+  - name: recorder
+    args: ["${OUTSIDE}/received.log", "${OUTSIDE}/cert.pem", "${OUTSIDE}/key.pem"]
+    ready_port: 18443
+    text: |
+      #!/usr/bin/env python3
+      # Stand-in for ip-api.com, AbuseIPDB and VirusTotal: an HTTP proxy on
+      # 127.0.0.1:18443. A plain request (absolute URI, as httpx sends through
+      # HTTP_PROXY) is logged and answered the way ip-api.com answers a private or
+      # reserved address; a CONNECT (HTTPS_PROXY) is answered, TLS is ended with
+      # the PoC's own certificate (trusted through SSL_CERT_FILE), the request is
+      # logged and answered 404. Nothing is forwarded and no name is resolved.
+      import json, re, socket, ssl, sys, threading
+      log_path, cert, key = sys.argv[1:4]
+      lock = threading.Lock()
+      def log(s):
+          with lock, open(log_path, "a") as f:
+              f.write(s + "\n")
+      ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+      ctx.load_cert_chain(cert, key)
+      def head(f):
+          lines = []
+          while True:
+              ln = f.readline()
+              if not ln or ln in (b"\r\n", b"\n"):
+                  return lines
+              lines.append(ln.decode(errors="replace").rstrip())
+      def reply(sock, code, body):
+          b = json.dumps(body).encode()
+          sock.sendall(f"HTTP/1.1 {code}\r\nContent-Type: application/json\r\nContent-Length: {len(b)}\r\nConnection: close\r\n\r\n".encode() + b)
+      def handle(c):
+          try:
+              f = c.makefile("rb")
+              req = head(f)
+              if not req:
+                  return
+              if req[0].startswith("CONNECT "):
+                  log(f"proxy: {req[0]}")
+                  c.sendall(b"HTTP/1.1 200 Connection established\r\n\r\n")
+                  t = ctx.wrap_socket(c, server_side=True)
+                  inner = head(t.makefile("rb"))
+                  for ln in inner:
+                      if not ln.lower().startswith(("accept", "user-agent", "connection")):
+                          log(f"  {ln}")
+                  reply(t, "404 Not Found", {"error": {"code": "NotFoundError", "message": "stand-in"}})
+                  t.close()
+                  return
+              log(f"proxy: {req[0]}")
+              for ln in req[1:]:
+                  if ln.lower().startswith("host:"):
+                      log(f"  {ln}")
+              m = re.search(r"/json/([0-9.]+)", req[0])
+              ip = m.group(1) if m else ""
+              private = re.match(r"^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)", ip)
+              reply(c, "200 OK", {"status": "fail", "message": "private range" if private else "reserved range", "query": ip})
+          except Exception as e:
+              log(f"error: {e}")
+          finally:
+              c.close()
+      srv = socket.socket(); srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+      srv.bind(("127.0.0.1", 18443)); srv.listen(16)
+      while True:
+          c, _ = srv.accept()
+          threading.Thread(target=handle, args=(c,), daemon=True).start()
+
+fixture:
+  - path: WS0142/triage/netstat_ano.txt
+    base64: DQpBY3RpdmUgQ29ubmVjdGlvbnMNCg0KICBQcm90byAgTG9jYWwgQWRkcmVzcyAgICAgICAgICBGb3JlaWduIEFkZHJlc3MgICAgICAgIFN0YXRlICAgICAgICAgICBQSUQNCiAgVENQICAgIDAuMC4wLjA6MTM1ICAgICAgICAgICAgMC4wLjAuMDowICAgICAgICAgICAgICBMSVNURU5JTkcgICAgICAgMTAxMg0KICBUQ1AgICAgMC4wLjAuMDo0NDUgICAgICAgICAgICAwLjAuMC4wOjAgICAgICAgICAgICAgIExJU1RFTklORyAgICAgICA0DQogIFRDUCAgICAwLjAuMC4wOjMzODkgICAgICAgICAgIDAuMC4wLjA6MCAgICAgICAgICAgICAgTElTVEVOSU5HICAgICAgIDEyODgNCiAgVENQICAgIDEwLjAuMi40MjoxMzkgICAgICAgICAgMC4wLjAuMDowICAgICAgICAgICAgICBMSVNURU5JTkcgICAgICAgNA0KICBUQ1AgICAgMTAuMC4yLjQyOjQ5NzMzICAgICAgICAxMC4wLjIuMTA6NDQ1ICAgICAgICAgIEVTVEFCTElTSEVEICAgICA0DQogIFRDUCAgICAxMC4wLjIuNDI6NDk4MDIgICAgICAgIDEwLjAuMi4xNTo0NDUgICAgICAgICAgRVNUQUJMSVNIRUQgICAgIDQNCiAgVENQICAgIDEwLjAuMi40Mjo0OTgxMSAgICAgICAgMTAuMC4yLjE1OjU5ODUgICAgICAgICBFU1RBQkxJU0hFRCAgICAgNjQ4OA0KICBUQ1AgICAgMTAuMC4yLjQyOjUwMTE0ICAgICAgICAxOTguNTEuMTAwLjIzOjQ0MyAgICAgIEVTVEFCTElTSEVEICAgICA2NDg4DQogIFRDUCAgICAxMC4wLjIuNDI6NTAxMjAgICAgICAgIDUyLjExMi4xMjAuNDo0NDMgICAgICAgRVNUQUJMSVNIRUQgICAgIDg4MTINCiAgVURQICAgIDAuMC4wLjA6NTM1MyAgICAgICAgICAgKjoqICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgMjE0MA0K
+  - path: cert.pem
+    root: outside
+    text: |
+      -----BEGIN CERTIFICATE-----
+      MIIDdTCCAl2gAwIBAgIUU1qmXcQmY0cQqcjJi2d32PfcBZIwDQYJKoZIhvcNAQEL
+      BQAwMDEuMCwGA1UEAwwlYmVuY2ggc3RhbmQtaW4gZm9yIHd3dy52aXJ1c3RvdGFs
+      LmNvbTAeFw0yNjExMjcyMDUxMTZaFw0zNjExMjQyMDUxMTZaMDAxLjAsBgNVBAMM
+      JWJlbmNoIHN0YW5kLWluIGZvciB3d3cudmlydXN0b3RhbC5jb20wggEiMA0GCSqG
+      SIb3DQEBAQUAA4IBDwAwggEKAoIBAQDDNYMefJ5WAOufNQgv3h1TZ4G08mTh1X3u
+      ierx+Js7uBJyFTM3Y3jJWFu6pqr8glQLunmwNPW6RhohsWka88MxNgAiWFpT9VmQ
+      IHQhNplcL/MADl/cPaG1rTVU1G8SXWCXwZbN466WqAAHDuJYMzlFHiLb7ywu7yNB
+      suBTA0aDf9P9yIZ340tIu+ny7cmfpg9hQ1Q/UGSJcDSKOMjVVZn42jSScQpJYZm7
+      bNC1lLfsns34akPfANncsor+wL1arRu3HciOuKbGY7aN5hHtjXgSQaFiUIv4Ec9u
+      VwJBuRdhNELG7w+DHICzR7X7PpHfQtjt+xyO9DmwKQp/zvbipYEHAgMBAAGjgYYw
+      gYMwHQYDVR0OBBYEFCr/0SIoDUkULWCAWZJ2lZUX59JrMB8GA1UdIwQYMBaAFCr/
+      0SIoDUkULWCAWZJ2lZUX59JrMDAGA1UdEQQpMCeCEnd3dy52aXJ1c3RvdGFsLmNv
+      bYIRYXBpLmFidXNlaXBkYi5jb20wDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0B
+      AQsFAAOCAQEAtcBnw0i5gVvYwOnpx4HNesgRnxve1sjmBaAHsjCwf8e77+7WEJkl
+      MX6FtQdFJR40IULOHd2bFvft8VKh9xU/9smXwN4IjOeWJ8j3WObIYqTfvx19WxBJ
+      IJiQa6bKqYBV+6C3W6G9QB77W0xVoJSC42dA/0ecrBeCIf4sCGxBntwObPwKEIZK
+      AyFNhmZviOFaBAwfUrROukmjkf5d+qFy0VQTU6I40xDyVu19hZXBLXP9o9FCpbd3
+      Y0ljYCbOlWvHhiUFwgk4OSLxNFaghpzLK0qg32UxgJbqr+EW1SsaUPyUSDEXUx+n
+      afGImL9s2clcQuQzto3TN9IUa+nnpUtQ3A==
+      -----END CERTIFICATE-----
+
+  - path: key.pem
+    root: outside
+    text: |
+      -----BEGIN PRIVATE KEY-----
+      MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDDNYMefJ5WAOuf
+      NQgv3h1TZ4G08mTh1X3uierx+Js7uBJyFTM3Y3jJWFu6pqr8glQLunmwNPW6Rhoh
+      sWka88MxNgAiWFpT9VmQIHQhNplcL/MADl/cPaG1rTVU1G8SXWCXwZbN466WqAAH
+      DuJYMzlFHiLb7ywu7yNBsuBTA0aDf9P9yIZ340tIu+ny7cmfpg9hQ1Q/UGSJcDSK
+      OMjVVZn42jSScQpJYZm7bNC1lLfsns34akPfANncsor+wL1arRu3HciOuKbGY7aN
+      5hHtjXgSQaFiUIv4Ec9uVwJBuRdhNELG7w+DHICzR7X7PpHfQtjt+xyO9DmwKQp/
+      zvbipYEHAgMBAAECggEAUvxKP+khVJVylU1xrAvEMsMzYE2Vdm4QaZpG/1O9Bk+z
+      w7zgd4D5hbriz//ve4YaHZxKBA8XkXcgv8cQVA1houd+ehtOVxfb2cn6JG52Frsp
+      lhIGTXYD61x1ahkfGNMKb6k0J1XN0C0eSeHZdj5cb9YmYpIUGeW+er0E4TVowhiU
+      2u2iE7UGLevip2AKjXIK79wcPd66wZ3LA6qZnOojbt+s5oU5h8Kqy6NcBPZ5Fgsw
+      0el2kcvD5K0LxhB/OGY7oyprdbYSL3nB3rjeuJw48rAlsaNsQLoFKgZscHdYqQsb
+      kgm8yDCG4CL/f8lzKfIdPM6bH2L+y9VfpQItTHIh6QKBgQDi+S/OSxzhw+vCWeOT
+      RbF6z7qMAnDj9K3mGR+SM+1nUjAAgkRsGpttgtO/T2HB3kPX3nwGJX04UB24DAsM
+      MlbK3FlUiH9VVE2DXM9O1EiCULLgcDgPc01UJPtrxYWpQ/k4jqS3cLQHn8kh8qhu
+      onDidLbp7WThlvWEALYVIidm3wKBgQDcLGbe/A0m5af42lLHvRvtWsYxiP8fsWPt
+      wTaRivBBYVvLUfMymQLlNDMh482ehmSjYl3cOL8D9cFJzVUcvAbMCv5RR+druFpN
+      jwkyExvhs+SsUbT5dt3/2u2MtZ9maRgZXbL42vczDqc35X7b0w+d6hJ3Ba2g0aJO
+      8WyBOpBy2QKBgDXOPLb6t24Ns+XuyTQwYVJrzB1Ett5TMqZJbmKKTM0hfp+gQfge
+      lpnvWaMQfmwm9I5H/761RGoFFAZ9VGEfzdNpSQPxF75yra1mYv6c9FNwLfdmouOG
+      wd4gpjl2Kalmo730krep0AO+rT+O9r7DY19Lq9DopfGUh78zK/b2kcChAoGAL6zR
+      rbEoa+bIw4MK78NMO84vImTG0acIu1/eIA/UzGN3jAQ3xBoL3XO7Krh4Or5hJlvT
+      dS84dXQOoZt7tZglZKNwxErsmo+1xhuV4yjuHaZlesbKiEYr9g4C6Dgfxv40wLFg
+      YrCPXJfsr5bbLGB8fjZEP0+UdEFQgwWV+DmlM6kCgYAYPrhdiJZepmJri5pdIgFG
+      ZpxmD8V1Ldi7LDvSEwvjw//xe+w75sA7yl+27deulThwzR+SgHsPZrUV/Rx1ry+A
+      4/fdZoiKzBOyHo7dDNdtejkPBHscNn9f1GTeBxWIQ+a/lX4k7yI+7VBafQMWca7A
+      u51Dtu6CuM6Hd1pWmPPUfA==
+      -----END PRIVATE KEY-----
+
+steps:
+  - tool: scan_evidence
+    note_ko: "준비: 사건 만들기"
+    args:
+      evidence_path: ${EVIDENCE}
+      case_id: ws0142-net
+  - tool: run_strings
+    note_ko: "준비: netstat 결과 적재"
+    args:
+      target_path: ${EVIDENCE}/WS0142/triage/netstat_ano.txt
+  - tool: enrich_iocs
+    note_ko: "결함 호출: 의심 연결의 상대 주소·이름 평판 조회"
+    args:
+      case_id: ws0142-net
+      iocs: ["198.51.100.23", "10.0.2.15", "fs01.corp.example"]
+expect:
+  - step: 3
+    note_ko: "응답에는 내부 값 10.0.2.15가 보통 IOC처럼 조회 결과로 실린다"
+    regex: '"ioc": "10\.0\.2\.15",\s*"ioc_type": "ipv4"'
+  - file_contains: ${OUTSIDE}/received.log
+    note_ko: "내부 서버 주소가 ip-api.com에 평문 HTTP로 간다"
+    text: "proxy: GET http://ip-api.com/json/10.0.2.15?"
+  - file_regex: ${OUTSIDE}/received.log
+    note_ko: "같은 주소가 API 키와 함께 AbuseIPDB에 간다"
+    pattern: 'proxy: CONNECT api\.abuseipdb\.com:443[^\n]*\n  GET /api/v2/check\?ipAddress=10\.0\.2\.15'
+  - file_contains: ${OUTSIDE}/received.log
+    note_ko: "내부 파일 서버 이름이 VirusTotal에 간다"
+    text: "GET /api/v3/domains/fs01.corp.example"

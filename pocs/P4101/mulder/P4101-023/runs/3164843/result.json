@@ -1,0 +1,34 @@
+{
+  "case_id": "P4101-023",
+  "problem": "P4101",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: one error_response path (read_evidence_file, file not found) is shown; every other tool that returns error_response behaves the same way",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "본문은 실패(`status: error`, 파일 없음)다",
+      "regex": "\"status\": \"error\"[\\s\\S]*File not found",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "그런데 MCP 결과의 `isError`는 꺼져 있다",
+      "is_error": false,
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "같은 서버도 스키마 오류는 `isError: true`로 보낸다(클라이언트가 실패 표시를 받을 수 있다)",
+      "is_error": true,
+      "ok": true
+    }
+  ],
+  "image": "sha256:630916f52648f7a3ffffc4017c1fe4d092e9544eb60a2d0259cd424899277f15",
+  "ran_at": "2026-11-28T05:42:45+00:00"
+}

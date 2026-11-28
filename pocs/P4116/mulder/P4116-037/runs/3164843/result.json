@@ -1,0 +1,34 @@
+{
+  "case_id": "P4116-037",
+  "problem": "P4116",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: a call on another evidence item is shown; a call that ended in an error is counted the same way",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "ws0142 캡처 분석이 성공한다",
+      "contains": "pcap.conversations\\\", \\\"source_id\\\": 1, \\\"windows_indexed\\\": 1",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "분석하지 않은 db01 캡처도 `run_pcap_analysis`를 돌린 것으로 나온다",
+      "regex": "db01-span\\.pcap\",\\s*\"artifact_type\": \"network_capture\",\\s*\"tools_run\": \\[\\s*\"run_pcap_analysis\"\\s*\\],\\s*\"tools_not_run\": \\[\\]",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "빠진 분석이 0건으로 나온다",
+      "regex": "\"total_gaps\": 0\\b",
+      "ok": true
+    }
+  ],
+  "image": "sha256:c5c42968e96821fad25ffd85f9a9d146fce186f7306713bdc4470e69485f45ab",
+  "ran_at": "2026-11-28T05:50:49+00:00"
+}

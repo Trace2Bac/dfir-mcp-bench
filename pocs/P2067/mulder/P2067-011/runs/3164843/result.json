@@ -1,0 +1,46 @@
+{
+  "case_id": "P2067-011",
+  "problem": "P2067",
+  "server": "mulder",
+  "commit": "3164843baf74c7fe69e7121dbd6150f8f77ce660",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "`-enc` 검색이 success에 1건이다",
+      "regex": "\"status\": \"success\"[\\s\\S]*total_findings\\\\\": 1\\b",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "Chainsaw 실행이 실패 없이 적재된다(`chainsaw.search`, indexed)",
+      "regex": "\"source\": \"chainsaw.search\"[\\s\\S]*status\\\\\": \\\\\"indexed",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "같은 로그가 `ez.evtx`로 적재된다",
+      "regex": "\"status\": \"success\"[\\s\\S]*\"source\": \"ez.evtx\"",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "적재한 로그에는 `-enc`라는 글자가 없다(0건)",
+      "regex": "\"status\": \"success\"[\\s\\S]*\"total_matches\": 0\\b",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "같은 정규식 검색이 그 로그의 스크립트 블록은 찾는다",
+      "regex": "\"status\": \"success\"[\\s\\S]*\"total_matches\": [1-9]",
+      "ok": true
+    }
+  ],
+  "image": "sha256:6b4764cf9ba5fb0108889c7589e68fc8fd73eae6778bfaef61ef47e89fbb9090",
+  "ran_at": "2026-11-28T05:32:55+00:00"
+}
