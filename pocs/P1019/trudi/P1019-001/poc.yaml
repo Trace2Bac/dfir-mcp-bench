@@ -1,0 +1,243 @@
+# Matrix case P1019-001: install.sh (lines 188-198) copies the ATT&CK table to
+# ~/cases/.common/mitre_techniques.json only when no file is there yet, so an
+# upgraded install keeps the table an earlier install left. correlate.
+# mitre_validate then reports a technique the current table has as absent,
+# and its response carries no table version or hash, so "absent because the
+# table is old" cannot be told from "absent".
+# Evidence: the table as trudi 3cc720a (2026-06-03) shipped it in
+# cases/.common/mitre_techniques.json (_meta.version v14, 48 techniques,
+# exact bytes from `git show 3cc720a:cases/.common/mitre_techniques.json`).
+# The install.sh of that commit copied it to the same place, so this is the
+# file an earlier install leaves. The bench cannot write under the server's
+# HOME, so TRUDI_MITRE_TABLE (the server's own override of that default path)
+# points at the same file under ${OUTSIDE}/cases/.common. The table the
+# current commit ships (/opt/trudi/cases/.common, v15, 486 techniques) is the
+# comparison.
+case_id: P1019-001
+problem: P1019
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "같은 분석 호스트에서 trudi를 새 버전으로 다시 설치하면 `install.sh`가 이미 있는 `~/cases/.common/mitre_techniques.json`을 바꾸지 않으므로, 앞 설치가 남긴 옛 표가 정상 흐름에서 그대로 쓰인다."
+coverage: full
+summary: With the ATT&CK table an earlier install left (v14, 48 techniques), correlate_mitre_validate(T1003.002) answers exists false with available_count 48 and no table version or hash, while the same call against the table the current commit ships (486 techniques) returns T1003.002 Security Account Manager.
+summary_ko: "앞 설치가 남긴 ATT&CK 표(v14, 기법 48개)로 `correlate_mitre_validate(T1003.002)`를 부르면 `exists` false와 `available_count` 48만 나오고 표 버전이나 해시는 없다. 지금 커밋이 배포하는 표(486개)로 같은 호출을 하면 `T1003.002` Security Account Manager가 나온다."
+defect_ko: "이 서버는 설치 때 기법 표가 이미 있으면 바꾸지 않고, 그 표로 기법이 없다고 판정하면서 응답에 표의 버전이나 해시를 싣지 않는다. 새 버전의 표로 갱신하거나 판정에 쓴 표의 버전을 함께 알려야 한다. 모델은 실제 ATT&CK 기법을 없는 기법으로 알고 보고서에서 빼거나 다른 기법으로 바꾼다."
+setup_ko: "trudi 3cc720a가 배포하고 그때의 `install.sh`가 `~/cases/.common`에 복사한 옛 기법 표(48개)를 서버의 기본 표 자리에 두고 `T1003.002`를 검증한 뒤, 지금 커밋이 배포하는 표로 같은 기법을 검증한다."
+env:
+  TRUDI_MITRE_TABLE: ${OUTSIDE}/cases/.common/mitre_techniques.json
+fixture:
+- path: cases/.common/mitre_techniques.json
+  root: outside
+  base64: |
+    ewogICJfbWV0YSI6IHsKICAgICJzb3VyY2UiOiAiTUlUUkUgQVRUJkNLIEVudGVycHJpc2Ug4oCU
+    IGN1cmF0ZWQgc3Vic2V0IGZvciBERklSIGludmVzdGlnYXRpb25zIiwKICAgICJ2ZXJzaW9uIjog
+    InYxNCIsCiAgICAiZm9ybWF0IjogInt0ZWNobmlxdWVfaWQ6IHtuYW1lLCB0YWN0aWMsIGRlc2Ny
+    aXB0aW9uLCBrZXl3b3Jkc319IgogIH0sCiAgInRlY2huaXF1ZXMiOiB7CiAgICAiVDEwMDMiOiB7
+    Im5hbWUiOiAiT1MgQ3JlZGVudGlhbCBEdW1waW5nIiwgInRhY3RpYyI6ICJDcmVkZW50aWFsIEFj
+    Y2VzcyIsICJkZXNjcmlwdGlvbiI6ICJBZHZlcnNhcmllcyBkdW1wIGNyZWRlbnRpYWxzIGZyb20g
+    T1Mgb3IgYXBwbGljYXRpb25zLiIsICJrZXl3b3JkcyI6IFsibHNhc3MiLCAibWltaWthdHoiLCAi
+    Y3JlZGVudGlhbCIsICJkdW1wIiwgIm50ZHMiXX0sCiAgICAiVDEwMDMuMDAxIjogeyJuYW1lIjog
+    IkxTQVNTIE1lbW9yeSIsICJ0YWN0aWMiOiAiQ3JlZGVudGlhbCBBY2Nlc3MiLCAiZGVzY3JpcHRp
+    b24iOiAiRHVtcCBjcmVkZW50aWFscyBmcm9tIExTQVNTIHByb2Nlc3MgbWVtb3J5LiIsICJrZXl3
+    b3JkcyI6IFsibHNhc3MiLCAibWltaWthdHoiLCAicHJvY2R1bXAiLCAiY29tc3ZjcyJdfSwKICAg
+    ICJUMTAwMy4wMDMiOiB7Im5hbWUiOiAiTlREUyIsICJ0YWN0aWMiOiAiQ3JlZGVudGlhbCBBY2Nl
+    c3MiLCAiZGVzY3JpcHRpb24iOiAiRXh0cmFjdCBOVERTLmRpdCBBY3RpdmUgRGlyZWN0b3J5IGRh
+    dGFiYXNlIGZvciBvZmZsaW5lIGNyZWRlbnRpYWwgYW5hbHlzaXMuIiwgImtleXdvcmRzIjogWyJu
+    dGRzLmRpdCIsICJudGRzdXRpbCIsICJ2c3NhZG1pbiIsICJpZm0iLCAiYWN0aXZlIGRpcmVjdG9y
+    eSJdfSwKICAgICJUMTAwMy4wMDYiOiB7Im5hbWUiOiAiRENTeW5jIiwgInRhY3RpYyI6ICJDcmVk
+    ZW50aWFsIEFjY2VzcyIsICJkZXNjcmlwdGlvbiI6ICJBYnVzZSBEaXJlY3RvcnkgUmVwbGljYXRp
+    b24gU2VydmljZXMgdG8gcmV0cmlldmUgY3JlZGVudGlhbHMgcmVtb3RlbHkuIiwgImtleXdvcmRz
+    IjogWyJkY3N5bmMiLCAiZHJzdWFwaSIsICJyZXBsaWNhdGlvbiIsICJkb21haW4gYWRtaW4iXX0s
+    CiAgICAiVDEwMjEiOiB7Im5hbWUiOiAiUmVtb3RlIFNlcnZpY2VzIiwgInRhY3RpYyI6ICJMYXRl
+    cmFsIE1vdmVtZW50IiwgImRlc2NyaXB0aW9uIjogIlVzZSBsZWdpdGltYXRlIHJlbW90ZSBzZXJ2
+    aWNlcyB0byBtb3ZlIGxhdGVyYWxseS4iLCAia2V5d29yZHMiOiBbInJlbW90ZSIsICJyZHAiLCAi
+    c3NoIiwgInNtYiIsICJ3bWkiLCAibGF0ZXJhbCBtb3ZlbWVudCJdfSwKICAgICJUMTAyMS4wMDEi
+    OiB7Im5hbWUiOiAiUmVtb3RlIERlc2t0b3AgUHJvdG9jb2wiLCAidGFjdGljIjogIkxhdGVyYWwg
+    TW92ZW1lbnQiLCAiZGVzY3JpcHRpb24iOiAiVXNlIFJEUCBmb3IgbGF0ZXJhbCBtb3ZlbWVudC4i
+    LCAia2V5d29yZHMiOiBbInJkcCIsICJyZW1vdGUgZGVza3RvcCIsICJtc3RzYyIsICIzMzg5Il19
+    LAogICAgIlQxMDIxLjAwMiI6IHsibmFtZSI6ICJTTUIvV2luZG93cyBBZG1pbiBTaGFyZXMiLCAi
+    dGFjdGljIjogIkxhdGVyYWwgTW92ZW1lbnQiLCAiZGVzY3JpcHRpb24iOiAiVXNlIFNNQiBhZG1p
+    biBzaGFyZXMgKEMkLCBBRE1JTiQsIElQQyQpIGZvciBsYXRlcmFsIG1vdmVtZW50LiIsICJrZXl3
+    b3JkcyI6IFsic21iIiwgImFkbWluJCIsICJpcGMkIiwgImMkIiwgIm5ldCB1c2UiLCAicHNleGVj
+    Il19LAogICAgIlQxMDIxLjAwNiI6IHsibmFtZSI6ICJXaW5kb3dzIFJlbW90ZSBNYW5hZ2VtZW50
+    IiwgInRhY3RpYyI6ICJMYXRlcmFsIE1vdmVtZW50IiwgImRlc2NyaXB0aW9uIjogIlVzZSBXaW5S
+    TS9XU01hbiBmb3IgbGF0ZXJhbCBtb3ZlbWVudC4iLCAia2V5d29yZHMiOiBbIndpbnJtIiwgIndz
+    bWFuIiwgInBvd2Vyc2hlbGwgcmVtb3RpbmciLCAiNTk4NSIsICI1OTg2Il19LAogICAgIlQxMDI3
+    IjogeyJuYW1lIjogIk9iZnVzY2F0ZWQgRmlsZXMgb3IgSW5mb3JtYXRpb24iLCAidGFjdGljIjog
+    IkRlZmVuc2UgRXZhc2lvbiIsICJkZXNjcmlwdGlvbiI6ICJNYWtlIGZpbGUgY29udGVudCBoYXJk
+    ZXIgdG8gYW5hbHl6ZSB0aHJvdWdoIGVuY29kaW5nLCBlbmNyeXB0aW9uLCBwYWNraW5nLiIsICJr
+    ZXl3b3JkcyI6IFsib2JmdXNjYXRlZCIsICJlbmNvZGVkIiwgImJhc2U2NCIsICJwYWNrZWQiLCAi
+    ZW5jcnlwdGVkIl19LAogICAgIlQxMDM2IjogeyJuYW1lIjogIk1hc3F1ZXJhZGluZyIsICJ0YWN0
+    aWMiOiAiRGVmZW5zZSBFdmFzaW9uIiwgImRlc2NyaXB0aW9uIjogIk1hbmlwdWxhdGUgZmVhdHVy
+    ZXMgb2YgYXJ0aWZhY3RzIHRvIG1ha2UgdGhlbSBhcHBlYXIgbGVnaXRpbWF0ZS4iLCAia2V5d29y
+    ZHMiOiBbIm1hc3F1ZXJhZGluZyIsICJyZW5hbWUiLCAibGVnaXRpbWF0ZSBuYW1lIiwgIndpbmRv
+    d3MgZm9sZGVyIl19LAogICAgIlQxMDM2LjAwNSI6IHsibmFtZSI6ICJNYXRjaCBMZWdpdGltYXRl
+    IE5hbWUgb3IgTG9jYXRpb24iLCAidGFjdGljIjogIkRlZmVuc2UgRXZhc2lvbiIsICJkZXNjcmlw
+    dGlvbiI6ICJVc2UgbmFtZXMgb3IgcGF0aHMgdGhhdCBtYXRjaCBsZWdpdGltYXRlIHN5c3RlbSBs
+    b2NhdGlvbnMuIiwgImtleXdvcmRzIjogWyJzeXN0ZW0zMiIsICJ3aW5kb3dzIiwgInN2Y2hvc3Qi
+    LCAibHNhc3MuZXhlIiwgImV4cGxvcmVyLmV4ZSJdfSwKICAgICJUMTA0MSI6IHsibmFtZSI6ICJF
+    eGZpbHRyYXRpb24gT3ZlciBDMiBDaGFubmVsIiwgInRhY3RpYyI6ICJFeGZpbHRyYXRpb24iLCAi
+    ZGVzY3JpcHRpb24iOiAiU2VuZCBzdG9sZW4gZGF0YSBvdmVyIGFuIGV4aXN0aW5nIEMyIGNoYW5u
+    ZWwuIiwgImtleXdvcmRzIjogWyJleGZpbHRyYXRpb24iLCAiYzIiLCAiY29tbWFuZCBhbmQgY29u
+    dHJvbCIsICJ1cGxvYWRlZCJdfSwKICAgICJUMTA0OCI6IHsibmFtZSI6ICJFeGZpbHRyYXRpb24g
+    T3ZlciBBbHRlcm5hdGl2ZSBQcm90b2NvbCIsICJ0YWN0aWMiOiAiRXhmaWx0cmF0aW9uIiwgImRl
+    c2NyaXB0aW9uIjogIkV4ZmlsdHJhdGUgZGF0YSB1c2luZyBhIGRpZmZlcmVudCBwcm90b2NvbCB0
+    aGFuIHRoZSBDMiBjaGFubmVsLiIsICJrZXl3b3JkcyI6IFsiZXhmaWx0cmF0aW9uIiwgImZ0cCIs
+    ICJkbnMiLCAiaHR0cHMiLCAic3NoIl19LAogICAgIlQxMDUzIjogeyJuYW1lIjogIlNjaGVkdWxl
+    ZCBUYXNrL0pvYiIsICJ0YWN0aWMiOiAiRXhlY3V0aW9uIFBlcnNpc3RlbmNlIFByaXZpbGVnZSBF
+    c2NhbGF0aW9uIiwgImRlc2NyaXB0aW9uIjogIlVzZSB0YXNrIHNjaGVkdWxlcnMgZm9yIGV4ZWN1
+    dGlvbiBhbmQgcGVyc2lzdGVuY2UuIiwgImtleXdvcmRzIjogWyJzY2hlZHVsZWQgdGFzayIsICJz
+    Y2h0YXNrcyIsICJ0YXNrIHNjaGVkdWxlciIsICJhdCIsICJjcm9uIl19LAogICAgIlQxMDUzLjAw
+    NSI6IHsibmFtZSI6ICJTY2hlZHVsZWQgVGFzayIsICJ0YWN0aWMiOiAiUGVyc2lzdGVuY2UiLCAi
+    ZGVzY3JpcHRpb24iOiAiVXNlIFdpbmRvd3MgVGFzayBTY2hlZHVsZXIgZm9yIHBlcnNpc3RlbmNl
+    LiIsICJrZXl3b3JkcyI6IFsic2NoZWR1bGVkIHRhc2siLCAic2NodGFza3MiLCAidGFzayBzY2hl
+    ZHVsZXIiLCAiZXZ0eCA0Njk4Il19LAogICAgIlQxMDU1IjogeyJuYW1lIjogIlByb2Nlc3MgSW5q
+    ZWN0aW9uIiwgInRhY3RpYyI6ICJEZWZlbnNlIEV2YXNpb24gUHJpdmlsZWdlIEVzY2FsYXRpb24i
+    LCAiZGVzY3JpcHRpb24iOiAiSW5qZWN0IGNvZGUgaW50byBhIHJ1bm5pbmcgcHJvY2VzcyB0byBl
+    dmFkZSBkZWZlbnNlcy4iLCAia2V5d29yZHMiOiBbImluamVjdGlvbiIsICJyZWZsZWN0aXZlIiwg
+    ImRsbCBpbmplY3Rpb24iLCAicHJvY2VzcyBob2xsb3dpbmciLCAibWFsZmluZCJdfSwKICAgICJU
+    MTA1NS4wMDEiOiB7Im5hbWUiOiAiRExMIEluamVjdGlvbiIsICJ0YWN0aWMiOiAiRGVmZW5zZSBF
+    dmFzaW9uIiwgImRlc2NyaXB0aW9uIjogIkluamVjdCBhIERMTCBpbnRvIGEgcnVubmluZyBwcm9j
+    ZXNzLiIsICJrZXl3b3JkcyI6IFsiZGxsIGluamVjdGlvbiIsICJsb2FkbGlicmFyeSIsICJjcmVh
+    dGVyZW1vdGV0aHJlYWQiXX0sCiAgICAiVDEwNTUuMDEyIjogeyJuYW1lIjogIlByb2Nlc3MgSG9s
+    bG93aW5nIiwgInRhY3RpYyI6ICJEZWZlbnNlIEV2YXNpb24iLCAiZGVzY3JpcHRpb24iOiAiVW5t
+    YXAgYSBsZWdpdGltYXRlIHByb2Nlc3MgYW5kIGluamVjdCBtYWxpY2lvdXMgY29kZSBpbiBpdHMg
+    cGxhY2UuIiwgImtleXdvcmRzIjogWyJwcm9jZXNzIGhvbGxvd2luZyIsICJudHVubWFwdmlld29m
+    c2VjdGlvbiIsICJob2xsb3dlZCJdfSwKICAgICJUMTA1OSI6IHsibmFtZSI6ICJDb21tYW5kIGFu
+    ZCBTY3JpcHRpbmcgSW50ZXJwcmV0ZXIiLCAidGFjdGljIjogIkV4ZWN1dGlvbiIsICJkZXNjcmlw
+    dGlvbiI6ICJVc2UgY29tbWFuZC1saW5lIGludGVycHJldGVycyB0byBleGVjdXRlIGNvbW1hbmRz
+    LiIsICJrZXl3b3JkcyI6IFsiY21kIiwgInBvd2Vyc2hlbGwiLCAiYmFzaCIsICJzaGVsbCJdfSwK
+    ICAgICJUMTA1OS4wMDEiOiB7Im5hbWUiOiAiUG93ZXJTaGVsbCIsICJ0YWN0aWMiOiAiRXhlY3V0
+    aW9uIiwgImRlc2NyaXB0aW9uIjogIlVzZSBQb3dlclNoZWxsIHRvIGV4ZWN1dGUgY29tbWFuZHMu
+    IiwgImtleXdvcmRzIjogWyJwb3dlcnNoZWxsIiwgInBzMSIsICJlbmNvZGVkIGNvbW1hbmQiLCAi
+    aWV4Il19LAogICAgIlQxMDY4IjogeyJuYW1lIjogIkV4cGxvaXRhdGlvbiBmb3IgUHJpdmlsZWdl
+    IEVzY2FsYXRpb24iLCAidGFjdGljIjogIlByaXZpbGVnZSBFc2NhbGF0aW9uIiwgImRlc2NyaXB0
+    aW9uIjogIkV4cGxvaXQgYSB2dWxuZXJhYmlsaXR5IHRvIGVsZXZhdGUgcHJpdmlsZWdlcy4iLCAi
+    a2V5d29yZHMiOiBbImV4cGxvaXQiLCAicHJpdmlsZWdlIGVzY2FsYXRpb24iLCAiZWxldmF0aW9u
+    Il19LAogICAgIlQxMDcwIjogeyJuYW1lIjogIkluZGljYXRvciBSZW1vdmFsIiwgInRhY3RpYyI6
+    ICJEZWZlbnNlIEV2YXNpb24iLCAiZGVzY3JpcHRpb24iOiAiRGVsZXRlIG9yIG1vZGlmeSBnZW5l
+    cmF0ZWQgYXJ0aWZhY3RzIHRvIGhpZGUgYWN0aXZpdHkuIiwgImtleXdvcmRzIjogWyJpbmRpY2F0
+    b3IgcmVtb3ZhbCIsICJsb2cgY2xlYXJpbmciLCAidGltZXN0b21wIiwgIndldnR1dGlsIl19LAog
+    ICAgIlQxMDcwLjAwMSI6IHsibmFtZSI6ICJDbGVhciBXaW5kb3dzIEV2ZW50IExvZ3MiLCAidGFj
+    dGljIjogIkRlZmVuc2UgRXZhc2lvbiIsICJkZXNjcmlwdGlvbiI6ICJDbGVhciBXaW5kb3dzIGV2
+    ZW50IGxvZ3MgdG8gaGlkZSBhY3Rpdml0eS4iLCAia2V5d29yZHMiOiBbIndldnR1dGlsIiwgImNs
+    ZWFyLWV2ZW50bG9nIiwgImV2ZW50IGxvZyBjbGVhcmVkIiwgIjExMDIiXX0sCiAgICAiVDEwNzAu
+    MDA2IjogeyJuYW1lIjogIlRpbWVzdG9tcCIsICJ0YWN0aWMiOiAiRGVmZW5zZSBFdmFzaW9uIiwg
+    ImRlc2NyaXB0aW9uIjogIk1vZGlmeSBmaWxlIHRpbWVzdGFtcHMgdG8gY29uZnVzZSBhbmFseXNp
+    cy4iLCAia2V5d29yZHMiOiBbInRpbWVzdG9tcCIsICJzZXRmaWxldGltZSIsICIkU1RBTkRBUkRf
+    SU5GT1JNQVRJT04iLCAiZmlsZXRpbWUiXX0sCiAgICAiVDEwNzEiOiB7Im5hbWUiOiAiQXBwbGlj
+    YXRpb24gTGF5ZXIgUHJvdG9jb2wiLCAidGFjdGljIjogIkNvbW1hbmQgYW5kIENvbnRyb2wiLCAi
+    ZGVzY3JpcHRpb24iOiAiVXNlIGFwcGxpY2F0aW9uLWxheWVyIHByb3RvY29sIGZvciBDMi4iLCAi
+    a2V5d29yZHMiOiBbImh0dHAiLCAiaHR0cHMiLCAiZG5zIiwgInNtYiIsICJjMiIsICJjb21tYW5k
+    IGFuZCBjb250cm9sIl19LAogICAgIlQxMDcxLjAwMSI6IHsibmFtZSI6ICJXZWIgUHJvdG9jb2xz
+    IiwgInRhY3RpYyI6ICJDb21tYW5kIGFuZCBDb250cm9sIiwgImRlc2NyaXB0aW9uIjogIlVzZSBI
+    VFRQL0hUVFBTIGZvciBDMi4iLCAia2V5d29yZHMiOiBbImh0dHAiLCAiaHR0cHMiLCAid2ViIiwg
+    ImMyIl19LAogICAgIlQxMDcxLjAwNCI6IHsibmFtZSI6ICJETlMiLCAidGFjdGljIjogIkNvbW1h
+    bmQgYW5kIENvbnRyb2wiLCAiZGVzY3JpcHRpb24iOiAiVXNlIEROUyBxdWVyaWVzIGZvciBDMi4i
+    LCAia2V5d29yZHMiOiBbImRucyIsICJ0dW5uZWwiLCAidHh0IHJlY29yZCIsICJleGZpbHRyYXRp
+    b24iXX0sCiAgICAiVDEwNzgiOiB7Im5hbWUiOiAiVmFsaWQgQWNjb3VudHMiLCAidGFjdGljIjog
+    IkRlZmVuc2UgRXZhc2lvbiBQZXJzaXN0ZW5jZSBQcml2aWxlZ2UgRXNjYWxhdGlvbiBJbml0aWFs
+    IEFjY2VzcyIsICJkZXNjcmlwdGlvbiI6ICJVc2UgY29tcHJvbWlzZWQgY3JlZGVudGlhbHMgb2Yg
+    bGVnaXRpbWF0ZSBhY2NvdW50cy4iLCAia2V5d29yZHMiOiBbInZhbGlkIGFjY291bnQiLCAiY3Jl
+    ZGVudGlhbHMiLCAiY29tcHJvbWlzZWQgYWNjb3VudCIsICJsb2dvbiJdfSwKICAgICJUMTA3OC4w
+    MDIiOiB7Im5hbWUiOiAiRG9tYWluIEFjY291bnRzIiwgInRhY3RpYyI6ICJEZWZlbnNlIEV2YXNp
+    b24gUGVyc2lzdGVuY2UgUHJpdmlsZWdlIEVzY2FsYXRpb24gSW5pdGlhbCBBY2Nlc3MiLCAiZGVz
+    Y3JpcHRpb24iOiAiVXNlIGNvbXByb21pc2VkIGRvbWFpbiBhY2NvdW50cy4iLCAia2V5d29yZHMi
+    OiBbImRvbWFpbiBhY2NvdW50IiwgImFjdGl2ZSBkaXJlY3RvcnkiLCAiZG9tYWluIGFkbWluIiwg
+    InNlcnZpY2UgYWNjb3VudCJdfSwKICAgICJUMTA5MCI6IHsibmFtZSI6ICJQcm94eSIsICJ0YWN0
+    aWMiOiAiQ29tbWFuZCBhbmQgQ29udHJvbCIsICJkZXNjcmlwdGlvbiI6ICJVc2UgcHJveHkgc2Vy
+    dmVycyB0byBvYnNjdXJlIEMyLiIsICJrZXl3b3JkcyI6IFsicHJveHkiLCAic29ja3MiLCAidG9y
+    IiwgInZwbiJdfSwKICAgICJUMTA5OCI6IHsibmFtZSI6ICJBY2NvdW50IE1hbmlwdWxhdGlvbiIs
+    ICJ0YWN0aWMiOiAiUGVyc2lzdGVuY2UiLCAiZGVzY3JpcHRpb24iOiAiTW9kaWZ5IGFjY291bnRz
+    IHRvIG1haW50YWluIGFjY2Vzcy4iLCAia2V5d29yZHMiOiBbImFjY291bnQgbWFuaXB1bGF0aW9u
+    IiwgImdyb3VwIG1lbWJlcnNoaXAiLCAiZG9tYWluIGFkbWluIiwgImFkZGVkIHRvIl19LAogICAg
+    IlQxMTEwIjogeyJuYW1lIjogIkJydXRlIEZvcmNlIiwgInRhY3RpYyI6ICJDcmVkZW50aWFsIEFj
+    Y2VzcyIsICJkZXNjcmlwdGlvbiI6ICJBdHRlbXB0IHRvIGd1ZXNzIGNyZWRlbnRpYWxzIGJ5IHRy
+    aWFsIGFuZCBlcnJvci4iLCAia2V5d29yZHMiOiBbImJydXRlIGZvcmNlIiwgInBhc3N3b3JkIHNw
+    cmF5IiwgImd1ZXNzaW5nIiwgIjQ2MjUiXX0sCiAgICAiVDExMzMiOiB7Im5hbWUiOiAiRXh0ZXJu
+    YWwgUmVtb3RlIFNlcnZpY2VzIiwgInRhY3RpYyI6ICJJbml0aWFsIEFjY2VzcyBQZXJzaXN0ZW5j
+    ZSIsICJkZXNjcmlwdGlvbiI6ICJMZXZlcmFnZSBleHRlcm5hbCByZW1vdGUgc2VydmljZXMgKFZQ
+    TiwgQ2l0cml4LCBSRFApIGZvciBhY2Nlc3MuIiwgImtleXdvcmRzIjogWyJ2cG4iLCAiY2l0cml4
+    IiwgInJkcCIsICJleHRlcm5hbCIsICJyZW1vdGUgc2VydmljZSJdfSwKICAgICJUMTE5MCI6IHsi
+    bmFtZSI6ICJFeHBsb2l0IFB1YmxpYy1GYWNpbmcgQXBwbGljYXRpb24iLCAidGFjdGljIjogIklu
+    aXRpYWwgQWNjZXNzIiwgImRlc2NyaXB0aW9uIjogIkV4cGxvaXQgdnVsbmVyYWJpbGl0aWVzIGlu
+    IGludGVybmV0LWZhY2luZyBhcHBsaWNhdGlvbnMuIiwgImtleXdvcmRzIjogWyJleHBsb2l0Iiwg
+    IndlYiBzaGVsbCIsICJyY2UiLCAidnVsbmVyYWJsZSIsICJleGNoYW5nZSIsICJ2cG4gYXBwbGlh
+    bmNlIl19LAogICAgIlQxNTA1IjogeyJuYW1lIjogIlNlcnZlciBTb2Z0d2FyZSBDb21wb25lbnQi
+    LCAidGFjdGljIjogIlBlcnNpc3RlbmNlIiwgImRlc2NyaXB0aW9uIjogIkFidXNlIHNlcnZlciBz
+    b2Z0d2FyZSBjb21wb25lbnRzIGZvciBwZXJzaXN0ZW5jZS4iLCAia2V5d29yZHMiOiBbIndlYiBz
+    aGVsbCIsICJpaXMgbW9kdWxlIiwgInRyYW5zcG9ydCBhZ2VudCIsICJleGNoYW5nZSJdfSwKICAg
+    ICJUMTUwNS4wMDMiOiB7Im5hbWUiOiAiV2ViIFNoZWxsIiwgInRhY3RpYyI6ICJQZXJzaXN0ZW5j
+    ZSIsICJkZXNjcmlwdGlvbiI6ICJQbGFudCBhIHdlYiBzaGVsbCBvbiBhIGNvbXByb21pc2VkIHdl
+    YiBzZXJ2ZXIuIiwgImtleXdvcmRzIjogWyJ3ZWIgc2hlbGwiLCAiYXNweCIsICJhc3AubmV0Iiwg
+    ImpzcCIsICJwaHAiXX0sCiAgICAiVDE1NDMiOiB7Im5hbWUiOiAiQ3JlYXRlIG9yIE1vZGlmeSBT
+    eXN0ZW0gUHJvY2VzcyIsICJ0YWN0aWMiOiAiUGVyc2lzdGVuY2UgUHJpdmlsZWdlIEVzY2FsYXRp
+    b24iLCAiZGVzY3JpcHRpb24iOiAiQ3JlYXRlIG9yIG1vZGlmeSBzeXN0ZW0gcHJvY2Vzc2VzIGZv
+    ciBwZXJzaXN0ZW5jZS4iLCAia2V5d29yZHMiOiBbInNlcnZpY2UiLCAic3lzdGVtIHByb2Nlc3Mi
+    LCAid2luZG93cyBzZXJ2aWNlIiwgImNyZWF0ZSBzZXJ2aWNlIl19LAogICAgIlQxNTQzLjAwMyI6
+    IHsibmFtZSI6ICJXaW5kb3dzIFNlcnZpY2UiLCAidGFjdGljIjogIlBlcnNpc3RlbmNlIFByaXZp
+    bGVnZSBFc2NhbGF0aW9uIiwgImRlc2NyaXB0aW9uIjogIkNyZWF0ZSBhIFdpbmRvd3Mgc2Vydmlj
+    ZSBmb3IgcGVyc2lzdGVuY2UuIiwgImtleXdvcmRzIjogWyJ3aW5kb3dzIHNlcnZpY2UiLCAic2Vy
+    dmljZSBpbnN0YWxsIiwgIjcwNDUiLCAic2MuZXhlIiwgIm5ldy1zZXJ2aWNlIl19LAogICAgIlQx
+    NTQ3IjogeyJuYW1lIjogIkJvb3Qgb3IgTG9nb24gQXV0b3N0YXJ0IEV4ZWN1dGlvbiIsICJ0YWN0
+    aWMiOiAiUGVyc2lzdGVuY2UgUHJpdmlsZWdlIEVzY2FsYXRpb24iLCAiZGVzY3JpcHRpb24iOiAi
+    Q29uZmlndXJlIHByb2dyYW1zIHRvIHJ1biBvbiBib290IG9yIGxvZ2luLiIsICJrZXl3b3JkcyI6
+    IFsiYXV0b3N0YXJ0IiwgInJlZ2lzdHJ5IHJ1biIsICJzdGFydHVwIGZvbGRlciIsICJoa2xtIHJ1
+    biJdfSwKICAgICJUMTU0Ny4wMDEiOiB7Im5hbWUiOiAiUmVnaXN0cnkgUnVuIEtleXMgLyBTdGFy
+    dHVwIEZvbGRlciIsICJ0YWN0aWMiOiAiUGVyc2lzdGVuY2UiLCAiZGVzY3JpcHRpb24iOiAiVXNl
+    IFJ1biBrZXlzIG9yIFN0YXJ0dXAgZm9sZGVycyBmb3IgcGVyc2lzdGVuY2UuIiwgImtleXdvcmRz
+    IjogWyJydW4ga2V5IiwgImhrbG0gcnVuIiwgImhrY3UgcnVuIiwgInN0YXJ0dXAgZm9sZGVyIl19
+    LAogICAgIlQxNTYwIjogeyJuYW1lIjogIkFyY2hpdmUgQ29sbGVjdGVkIERhdGEiLCAidGFjdGlj
+    IjogIkNvbGxlY3Rpb24iLCAiZGVzY3JpcHRpb24iOiAiQ29tcHJlc3MgYW5kL29yIGVuY3J5cHQg
+    Y29sbGVjdGVkIGRhdGEgcHJpb3IgdG8gZXhmaWx0cmF0aW9uLiIsICJrZXl3b3JkcyI6IFsiYXJj
+    aGl2ZSIsICJyYXIiLCAiemlwIiwgIjd6IiwgImNvbXByZXNzZWQiXX0sCiAgICAiVDE1NjAuMDAx
+    IjogeyJuYW1lIjogIkFyY2hpdmUgdmlhIFV0aWxpdHkiLCAidGFjdGljIjogIkNvbGxlY3Rpb24i
+    LCAiZGVzY3JpcHRpb24iOiAiVXNlIHV0aWxpdGllcyAocmFyLCA3eiwgemlwKSB0byBhcmNoaXZl
+    IGRhdGEuIiwgImtleXdvcmRzIjogWyJyYXIiLCAiN3oiLCAiemlwIiwgIndpbnJhciIsICJhcmNo
+    aXZlIHV0aWxpdHkiXX0sCiAgICAiVDE1NjIiOiB7Im5hbWUiOiAiSW1wYWlyIERlZmVuc2VzIiwg
+    InRhY3RpYyI6ICJEZWZlbnNlIEV2YXNpb24iLCAiZGVzY3JpcHRpb24iOiAiRGlzYWJsZSBvciBp
+    bnRlcmZlcmUgd2l0aCBzZWN1cml0eSB0b29scy4iLCAia2V5d29yZHMiOiBbImRpc2FibGUgZGVm
+    ZW5kZXIiLCAiYXYga2lsbGVkIiwgImVkciBkaXNhYmxlZCIsICJzZWN1cml0eSB0b29sIl19LAog
+    ICAgIlQxNTY4IjogeyJuYW1lIjogIkR5bmFtaWMgUmVzb2x1dGlvbiIsICJ0YWN0aWMiOiAiQ29t
+    bWFuZCBhbmQgQ29udHJvbCIsICJkZXNjcmlwdGlvbiI6ICJEeW5hbWljYWxseSByZXNvbHZlIEMy
+    IGluZnJhc3RydWN0dXJlLiIsICJrZXl3b3JkcyI6IFsiZGdhIiwgImR5bmFtaWMgcmVzb2x1dGlv
+    biIsICJmYXN0IGZsdXgiLCAiZG9tYWluIGdlbmVyYXRpb24iXX0sCiAgICAiVDE1NjkiOiB7Im5h
+    bWUiOiAiU3lzdGVtIFNlcnZpY2VzIiwgInRhY3RpYyI6ICJFeGVjdXRpb24iLCAiZGVzY3JpcHRp
+    b24iOiAiQWJ1c2Ugc3lzdGVtIHNlcnZpY2VzIGZvciBleGVjdXRpb24uIiwgImtleXdvcmRzIjog
+    WyJzZXJ2aWNlIGV4ZWN1dGlvbiIsICJwc2V4ZWMiLCAic3lzdGVtIHNlcnZpY2UiLCAicHNleGVz
+    dmMiXX0sCiAgICAiVDE1NjkuMDAyIjogeyJuYW1lIjogIlNlcnZpY2UgRXhlY3V0aW9uIiwgInRh
+    Y3RpYyI6ICJFeGVjdXRpb24iLCAiZGVzY3JpcHRpb24iOiAiRXhlY3V0ZSBwYXlsb2FkcyB2aWEg
+    bmV3bHkgY3JlYXRlZCBvciBtb2RpZmllZCBzZXJ2aWNlcy4iLCAia2V5d29yZHMiOiBbInBzZXhl
+    YyIsICJzZXJ2aWNlIGluc3RhbGwiLCAiNzA0NSIsICJzZXJ2aWNlIGV4ZWN1dGlvbiJdfSwKICAg
+    ICJUMTU3NCI6IHsibmFtZSI6ICJIaWphY2sgRXhlY3V0aW9uIEZsb3ciLCAidGFjdGljIjogIkRl
+    ZmVuc2UgRXZhc2lvbiBQZXJzaXN0ZW5jZSBQcml2aWxlZ2UgRXNjYWxhdGlvbiIsICJkZXNjcmlw
+    dGlvbiI6ICJIaWphY2sgbm9ybWFsIGV4ZWN1dGlvbiBmbG93LiIsICJrZXl3b3JkcyI6IFsiaGlq
+    YWNrIiwgImRsbCBzZWFyY2ggb3JkZXIiLCAic2lkZS1sb2FkaW5nIl19LAogICAgIlQxNTc0LjAw
+    MiI6IHsibmFtZSI6ICJETEwgU2lkZS1Mb2FkaW5nIiwgInRhY3RpYyI6ICJEZWZlbnNlIEV2YXNp
+    b24iLCAiZGVzY3JpcHRpb24iOiAiU2lkZS1sb2FkIGEgbWFsaWNpb3VzIERMTCB2aWEgYSBsZWdp
+    dGltYXRlIGJpbmFyeS4iLCAia2V5d29yZHMiOiBbImRsbCBzaWRlLWxvYWRpbmciLCAic2VhcmNo
+    IG9yZGVyIiwgImxlZ2l0aW1hdGUgZGxsIl19CiAgfQp9Cg==
+steps:
+- tool: correlate_mitre_validate
+  note_ko: "결함 호출: 앞 설치가 남긴 표로 SAM 덤프 기법을 검증한다"
+  args:
+    technique_id: T1003.002
+- tool: correlate_mitre_validate
+  note_ko: "비교 호출: 지금 커밋이 배포하는 표로 같은 기법을 검증한다"
+  args:
+    technique_id: T1003.002
+    table_path: /opt/trudi/cases/.common/mitre_techniques.json
+expect:
+- step: 1
+  note_ko: 앞 설치가 남긴 표로는 기법이 없다고 나온다
+  contains: '"success": true, "exists": false, "technique_id": "T1003.002", "available_count": 48'
+- step: 1
+  note_ko: 응답에 판정에 쓴 표의 버전이 없다
+  not_contains: v14
+- step: 2
+  note_ko: 지금 배포되는 표에는 같은 기법이 있다
+  contains: '"exists": true, "technique_id": "T1003.002", "name": "Security Account Manager", "tactic": "Credential Access"'

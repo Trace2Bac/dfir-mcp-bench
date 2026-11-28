@@ -1,0 +1,60 @@
+# Matrix case P3075-062: each findevil tool picks by hand which arguments go
+# into its audit entry, and build_timeline records only evidence_root, since
+# and until. fallback_year, the year given to syslog lines that carry none,
+# and fs_subpath are not recorded, so two timelines with different years read
+# back from get_audit_trail with the same params.
+# The server is started with FINDEVIL_LOGS_DIR=${DB_DIR}, so the call record
+# is ${DB_DIR}/audit.json.
+case_id: P3075-062
+problem: P3075
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "syslog 줄에는 연도가 없어, 사건 연도에 맞춰 `fallback_year`를 바꿔 타임라인을 다시 만드는 일은 흔하다."
+coverage: "partial: fallback_year is shown; fs_subpath, which is left out the same way, is not"
+coverage_ko: "`fallback_year`만 보인다. 같은 방식으로 빠지는 `fs_subpath`는 보이지 않는다"
+summary: 'build_timeline on the same case with fallback_year 2025 and 2026 dates the same auth.log login 2025 and then 2026, but get_audit_trail shows both entries with the same params (evidence_root, since, until) and the same result.'
+summary_ko: "같은 사건에 `build_timeline`을 `fallback_year` 2025와 2026으로 부르면 같은 `auth.log` 로그인이 2025년과 2026년으로 찍힌다. 그런데 `get_audit_trail`은 두 항목의 params(`evidence_root`, `since`, `until`)와 결과를 똑같이 보여 준다."
+defect_ko: "이 서버는 `build_timeline`의 기록에 사건 시각을 바꾸는 `fallback_year`를 넣지 않는다. 결과를 정하는 인자는 모두 기록해야 한다. 모델은 기록을 보고 같은 타임라인을 두 번 만들었다고 잘못 알고, 보고서의 연도가 어떤 설정에서 나왔는지 되짚지 못한다."
+setup_ko: "연도가 없는 syslog 형식 `auth.log`를 사건 폴더 바로 아래에 두었다."
+fixture:
+  - path: case01/auth.log
+    text: |
+      Mar  3 02:12:02 web01 sshd[2203]: Failed password for root from 203.0.113.50 port 51804 ssh2
+      Mar  3 02:14:07 web01 sshd[2211]: Accepted password for deploy from 203.0.113.50 port 51822 ssh2
+  - path: case01/fs/etc/hostname
+    text: "web01\n"
+steps:
+  - tool: build_timeline
+    note_ko: "연도를 2025로 두고 타임라인을 만든다"
+    args:
+      evidence_root: ${EVIDENCE}/case01
+      fallback_year: 2025
+  - tool: build_timeline
+    note_ko: "결함 호출: `fallback_year`만 2026으로 바꿔 다시 만든다"
+    args:
+      evidence_root: ${EVIDENCE}/case01
+      fallback_year: 2026
+  - tool: get_audit_trail
+    note_ko: "두 호출의 기록을 다시 읽는다"
+    args:
+      filter_tool: build_timeline
+expect:
+  - step: 1
+    note_ko: "첫 타임라인의 로그인은 2025년이다"
+    contains: "2025-03-03T02:14:07+00:00"
+  - step: 2
+    note_ko: "둘째 타임라인의 같은 로그인은 2026년이다"
+    contains: "2026-03-03T02:14:07+00:00"
+  - step: 3
+    note_ko: "기록에 두 호출이 모두 있다"
+    contains: "(2 matching entries"
+  - step: 3
+    note_ko: "두 항목의 params와 결과가 똑같다"
+    regex: '(?s)params: \{"evidence_root": "[^"]*/case01", "since": "", "until": ""\}\n  result: 2 events from 1 sources\n.*params: \{"evidence_root": "[^"]*/case01", "since": "", "until": ""\}\n  result: 2 events from 1 sources'
+  - file_not_contains: ${DB_DIR}/audit.json
+    note_ko: "기록 파일 어디에도 `fallback_year`가 없다"
+    text: "fallback_year"

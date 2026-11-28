@@ -1,0 +1,46 @@
+{
+  "case_id": "P3005-004",
+  "problem": "P3005",
+  "server": "findevil",
+  "commit": "d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "비교 대상은 사건 B 루트다",
+      "regex": "# FIM diff — `[^`]*/caseB/fs`",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "기준선 루트는 사건 A 루트다",
+      "regex": "- \\*\\*Baseline root:\\*\\* `[^`]*/caseA/fs`",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "두 루트가 다른데 침해 판정을 낸다",
+      "contains": "🚨 **LIKELY COMPROMISE**",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "다른 호스트의 `etc/passwd`를 이번 호스트의 변경으로 보고한다",
+      "contains": "### `etc/passwd` — modified",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "루트가 다르다는 경고가 없다",
+      "not_regex": "(?i)different root|root mismatch|does not match|another root|other root|⚠ .*root",
+      "ok": true
+    }
+  ],
+  "image": "sha256:08a52767fa72f849f65a4955fec9da496c34756d685fe8910ae12364f1947df2",
+  "ran_at": "2026-11-28T07:41:25+00:00"
+}

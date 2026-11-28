@@ -1,0 +1,133 @@
+# Matrix case P1029-012: _match_artifact never opens a file; any file whose
+# parent folder is named nginx, apache2 or httpd is a "web server access
+# log". The default nginx.conf and apache2.conf of a Debian web host, with no
+# access log anywhere, are listed as access logs and the gap tells the agent
+# to run analyze_nginx_access.
+# The two files are the Debian package defaults (nginx 1.22, apache2 2.4),
+# with apache2.conf's long comment blocks shortened. The fs/etc folder also
+# makes fs a filesystem root; that row is not checked.
+case_id: P1029-012
+problem: P1029
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: common
+realism_ko: "웹 서버 호스트의 `/etc/nginx/nginx.conf`와 `/etc/apache2/apache2.conf`는 패키지를 깔면 늘 생기는 파일이다."
+coverage: full
+summary: With only nginx.conf and apache2.conf under fs/etc and no access log, assess_coverage lists the two configuration files in the "web server access log" row and tells the agent to run analyze_nginx_access.
+summary_ko: "접근 로그 없이 `fs/etc` 아래 `nginx.conf`와 `apache2.conf`만 있는데, `assess_coverage`는 두 설정 파일을 `web server access log` 행에 올리고 `analyze_nginx_access`를 돌리라고 안내한다."
+defect_ko: "이 서버의 `assess_coverage`는 파일을 열지 않고 부모 폴더 이름이 `nginx`나 `apache2`이면 접근 로그로 정한다. 파일 이름이나 내용으로 접근 로그를 가리거나, 이름만으로 정했다고 알려야 한다. 모델은 설정 파일을 접근 로그로 잘못 알고, 접근 로그가 없다는 사실도 알지 못한다."
+setup_ko: "파일 시스템 루트 `fs/`에 Debian 기본 `etc/nginx/nginx.conf`와 `etc/apache2/apache2.conf`만 두고 접근 로그는 두지 않았다."
+fixture:
+  - path: fs/etc/nginx/nginx.conf
+    text: |
+      user www-data;
+      worker_processes auto;
+      pid /run/nginx.pid;
+      error_log /var/log/nginx/error.log;
+      include /etc/nginx/modules-enabled/*.conf;
+
+      events {
+      	worker_connections 768;
+      	# multi_accept on;
+      }
+
+      http {
+
+      	##
+      	# Basic Settings
+      	##
+
+      	sendfile on;
+      	tcp_nopush on;
+      	types_hash_max_size 2048;
+      	# server_tokens off;
+
+      	include /etc/nginx/mime.types;
+      	default_type application/octet-stream;
+
+      	##
+      	# SSL Settings
+      	##
+
+      	ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3; # Dropping SSLv3, ref: POODLE
+      	ssl_prefer_server_ciphers on;
+
+      	##
+      	# Logging Settings
+      	##
+
+      	access_log /var/log/nginx/access.log;
+
+      	##
+      	# Gzip Settings
+      	##
+
+      	gzip on;
+
+      	##
+      	# Virtual Host Configs
+      	##
+
+      	include /etc/nginx/conf.d/*.conf;
+      	include /etc/nginx/sites-enabled/*;
+      }
+  - path: fs/etc/apache2/apache2.conf
+    text: |
+      # This is the main Apache server configuration file.  It contains the
+      # configuration directives that give the server its instructions.
+      # See http://httpd.apache.org/docs/2.4/ for detailed information about
+      # the directives and /usr/share/doc/apache2/README.Debian about Debian specific
+      # hints.
+      DefaultRuntimeDir ${APACHE_RUN_DIR}
+      PidFile ${APACHE_PID_FILE}
+      Timeout 300
+      KeepAlive On
+      MaxKeepAliveRequests 100
+      KeepAliveTimeout 5
+      User ${APACHE_RUN_USER}
+      Group ${APACHE_RUN_GROUP}
+      HostnameLookups Off
+      ErrorLog ${APACHE_LOG_DIR}/error.log
+      LogLevel warn
+      IncludeOptional mods-enabled/*.load
+      IncludeOptional mods-enabled/*.conf
+      Include ports.conf
+      <Directory />
+      	Options FollowSymLinks
+      	AllowOverride None
+      	Require all denied
+      </Directory>
+      <Directory /usr/share>
+      	AllowOverride None
+      	Require all granted
+      </Directory>
+      <Directory /var/www/>
+      	Options Indexes FollowSymLinks
+      	AllowOverride None
+      	Require all granted
+      </Directory>
+      AccessFileName .htaccess
+      <FilesMatch "^\.ht">
+      	Require all denied
+      </FilesMatch>
+      LogFormat "%v:%p %h %l %u %t \"%r\" %>s %O \"%{Referer}i\" \"%{User-Agent}i\"" vhost_combined
+      LogFormat "%h %l %u %t \"%r\" %>s %O \"%{Referer}i\" \"%{User-Agent}i\"" combined
+      LogFormat "%h %l %u %t \"%r\" %>s %O" common
+      LogFormat "%{Referer}i -> %U" referer
+      LogFormat "%{User-agent}i" agent
+      IncludeOptional conf-enabled/*.conf
+      IncludeOptional sites-enabled/*.conf
+steps:
+  - tool: assess_coverage
+    note_ko: "결함 호출: 조사 범위 점검"
+    args: {}
+expect:
+  - step: 1
+    note_ko: "두 설정 파일을 웹 서버 접근 로그 행에 올린다"
+    contains: "| web server access log | `fs/etc/apache2/apache2.conf`, `fs/etc/nginx/nginx.conf` | ❌ NOT examined |"
+  - step: 1
+    note_ko: "설정 파일에 접근 로그 분석을 돌리라고 안내한다"
+    contains: "**web server access log** present (`fs/etc/apache2/apache2.conf`, `fs/etc/nginx/nginx.conf`) but never examined → run analyze_nginx_access"

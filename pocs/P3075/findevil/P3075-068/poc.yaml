@@ -1,0 +1,49 @@
+# Matrix case P3075-068: find_contradictions records only how many claims it
+# was given (self_correction.py:558-562), so two claim sets of the same size,
+# one with a contradiction and one without, read back from get_audit_trail
+# with the same params.
+# The server is started with FINDEVIL_LOGS_DIR=${DB_DIR}, so the call record
+# is ${DB_DIR}/audit.json.
+case_id: P3075-068
+problem: P3075
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "보고 전에 주장 묶음을 고쳐 가며 모순 검사를 되풀이하는 것은 이 서버가 정한 흐름이다."
+coverage: full
+summary: 'find_contradictions on two claim sets of two claims each finds one contradiction and then none, but get_audit_trail shows both entries with the same params {"claim_count": 2}, so the record cannot tell which claims were checked or which pair contradicted.'
+summary_ko: "주장 2개짜리 묶음 두 개에 `find_contradictions`를 부르면 모순 1개와 모순 없음이 나온다. 그런데 `get_audit_trail`은 두 항목의 params를 똑같이 `{\"claim_count\": 2}`로 보여, 기록으로는 어떤 주장을 검사했고 어느 둘이 모순이었는지 알 수 없다."
+defect_ko: "이 서버는 `find_contradictions`의 기록에 입력 주장 대신 그 개수만 남긴다. 입력을 알아볼 수 있는 값(원문이나 그 해시)을 기록해야 한다. 모델은 기록을 보고 같은 묶음을 두 번 검사했다고 잘못 알고, 모순으로 걸린 주장이 무엇이었는지 기록으로 되짚지 못한다."
+setup_ko: "증거 파일은 쓰지 않았다. 같은 로그에 대해 무차별 대입과 실패 로그인 없음을 함께 주장한 묶음과, 무차별 대입과 계정 생성을 주장한 묶음을 준다."
+steps:
+  - tool: find_contradictions
+    note_ko: "서로 모순인 두 주장을 검사한다"
+    args:
+      claims_json: '[{"id": "c1", "type": "brute_force_from_ip", "log_path": "/evidence/case01/var/log/auth.log", "ip": "203.0.113.50"}, {"id": "c2", "type": "no_failed_logins", "log_path": "/evidence/case01/var/log/auth.log"}]'
+  - tool: find_contradictions
+    note_ko: "결함 호출: 개수가 같고 모순이 없는 두 주장을 검사한다"
+    args:
+      claims_json: '[{"id": "c1", "type": "brute_force_from_ip", "log_path": "/evidence/case01/var/log/auth.log", "ip": "203.0.113.50"}, {"id": "c3", "type": "user_created", "log_path": "/evidence/case01/var/log/auth.log", "name": "sysupd"}]'
+  - tool: get_audit_trail
+    note_ko: "두 검사의 기록을 다시 읽는다"
+    args:
+      filter_tool: find_contradictions
+expect:
+  - step: 1
+    note_ko: "첫 묶음에서는 모순이 나온다"
+    contains: "1 contradiction(s) found"
+  - step: 2
+    note_ko: "둘째 묶음에서는 모순이 없다"
+    contains: "No contradictions detected"
+  - step: 3
+    note_ko: "기록에 두 검사가 모두 있다"
+    contains: "(2 matching entries"
+  - step: 3
+    note_ko: "두 항목의 params가 똑같이 주장 개수뿐이다"
+    regex: '(?s)params: \{"claim_count": 2\}\n  result: 1 contradictions\n.*params: \{"claim_count": 2\}\n  result: 0 contradictions'
+  - step: 3
+    note_ko: "기록에 주장 내용이 없다"
+    not_regex: "no_failed_logins|user_created|c2|c3"

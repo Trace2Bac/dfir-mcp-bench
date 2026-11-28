@@ -1,0 +1,46 @@
+{
+  "case_id": "P3075-023",
+  "problem": "P3075",
+  "server": "findevil",
+  "commit": "d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: only the PermissionError path is shown; the _run_tool time-out path (subprocess.TimeoutExpired) is not",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "첫 호출은 실패 로그인을 분석한다",
+      "contains": "203.0.113.50",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "둘째 호출은 읽기 권한 예외로 끝난다",
+      "contains": "Permission denied",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "두 번 부른 `auth_failed_logins`가 기록에는 1건뿐이다",
+      "contains": "`auth_failed_logins`: 1",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "기록에 `auth.log.1` 호출이 없다",
+      "not_contains": "auth.log.1",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${DB_DIR}/audit.json",
+      "note_ko": "기록 파일에도 `auth.log.1` 호출이 없다",
+      "text": "auth.log.1",
+      "ok": true
+    }
+  ],
+  "image": "sha256:3bcd7a6b764b991b025e2840a95a55b34118da6485a039dc2d3d1554f4f33072",
+  "ran_at": "2026-11-28T07:29:39+00:00"
+}

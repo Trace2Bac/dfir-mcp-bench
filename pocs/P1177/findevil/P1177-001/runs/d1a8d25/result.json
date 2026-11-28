@@ -1,0 +1,52 @@
+{
+  "case_id": "P1177-001",
+  "problem": "P1177",
+  "server": "findevil",
+  "commit": "d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "첫 호출은 모순으로 거절된다",
+      "contains": "## Contradictions (1)",
+      "ok": true
+    },
+    {
+      "step": 1,
+      "note_ko": "확신도를 낮추라는 안내가 나온다",
+      "contains": "downgrade its confidence, then call `finalize_report` again",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "확신도를 낮춘 뒤에도 거절된다",
+      "contains": "# ❌ Finalization REJECTED — 2 claim(s) inspected",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "거절 이유는 같은 모순 하나뿐이다",
+      "contains": "## Contradictions (1)",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "확신도 때문에 막힌 주장은 없다",
+      "not_contains": "Unsupported CONFIRMED claims",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "그런데도 같은 '확신도를 낮추라'는 안내를 되풀이한다",
+      "contains": "downgrade its confidence, then call `finalize_report` again",
+      "ok": true
+    }
+  ],
+  "image": "sha256:e16b6e89b30508a26ad2db2383a13882e973d9210f7b91b2c20a3cc7f56fed08",
+  "ran_at": "2026-11-28T07:41:20+00:00"
+}

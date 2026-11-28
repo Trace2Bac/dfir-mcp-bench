@@ -1,0 +1,46 @@
+{
+  "case_id": "P1029-013",
+  "problem": "P1029",
+  "server": "findevil",
+  "commit": "d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "gzip 압축 파일을 인증 로그 행에 올린다",
+      "contains": "| auth log (SSH / sudo / useradd) | `fs/var/log/auth.log.2.gz` | ❌ NOT examined |",
+      "ok": true
+    },
+    {
+      "step": 1,
+      "note_ko": "그 파일에 `auth_summary`를 돌리라고 안내한다",
+      "contains": "→ run auth_summary",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "압축을 풀지 않아 침입 기록이 든 파일에서 인증 사건을 하나도 찾지 못한다",
+      "contains": "Log file contains no recognizable auth events.",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "그런데도 인증 로그를 검사했다고 표시한다",
+      "contains": "| auth log (SSH / sudo / useradd) | `fs/var/log/auth.log.2.gz` | ✅ examined |",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "조사 범위에 빈틈이 없다고 판정한다",
+      "contains": "**Verdict: COVERAGE CLEAN**",
+      "ok": true
+    }
+  ],
+  "image": "sha256:86816a90c9589203a3cd598bc22157f29666d78aa6f9a664181bd2790d4ead9d",
+  "ran_at": "2026-11-28T07:41:02+00:00"
+}

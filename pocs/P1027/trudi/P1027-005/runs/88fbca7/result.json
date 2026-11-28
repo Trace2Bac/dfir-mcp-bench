@@ -1,0 +1,52 @@
+{
+  "case_id": "P1027-005",
+  "problem": "P1027",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 3,
+      "note_ko": "조사는 Analyze 단계에 들어갔다",
+      "regex": "\"current_phase\": \"Collect\".*\"next_phase\": \"Analyze\".*\"stack_action\": \"push\"",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "모델이 고른 Report는 발견 0건이라 거부된다",
+      "regex": "\"server_override\": \\{\"kind\": \"report_refused_zero_findings\", \"detail\": \"no finding entries in trace\"",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "빈 작업 지시의 stay는 서버가 발견 수를 보지 않고 Report로 바꾼다",
+      "regex": "\"transition_recommended\": true, \"next_phase\": \"Report\", \"transition_rationale\": \"Server override: empty Analyze work order and no open scoping leads",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "재정의 종류는 analyze_to_report다",
+      "contains": "\"server_override\": {\"kind\": \"analyze_to_report\", \"detail\": \"Analyze complete; no open scoping leads; advancing to Report\"}",
+      "ok": true
+    },
+    {
+      "step": 6,
+      "note_ko": "다음 증거 호출이 Report에서 Collect로 옮겨진다(서버 단계가 Report였다)",
+      "contains": "Report -> Collect: strings_file_identify is evidence work.",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${OUTSIDE}/case01/analysis/CASE-001_trace.json",
+      "note_ko": "trace에는 발견사항이 하나도 없다",
+      "text": "\"type\": \"finding\"",
+      "ok": true
+    }
+  ],
+  "image": "sha256:270206a0e3381bb04e922c2f6119f2c7d396fa4737e6b58a0584d47dd8451bdf",
+  "ran_at": "2026-11-28T07:45:24+00:00"
+}

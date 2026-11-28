@@ -1,0 +1,75 @@
+# Matrix case P3081-029: with_tool_timeout (core/timeout.py) runs hash_file
+# in a daemon thread; when the budget runs out it records call_abandoned and
+# returns timed_out, but the thread goes on hashing, and when it finishes
+# _record_hash_result writes a successful "hash.file <path>" tool_call. The
+# trace then holds both a failure and a success for the one call.
+# TRUDI_HASH_TIMEOUT (core/paths.py) is lowered to 1 s so that a 2 GiB
+# memory image is enough; the default is 900 s, which multi-GB images pass.
+# The batch_run sleep stands in for the analyst's other work while the
+# thread runs.
+case_id: P3081-029
+problem: P3081
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "해시 시간 제한(기본 900초)을 넘는 수십 GB 메모리 이미지와 디스크 이미지는 흔하다. PoC는 제한을 1초로 낮추고 2 GiB 파일로 같은 상황을 만든다."
+coverage: full
+env:
+  TRUDI_HASH_TIMEOUT: "1"
+summary: 'hash_file on a 2 GiB memory image answers timed_out true ("abandoned") and the trace records call_abandoned for hash_file; some seconds later the same trace also holds a successful "hash.file <path>" tool_call with the image''s hashes for that same call.'
+summary_ko: "2 GiB 메모리 이미지에 `hash_file`을 부르면 `timed_out: true`(\"abandoned\")가 오고 trace에 `call_abandoned`가 남는데, 몇 초 뒤 같은 trace에 그 호출의 성공한 `hash.file <경로>` 항목과 이미지 해시도 함께 남는다."
+defect_ko: "이 서버는 시간 제한으로 포기했다고 기록한 호출의 작업을 멈추지 않고, 끝나면 같은 호출을 성공으로 또 기록한다. 정상이라면 포기한 작업을 멈추거나, 나중 결과를 앞의 포기 항목과 이어 한 호출의 결과로 고쳐 적어야 한다. 기록을 읽는 모델과 검토자는 한 호출에 실패와 성공이 함께 있어 그 해시가 실제로 끝난 것인지, 다른 호출의 결과인지 구별하지 못한다."
+setup_ko: "2 GiB 원시 메모리 이미지를 넣고, 해시 시간 제한을 1초로 낮췄다."
+fixture:
+  - path: analysis/.keep
+    root: db
+    text: ""
+  - path: memory/WKSTN-07.raw
+    size: 2147483648
+    text: "\x00"
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 trace를 연다"
+    args:
+      case_id: P3081-029
+      output_path: ${DB_DIR}/analysis/P3081-029_trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: hash_file
+    note_ko: "결함 호출: 메모리 이미지를 해시하다 시간 제한에 걸린다"
+    args:
+      file_path: ${EVIDENCE}/memory/WKSTN-07.raw
+  - tool: read_output
+    note_ko: "비교 호출: 곧바로 trace에서 그 해시 기록을 찾는다"
+    args:
+      path: ${DB_DIR}/analysis/P3081-029_trace.json
+      query: call_abandoned hash_file hash.file
+  - tool: misc_batch_run
+    note_ko: "다른 작업을 하는 동안(30초) 시간이 흐른다"
+    args:
+      tool_calls:
+        - cmd: [sleep, "30"]
+  - tool: read_output
+    note_ko: "비교 호출: 다시 trace에서 그 해시 기록을 찾는다"
+    args:
+      path: ${DB_DIR}/analysis/P3081-029_trace.json
+      query: call_abandoned hash_file hash.file
+expect:
+  - step: 2
+    note_ko: "해시 호출은 시간 제한으로 포기했다고 답한다"
+    regex: '"success": false, "error": "Tool exceeded 1s budget [^"]{1,10}abandoned", "timed_out": true'
+  - step: 3
+    note_ko: "곧바로 읽은 trace에는 hash_file의 call_abandoned만 있다"
+    regex: 'call_abandoned\x5c",[^"]*\x5c"tool\x5c": \x5c"hash_file'
+  - step: 3
+    note_ko: "그때는 hash.file 성공 항목이 아직 없다"
+    not_regex: 'hash\.file /'
+  - step: 5
+    note_ko: "나중에 읽은 trace에는 같은 이미지의 hash.file 항목이 더 생겼다"
+    regex: 'cmd\x5c": \x5c"hash\.file [^ ]*/memory/WKSTN-07\.raw'
+  - file_regex: ${DB_DIR}/analysis/P3081-029_trace.json
+    note_ko: "trace 한 파일에 hash_file의 포기 항목과 그 이미지의 성공 항목이 함께 있다"
+    pattern: '"type": "call_abandoned",[^{}]*"tool": "hash_file"[\s\S]*"cmd": "hash\.file [^"]*/memory/WKSTN-07\.raw",\s*"success": true'

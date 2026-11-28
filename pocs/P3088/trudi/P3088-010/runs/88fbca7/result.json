@@ -1,0 +1,58 @@
+{
+  "case_id": "P3088-010",
+  "problem": "P3088",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: tsk_icat only; the other tools that write through run_with_output_file (tsk_mactime, tsk_blkls, misc_evtx_dump and others) open the path the same way",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "이미지에 Application.evtx(567)와 System.evtx(569)가 있다",
+      "regex": "r/r 567:\\\\tApplication\\.evtx[\\s\\S]*r/r 569:\\\\tSystem\\.evtx",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "첫 추출은 call 4로 성공한다",
+      "regex": "\"success\":\\s*true[\\s\\S]*\"output_path\":\\s*\"[^\"]*/analysis/export/extracted\\.evtx\"[\\s\\S]*\"_trudi_call_id\":\\s*4\\b",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "그 파일은 Application.evtx다(SHA-256)",
+      "contains": "\"sha256\": \"f930bf67d5d10ea7191839d13c1e0e80f07d5a58d5cb6e77d43ce3f843b8bc56\"",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "같은 경로로 다른 inode를 꺼내도 성공으로 답한다",
+      "regex": "\"success\":\\s*true[\\s\\S]*\"output_path\":\\s*\"[^\"]*/analysis/export/extracted\\.evtx\"",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "기존 파일을 덮어썼다는 말이 없다(아래 해시와 대조)",
+      "not_regex": "(?i)overwr|exist|replac",
+      "ok": true
+    },
+    {
+      "step": 6,
+      "note_ko": "같은 경로의 파일이 System.evtx로 바뀌었다(SHA-256)",
+      "contains": "\"sha256\": \"5fabf8c5c699a1a3a45d941f01c57b37d1ce5fc55d34e6662f0d2a19f10c97b5\"",
+      "ok": true
+    },
+    {
+      "file_regex": "${DB_DIR}/analysis/trace.json",
+      "pattern": "\"call_id\": 4,[^}]*\"cmd\": \"sudo icat [^\"]*pc\\.dd 567\"[^}]*\"output_path\": \"[^\"]*/analysis/export/extracted\\.evtx\"",
+      "note_ko": "trace의 call 4 항목은 여전히 그 경로를 inode 567의 출력으로 적는다",
+      "ok": true
+    }
+  ],
+  "image": "sha256:8889a30d1a21bc53df0fc992a53629cbecc1c4caf9eae254eaecc7214edb8496",
+  "ran_at": "2026-11-28T07:40:42+00:00"
+}

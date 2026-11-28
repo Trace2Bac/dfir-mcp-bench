@@ -1,0 +1,58 @@
+# Matrix case P3086-002: baseline_create refuses an output path inside the
+# evidence folder only, so an output_file pointing at the server's own call
+# record (LOGS_DIR/audit.json) is accepted and write_text replaces the record
+# with the indented baseline JSON. get_audit_trail then reads none of the
+# earlier calls.
+# The server is started with FINDEVIL_LOGS_DIR=${DB_DIR}, so the call record
+# is ${DB_DIR}/audit.json.
+case_id: P3086-002
+problem: P3086
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "출력 경로는 모델이 정하는 인자라, 모델의 실수나 증거 안의 지시문으로 기록 파일 경로가 들어올 수 있다."
+coverage: full
+summary: After a hash_file call is recorded, baseline_create with output_file set to the server's audit.json is accepted and overwrites the record with the indented baseline JSON; its own record line is then appended to the last line of that JSON, so get_audit_trail finds no entries at all.
+summary_ko: "`hash_file` 호출이 기록된 뒤 `baseline_create`의 `output_file`에 서버의 `audit.json`을 주면 받아들여 기록 파일을 기준선 JSON으로 덮어쓴다. 기준선 JSON 끝에 줄바꿈이 없어 `baseline_create` 자신의 기록 줄도 그 마지막 줄에 붙으므로, 그 뒤 `get_audit_trail`은 기록을 한 건도 찾지 못한다."
+defect_ko: "이 서버의 출력 경로 검사는 증거 폴더만 막아, 서버가 쓰는 호출 기록 파일도 출력 위치로 받아들인다. 기록 파일이나 서버가 관리하는 위치는 출력 위치로 받지 않아야 한다. 모델은 덮어써진 기록을 이번 조사의 전체 기록으로 잘못 안다."
+setup_ko: "증거 폴더 `fs/` 아래에 작은 텍스트 파일 두 개를 두었다."
+fixture:
+  - path: fs/etc/hostname
+    text: "ws-analyst-07\n"
+  - path: fs/home/alice/notes.txt
+    text: "meeting at 10\n"
+steps:
+  - tool: hash_file
+    note_ko: "기록에 남을 첫 호출"
+    args:
+      path: ${EVIDENCE}/fs/etc/hostname
+  - tool: baseline_create
+    note_ko: "결함 호출: 출력 경로로 서버의 호출 기록 파일을 준다"
+    args:
+      root_path: ${EVIDENCE}/fs
+      output_file: ${DB_DIR}/audit.json
+  - tool: get_audit_trail
+    note_ko: "기록을 다시 읽는다"
+    args: {}
+expect:
+  - step: 1
+    note_ko: "첫 호출은 정상으로 끝난다"
+    not_contains: "Error"
+  - step: 2
+    note_ko: "기록 파일 경로를 거부하지 않는다"
+    not_regex: "(?i)^Error"
+  - step: 3
+    note_ko: "기록을 다시 읽으면 한 건도 남아 있지 않다"
+    contains: "(0 matching entries"
+  - step: 3
+    note_ko: "앞서 한 `hash_file` 호출이 기록에서 사라졌다"
+    not_contains: "`hash_file`"
+  - file_contains: ${DB_DIR}/audit.json
+    note_ko: "호출 기록 파일 안에 기준선 JSON이 들어 있다"
+    text: "\"entries\""
+  - file_regex: ${DB_DIR}/audit.json
+    note_ko: "`baseline_create`의 기록 줄이 기준선 JSON의 마지막 줄에 붙어 있다"
+    pattern: '\}\{"timestamp"'

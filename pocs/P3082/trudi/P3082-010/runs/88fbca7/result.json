@@ -1,0 +1,46 @@
+{
+  "case_id": "P3082-010",
+  "problem": "P3082",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "side-effect",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: the baseline write fails because the trace is not open yet; a disk-full or permission failure (which also leaves the call id and entry in memory) and execute_action (needs an SSH target) are not shown",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "기록을 열기 전의 보고서 호출이 성공했다",
+      "regex": "^\\{\"success\": true, \"output_path\": \"[^\"]*/reports/accuracy\\.md\"",
+      "ok": true
+    },
+    {
+      "file_contains": "${DB_DIR}/reports/accuracy.md",
+      "note_ko": "그 호출의 보고서 파일이 reports/에 남았다",
+      "text": "# Accuracy Report — P3082-010",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "trace를 열 때 되살린 항목은 없다",
+      "contains": "\"entries_recovered\": 0",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "trace에는 보고서 호출의 기록이 없다",
+      "regex": "\"body\": \"\", \"truncated\": false",
+      "ok": true
+    },
+    {
+      "file_regex": "${DB_DIR}/analysis/P3082-010_trace.json",
+      "note_ko": "trace의 accuracy_export_report 항목은 기록을 연 뒤의 한 건뿐이다",
+      "pattern": "^(?![\\s\\S]*\"cmd\": \"<py>:accuracy_export_report\"[\\s\\S]*\"cmd\": \"<py>:accuracy_export_report\")[\\s\\S]*\"cmd\": \"<py>:accuracy_export_report\",\\s*\"success\": true",
+      "ok": true
+    }
+  ],
+  "image": "sha256:7666fe93344d7891cc267e51ca21dc749481996617c72d728d0765aa9397170e",
+  "ran_at": "2026-11-28T07:40:47+00:00"
+}

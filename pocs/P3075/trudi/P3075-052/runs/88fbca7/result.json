@@ -1,0 +1,58 @@
+{
+  "case_id": "P3075-052",
+  "problem": "P3075",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "기록을 열기 전의 첫 조회가 성공했다",
+      "regex": "^\\{\"success\": true, \"connections\": \\[\\]",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "다섯 번째 같은 조회도 성공했다",
+      "regex": "^\\{\"success\": true, \"connections\": \\[\\]",
+      "ok": true
+    },
+    {
+      "step": 6,
+      "note_ko": "여섯 번째 같은 조회는 반복 호출 관문에 막혔다",
+      "regex": "blocked: repeat_call_gate",
+      "ok": true
+    },
+    {
+      "step": 7,
+      "note_ko": "trace를 열 때 되살린 항목은 없다",
+      "contains": "\"entries_recovered\": 0",
+      "ok": true
+    },
+    {
+      "step": 8,
+      "note_ko": "기록을 연 뒤의 같은 조회도 막혔다",
+      "regex": "blocked: repeat_call_gate",
+      "ok": true
+    },
+    {
+      "file_regex": "${DB_DIR}/analysis/P3075-052_trace.json",
+      "note_ko": "trace의 차단 항목은 기록을 연 뒤의 한 건뿐이다(앞의 차단은 없다)",
+      "pattern": "^(?![\\s\\S]*\"type\": \"tool_blocked\"[\\s\\S]*\"type\": \"tool_blocked\")[\\s\\S]*\"type\": \"tool_blocked\",\\s*\"ts\": \"[^\"]+\",\\s*\"tool\": \"correlate_network_to_process\",\\s*\"reason\": \"repeat_call_gate",
+      "ok": true
+    },
+    {
+      "file_regex": "${DB_DIR}/analysis/P3075-052_trace.json",
+      "note_ko": "trace의 correlate_network_to_process 실행 항목은 기록을 연 뒤의 한 건뿐이다(앞의 성공 다섯 건은 없다)",
+      "pattern": "^(?![\\s\\S]*\"cmd\": \"<py>:correlate_network_to_process\"[\\s\\S]*\"cmd\": \"<py>:correlate_network_to_process\")[\\s\\S]*\"cmd\": \"<py>:correlate_network_to_process\"",
+      "ok": true
+    }
+  ],
+  "image": "sha256:c3aa3c4483424f899e9a7dc5571ecad6156ca8c5fd3107e63d68cb35d3d7ee10",
+  "ran_at": "2026-11-28T07:40:23+00:00"
+}

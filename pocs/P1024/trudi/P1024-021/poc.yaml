@@ -1,0 +1,88 @@
+# Matrix case P1024-021: the work-order check decides whether a prescribed
+# tool ran by looking for its signature inside the command line and the
+# mcp_tool stamp of any successful tool_call (tools/_gates/work_order.py,
+# unrun_from_list / unrun_priority_tools). The signature of ez.lecmd is
+# "lecmd", which is also a substring of "jlecmd" and of "JLECmd.dll", so one
+# successful ez_jlecmd run (Jump Lists) settles the LECmd (LNK files) item
+# although no LNK file was parsed.
+# The work order is written by the server itself: dair_assess runs against
+# the Anthropic stub, whose answer pushes Triage -> Collect with ez.lecmd,
+# ez.jlecmd and ez.pecmd as the Collect work order. ez.pecmd is never run and
+# stays as the control.
+# The evidence is a CyLR-style triage tree (Windows/System32/config marks it
+# as triage). The user's Recent folder holds one LNK file and one
+# customDestinations-ms jump list. Both are written in their Windows formats:
+# the LNK is a ShellLinkHeader (CLSID 00021401-0000-0000-C000-000000000046,
+# HasLinkInfo) with a LinkInfo local base path; the jump list is a version-2
+# custom destinations file with one category of type 2 (tasks) holding one
+# such shell link, closed by the 0xBABFFBAB footer.
+case_id: P1024-021
+problem: P1024
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "작업 지시는 서버가 `dair_assess` 결과로 trace에 남기는 상태이고, LNK와 Jump List는 같은 `Recent` 폴더에 있어 둘 가운데 Jump List만 먼저 돌리는 것은 정상 흐름이다."
+coverage: full
+summary: With ez.lecmd, ez.jlecmd and ez.pecmd in the Collect work order, one successful ez_jlecmd run on a jump list makes reason_readiness_status drop both ez.jlecmd and ez.lecmd from the unrun list (only ez.pecmd is left), although LECmd never ran and the LNK file in Recent was never parsed.
+summary_ko: "Collect 작업 지시에 `ez.lecmd`, `ez.jlecmd`, `ez.pecmd`가 있을 때 Jump List에 `ez_jlecmd`를 한 번 성공시키면, `reason_readiness_status`가 `ez.jlecmd`와 함께 `ez.lecmd`도 미실행 목록에서 뺀다(`ez.pecmd`만 남는다). LECmd는 한 번도 돌지 않았고 `Recent`의 LNK 파일도 해석되지 않았다."
+defect_ko: "이 서버는 작업 지시 도구의 실행 여부를 성공한 호출의 명령 문자열과 도구 이름에 시그니처 글자(`lecmd`)가 들어 있는지로 정해, `jlecmd` 호출이 LECmd 지시를 채운다. 지시한 도구 자체가 돌았거나 그 도구가 읽을 자료를 읽었는지를 대조해야 한다. 모델과 준비 점검은 LNK 파일을 조사한 것으로 알고 다음 단계로 넘어간다."
+setup_ko: "트리아지 수집물(`Windows/System32/config` 폴더가 있는 트리)의 사용자 `Recent` 폴더에 LNK 파일 하나와 `customDestinations-ms` Jump List 하나를 둔다. 새 기록을 열고, 가짜 Anthropic API가 Collect로 넘어가며 `ez.lecmd`, `ez.jlecmd`, `ez.pecmd`를 작업 지시로 내리는 DAIR 답을 돌려주게 한다."
+env:
+  TRUDI_CACHE_DIR: ${DB_DIR}/cache
+anthropic_stub:
+  responses:
+  - |
+    Triage is complete; the Collect work order follows.
+    RESULT: {"schema_version": 1, "assessment": {"current_phase": "Triage", "phase_rationale": "The alert on WKSTN-07 (jdoe opening payroll files) is confirmed; Triage is satisfied.", "transition_recommended": true, "next_phase": "Collect", "transition_rationale": "Triage satisfied; collect the file-access artifacts.", "stack_action": "push", "investigation_focus": "Which files did jdoe open on WKSTN-07, and which programs ran?", "verification_satisfied": true, "verification_challenges": [], "recommended_actions": [], "directives": {"priority_tools": ["ez.lecmd", "ez.jlecmd", "ez.pecmd"], "skip_tools": [], "focus_pids": [], "focus_paths": [], "curiosity_budget": 1}}}
+fixture:
+- path: C/Windows/System32/config
+  dir: true
+- path: C/Users/jdoe/AppData/Roaming/Microsoft/Windows/Recent/Q3_payroll.xlsx.lnk
+  hex: 4c0000000114020000000000c00000000000004602000000200000008073ed676577dd018073f4910178dd018073ed676577dd0155bc00000000000001000000000000000000000000000000560000001c000000010000001c0000002d00000000000000550000001100000003000000e2913c5a1000000000433a5c55736572735c6a646f655c446f63756d656e74735c51335f706179726f6c6c2e786c7378000000000000
+- path: C/Users/jdoe/AppData/Roaming/Microsoft/Windows/Recent/CustomDestinations/5f7b5f1e01b83767.customDestinations-ms
+  hex: 02000000010000000000000002000000010000000114020000000000c0000000000000464c0000000114020000000000c00000000000004602000000200000008073ed676577dd018073f4910178dd018073ed676577dd0155bc000000000000010000000000000000000000000000005c0000001c000000010000001c0000002d000000000000005b0000001100000003000000e2913c5a1000000000433a5c55736572735c6a646f655c446f63756d656e74735c51335f706179726f6c6c5f66696e616c2e786c7378000000000000abfbbfba
+- path: case01/evidence
+  root: outside
+  symlink: ${EVIDENCE}
+- path: case01/analysis
+  root: outside
+  dir: true
+steps:
+- tool: misc_start_execution_log
+  note_ko: "준비: 새 사건 기록을 연다"
+  args:
+    case_id: CASE-001
+    output_path: ${OUTSIDE}/case01/analysis/CASE-001_trace.json
+    case_dir: ${OUTSIDE}/case01
+    launch_dashboard: false
+- tool: dair_assess
+  note_ko: "준비: DAIR(가짜 API)가 Collect로 넘기며 LECmd, JLECmd, PECmd를 작업 지시로 내린다"
+  args:
+    tool_results_summary: "Triage confirmed the DLP alert: jdoe on WKSTN-07 opened payroll spreadsheets outside working hours. The triage collection is in evidence/C."
+    phase_stack: "[]"
+    case_context: "CASE-001; host WKSTN-07; user jdoe"
+- tool: reason_readiness_status
+  note_ko: "비교 호출: 작업 지시의 세 도구가 미실행으로 나온다"
+- tool: ez_jlecmd
+  note_ko: "결함 호출: Jump List만 JLECmd로 해석한다"
+  args:
+    jump_list_path: ${OUTSIDE}/case01/evidence/C/Users/jdoe/AppData/Roaming/Microsoft/Windows/Recent/CustomDestinations/5f7b5f1e01b83767.customDestinations-ms
+    output_dir: ${OUTSIDE}/case01/analysis/jlecmd
+- tool: reason_readiness_status
+  note_ko: "결함 확인: 같은 점검을 다시 부른다"
+expect:
+- step: 3
+  note_ko: JLECmd를 돌리기 전에는 세 도구가 모두 미실행이다
+  contains: '3 tool(s) DAIR prescribed in a priority_tools work order were never run or dispositioned: ez.jlecmd, ez.lecmd, ez.pecmd.'
+- step: 4
+  note_ko: JLECmd가 Jump List를 해석해 성공한다
+  regex: '"success": true.*"cmd": "dotnet /opt/zimmermantools/JLECmd.dll -f '
+- step: 5
+  note_ko: JLECmd 한 번 뒤 LECmd도 미실행 목록에서 빠지고 PECmd만 남는다
+  contains: '1 tool(s) DAIR prescribed in a priority_tools work order were never run or dispositioned: ez.pecmd.'
+- file_not_contains: ${OUTSIDE}/case01/analysis/CASE-001_trace.json
+  note_ko: trace에는 LECmd 호출이 하나도 없다
+  text: /opt/zimmermantools/LECmd.dll

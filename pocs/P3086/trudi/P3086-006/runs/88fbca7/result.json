@@ -1,0 +1,46 @@
+{
+  "case_id": "P3086-006",
+  "problem": "P3086",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: hashdeep_compute only; entries that only the hooks write to the trace file, which the next _flush drops, are not shown because no Claude Code hook runs here",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 3,
+      "note_ko": "trace 경로를 매니페스트 경로로 받아 성공으로 답한다",
+      "regex": "\"success\":\\s*true[\\s\\S]*\"manifest_path\":\\s*\"[^\"]*/analysis/trace\\.json\"",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "바로 읽은 trace 파일의 내용은 trace 항목이 아니라 hashdeep 매니페스트다",
+      "regex": "\"body\":\\s*\"%%%% HASHDEEP-1\\.0\\\\n%%%% size,md5,sha256,filename",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "그 순간 trace 파일에는 앞선 호출의 기록이 없다",
+      "not_contains": "\\\"call_id\\\": 3",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "다음 기록 쓰기 뒤에는 trace 파일이 다시 trace JSON이다",
+      "regex": "\"body\":\\s*\"\\{\\\\n  \\\\\"schema_version\\\\\": \\\\\"2\\.0\\\\\"",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${DB_DIR}/analysis/trace.json",
+      "text": "%%%% size,md5,sha256,filename\n##",
+      "note_ko": "응답이 가리킨 경로에 매니페스트는 남아 있지 않다",
+      "ok": true
+    }
+  ],
+  "image": "sha256:20518f8765003bf590b84d477d1492f5aa04bd7c4193c2ba5b9797618d1dfac4",
+  "ran_at": "2026-11-28T07:33:09+00:00"
+}

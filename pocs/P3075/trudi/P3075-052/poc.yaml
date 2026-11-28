@@ -1,0 +1,89 @@
+# Matrix case P3075-052: before misc_start_execution_log opens the trace,
+# no call is recorded at all, including a call the server refuses. A
+# pure-Python tool's baseline entry fails in _require_configured and the
+# middleware only prints a warning (core/middleware.py
+# _trace_success_baseline), so the tool answers success with no entry; a
+# call refused by the repeat-call gate tries record_tool_blocked, which fails
+# the same way and is dropped (core/middleware.py on_call_tool, "except
+# Exception: pass"). Opening the trace afterwards recovers nothing. The same
+# refusal and the same tool after the trace is open are recorded.
+case_id: P3075-052
+problem: P3075
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "start_execution_log를 맨 먼저 부르라는 안내를 건너뛰고 바로 분석 도구를 부르는 것은 모델의 호출 순서 실수로 일어날 수 있고, 같은 조회를 되풀이하다 반복 호출 관문에 막히는 것도 이 관문이 생긴 이유인 실제 동작이다."
+coverage: full
+summary: 'Before the trace is opened, five identical correlate_network_to_process calls succeed and a sixth is refused by the repeat-call gate; after misc_start_execution_log (entries_recovered 0) the trace has none of them, while the same refusal and a new call made after it are recorded.'
+summary_ko: "기록을 열기 전에 같은 `correlate_network_to_process` 호출 다섯 번이 성공하고 여섯 번째는 반복 호출 관문에 막힌다. 그 뒤 `misc_start_execution_log`(`entries_recovered` 0)로 연 trace에는 그 여섯 호출이 하나도 없고, 기록을 연 뒤의 같은 차단과 새 호출은 기록된다."
+defect_ko: "이 서버는 기록을 열기 전의 호출을, 성공한 호출이든 관문이 막은 호출이든 기록하지 못한 채 결과만 돌려준다. 정상이라면 기록을 열기 전에는 도구 호출을 거부하거나, 받은 호출을 남겨 두었다가 기록을 열 때 함께 적어야 한다. 기록을 읽는 모델과 검토자는 기록이 열리기 전에 한 조회와 막힌 호출이 없었던 것으로 잘못 안다."
+setup_ko: "새 사건 폴더에서 trace를 열지 않은 채 같은 IP 조회를 되풀이하고, 그 뒤에 trace를 연다."
+fixture:
+  - path: analysis/.keep
+    root: db
+    text: ""
+steps:
+  - tool: correlate_network_to_process
+    note_ko: "결함 호출: 기록을 열기 전에 의심 IP의 프로세스를 찾는다(1번째, 같은 결과)"
+    args:
+      ip: 203.0.113.7
+  - tool: correlate_network_to_process
+    note_ko: "결함 호출: 기록을 열기 전에 의심 IP의 프로세스를 찾는다(2번째, 같은 결과)"
+    args:
+      ip: 203.0.113.7
+  - tool: correlate_network_to_process
+    note_ko: "결함 호출: 기록을 열기 전에 의심 IP의 프로세스를 찾는다(3번째, 같은 결과)"
+    args:
+      ip: 203.0.113.7
+  - tool: correlate_network_to_process
+    note_ko: "결함 호출: 기록을 열기 전에 의심 IP의 프로세스를 찾는다(4번째, 같은 결과)"
+    args:
+      ip: 203.0.113.7
+  - tool: correlate_network_to_process
+    note_ko: "결함 호출: 기록을 열기 전에 의심 IP의 프로세스를 찾는다(5번째, 같은 결과)"
+    args:
+      ip: 203.0.113.7
+  - tool: correlate_network_to_process
+    note_ko: "결함 호출: 같은 조회를 여섯 번째로 해 반복 호출 관문에 막힌다"
+    args:
+      ip: 203.0.113.7
+  - tool: misc_start_execution_log
+    note_ko: "비교 호출: 이제 사건 trace를 연다"
+    args:
+      case_id: P3075-052
+      output_path: ${DB_DIR}/analysis/P3075-052_trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: correlate_network_to_process
+    note_ko: "비교 호출: 기록을 연 뒤에 같은 조회를 해 다시 막힌다"
+    args:
+      ip: 203.0.113.7
+  - tool: correlate_network_to_process
+    note_ko: "비교 호출: 기록을 연 뒤에 다른 IP를 조회한다"
+    args:
+      ip: 198.51.100.23
+expect:
+  - step: 1
+    note_ko: "기록을 열기 전의 첫 조회가 성공했다"
+    regex: '^\{"success": true, "connections": \[\]'
+  - step: 5
+    note_ko: "다섯 번째 같은 조회도 성공했다"
+    regex: '^\{"success": true, "connections": \[\]'
+  - step: 6
+    note_ko: "여섯 번째 같은 조회는 반복 호출 관문에 막혔다"
+    regex: 'blocked: repeat_call_gate'
+  - step: 7
+    note_ko: "trace를 열 때 되살린 항목은 없다"
+    contains: '"entries_recovered": 0'
+  - step: 8
+    note_ko: "기록을 연 뒤의 같은 조회도 막혔다"
+    regex: 'blocked: repeat_call_gate'
+  - file_regex: ${DB_DIR}/analysis/P3075-052_trace.json
+    note_ko: "trace의 차단 항목은 기록을 연 뒤의 한 건뿐이다(앞의 차단은 없다)"
+    pattern: '^(?![\s\S]*"type": "tool_blocked"[\s\S]*"type": "tool_blocked")[\s\S]*"type": "tool_blocked",\s*"ts": "[^"]+",\s*"tool": "correlate_network_to_process",\s*"reason": "repeat_call_gate'
+  - file_regex: ${DB_DIR}/analysis/P3075-052_trace.json
+    note_ko: "trace의 correlate_network_to_process 실행 항목은 기록을 연 뒤의 한 건뿐이다(앞의 성공 다섯 건은 없다)"
+    pattern: '^(?![\s\S]*"cmd": "<py>:correlate_network_to_process"[\s\S]*"cmd": "<py>:correlate_network_to_process")[\s\S]*"cmd": "<py>:correlate_network_to_process"'

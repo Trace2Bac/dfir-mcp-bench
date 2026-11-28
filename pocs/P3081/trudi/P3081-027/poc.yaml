@@ -1,0 +1,69 @@
+# Matrix case P3081-027: hash_directory writes a call_initiated entry first
+# (tools/hashing.py record_call_initiated), walks and hashes the folder, and
+# only then opens output_manifest with a plain open() without creating its
+# parent folder. A manifest path under a folder that does not exist ends the
+# call with FileNotFoundError. Under FastMCP 3.4.7 (variant
+# trudi-88fbca7-fastmcp3) that exception reaches the middleware as a
+# ToolError, which it passes on without an entry, so the trace keeps only
+# the start marker: no completion, no failure, no reason.
+case_id: P3081-027
+problem: P3081
+server: trudi
+variant: trudi-88fbca7-fastmcp3
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "매니페스트를 analysis/hashes/ 같은 하위 폴더에 두려고 아직 없는 폴더 이름을 짐작해 넣는 것은 흔한 모델 실수이고, 다른 출력 도구들은 상위 폴더를 만들어 주므로 모델이 이를 예상하기 어렵다."
+coverage: full
+summary: 'hash_directory over a Documents folder with output_manifest analysis/hashes/documents.csv (no hashes/ folder) fails with "No such file or directory", and the trace keeps only its call_initiated entry: no tool_call, no failure and no error for that call.'
+summary_ko: "Documents 폴더에 `hash_directory`를 `output_manifest` analysis/hashes/documents.csv(hashes/ 폴더 없음)로 부르면 \"No such file or directory\"로 실패하는데, trace에는 그 호출의 시작 항목(`call_initiated`)만 남고 결과 항목도, 실패 항목도, 오류 문구도 없다."
+defect_ko: "이 서버는 `hash_directory`가 예외로 끝나면 시작 항목만 남기고 실패와 그 이유를 기록하지 않는다. 정상이라면 시작한 호출의 끝(실패와 오류 문구)을 함께 기록해야 한다. 기록을 읽는 모델과 검토자는 해시가 아직 도는 중이거나 결과 없이 끝난 것으로 보고, 실패했다는 사실과 그 이유를 알 수 없다."
+setup_ko: "사용자 Documents 폴더에 문서 파일 3개를 넣었다. 사건 폴더의 analysis/에는 hashes/ 하위 폴더가 없다."
+fixture:
+  - path: analysis/.keep
+    root: db
+    text: ""
+  - path: Users/jdoe/Documents/payroll_2024_q3.xlsx
+    text: "PK\x03\x04 payroll export Q3 2024"
+  - path: Users/jdoe/Documents/contract_acme_signed.pdf
+    text: "%PDF-1.7\n% contract ACME signed\n"
+  - path: Users/jdoe/Documents/vpn_config_backup.ovpn
+    text: "client\ndev tun\nproto udp\nremote vpn.corp.example 1194\n"
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 trace를 연다"
+    args:
+      case_id: P3081-027
+      output_path: ${DB_DIR}/analysis/P3081-027_trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: hash_directory
+    note_ko: "결함 호출: 없는 하위 폴더 아래 매니페스트 경로로 폴더를 해시한다"
+    args:
+      directory: ${EVIDENCE}/Users/jdoe/Documents
+      output_manifest: ${DB_DIR}/analysis/hashes/documents.csv
+  - tool: read_output
+    note_ko: "비교 호출: trace에서 그 호출의 기록을 찾는다"
+    args:
+      path: ${DB_DIR}/analysis/P3081-027_trace.json
+      query: hash_directory
+expect:
+  - step: 2
+    note_ko: "매니페스트를 열지 못해 실패했다"
+    regex: 'No such file or directory: .[^ ]*/analysis/hashes/documents\.csv'
+  - step: 2
+    note_ko: "오류 응답이다"
+    is_error: true
+  - step: 3
+    note_ko: "trace를 다시 읽으면 hash_directory는 시작 항목에만 나온다"
+    regex: '"body": "[^"]*\x5c"tool\x5c": \x5c"hash_directory\x5c",'
+  - file_regex: ${DB_DIR}/analysis/P3081-027_trace.json
+    note_ko: "trace에는 hash_directory의 call_initiated 항목이 있다"
+    pattern: '"type": "call_initiated",[^{}]*"tool": "hash_directory"'
+  - file_not_contains: ${DB_DIR}/analysis/P3081-027_trace.json
+    note_ko: "그 호출의 결과나 실패를 적은 항목은 없다(오류 문구가 어디에도 없다)"
+    text: No such file or directory
+  - file_not_contains: ${DB_DIR}/analysis/P3081-027_trace.json
+    note_ko: "hash_directory를 가리키는 tool_call 항목도 없다"
+    text: '"mcp_tool": "hash_directory"'

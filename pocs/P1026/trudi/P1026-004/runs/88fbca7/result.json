@@ -1,0 +1,46 @@
+{
+  "case_id": "P1026-004",
+  "problem": "P1026",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "서버는 ez.evtxparser를 모르는 도구로 표시하면서 작업 지시에 그대로 둔다",
+      "regex": "\"priority_tools\": \\[\"strings.file_identify\", \"ez.evtxparser\"\\].*\"unknown_priority_tools\": \\[\"ez.evtxparser\"\\]",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "ez.evtxparser는 이 서버에서 부를 수 없는 도구다",
+      "regex": "Unknown tool",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "Analyze로 넘어가려는 답이 실행할 수 없는 ez.evtxparser 때문에 덮어써진다",
+      "regex": "\"server_override\": \\{\"kind\": \"work_order_incomplete\", \"detail\": \"unrun prescribed tools: ez.evtxparser\"",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "단계는 Collect에 머문다",
+      "regex": "\"transition_recommended\": false, \"next_phase\": \"Analyze\", \"transition_rationale\": \"Server override: work order incomplete \\\\u2014 1 tool\\(s\\) DAIR prescribed for this phase were never run or dispositioned \\(ez.evtxparser\\)\\..*\", \"stack_action\": \"stay\", \"investigation_focus\"",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "다시 내린 작업 지시 맨 앞에 없는 도구가 들어가고, 이번에는 모르는 도구 표시도 비어 있다",
+      "contains": "\"priority_tools\": [\"ez.evtxparser\", \"reason.hypothesize\"], \"skip_tools\": [], \"focus_pids\": [], \"focus_paths\": [], \"max_depth\": \"\", \"next_hypothesis_triggers\": [], \"curiosity_budget\": 2, \"tool_manifest_version\": \"2026-09-24.1\", \"unknown_priority_tools\": []",
+      "ok": true
+    }
+  ],
+  "image": "sha256:1ca2eb2da3512ef09b39d99ab774d1f27089923974c23433f1e26639e1042860",
+  "ran_at": "2026-11-28T07:46:33+00:00"
+}

@@ -1,0 +1,46 @@
+{
+  "case_id": "P1042-009",
+  "problem": "P1042",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: dot files and dot folders are shown; symbolic links, also left out of the walk, are not",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "파일 세 개 가운데 하나만 해시한 성공 응답이다",
+      "regex": "\"success\": true, \"directory\": \"[^\"]*/home/deploy\", \"algorithm\": \"sha256\", \"file_count\": 1, \"hashes\": \\[\\{\"file\": \"[^\"]*/home/deploy/notes.txt\"",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "빠진 두 파일이 `errors`, `skipped`에 없다",
+      "contains": "\"errors\": [], \"skipped\": []",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "잘림 표시도 없다",
+      "contains": "\"truncated\": false",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "응답 어디에도 `.bash_history`가 없다",
+      "not_contains": ".bash_history",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "`.bash_history`는 읽을 수 있는 파일이라 `hash_file`로는 정상 해시된다",
+      "regex": "\"success\": true, \"file\": \"[^\"]*/home/deploy/.bash_history\", \"size_bytes\": \\d+, \"md5\": \"[0-9a-f]{32}\"",
+      "ok": true
+    }
+  ],
+  "image": "sha256:28a10f315db5fc938483f25bc9829d44ed8db8c4009f79bd5216f72ff0ec96f8",
+  "ran_at": "2026-11-28T07:34:21+00:00"
+}

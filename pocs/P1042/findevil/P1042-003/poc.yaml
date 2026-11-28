@@ -1,0 +1,63 @@
+# Matrix case P1042-003: baseline_create drops a tracked file it cannot
+# stat or read (_stat_entry returns None when _hash_file returns "") and
+# keeps only the entries it could hash; the response and the metadata give
+# that count only, with no list or count of the files it could not read.
+# baseline_diff on the same root then drops the same file again and reports
+# "Baseline state intact".
+# etc/shadow is mode 0000; the bench container runs the server as a non-root
+# user, so the file can be stat'ed but not read.
+case_id: P1042-003
+problem: P1042
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "권한을 지켜 마운트한 이미지에서 `/etc/shadow`는 root만 읽을 수 있어, root가 아닌 계정으로 돌리는 서버는 흔히 읽지 못한다."
+coverage: full
+summary: baseline_create on a root with etc/passwd and an unreadable etc/shadow reports 1 entry and no unread file, the baseline file has no etc/shadow, and baseline_diff on the same root says "No changes detected. Baseline state intact." while etc/shadow is never hashed.
+summary_ko: "`etc/passwd`와 읽을 수 없는 `etc/shadow`가 있는 루트에 `baseline_create`를 부르면 항목 1개만 내고 읽지 못한 파일을 말하지 않는다. 기준선 파일에도 `etc/shadow`가 없다. 같은 루트의 `baseline_diff`는 `etc/shadow`를 한 번도 해시하지 않았는데 \"No changes detected. Baseline state intact.\"라고 한다."
+defect_ko: "이 서버는 읽지 못한 추적 대상을 기준선에서 말없이 빼고 성공한 항목 수만 남긴다. 읽지 못한 파일의 목록과 수를 응답과 기준선에 남겨야 한다. 모델은 `/etc/shadow`까지 무결성 기준선에 들어가 있고 바뀌지 않았다고 잘못 안다."
+setup_ko: "파일 시스템 루트 `fs/`에 `etc/passwd`와 권한 0000인 `etc/shadow`를 두었다."
+fixture:
+  - path: fs/etc/passwd
+    text: |
+      root:x:0:0:root:/root:/bin/bash
+      daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+      alice:x:1000:1000:Alice,,,:/home/alice:/bin/bash
+  - path: fs/etc/shadow
+    text: |
+      root:$6$saltsalt$hash:19000:0:99999:7:::
+      daemon:*:19000:0:99999:7:::
+      alice:$6$saltsalt2$hash2:19000:0:99999:7:::
+    mode: "0000"
+steps:
+  - tool: baseline_create
+    note_ko: "결함 호출: 기준선 만들기"
+    args:
+      root_path: ${EVIDENCE}/fs
+      output_file: ${DB_DIR}/fs-baseline.json
+  - tool: baseline_diff
+    note_ko: "같은 루트를 그 기준선과 비교한다"
+    args:
+      root_path: ${EVIDENCE}/fs
+      baseline_file: ${DB_DIR}/fs-baseline.json
+expect:
+  - step: 1
+    note_ko: "추적 대상 두 파일 중 항목은 1개다"
+    contains: "- **Entries:** 1"
+  - step: 1
+    note_ko: "읽지 못한 파일이 있다는 말이 없다"
+    not_regex: "(?i)shadow|unreadable|could not|skipp|permission|denied"
+  - file_not_contains: ${DB_DIR}/fs-baseline.json
+    note_ko: "기준선 파일에 `etc/shadow`가 없다"
+    text: "etc/shadow"
+  - file_contains: ${DB_DIR}/fs-baseline.json
+    note_ko: "기준선의 항목 수도 성공한 1개만 적혀 있다"
+    text: "\"entry_count\": 1"
+  - step: 2
+    note_ko: "비교는 기준선이 그대로라고 한다"
+    contains: "✓ No changes detected. Baseline state intact."
+  - file_exists: ${EVIDENCE}/fs/etc/shadow
+    note_ko: "`etc/shadow`는 실제로 디스크에 있다"

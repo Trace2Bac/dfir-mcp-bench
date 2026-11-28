@@ -1,0 +1,52 @@
+{
+  "case_id": "P3082-024",
+  "problem": "P3082",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "side-effect",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: the trace write fails because the trace is not open yet; an entry left in memory by a failed flush and written later as a success needs a real write failure (disk full, permissions) and is not shown",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "추출 호출은 기록 미설정 오류로 끝났다",
+      "regex": "trace log not configured",
+      "ok": true
+    },
+    {
+      "step": 1,
+      "note_ko": "오류 응답이다",
+      "is_error": true,
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "trace를 열 때 되살린 항목은 없다",
+      "contains": "\"entries_recovered\": 0",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "오류로 끝난 호출이 꺼낸 ZIP이 analysis/에 남아 있다",
+      "regex": "customers_2024Q3\\.zip: Zip archive data",
+      "ok": true
+    },
+    {
+      "file_regex": "${DB_DIR}/analysis/customers_2024Q3.zip",
+      "note_ko": "남은 파일은 지워진 ZIP의 내용(customers_2024Q3.csv를 담은 ZIP)이다",
+      "pattern": "^PK\\x03\\x04[\\s\\S]*customers_2024Q3\\.csv",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${DB_DIR}/analysis/P3082-024_trace.json",
+      "note_ko": "trace에는 그 추출의 기록이 없다",
+      "text": "icat ",
+      "ok": true
+    }
+  ],
+  "image": "sha256:e113e499683e7fbfef4f5c810f1c8070b73a6043871fe77daee1b14a97d196e0",
+  "ran_at": "2026-11-28T07:40:56+00:00"
+}

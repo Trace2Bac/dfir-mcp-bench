@@ -1,0 +1,46 @@
+{
+  "case_id": "P1027-015",
+  "problem": "P1027",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 5,
+      "note_ko": "세 번째 답도 Triage stay다",
+      "regex": "\"current_phase\": \"Triage\".*\"stack_action\": \"stay\"",
+      "ok": true
+    },
+    {
+      "step": 6,
+      "note_ko": "cap 기록 전에는 Collect와 Analyze 모두 들어가지 않은 단계다",
+      "contains": "Phase coverage: the investigation never entered Collect, Analyze",
+      "ok": true
+    },
+    {
+      "step": 7,
+      "note_ko": "cap 기록은 받아들여진다",
+      "regex": "\"success\": true, \"trigger\": \"dair_max_pass_cap\"",
+      "ok": true
+    },
+    {
+      "step": 8,
+      "note_ko": "cap 기록 하나로 Collect에 들어간 것으로 세어 Analyze만 남는다",
+      "contains": "Phase coverage: the investigation never entered Analyze (every dair_assess stayed in Triage)",
+      "ok": true
+    },
+    {
+      "file_regex": "${OUTSIDE}/case01/analysis/CASE-001_trace.json",
+      "note_ko": "서버 단계는 그대로 Triage다(cap 기록 자체가 Triage로 찍힌다)",
+      "pattern": "\"type\": \"self_correction\",[^}]*\"trigger\": \"dair_max_pass_cap\",[^}]*\"dair_phase\": \"Triage\"",
+      "ok": true
+    }
+  ],
+  "image": "sha256:4cab401aa1b055f4686925bed07ada92867261aeb295417dc5a0fdc6a3057930",
+  "ran_at": "2026-11-28T07:46:24+00:00"
+}

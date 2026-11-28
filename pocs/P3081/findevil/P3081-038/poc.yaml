@@ -1,0 +1,93 @@
+# Matrix case P3081-038: analyze_memory_summary turns the result of every
+# Volatility plugin that failed into zero findings and writes only the counts
+# "hidden= malfind= proc_anomalies=" as its audit result
+# (linux_memory.py:965-975, 1043-1046). A dump on which every plugin failed
+# and a clean dump on which every plugin ran are recorded the same way.
+# vol is chosen with FINDEVIL_VOL, one stub per condition:
+# - ok: answers each plugin with vol3 JSON-renderer rows for a small clean
+#   Ubuntu host (three processes, one sshd listener, two modules, an empty
+#   check_modules and malfind, as on a host with no hidden module).
+# - crash: fails every plugin with rc 1 and a vol3-style exception on stderr,
+#   as vol3 does on a truncated or unsupported dump (P4095-016's vol_crash).
+# External tool output is simulated.
+# The server is started with FINDEVIL_LOGS_DIR=${DB_DIR}, so the call record
+# is ${DB_DIR}/audit.json.
+case_id: P3081-038
+problem: P3081
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "잘렸거나 Volatility가 지원하지 않는 메모리 덤프로 플러그인이 모두 예외를 내며 끝나는 일은 흔하다."
+coverage: full
+summary: 'analyze_memory_summary reports 3 processes when every plugin runs and 0 when every plugin fails, but get_audit_trail records both calls as "hidden=0 malfind=0 proc_anomalies=0", so the record of the failed analysis reads the same as a clean one and says nothing about which plugins failed.'
+summary_ko: "`analyze_memory_summary`는 플러그인이 모두 돌면 프로세스 3개를, 모두 실패하면 0개를 낸다. 그런데 `get_audit_trail`은 두 호출을 똑같이 `hidden=0 malfind=0 proc_anomalies=0`으로 기록해, 실패한 분석의 기록이 깨끗한 분석과 같게 읽히고 어느 플러그인이 실패했는지도 남지 않는다."
+defect_ko: "이 서버는 실패한 플러그인의 결과를 0건으로 바꾸고 기록에는 건수만 적는다. 기록에는 어느 플러그인이 실패했는지와 그 이유가 남아야 한다. 모델은 기록을 보고 그 덤프를 분석해 숨은 모듈, 코드 주입, 이상 프로세스가 없음을 확인했다고 잘못 안다."
+setup_ko: "작은 LiME 머리 파일을 두고, Volatility를 깨끗한 호스트 결과를 내는 흉내 스크립트와 모든 플러그인이 `LayerException`으로 실패하는 흉내 스크립트로 바꿔 각각 띄웠다."
+stubs:
+  - name: vol_ok
+    text: |
+      #!/bin/sh
+      # vol3 "-r json" output for a small clean Ubuntu 22.04 host.
+      if [ "$1" = "--help" ]; then echo "usage: vol [-h] [-c CONFIG] [-f FILE] PLUGIN ..."; exit 0; fi
+      for a; do plugin=$a; done
+      case "$plugin" in
+      banners.Banners)
+        echo '[{"Offset": 81789048, "Banner": "Linux version 5.15.0-91-generic (buildd@lcy02-amd64-045) (gcc (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0, GNU ld (GNU Binutils for Ubuntu) 2.38) #101-Ubuntu SMP Tue Nov 14 13:30:08 UTC 2023 (Ubuntu 5.15.0-91.101-generic 5.15.131)", "__children": []}]' ;;
+      linux.pslist)
+        echo '[{"OFFSET (V)": 18446623800405549312, "PID": 1, "TID": 1, "PPID": 0, "COMM": "systemd", "File output": "Disabled", "__children": []}, {"OFFSET (V)": 18446623800532312064, "PID": 812, "TID": 812, "PPID": 1, "COMM": "sshd", "File output": "Disabled", "__children": []}, {"OFFSET (V)": 18446623800611463168, "PID": 1450, "TID": 1450, "PPID": 812, "COMM": "bash", "File output": "Disabled", "__children": []}]' ;;
+      linux.sockstat.Sockstat)
+        echo '[{"NetNS": 4026531840, "Process Name": "sshd", "PID": 812, "TID": 812, "FD": 3, "Sock Offset": 18446623800563204096, "Family": "AF_INET", "Type": "STREAM", "Proto": "TCP", "Source Addr": "0.0.0.0", "Source Port": 22, "Destination Addr": "0.0.0.0", "Destination Port": 0, "State": "LISTEN", "Filter": "-", "__children": []}]' ;;
+      linux.lsmod)
+        echo '[{"Offset": 18446744072640176128, "Module Name": "ext4", "Code Size": 999424, "Taints": "", "Load Arguments": "", "File Output": "N/A", "__children": []}, {"Offset": 18446744072639414272, "Module Name": "virtio_net", "Code Size": 69632, "Taints": "", "Load Arguments": "", "File Output": "N/A", "__children": []}]' ;;
+      *)
+        echo '[]' ;;
+      esac
+      exit 0
+  - name: vol_crash
+    text: |
+      #!/bin/sh
+      if [ "$1" = "--help" ]; then echo "usage: vol [-h] [-c CONFIG] [-f FILE] PLUGIN ..."; exit 0; fi
+      echo "Volatility 3 Framework 2.7.0" >&2
+      echo "volatility3.framework.exceptions.LayerException: Offset outside of the buffer boundaries" >&2
+      exit 1
+conditions:
+  - name: ok
+    env: {FINDEVIL_VOL: "${STUBS}/vol_ok"}
+  - name: crash
+    env: {FINDEVIL_VOL: "${STUBS}/vol_crash"}
+fixture:
+  - path: mem/host.lime
+    hex: 454d694c0100000000000000000000000000000000000000
+steps:
+  - tool: analyze_memory_summary
+    note_ko: "결함 호출: 메모리 요약 분석"
+    args:
+      memory_dump_path: ${EVIDENCE}/mem/host.lime
+  - tool: get_audit_trail
+    note_ko: "호출 기록을 다시 읽는다"
+    args:
+      filter_tool: analyze_memory_summary
+expect:
+  - step: 1
+    note_ko: "플러그인이 돌면 프로세스 3개가 나온다"
+    condition: ok
+    contains: "- Processes: 3 (0 anomalies)"
+  - step: 1
+    note_ko: "플러그인이 모두 실패하면 프로세스 0개가 나온다"
+    condition: crash
+    contains: "- Processes: 0 (0 anomalies)"
+  - step: 2
+    note_ko: "깨끗한 분석의 기록"
+    condition: ok
+    regex: 'params: \{"path": "[^"]*/mem/host\.lime"\}\n  result: hidden=0 malfind=0 proc_anomalies=0\s*\Z'
+  - step: 2
+    note_ko: "모든 플러그인이 실패한 분석도 같은 기록이다"
+    condition: crash
+    regex: 'params: \{"path": "[^"]*/mem/host\.lime"\}\n  result: hidden=0 malfind=0 proc_anomalies=0\s*\Z'
+  - condition: crash
+    file_not_contains: ${DB_DIR}/audit.json
+    note_ko: "실패한 분석의 기록 파일에 실패 이유가 없다"
+    text: "LayerException"

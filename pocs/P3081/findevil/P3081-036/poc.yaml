@@ -1,0 +1,60 @@
+# Matrix case P3081-036: when Volatility fails, analyze_memory_malfind puts vol's stderr in the
+# response but writes only the exit code ("rc=1") as its audit result
+# (linux_memory.py:714-717), so the record that get_audit_trail reads back
+# keeps no reason for the failure.
+# vol is chosen with FINDEVIL_VOL. The stub answers "--help" and fails every
+# plugin with rc 1 and a vol3-style exception on stderr, as vol3 does on a
+# truncated or unsupported dump (the vol_crash stub of P4095-016). External
+# tool output is simulated.
+# The server is started with FINDEVIL_LOGS_DIR=${DB_DIR}, so the call record
+# is ${DB_DIR}/audit.json.
+case_id: P3081-036
+problem: P3081
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "잘렸거나 Volatility가 지원하지 않는 메모리 덤프로 플러그인이 예외를 내며 끝나는 일은 흔하다."
+coverage: "partial: the plugin-failure path is shown; the time-out path (rc 124, 10-minute limit) is not"
+coverage_ko: "플러그인 실패 경로만 보인다. 시간 초과 경로(rc 124, 10분 제한)는 보이지 않는다"
+summary: 'analyze_memory_malfind on a dump where linux.malware.malfind.Malfind fails returns "vol failed (rc=1)" with the LayerException message, but get_audit_trail records only "rc=1", so the record does not say why the plugin failed.'
+summary_ko: "`linux.malware.malfind.Malfind`가 실패하는 덤프에 `analyze_memory_malfind`를 부르면 응답에는 `vol failed (rc=1)`과 `LayerException` 문구가 나온다. 그런데 `get_audit_trail`의 기록에는 `rc=1`만 남아, 플러그인이 왜 실패했는지 알 수 없다."
+defect_ko: "이 서버는 Volatility가 실패하면 기록에 종료 코드만 적고 stderr는 응답에만 넣는다. 기록에는 실패 이유(stderr 요약이나 시간 초과 여부)가 남아야 한다. 모델은 기록만 보고 덤프 손상인지, 심볼 문제인지, 시간 초과인지 가리지 못하고 실패 이유를 잘못 짐작한다."
+setup_ko: "작은 LiME 머리 파일을 두고, Volatility를 모든 플러그인이 `LayerException`으로 실패하는 흉내 스크립트로 바꿨다."
+stubs:
+  - name: vol_crash
+    text: |
+      #!/bin/sh
+      if [ "$1" = "--help" ]; then echo "usage: vol [-h] [-c CONFIG] [-f FILE] PLUGIN ..."; exit 0; fi
+      echo "Volatility 3 Framework 2.7.0" >&2
+      echo "volatility3.framework.exceptions.LayerException: Offset outside of the buffer boundaries" >&2
+      exit 1
+env:
+  FINDEVIL_VOL: ${STUBS}/vol_crash
+fixture:
+  - path: mem/host.lime
+    hex: 454d694c0100000000000000000000000000000000000000
+steps:
+  - tool: analyze_memory_malfind
+    note_ko: "결함 호출: 플러그인이 실패하는 덤프의 코드 주입 탐지"
+    args:
+      memory_dump_path: ${EVIDENCE}/mem/host.lime
+  - tool: get_audit_trail
+    note_ko: "호출 기록을 다시 읽는다"
+    args:
+      filter_tool: analyze_memory_malfind
+expect:
+  - step: 1
+    note_ko: "응답에는 실패 이유(`LayerException`)가 있다"
+    contains: "LayerException: Offset outside of the buffer boundaries"
+  - step: 2
+    note_ko: "기록에는 종료 코드만 남는다"
+    regex: 'params: \{"path": "[^"]*/mem/host\.lime"\}\n  result: rc=1\s*\Z'
+  - file_contains: ${DB_DIR}/audit.json
+    note_ko: "기록 파일의 결과 칸이 `rc=1`뿐이다"
+    text: "\"result_summary\": \"rc=1\"}"
+  - file_not_contains: ${DB_DIR}/audit.json
+    note_ko: "기록 파일에 실패 이유가 없다"
+    text: "LayerException"

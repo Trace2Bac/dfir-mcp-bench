@@ -1,0 +1,51 @@
+{
+  "case_id": "P1015-004",
+  "problem": "P1015",
+  "server": "findevil",
+  "commit": "d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1",
+  "display": "source-vs-result",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "condition": "missing",
+      "note_ko": "지정한 파일이 없을 때 PATH의 `vol`이 낸 표식 프로세스가 결과로 나온다",
+      "contains": "`path-vol-marker`",
+      "ok": true
+    },
+    {
+      "step": 1,
+      "condition": "missing",
+      "note_ko": "결과는 분석이 정상으로 끝난 형태다",
+      "contains": "- **Total processes:** 2",
+      "ok": true
+    },
+    {
+      "step": 1,
+      "condition": "missing",
+      "note_ko": "지정한 실행 파일이 없다는 말도, 대신 쓴 실행 파일 경로도 없다",
+      "not_regex": "(?i)FINDEVIL_VOL|vol3/vol|not found|does not exist|fall(ing)? ?back|/stubs/vol",
+      "ok": true
+    },
+    {
+      "step": 1,
+      "condition": "configured",
+      "note_ko": "지정한 파일이 있으면 그 파일의 표식 프로세스가 나온다",
+      "contains": "`cfg-vol-marker`",
+      "ok": true
+    },
+    {
+      "step": 1,
+      "condition": "configured",
+      "note_ko": "지정한 파일을 쓸 때도 응답에 실행 파일 경로가 없어, 두 응답만으로는 어느 실행 파일이 돌았는지 가릴 수 없다",
+      "not_regex": "(?i)FINDEVIL_VOL|vol-configured|/stubs/vol",
+      "ok": true
+    }
+  ],
+  "image": "sha256:58b88cdace2738963ed875692d13fc07fd94a3325b01c9593094d0f7bda3f559",
+  "ran_at": "2026-11-28T07:39:52+00:00"
+}

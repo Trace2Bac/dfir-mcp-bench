@@ -1,0 +1,52 @@
+# Matrix case P1024-009: assess_coverage decides the verification gap only
+# by comparing the number of CONFIRMED claims with the number of
+# verify_finding calls in audit.json (confirmed_count > verify_calls). One
+# verify_finding call that returned CONTRADICTED for another claim is enough
+# for an unverified CONFIRMED claim to pass as "every CONFIRMED claim has a
+# verification on record".
+case_id: P1024-009
+problem: P1024
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "검증 전 CONFIRMED 주장이 있는 상태는 `assess_coverage`가 잡도록 만든 조사 중간 상태이고, 앞서 다른 주장을 검증해 CONTRADICTED를 받은 뒤 새 주장을 올리는 흐름은 있을 수 있다."
+coverage: full
+summary: verify_finding returns CONTRADICTED for a brute-force claim; assess_coverage is then given one different CONFIRMED claim (user_created) that was never verified and is not in the log, and says "every CONFIRMED claim has a verification on record" with COVERAGE CLEAN.
+summary_ko: "`verify_finding`이 무차별 대입 주장에 CONTRADICTED를 낸다. 그 뒤 검증한 적 없고 로그에도 없는 다른 CONFIRMED 주장(`user_created`) 하나를 넘기자 `assess_coverage`는 \"every CONFIRMED claim has a verification on record\"와 `COVERAGE CLEAN`을 낸다."
+defect_ko: "이 서버의 `assess_coverage`는 CONFIRMED 주장 수와 `verify_finding` 호출 수만 비교해, 어떤 주장을 검증했는지와 검증 결과를 보지 않는다. 주장마다 그 주장을 검증해 SUPPORTED를 받았는지 확인해야 한다. 모델은 검증하지 않은 주장이 검증을 거쳤다고 잘못 안다."
+setup_ko: "실패 로그인이 없고 계정 생성 기록도 없는 `auth.log`(정상 로그인과 sudo 두 줄)를 두었다."
+fixture:
+  - path: var/log/auth.log
+    text: |
+      Mar  3 09:02:41 web01 sshd[3101]: Accepted publickey for alice from 10.0.4.21 port 52210 ssh2: ED25519 SHA256:Qm3cFh0jV2pA9nZ1xYwE7rT5uK8sL4dG6bN0oP2iH1M
+      Mar  3 09:03:05 web01 sudo:    alice : TTY=pts/1 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/systemctl restart nginx
+steps:
+  - tool: auth_summary
+    note_ko: "인증 로그 개요"
+    args:
+      path: ${EVIDENCE}/var/log/auth.log
+  - tool: verify_finding
+    note_ko: "무차별 대입 주장을 검증해 CONTRADICTED를 받는다"
+    args:
+      claim_type: brute_force_from_ip
+      params: '{"log_path": "${EVIDENCE}/var/log/auth.log", "ip": "10.0.4.21", "min_attempts": 10}'
+  - tool: assess_coverage
+    note_ko: "결함 호출: 검증하지 않은 다른 CONFIRMED 주장을 넘긴다"
+    args:
+      findings_json: '[{"id": "c2", "type": "user_created", "confidence": "confirmed", "statement": "backdoor account svc-backup was created", "log_path": "${EVIDENCE}/var/log/auth.log", "name": "svc-backup"}]'
+expect:
+  - step: 2
+    note_ko: "검증한 주장은 반박됐다"
+    contains: "**Verdict:** CONTRADICTED"
+  - step: 3
+    note_ko: "넘긴 CONFIRMED 주장은 하나다"
+    contains: "- **CONFIRMED claims supplied:** 1"
+  - step: 3
+    note_ko: "검증하지 않은 주장에도 검증 기록이 있다고 한다"
+    contains: "every CONFIRMED claim has a verification on record"
+  - step: 3
+    note_ko: "조사 범위에 빈틈이 없다고 판정한다"
+    contains: "**Verdict: COVERAGE CLEAN**"

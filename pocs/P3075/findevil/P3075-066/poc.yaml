@@ -1,0 +1,49 @@
+# Matrix case P3075-066: bulk_ioc_lookup records only the length of the text
+# it was given (threat_intel.py:362-366), so two lookups on log lines of the
+# same length, one IP a known Tor exit in the bundled cache and one not, read
+# back from get_audit_trail with the same params.
+# The server is started with FINDEVIL_LOGS_DIR=${DB_DIR}, so the call record
+# is ${DB_DIR}/audit.json.
+case_id: P3075-066
+problem: P3075
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "서버 지침이 IOC마다 `bulk_ioc_lookup`으로 피벗하라고 하므로, 형식이 같은 로그 줄마다 이 도구를 부르는 일은 흔하다."
+coverage: full
+summary: 'bulk_ioc_lookup on two auth.log lines of the same length finds 185.220.100.240 as a Tor exit and 198.51.100.240 not in the cache, but get_audit_trail shows both entries with the same params {"text_len": 98}, so the record cannot tell which IP was looked up or which one matched.'
+summary_ko: "길이가 같은 `auth.log` 두 줄에 `bulk_ioc_lookup`을 부르면 `185.220.100.240`은 Tor 출구로, `198.51.100.240`은 캐시에 없음으로 나온다. 그런데 `get_audit_trail`은 두 항목의 params를 똑같이 `{\"text_len\": 98}`으로 보여, 기록으로는 어느 IP를 조회했고 어느 쪽이 걸렸는지 알 수 없다."
+defect_ko: "이 서버는 `bulk_ioc_lookup`의 기록에 입력 글 대신 그 길이만 남긴다. 입력을 알아볼 수 있는 값(원문이나 그 해시)을 기록해야 한다. 모델은 기록을 보고 같은 글을 두 번 조회했다고 잘못 알고, 캐시에 걸린 IP가 어느 것인지 기록으로 되짚지 못한다."
+setup_ko: "증거 파일은 쓰지 않았다. 출발지 IP와 포트만 다르고 길이가 같은 `auth.log` 두 줄을 입력으로 준다. 첫 IP는 서버에 딸린 IOC 캐시의 Tor 출구 항목이다."
+steps:
+  - tool: bulk_ioc_lookup
+    note_ko: "캐시에 있는 IP가 든 로그 줄을 조회한다"
+    args:
+      text: "Mar  3 02:14:07 web01 sshd[2211]: Accepted password for deploy from 185.220.100.240 port 5182 ssh2"
+  - tool: bulk_ioc_lookup
+    note_ko: "결함 호출: 길이가 같고 IP가 다른 로그 줄을 조회한다"
+    args:
+      text: "Mar  3 02:14:07 web01 sshd[2211]: Accepted password for deploy from 198.51.100.240 port 51822 ssh2"
+  - tool: get_audit_trail
+    note_ko: "두 호출의 기록을 다시 읽는다"
+    args:
+      filter_tool: bulk_ioc_lookup
+expect:
+  - step: 1
+    note_ko: "첫 IP는 Tor 출구로 걸린다"
+    contains: "`185.220.100.240` — **tor_exit_node**"
+  - step: 2
+    note_ko: "둘째 IP는 캐시에 없다"
+    contains: "`198.51.100.240` — not in cache"
+  - step: 3
+    note_ko: "기록에 두 호출이 모두 있다"
+    contains: "(2 matching entries"
+  - step: 3
+    note_ko: "두 항목의 params가 똑같이 글 길이뿐이다"
+    regex: '(?s)params: \{"text_len": (\d+)\}\n.*params: \{"text_len": \1\}\n'
+  - step: 3
+    note_ko: "기록에 조회한 IP가 없다"
+    not_regex: "185\\.220\\.100\\.240|198\\.51\\.100\\.240"

@@ -1,0 +1,58 @@
+# Matrix case P3075-067: assess_coverage records only whether findings_json was
+# given (autonomy.py:388-392), so two calls with different findings, which
+# report different gaps, read back from get_audit_trail with the same params.
+# The server is started with FINDEVIL_LOGS_DIR=${DB_DIR}, so the call record
+# is ${DB_DIR}/audit.json.
+case_id: P3075-067
+problem: P3075
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "서버 지침이 지금까지의 발견을 `findings_json`에 넣어 `assess_coverage`를 되풀이해 부르라고 하므로, 발견이 바뀔 때마다 다시 부르는 일은 흔하다."
+coverage: full
+summary: 'assess_coverage with an inference finding and then with the same finding marked confirmed reports one gap and then two (the second for an unverified CONFIRMED claim), but get_audit_trail shows both entries with the same params {"findings_supplied": true}, so the record cannot tell which findings were assessed.'
+summary_ko: "`assess_coverage`에 추정 발견 하나를 넣으면 공백 1개, 같은 발견을 확정으로 바꿔 넣으면 공백 2개(검증 없는 확정 주장)가 나온다. 그런데 `get_audit_trail`은 두 항목의 params를 똑같이 `{\"findings_supplied\": true}`로 보여, 기록으로는 어떤 발견을 평가했는지 알 수 없다."
+defect_ko: "이 서버는 `assess_coverage`의 기록에 입력 발견 대신 넣었는지 여부만 남긴다. 입력을 알아볼 수 있는 값(원문이나 그 해시)을 기록해야 한다. 모델은 기록을 보고 같은 발견을 두 번 평가했다고 잘못 알고, 어느 평가가 어떤 주장에 대한 것인지 되짚지 못한다."
+setup_ko: "실패 로그인이 든 `auth.log`를 두었다. 같은 IP에 대한 발견을 추정과 확정 두 가지로 넣는다."
+fixture:
+  - path: case01/var/log/auth.log
+    text: |
+      Mar  3 02:11:41 web01 sshd[2198]: Failed password for invalid user admin from 203.0.113.50 port 51790 ssh2
+      Mar  3 02:11:44 web01 sshd[2198]: Failed password for invalid user admin from 203.0.113.50 port 51790 ssh2
+      Mar  3 02:14:07 web01 sshd[2211]: Accepted password for deploy from 203.0.113.50 port 51822 ssh2
+steps:
+  - tool: auth_failed_logins
+    note_ko: "로그를 먼저 분석해 둔다"
+    args:
+      path: ${EVIDENCE}/case01/var/log/auth.log
+  - tool: assess_coverage
+    note_ko: "추정 발견으로 평가한다"
+    args:
+      findings_json: '[{"id": "c1", "type": "brute_force_from_ip", "confidence": "inference", "log_path": "/evidence/case01/var/log/auth.log", "ip": "203.0.113.50", "min_attempts": 2}]'
+  - tool: assess_coverage
+    note_ko: "결함 호출: 같은 발견을 확정으로 바꿔 평가한다"
+    args:
+      findings_json: '[{"id": "c1", "type": "brute_force_from_ip", "confidence": "confirmed", "log_path": "/evidence/case01/var/log/auth.log", "ip": "203.0.113.50", "min_attempts": 2}]'
+  - tool: get_audit_trail
+    note_ko: "두 평가의 기록을 다시 읽는다"
+    args:
+      filter_tool: assess_coverage
+expect:
+  - step: 2
+    note_ko: "추정 발견이면 확정 주장은 0개다"
+    contains: "**CONFIRMED claims supplied:** 0"
+  - step: 3
+    note_ko: "확정으로 바꾸면 검증 없는 확정 주장이 공백으로 더해진다"
+    contains: "1 CONFIRMED claim(s) but only 0 verify_finding call(s) recorded"
+  - step: 4
+    note_ko: "기록에 두 평가가 모두 있다"
+    contains: "(2 matching entries"
+  - step: 4
+    note_ko: "두 항목의 params가 똑같이 넣었는지 여부뿐이다"
+    regex: '(?s)params: \{"findings_supplied": true\}\n.*params: \{"findings_supplied": true\}\n'
+  - step: 4
+    note_ko: "기록에 발견 내용이 없다"
+    not_regex: "203\\.0\\.113\\.50|confirmed|brute_force"

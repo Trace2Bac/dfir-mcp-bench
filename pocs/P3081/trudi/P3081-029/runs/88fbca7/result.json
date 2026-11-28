@@ -1,0 +1,46 @@
+{
+  "case_id": "P3081-029",
+  "problem": "P3081",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "해시 호출은 시간 제한으로 포기했다고 답한다",
+      "regex": "\"success\": false, \"error\": \"Tool exceeded 1s budget [^\"]{1,10}abandoned\", \"timed_out\": true",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "곧바로 읽은 trace에는 hash_file의 call_abandoned만 있다",
+      "regex": "call_abandoned\\x5c\",[^\"]*\\x5c\"tool\\x5c\": \\x5c\"hash_file",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "그때는 hash.file 성공 항목이 아직 없다",
+      "not_regex": "hash\\.file /",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "나중에 읽은 trace에는 같은 이미지의 hash.file 항목이 더 생겼다",
+      "regex": "cmd\\x5c\": \\x5c\"hash\\.file [^ ]*/memory/WKSTN-07\\.raw",
+      "ok": true
+    },
+    {
+      "file_regex": "${DB_DIR}/analysis/P3081-029_trace.json",
+      "note_ko": "trace 한 파일에 hash_file의 포기 항목과 그 이미지의 성공 항목이 함께 있다",
+      "pattern": "\"type\": \"call_abandoned\",[^{}]*\"tool\": \"hash_file\"[\\s\\S]*\"cmd\": \"hash\\.file [^\"]*/memory/WKSTN-07\\.raw\",\\s*\"success\": true",
+      "ok": true
+    }
+  ],
+  "image": "sha256:fe30c371698e9d5889fe74a8513b78796829943a5abdd1c4033192703da87835",
+  "ran_at": "2026-11-28T07:44:54+00:00"
+}

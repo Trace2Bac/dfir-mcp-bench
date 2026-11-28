@@ -1,0 +1,46 @@
+{
+  "case_id": "P1024-016",
+  "problem": "P1024",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 3,
+      "note_ko": "처분 전에는 LECmd와 PECmd가 미실행 목록에 있다",
+      "contains": "never run or dispositioned: ez.lecmd, ez.pecmd.",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "증거에는 Windows 바로가기(LNK) 파일이 있다",
+      "contains": "MS Windows shortcut",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "source에 대한 '증거에 없음'은 근거 호출을 요구하며 거부된다",
+      "regex": "\"success\": false, \"gate\": \"typed_disposition\", \"missing\": \\[\"evidence_call_ids\"\\]",
+      "ok": true
+    },
+    {
+      "step": 6,
+      "note_ko": "도구에 대한 '증거에 없음'은 근거 없이 받아들여진다",
+      "regex": "\"success\": true, \"call_id\": \\d+, \"_trudi_call_id\": \\d+, \"target_kind\": \"tool\", \"target_norm\": \"ez.lecmd\", \"reason\": \"absent_from_evidence\"",
+      "ok": true
+    },
+    {
+      "step": 7,
+      "note_ko": "처분 뒤에는 LECmd가 미실행 목록에서 빠지고 PECmd만 남는다",
+      "contains": "1 tool(s) DAIR prescribed in a priority_tools work order were never run or dispositioned: ez.pecmd.",
+      "ok": true
+    }
+  ],
+  "image": "sha256:0515602a0394e20bf45b182f80a8f2ca1e1f48ce078a314e92b966d0d5a0245c",
+  "ran_at": "2026-11-28T07:33:12+00:00"
+}

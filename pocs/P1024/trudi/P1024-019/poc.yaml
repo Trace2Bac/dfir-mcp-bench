@@ -1,0 +1,71 @@
+# Matrix case P1024-019: the repeat-call gate (core/middleware.py) hashes a
+# call's arguments and its result and never looks at `success`. A call that
+# fails the same way each time (file not found) counts as an identical
+# result: from the second try the response carries a REPEAT CALL notice that
+# tells the model to record it as a negative finding, and the sixth try is
+# refused with "A repeated negative is evidence of absence".
+# The path is a file named in a $MFT listing of the case but not present in
+# the extracted evidence folder (the folder holds its sibling only).
+case_id: P1024-019
+problem: P1024
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "`file_path`는 모델 인자라, 목록에는 있지만 추출되지 않은 파일이나 잘못 옮긴 경로가 들어오는 일이 흔하다. 실패한 호출을 같은 인자로 다시 시도하는 것도 모델이 흔히 하는 행동이다."
+coverage: full
+summary: strings_extract on a path that does not exist fails with "file not found" every time, yet from the second try the response adds a REPEAT CALL notice telling the model to record it as a negative finding, and the sixth try is refused with "A repeated negative is evidence of absence", because the repeat gate counts a failure as an identical (negative) result.
+summary_ko: "없는 경로로 부른 `strings_extract`는 매번 \"file not found\"로 실패하는데, 두 번째부터 응답에 이를 음성 발견사항으로 기록하라는 `repeat_notice`가 붙고 여섯 번째는 \"A repeated negative is evidence of absence\"라는 이유로 거부된다. 반복 게이트가 실패를 같은 (음성) 결과로 세기 때문이다."
+defect_ko: "이 서버는 반복 호출 게이트에서 결과의 `success`를 보지 않아, 파일을 열지도 못한 실패를 \"검색했지만 없었다\"는 음성 결과와 같이 다루고 부재의 증거로 기록하라고 안내한다. 실패한 호출은 반복 횟수에 세지 않거나 실패로 따로 안내해야 한다. 모델은 이 파일을 검사해 아무것도 없었다고 알고 `claim_kind=negative` 발견사항으로 남긴다."
+setup_ko: "증거 폴더에 같은 사용자 폴더의 다른 파일 하나만 두고, 사건 기록을 연 뒤 추출되지 않은 `update.exe` 경로로 `strings_extract`를 여섯 번 부른다."
+fixture:
+- path: cases/CASE-001/analysis
+  root: outside
+  dir: true
+- path: C/Users/jdoe/AppData/Local/Temp/install.log
+  text: "2026-11-19 08:14:02 Downloading update package\r\n2026-11-19 08:14:05 Saved C:\\Users\\jdoe\\AppData\\Local\\Temp\\update.exe\r\n"
+steps:
+- tool: misc_start_execution_log
+  note_ko: "준비: 사건 기록을 연다"
+  args:
+    case_id: CASE-001
+    output_path: ${OUTSIDE}/cases/CASE-001/analysis/CASE-001_trace.json
+    case_dir: ${OUTSIDE}/cases/CASE-001
+    launch_dashboard: false
+- tool: strings_extract
+  note_ko: "첫 시도: 파일이 없어 실패한다"
+  args: &extract
+    file_path: ${EVIDENCE}/C/Users/jdoe/AppData/Local/Temp/update.exe
+- tool: strings_extract
+  args: *extract
+  note_ko: "결함 호출: 같은 실패를 두 번째로 받는다"
+- tool: strings_extract
+  args: *extract
+  note_ko: "준비: 같은 호출(3번째)"
+- tool: strings_extract
+  args: *extract
+  note_ko: "준비: 같은 호출(4번째)"
+- tool: strings_extract
+  args: *extract
+  note_ko: "준비: 같은 호출(5번째)"
+- tool: strings_extract
+  args: *extract
+  note_ko: "결함 호출: 6번째는 부재의 증거라며 거부된다"
+expect:
+- step: 2
+  note_ko: 첫 호출은 파일이 없어 실패한다
+  regex: '"success": false, "error": "file not found on mounted filesystem: [^"]*update.exe"'
+- step: 2
+  note_ko: 첫 실패에는 반복 안내가 없다
+  not_contains: repeat_notice
+- step: 3
+  note_ko: 두 번째 호출도 같은 실패다
+  regex: '"success": false, "error": "file not found on mounted filesystem: [^"]*update.exe"'
+- step: 3
+  note_ko: 그 실패 응답에 음성 발견사항으로 기록하라는 반복 안내가 붙는다
+  regex: '"repeat_notice": "REPEAT CALL: this exact call has now run 2x with an identical result[^"]*If it is a negative, record it once \(misc.record_finding, confidence=\\"UNCONFIRMED\\", claim_kind=\\"negative\\"'
+- step: 7
+  note_ko: 여섯 번째 호출은 실패 반복을 부재의 증거라며 거부한다
+  contains: 'Tool strings_extract blocked: repeat_call_gate: this exact strings_extract call has run 4 times with an IDENTICAL result. A repeated negative is evidence of absence'

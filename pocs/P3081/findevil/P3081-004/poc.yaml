@@ -1,0 +1,55 @@
+# Matrix case P3081-004: _run_tool does not raise when the external command
+# fails; it appends "[STDERR]: ..." to the output. hexdump then writes the
+# requested byte count as its audit result ("512 bytes"), so a call where xxd
+# could not open the file is recorded exactly like a call that dumped bytes.
+# The bench container runs the server as a non-root user, so a fixture with
+# mode 0000 cannot be read (as in P4095-018).
+# The server is started with FINDEVIL_LOGS_DIR=${DB_DIR}, so the call record
+# is ${DB_DIR}/audit.json.
+case_id: P3081-004
+problem: P3081
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "권한을 지켜 마운트한 증거를 root가 아닌 계정으로 돌리는 서버는 소유자만 읽을 수 있는 파일을 열지 못할 수 있다."
+coverage: full
+summary: 'hexdump on a readable file dumps its bytes and on an unreadable file returns "[STDERR]: xxd: ... Permission denied", but get_audit_trail records both calls with the result "512 bytes", so the failed call reads back as a successful dump.'
+summary_ko: "`hexdump`는 읽을 수 있는 파일에서는 바이트를 보여 주고 읽을 수 없는 파일에서는 `[STDERR]: xxd: ... Permission denied`를 낸다. 그런데 `get_audit_trail`은 두 호출의 결과를 똑같이 `512 bytes`로 기록해, 실패한 호출이 성공한 덤프로 읽힌다."
+defect_ko: "이 서버는 `xxd`가 실패해도 요청한 바이트 수를 `hexdump`의 결과로 기록한다. 기록에는 명령이 실패했다는 사실과 이유가 남아야 한다. 모델은 기록을 보고 그 파일의 512바이트를 확인했다고 잘못 안다."
+setup_ko: "같은 ELF 머리를 가진 파일 두 개를 두고, 하나는 읽기 권한을 없앴다."
+fixture:
+  - path: case01/usr/bin/sshd
+    # ELF64 little-endian header start
+    hex: 7f454c4602010100000000000000000003003e0001000000
+  - path: case01/tmp/.x/kworkerd
+    hex: 7f454c4602010100000000000000000002003e0001000000
+    mode: "0000"
+steps:
+  - tool: hexdump
+    note_ko: "읽을 수 있는 파일"
+    args:
+      path: ${EVIDENCE}/case01/usr/bin/sshd
+  - tool: hexdump
+    note_ko: "결함 호출: 읽기 권한이 없는 파일"
+    args:
+      path: ${EVIDENCE}/case01/tmp/.x/kworkerd
+  - tool: get_audit_trail
+    note_ko: "두 호출의 기록을 다시 읽는다"
+    args:
+      filter_tool: hexdump
+expect:
+  - step: 1
+    note_ko: "첫 호출은 바이트를 보여 준다"
+    contains: "7f45 4c46"
+  - step: 2
+    note_ko: "둘째 호출은 `xxd`가 파일을 열지 못했다고 한다"
+    regex: "\\[STDERR\\]: xxd: .*Permission denied"
+  - step: 3
+    note_ko: "실패한 호출도 성공한 호출과 같은 `512 bytes`로 기록된다"
+    regex: '(?s)"[^"]*/usr/bin/sshd", "offset": 0, "length": 512\}\n  result: 512 bytes\n.*"[^"]*/tmp/\.x/kworkerd", "offset": 0, "length": 512\}\n  result: 512 bytes'
+  - file_not_contains: ${DB_DIR}/audit.json
+    note_ko: "기록 파일에 실패 표시가 없다"
+    text: "Permission denied"

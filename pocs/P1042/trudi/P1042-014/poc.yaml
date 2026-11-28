@@ -1,0 +1,87 @@
+# Matrix case P1042-014: hashdeep_compute hashes the whole target, but
+# core.executor.run cuts stdout at OUTPUT_CAP (50 KiB) before the wrapper
+# writes it to output_path, so the manifest file holds only the first 50 KiB
+# of hashdeep's output (the last line cut in the middle). The response says
+# only `truncated: true`; it does not say that the manifest file was cut or
+# which files are missing from it. Used as the known-good list for
+# hashdeep_audit, the unchanged folder fails the audit (trudi runs hashdeep
+# -a, which prints only the verdict). A second folder of 100 files, whose
+# output fits under the cap, passes the same audit.
+# Evidence: a collected user Documents folder of 600 small text files
+# (about 60 KiB of names and digests per 300 files in hashdeep's output, so
+# the output is well over 50 KiB). The case folder with analysis/ sits under
+# ${OUTSIDE}/cases.
+case_id: P1042-014
+problem: P1042
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "수백 개 파일이 든 사용자 폴더나 수집물에 해시 목록을 만들고, 그 목록으로 나중에 같은 폴더를 감사하는 것은 흔한 절차다. hashdeep 출력은 파일 하나에 150바이트 남짓이라 파일 350개 정도면 상한을 넘는다."
+coverage: "partial: hashdeep_compute and hashdeep_audit are run; md5deep_scan writes its output_path the same way but is not run"
+coverage_ko: "`hashdeep_compute`와 `hashdeep_audit`만 돌렸다. 같은 방식으로 `output_path`를 쓰는 `md5deep_scan`은 돌리지 않았다."
+summary: hashdeep_compute(output_path=analysis/docs.hashdeep) on a folder of 600 files returns success with only `truncated` true and writes a manifest cut at 50 KiB; hashdeep_audit of the unchanged folder against that manifest then fails with the verdict hashdeep Audit failed, while a 100-file folder whose manifest fits under the cap passes the same audit.
+summary_ko: "파일 600개 폴더에 `hashdeep_compute(output_path=analysis/docs.hashdeep)`를 부르면 `truncated` true만 실린 성공 응답과 함께 50 KiB에서 잘린 해시 목록 파일이 생긴다. 바뀌지 않은 같은 폴더를 이 목록으로 `hashdeep_audit`하면 감사 실패(`hashdeep: Audit failed`)가 나온다. 출력이 상한 안에 드는 파일 100개 폴더는 같은 감사를 통과한다."
+defect_ko: "이 서버는 응답 상한(50 KiB)에서 자른 표준 출력을 그대로 해시 목록 파일에 써, 상한 밖 파일이 빠진 목록을 만들고 그 사실을 알리지 않는다. 목록 파일에는 전체 출력을 써야 하고, 자른 것이 있으면 목록 파일이 잘렸고 몇 개가 빠졌는지 알려야 한다. 모델은 목록을 폴더 전체의 기준으로 알고, 바뀌지 않은 폴더의 감사 실패를 수집 뒤에 증거가 바뀐 것으로 잘못 안다."
+setup_ko: "사용자 Documents 폴더(텍스트 파일 600개)를 증거로 두고 사건 기록을 연 뒤, `hashdeep_compute`로 `analysis/` 아래에 해시 목록을 만들고 그 목록으로 같은 폴더를 `hashdeep_audit`한다. 비교로 파일 100개인 다른 사용자 폴더에 같은 두 호출을 한다."
+fixture:
+- path: cases/WKS-0412/analysis
+  root: outside
+  dir: true
+- path: collection/WKS-0412/Users/jdoe/Documents/meeting-notes-{i}.txt
+  repeat: 600
+  text: "Weekly sync {i}: action items reviewed, next review in two weeks.\n"
+  mtime: "2026-10-30T09:15:00Z"
+- path: collection/WKS-0412/Users/asmith/Documents/meeting-notes-{i}.txt
+  repeat: 100
+  text: "Weekly sync {i}: action items reviewed, next review in two weeks.\n"
+  mtime: "2026-10-30T09:15:00Z"
+steps:
+- tool: misc_start_execution_log
+  note_ko: "준비: 사건 기록을 연다"
+  args:
+    case_id: WKS-0412
+    output_path: ${OUTSIDE}/cases/WKS-0412/analysis/WKS-0412_trace.json
+    case_dir: ${OUTSIDE}/cases/WKS-0412
+    launch_dashboard: false
+- tool: hash_hashdeep_compute
+  note_ko: "결함 호출: 폴더 전체의 해시 목록을 `analysis/`에 만든다"
+  args:
+    target: ${EVIDENCE}/collection/WKS-0412/Users/jdoe/Documents
+    output_path: ${OUTSIDE}/cases/WKS-0412/analysis/docs.hashdeep
+- tool: hash_hashdeep_audit
+  note_ko: "결과 확인: 바뀌지 않은 같은 폴더를 그 목록으로 감사한다"
+  args:
+    manifest_file: ${OUTSIDE}/cases/WKS-0412/analysis/docs.hashdeep
+    target_directory: ${EVIDENCE}/collection/WKS-0412/Users/jdoe/Documents
+- tool: hash_hashdeep_compute
+  note_ko: "비교 호출: 파일 100개인 다른 사용자 폴더의 목록을 만든다(상한 안)"
+  args:
+    target: ${EVIDENCE}/collection/WKS-0412/Users/asmith/Documents
+    output_path: ${OUTSIDE}/cases/WKS-0412/analysis/asmith-docs.hashdeep
+- tool: hash_hashdeep_audit
+  note_ko: "비교 호출: 그 폴더를 그 목록으로 감사한다"
+  args:
+    manifest_file: ${OUTSIDE}/cases/WKS-0412/analysis/asmith-docs.hashdeep
+    target_directory: ${EVIDENCE}/collection/WKS-0412/Users/asmith/Documents
+expect:
+- step: 2
+  note_ko: 목록 작성은 성공으로 끝나고 `manifest_path`를 돌려준다
+  regex: '"success": true.*"manifest_path": "[^"]*/analysis/docs.hashdeep"'
+- step: 2
+  note_ko: 응답에는 출력이 잘렸다는 표시만 있다
+  contains: '"truncated": true'
+- file_regex: ${OUTSIDE}/cases/WKS-0412/analysis/docs.hashdeep
+  note_ko: 목록 파일은 마지막 줄이 중간에서 끊긴 채 끝난다(50 KiB에서 잘림)
+  pattern: '\.txt\n[^\n]+\Z'
+- step: 3
+  note_ko: 바뀌지 않은 같은 폴더를 그 목록으로 감사하면 감사 실패가 나온다
+  contains: '"stdout": "hashdeep: Audit failed\n"'
+- step: 4
+  note_ko: 상한 안의 폴더는 목록에 잘림이 없다
+  contains: '"truncated": false'
+- step: 5
+  note_ko: 목록이 온전하면 같은 감사가 통과한다
+  contains: '"stdout": "hashdeep: Audit passed\n"'

@@ -1,0 +1,34 @@
+{
+  "case_id": "P3080-013",
+  "problem": "P3080",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: batch_run only; ez_recmd_batch (one executor run per hive) is not run",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "두 명령은 각자 다른 ID로 기록됐고, 응답 최상위 ID는 첫 명령(sha256sum, 늦게 끝남)의 ID와 같다",
+      "regex": "\"results\": \\[\\{[^{}]*\"cmd\": \"sha256sum [^\"]*\", [^{}]*\"_trudi_call_id\": (?P<a>\\d+)[^{}]*\\}, \\{[^{}]*\"cmd\": \"md5sum [^\"]*\", [^{}]*\"_trudi_call_id\": (?!(?P=a)\\D)\\d+[^{}]*\\}\\], \"_trudi_call_id\": (?P=a)\\D",
+      "ok": true
+    },
+    {
+      "file_regex": "${DB_DIR}/analysis/P3080-013_trace.json",
+      "note_ko": "trace에서 최상위 ID가 가리키는 항목에는 sha256sum 한 명령만 있다",
+      "pattern": "\"call_id\": 4,\\s*\"type\": \"tool_call\",\\s*\"ts\": \"[^\"]+\",\\s*\"cmd\": \"sha256sum [^\"]*/disk/WKSTN-07\\.dd\"",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${DB_DIR}/analysis/P3080-013_trace.json",
+      "note_ko": "batch_run 호출 자체를 가리키는 항목은 없다",
+      "text": "batch_run",
+      "ok": true
+    }
+  ],
+  "image": "sha256:cb12d5c5576d303b98e9bf266ed51378c05248e017328bd86992840c68ba21b1",
+  "ran_at": "2026-11-28T07:40:36+00:00"
+}

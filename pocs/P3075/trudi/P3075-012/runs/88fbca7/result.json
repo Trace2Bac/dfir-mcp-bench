@@ -1,0 +1,58 @@
+{
+  "case_id": "P3075-012",
+  "problem": "P3075",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: an output-path refusal only; calls ended by a wrong case_id (tools/misc.py, tools/monitor.py) take the same path and are not run",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "증거 폴더 안 출력 경로라 거부됐다",
+      "regex": "inside a protected evidence directory",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "거부는 오류 응답이다",
+      "is_error": true,
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "거부 직후 trace에는 그 호출의 기록이 하나도 없다",
+      "regex": "\"body\": \"\", \"truncated\": false",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "같은 호출을 허용된 경로로 하면 성공한다",
+      "regex": "^\\{\"success\": true, \"ascii_lines\": [1-9]",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "그 호출은 strings 명령으로 trace에 기록됐다",
+      "regex": "strings -a -n 8 [^ ]*/Users/jdoe/Downloads/upd\\.exe",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${DB_DIR}/analysis/P3075-012_trace.json",
+      "note_ko": "trace 어디에도 증거 폴더로 향한 출력 경로가 없다",
+      "text": "Downloads/upd.exe.strings.txt",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${DB_DIR}/analysis/P3075-012_trace.json",
+      "note_ko": "trace 어디에도 거부 사유가 없다",
+      "text": "protected evidence directory",
+      "ok": true
+    }
+  ],
+  "image": "sha256:bdfd2eddca1e716f54391f4c7a35c5e8244ac15d88fc9919a60c440b3a46a246",
+  "ran_at": "2026-11-28T07:40:14+00:00"
+}

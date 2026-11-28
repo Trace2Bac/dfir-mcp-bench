@@ -1,0 +1,46 @@
+{
+  "case_id": "P3075-065",
+  "problem": "P3075",
+  "server": "findevil",
+  "commit": "d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "첫 호출은 `203.0.113.17`을 낸다",
+      "contains": "`203.0.113.17`",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "둘째 호출은 `198.51.100.9`를 낸다",
+      "contains": "`198.51.100.9`",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "기록에 두 호출이 모두 있다",
+      "contains": "(2 matching entries",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "두 항목의 params와 결과가 똑같다",
+      "regex": "(?s)params: \\{\"text_len\": (\\d+)\\}\\n  result: 1 IOCs\\n.*params: \\{\"text_len\": \\1\\}\\n  result: 1 IOCs",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "기록에 뽑힌 IP가 없다",
+      "not_regex": "203\\.0\\.113\\.17|198\\.51\\.100\\.9",
+      "ok": true
+    }
+  ],
+  "image": "sha256:5262afe93b5de336a7c98fc57006abe81588e0a3815e5008ecb9782a0b2d43d6",
+  "ran_at": "2026-11-28T07:34:03+00:00"
+}

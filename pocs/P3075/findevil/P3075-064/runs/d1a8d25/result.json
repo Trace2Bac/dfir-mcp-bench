@@ -1,0 +1,46 @@
+{
+  "case_id": "P3075-064",
+  "problem": "P3075",
+  "server": "findevil",
+  "commit": "d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "첫 응답의 미래 시각 목록은 1개뿐이다",
+      "regex": "## Files with future mtime\\n- `[^`\\n]+` — mtime=[^\\n]+\\s*\\Z",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "둘째 응답의 미래 시각 목록은 3개다",
+      "regex": "## Files with future mtime\\n(- `[^`\\n]+` — mtime=[^\\n]+\\n){2}- `[^`\\n]+` — mtime=[^\\n]+\\s*\\Z",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "기록에 두 호출이 모두 있다",
+      "contains": "(2 matching entries",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "두 항목의 params와 결과가 똑같다",
+      "regex": "(?s)params: \\{\"root_path\": \"[^\"]*/case01/fs\"\\}\\n  result: 3 mt>ct, 3 future, 0 batches\\n.*params: \\{\"root_path\": \"[^\"]*/case01/fs\"\\}\\n  result: 3 mt>ct, 3 future, 0 batches",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${DB_DIR}/audit.json",
+      "note_ko": "기록 파일 어디에도 `limit`이 없다",
+      "text": "limit",
+      "ok": true
+    }
+  ],
+  "image": "sha256:046f0514ef8f3ef35f19a2a7482fbdc3821e3e63cf44cce8b5dddbdcdcfa3e3e",
+  "ran_at": "2026-11-28T07:34:42+00:00"
+}

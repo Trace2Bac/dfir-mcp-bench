@@ -1,0 +1,97 @@
+# Matrix case P3075-104: read_output records its call as
+# "read.output --output <path> query=<query[:80]> columns=... where=<where[:60]>"
+# (tools/read_output.py). The query is cut to 80 characters, and max_rows and
+# max_chars, which change what the call returns, are not written at all. Two
+# reads of the same manifest that differ only in max_rows, with a query whose
+# last terms fall past character 80, leave the same cmd.
+# The manifest is written in this PoC by hash_directory (output_manifest).
+case_id: P3075-104
+problem: P3075
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "해시 매니페스트나 파서 CSV에서 관심 파일 이름을 여러 낱말로 한 번에 찾는 질의는 80자를 넘기 쉽고, 결과가 많을 때 max_rows로 줄여 읽는 것도 도구 설명이 안내하는 쓰임이다."
+coverage: full
+summary: 'Two read_output calls on the same Documents hash manifest with a 102-character query, one with max_rows 3 (3 rows and a row cap) and one with the default (all matching rows), are both recorded as the same cmd "read.output --output <path> query=<first 80 characters>", without max_rows and without the query terms "confidential q3 merger".'
+summary_ko: "같은 Documents 해시 매니페스트를 102자 질의로 `read_output`할 때, `max_rows` 3(3행과 행 제한 표시)과 기본값(맞는 행 전부)으로 부른 두 호출이 trace에는 똑같이 `read.output --output <경로> query=<앞 80자>` 하나로 남는다. `max_rows`도, 질의 끝의 \"confidential q3 merger\"도 없다."
+defect_ko: "이 서버는 `read_output` 기록에 질의를 80자에서 잘라 적고, 결과를 바꾸는 `max_rows`, `max_chars`를 적지 않는다. 정상이라면 받은 인자를 그대로 기록해야 한다. 기록을 읽는 모델과 검토자는 두 읽기를 같은 요청으로 잘못 알고, 기록에 적힌 cmd대로 다시 읽으면 다른 순위와 행 수가 나온다."
+setup_ko: "사용자 Documents 폴더에 급여, 계약, VPN, 인수합병 관련 이름의 파일 12개를 넣고, PoC 안에서 hash_directory로 그 매니페스트 CSV를 analysis/에 만든다."
+fixture:
+  - path: analysis/.keep
+    root: db
+    text: ""
+  - path: Users/jdoe/Documents/payroll_2024_q3.xlsx
+    text: "PK\x03\x04 payroll export Q3 2024"
+  - path: Users/jdoe/Documents/salary_review_2024.docx
+    text: "PK\x03\x04 salary review draft"
+  - path: Users/jdoe/Documents/invoice_88213.pdf
+    text: "%PDF-1.7\n% invoice 88213\n"
+  - path: Users/jdoe/Documents/contract_acme_signed.pdf
+    text: "%PDF-1.7\n% contract ACME signed\n"
+  - path: Users/jdoe/Documents/vpn_config_backup.ovpn
+    text: "client\ndev tun\nproto udp\nremote vpn.corp.example 1194\n"
+  - path: Users/jdoe/Documents/passwords.kdbx
+    hex: 03d9a29a67fb4bb501000400
+  - path: Users/jdoe/Documents/credentials_old.txt
+    text: "svc_backup / Winter2023!\n"
+  - path: Users/jdoe/Documents/customer_export_full.csv
+    text: "id,name,email\n1,Kim,kim@example.com\n"
+  - path: Users/jdoe/Documents/confidential_merger_term_sheet_q3.docx
+    text: "PK\x03\x04 term sheet"
+  - path: Users/jdoe/Documents/merger_dd_checklist.xlsx
+    text: "PK\x03\x04 due diligence checklist"
+  - path: Users/jdoe/Documents/holiday_photos.zip
+    text: "PK\x03\x04 photos"
+  - path: Users/jdoe/Documents/resume_jdoe.docx
+    text: "PK\x03\x04 resume"
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 trace를 연다"
+    args:
+      case_id: P3075-104
+      output_path: ${DB_DIR}/analysis/P3075-104_trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: hash_directory
+    note_ko: "준비: Documents 폴더의 해시 매니페스트 CSV를 analysis/에 만든다"
+    args:
+      directory: ${EVIDENCE}/Users/jdoe/Documents
+      output_manifest: ${DB_DIR}/analysis/documents_sha256.csv
+  - tool: read_output
+    note_ko: "결함 호출: 관심 낱말 102자 질의로 상위 3행만 읽는다"
+    args:
+      path: ${DB_DIR}/analysis/documents_sha256.csv
+      query: payroll salary invoice contract vpn password credentials backup customer export confidential q3 merger
+      max_rows: 3
+  - tool: read_output
+    note_ko: "결함 호출: 같은 질의를 기본 행 수로 읽는다"
+    args:
+      path: ${DB_DIR}/analysis/documents_sha256.csv
+      query: payroll salary invoice contract vpn password credentials backup customer export confidential q3 merger
+  - tool: read_output
+    note_ko: "비교 호출: trace에 적힌 cmd 그대로(앞 80자 질의, 기본 행 수) 다시 읽는다"
+    args:
+      path: ${DB_DIR}/analysis/documents_sha256.csv
+      query: "payroll salary invoice contract vpn password credentials backup customer export "
+expect:
+  - step: 3
+    note_ko: "max_rows 3인 읽기는 행 제한에 걸려 잘렸다"
+    regex: '"body": "file,sha256(\x5cn/[^"]*?){3}\x5cn\x5cu2026\[row cap\]", "truncated": true'
+  - step: 4
+    note_ko: "기본값 읽기는 merger 파일까지 맞는 행을 더 돌려주고 잘리지 않았다"
+    regex: 'merger_dd_checklist\.xlsx[^"]*", "truncated": false'
+  - file_regex: ${DB_DIR}/analysis/P3075-104_trace.json
+    note_ko: "trace에는 두 읽기가 앞 80자에서 잘린 질의와 같은 cmd로 남고 max_rows는 없다"
+    pattern: '"cmd": "read\.output --output [^ "]*/analysis/documents_sha256\.csv query=payroll salary invoice contract vpn password credentials backup customer export ",[\s\S]*"cmd": "read\.output --output [^ "]*/analysis/documents_sha256\.csv query=payroll salary invoice contract vpn password credentials backup customer export ",'
+  - file_not_contains: ${DB_DIR}/analysis/P3075-104_trace.json
+    note_ko: "trace에 max_rows는 어디에도 없다"
+    text: max_rows
+  - step: 5
+    note_ko: "기록된 cmd대로 다시 읽어도 결과는 나온다(payroll 파일 포함)"
+    contains: "payroll_2024_q3.xlsx"
+  - step: 5
+    note_ko: "그러나 앞의 두 읽기에 있던 인수합병 파일은 나오지 않는다(기록과 실제 요청이 다르다)"
+    not_contains: "merger"

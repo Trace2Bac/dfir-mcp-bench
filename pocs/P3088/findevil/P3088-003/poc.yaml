@@ -1,0 +1,69 @@
+# Matrix case P3088-003: without output_file, baseline_create always writes
+# LOGS_DIR/baseline.json whatever root_path is, and replaces an earlier
+# baseline there without saying so. After case A's baseline, case B's
+# baseline_create reports the same Output path, and a diff of case A's root
+# against that path now uses case B's baseline.
+# (The explicit-path variant is P3088-026.)
+case_id: P3088-003
+problem: P3088
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "`output_file`은 생략할 수 있는 인자라, 여러 호스트나 사건의 기준선을 차례로 만들면 모두 같은 기본 경로에 쓰인다."
+coverage: "partial: overwriting an explicit output_file that already exists is not shown here (P3088-026)"
+coverage_ko: "이미 있는 명시 경로를 덮어쓰는 경우는 여기서 보이지 않는다(P3088-026)"
+summary: baseline_create on case A and then case B without output_file both report the same Output baseline.json with no note that the first was replaced; baseline_diff of case A's root against that file then shows case B's root as "Baseline root" and reports changes.
+summary_ko: "출력 경로 없이 사건 A, 사건 B 순서로 `baseline_create`를 부르면 두 응답의 `Output`이 같은 `baseline.json`인데 앞 기준선을 덮어썼다는 말이 없다. 그 뒤 사건 A 루트를 그 파일과 `baseline_diff`로 비교하면 `Baseline root`가 사건 B 루트로 나오고 변경이 보고된다."
+defect_ko: "이 서버의 `baseline_create`는 기본 경로에 이미 있는 기준선을 알리지 않고 덮어쓴다. 덮어쓰기 전에 거부하거나 루트마다 다른 경로를 쓰거나, 덮어썼다고 알려야 한다. 모델은 사건 A의 기준선이 남아 있다고 잘못 알고, 다른 사건 기준선과의 차이를 사건 A의 변경으로 읽는다."
+setup_ko: "사건 A와 사건 B의 파일 시스템 루트를 두었다. 두 사건의 `etc/passwd`는 사용자가 달라 내용이 다르다."
+fixture:
+  - path: caseA/fs/etc/passwd
+    text: |
+      root:x:0:0:root:/root:/bin/bash
+      daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+      alice:x:1000:1000:Alice,,,:/home/alice:/bin/bash
+  - path: caseB/fs/etc/passwd
+    text: |
+      root:x:0:0:root:/root:/bin/bash
+      daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+      bob:x:1000:1000:Bob,,,:/home/bob:/bin/bash
+      deploy:x:1001:1001::/home/deploy:/bin/bash
+steps:
+  - tool: baseline_create
+    note_ko: "사건 A 기준선을 기본 경로에 만든다"
+    args:
+      root_path: ${EVIDENCE}/caseA/fs
+  - tool: baseline_create
+    note_ko: "결함 호출: 사건 B 기준선을 출력 경로 없이 만든다"
+    args:
+      root_path: ${EVIDENCE}/caseB/fs
+  - tool: baseline_diff
+    note_ko: "사건 A 루트를 앞서 만든 기본 경로 기준선과 비교한다"
+    args:
+      root_path: ${EVIDENCE}/caseA/fs
+      baseline_file: ${DB_DIR}/baseline.json
+expect:
+  - step: 1
+    note_ko: "사건 A 기준선은 기본 경로에 쓰인다"
+    regex: "- \\*\\*Output:\\*\\* `/tmp/tmp[^/`]+/db/baseline\\.json`"
+  - step: 2
+    note_ko: "사건 B 기준선도 같은 경로에 쓰인다"
+    regex: "- \\*\\*Output:\\*\\* `/tmp/tmp[^/`]+/db/baseline\\.json`"
+  - step: 2
+    note_ko: "앞 기준선을 덮어썼다는 말이 없다"
+    not_regex: "(?i)overwr|replac|already exist|previous"
+  - step: 3
+    note_ko: "사건 A 루트를 비교했는데 기준선 루트는 사건 B다"
+    regex: "- \\*\\*Baseline root:\\*\\* `[^`]*/caseB/fs`"
+  - step: 3
+    note_ko: "사건 A의 `etc/passwd`가 바뀌었다고 보고한다"
+    contains: "### `etc/passwd` — modified"
+  - file_regex: ${DB_DIR}/baseline.json
+    note_ko: "기본 경로의 기준선 파일에는 사건 B 루트만 남았다"
+    pattern: '"root_path": "[^"]*/caseB/fs"'
+  - file_not_contains: ${DB_DIR}/baseline.json
+    note_ko: "사건 A 기준선은 남아 있지 않다"
+    text: "caseA"

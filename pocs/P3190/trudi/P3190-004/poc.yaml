@@ -1,0 +1,65 @@
+# Matrix case P3190-004: hash_file returns a cached hash when the key
+# (path, size, st_mtime_ns, st_ctime_ns, inode) is in hash_cache.json, and
+# _record_hash_result writes that value to the trace's hash_result and
+# source_hashes. The response says cache_hit: true, but the trace entry has
+# no cache_hit, so a hash read from the cache is recorded exactly like one
+# computed from the file. Only the missing cache_hit is shown here; a stale
+# cache entry (a block-level change under a mount that keeps size, times and
+# inode, or a hash_cache.json changed from outside) is not built.
+case_id: P3190-004
+problem: P3190
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: source-vs-result
+level: mcp
+realism: common
+realism_ko: "같은 증거 파일을 분석 앞뒤로 다시 해시하는 것은 흔한 절차이고, 두 번째부터는 늘 캐시에서 값이 나온다."
+coverage: "partial: only the missing cache_hit in the trace; a cache entry that no longer matches the file (block-level change under a mount, st_dev missing from the key, a changed hash_cache.json) is not built"
+coverage_ko: "기록에 cache_hit이 남지 않는 부분만 보였다. 캐시 값이 실제 파일과 달라지는 경우(마운트 아래 블록 수준 변경, 키에 st_dev 없음, 밖에서 바뀐 hash_cache.json)는 만들지 않았다."
+summary: Hashing the same memory dump twice, the second hash_file response says cache_hit true, but the trace records both calls as the same "hash.file <path>" entry with hash_result holding only file, size and hashes, so the cached value reads in the trace as a hash computed from the file.
+summary_ko: "같은 메모리 덤프를 두 번 해시하면 두 번째 `hash_file` 응답은 `cache_hit: true`인데, trace는 두 호출을 똑같이 `hash.file <경로>` 항목으로 남기고 `hash_result`에는 파일, 크기, 해시만 적는다. 캐시에서 가져온 값이 기록에서는 파일을 읽어 계산한 해시로 읽힌다."
+defect_ko: "이 서버는 캐시에서 꺼낸 해시를 기록할 때 캐시에서 왔다는 표시(`cache_hit`) 없이 직접 계산한 호출과 같은 모양으로 남긴다. 정상이라면 기록에도 캐시 사용 여부와 그 값을 계산한 때를 남겨야 한다. 기록을 읽는 모델과 검토자는 두 번째 해시도 그 시점에 파일을 다시 읽어 얻은 값으로 잘못 안다."
+setup_ko: "메모리 수집 도구가 남긴 원시 메모리 덤프 파일(4 MiB)을 넣었다."
+fixture:
+  - path: analysis/.keep
+    root: db
+    text: ""
+  # A raw memory dump as WinPmem writes it (.raw); only its size matters here.
+  - path: memory/WKSTN-07.raw
+    size: 4194304
+    text: "\x00"
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 trace를 연다"
+    args:
+      case_id: P3190-004
+      output_path: ${DB_DIR}/analysis/P3190-004_trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: hash_file
+    note_ko: "비교 호출: 분석 전에 메모리 덤프를 해시한다(파일을 읽어 계산)"
+    args:
+      file_path: ${EVIDENCE}/memory/WKSTN-07.raw
+  - tool: hash_file
+    note_ko: "결함 호출: 분석 뒤에 같은 파일을 다시 해시한다(캐시에서 나옴)"
+    args:
+      file_path: ${EVIDENCE}/memory/WKSTN-07.raw
+  - tool: read_output
+    note_ko: "비교 호출: trace에 남은 두 해시 기록을 읽는다"
+    args:
+      path: ${DB_DIR}/analysis/P3190-004_trace.json
+      query: hash.file hash_result
+expect:
+  - step: 2
+    note_ko: "첫 해시는 파일을 읽어 계산했다"
+    contains: '"cache_hit": false'
+  - step: 3
+    note_ko: "두 번째 해시는 캐시에서 나왔다고 응답이 말한다"
+    contains: '"cache_hit": true'
+  - file_regex: ${DB_DIR}/analysis/P3190-004_trace.json
+    note_ko: "trace에는 두 호출이 모두 같은 모양의 hash.file 항목과 hash_result(파일, 크기, 해시뿐)로 남았다"
+    pattern: '"cmd": "hash\.file [^"]*/memory/WKSTN-07\.raw"[\s\S]*"hash_result": \{\s*"file": "[^"]*WKSTN-07\.raw",\s*"size_bytes": 4194304,\s*"md5": "[0-9a-f]{32}",\s*"sha1": "[0-9a-f]{40}",\s*"sha256": "[0-9a-f]{64}"\s*\}[\s\S]*"cmd": "hash\.file [^"]*/memory/WKSTN-07\.raw"[\s\S]*"hash_result": \{\s*"file": "[^"]*WKSTN-07\.raw",\s*"size_bytes": 4194304,\s*"md5": "[0-9a-f]{32}",\s*"sha1": "[0-9a-f]{40}",\s*"sha256": "[0-9a-f]{64}"\s*\}'
+  - file_not_contains: ${DB_DIR}/analysis/P3190-004_trace.json
+    note_ko: "trace 어디에도 cache_hit이 없다(응답과 기록이 다르다)"
+    text: cache_hit

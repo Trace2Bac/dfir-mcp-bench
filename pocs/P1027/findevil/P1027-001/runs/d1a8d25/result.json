@@ -1,0 +1,40 @@
+{
+  "case_id": "P1027-001",
+  "problem": "P1027",
+  "server": "findevil",
+  "commit": "d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: the condition where FINDEVIL_EVIDENCE_DIR names a missing folder is not run (the runner's own FINDEVIL_EVIDENCE_DIR comes after the PoC's env)",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "기록된 호출이 없다",
+      "contains": "- **Tool executions recorded:** 0",
+      "ok": true
+    },
+    {
+      "step": 1,
+      "note_ko": "자료 표가 비어 아무 행도 없다",
+      "not_contains": "## Artifact coverage",
+      "ok": true
+    },
+    {
+      "step": 1,
+      "note_ko": "그런데도 증거의 모든 자료 종류를 조사했다고 판정한다",
+      "contains": "**Verdict: COVERAGE CLEAN** — every artifact class present in evidence has been examined",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "증거 폴더에는 E01 디스크 이미지가 있다",
+      "contains": "disk.E01",
+      "ok": true
+    }
+  ],
+  "image": "sha256:4fb0fe4bd4d1aa21ee4f86a93412b2aa343f23eb0ae1d2f60a1ebb566c1201dc",
+  "ran_at": "2026-11-28T07:40:37+00:00"
+}

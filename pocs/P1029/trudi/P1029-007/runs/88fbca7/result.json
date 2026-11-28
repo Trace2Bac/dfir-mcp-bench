@@ -1,0 +1,51 @@
+{
+  "case_id": "P1029-007",
+  "problem": "P1029",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "source-vs-result",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: the .img naming rule is shown through dair_assess's evidence inventory; the IOC coverage rows that use the same inventory need a mitre_detection.json, which trudi does not ship, and are not run",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "condition": "img",
+      "note_ko": "`host1.img`인 사건은 디스크 이미지만 가진 사건으로 분류된다",
+      "contains": "\"evidence_kinds\": [\"disk_image\"]",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "condition": "img",
+      "note_ko": "지시된 Volatility 도구 세 개가 메모리 증거가 없다며 작업 지시에서 빠진다",
+      "contains": "\"prescription_filtered\": [\"vol.pslist\", \"vol.netscan\", \"vol.malfind\"]",
+      "ok": true
+    },
+    {
+      "file_regex": "${OUTSIDE}/cases/WKS-0412/analysis/WKS-0412_trace.json",
+      "condition": "img",
+      "note_ko": "DAIR 모델에게 이 사건에 메모리 증거가 없다고 알린다",
+      "pattern": "EVIDENCE AVAILABLE: disk_image [^\"]{0,12}do not prescribe tools or verification challenges that need memory, pcap, triage, mobile, live evidence; the case holds none",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "condition": "mem",
+      "note_ko": "같은 캡처를 `host1.mem`으로 두면 메모리로 분류된다",
+      "contains": "\"evidence_kinds\": [\"memory\"]",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "condition": "mem",
+      "note_ko": "이때는 세 도구가 작업 지시에 남는다",
+      "contains": "\"priority_tools\": [\"vol.pslist\", \"vol.netscan\", \"vol.malfind\"]",
+      "ok": true
+    }
+  ],
+  "image": "sha256:091faba8d50febb25f87ddaca51153b97a5e8a6a274f3f96e0473c4261df8e44",
+  "ran_at": "2026-11-28T07:44:46+00:00"
+}

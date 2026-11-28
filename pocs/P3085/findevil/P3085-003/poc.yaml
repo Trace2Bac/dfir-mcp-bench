@@ -1,0 +1,50 @@
+# Matrix case P3085-003: baseline_create's _resolve_output_path refuses an
+# output path inside the evidence folder only and accepts any other path,
+# so it creates folders and writes the baseline anywhere outside the default
+# LOGS_DIR. A relative name is resolved against the server's working folder.
+# ${OUTSIDE} is a folder next to the evidence that the server is not given;
+# ${OUTSIDE}/new does not exist before the call.
+case_id: P3085-003
+problem: P3085
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: side-effect
+level: mcp
+realism: common
+realism_ko: "출력 경로는 모델이 정하는 인자라, 상대 이름이나 정한 위치 밖 경로가 모델의 실수나 증거 속 지시문으로 들어오는 일이 흔하다."
+coverage: "partial: the relative name is shown only as the path the server resolved it to; the write itself fails because the bench image's working folder (/mulder-investigation) is not writable for the server user"
+coverage_ko: "상대 이름은 서버가 바꾼 경로로만 보인다. bench 이미지의 작업 폴더(`/mulder-investigation`)에 서버 계정이 쓸 수 없어 그 쓰기는 실패한다"
+summary: baseline_create does not refuse output_file "caseA-baseline.json" but resolves it against the server's working folder (/mulder-investigation), not LOGS_DIR, where the write fails in the bench image; it also accepts a path in a folder it was never given, creating ${OUTSIDE}/new and writing b.json there.
+summary_ko: "`baseline_create`는 `output_file=\"caseA-baseline.json\"`을 거부하지 않고 `LOGS_DIR`이 아닌 서버 작업 폴더(`/mulder-investigation`) 기준 경로로 바꿔 쓰려 한다(bench 이미지에서는 그 폴더에 쓸 수 없어 실패한다). 받은 적 없는 폴더 경로도 받아 `${OUTSIDE}/new` 폴더를 만들고 `b.json`을 쓴다."
+defect_ko: "이 서버의 `baseline_create`는 출력 경로가 증거 폴더 안인지만 막아, 상대 경로는 서버 작업 폴더 기준으로, 그 밖의 경로는 어디든 폴더까지 만들어 쓴다. 정해 둔 출력 위치 안으로 한정해야 한다. 모델은 기준선이 분석 기록 폴더에 저장됐다고 잘못 알고, 서버가 정한 위치 밖에 파일을 남긴 사실을 모른다."
+setup_ko: "증거 폴더 `fs/`에 `etc/passwd` 하나를 두었다. 서버에 주지 않은 바깥 폴더 아래 `new/`는 미리 만들지 않았다."
+fixture:
+  - path: fs/etc/passwd
+    text: |
+      root:x:0:0:root:/root:/bin/bash
+      daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+      alice:x:1000:1000:Alice,,,:/home/alice:/bin/bash
+steps:
+  - tool: baseline_create
+    note_ko: "결함 호출: 출력 경로에 상대 이름을 준다"
+    args:
+      root_path: ${EVIDENCE}/fs
+      output_file: caseA-baseline.json
+  - tool: baseline_create
+    note_ko: "결함 호출: 출력 경로에 서버에 주지 않은 폴더의 새 하위 폴더를 준다"
+    args:
+      root_path: ${EVIDENCE}/fs
+      output_file: ${OUTSIDE}/new/b.json
+expect:
+  - step: 1
+    note_ko: "상대 이름을 거부하지 않고 기록 폴더가 아닌 서버 작업 폴더 기준 경로로 바꿔 쓰려 한다(이 이미지에서는 그 폴더에 쓸 수 없어 쓰기가 실패한다)"
+    contains: "'/mulder-investigation/caseA-baseline.json'"
+  - step: 2
+    note_ko: "서버에 주지 않은 폴더 아래 경로를 받아들인다"
+    regex: "- \\*\\*Output:\\*\\* `/tmp/tmp[^/`]+/outside/new/b\\.json`"
+  - file_exists: ${OUTSIDE}/new/b.json
+    note_ko: "그 위치에 폴더가 생기고 기준선 파일이 쓰였다"
+  - file_contains: ${OUTSIDE}/new/b.json
+    note_ko: "쓰인 파일은 기준선 JSON이다"
+    text: "\"tool_version\": \"findevil-fim-1\""

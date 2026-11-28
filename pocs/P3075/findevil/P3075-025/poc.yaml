@@ -1,0 +1,51 @@
+# Matrix case P3075-025: get_audit_trail says it returns "the record of every
+# tool call made during this session", but it deliberately does not _audit
+# itself (self_correction.py:670-673). Its calls go only to a side file,
+# get_audit_trail_invocations.jsonl, which get_audit_trail never reads, so a
+# second get_audit_trail call shows the first as never made.
+# The server is started with FINDEVIL_LOGS_DIR=${DB_DIR}, so the call record
+# is ${DB_DIR}/audit.json and the side file is next to it.
+case_id: P3075-025
+problem: P3075
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "도구 설명이 보고 전에 `get_audit_trail`로 호출을 확인하라고 권하므로, 이 도구를 여러 번 부르는 일은 흔하다."
+coverage: full
+summary: 'After hash_file and a first get_audit_trail call, a second get_audit_trail reports only hash_file; the first get_audit_trail call is kept only in a side file that get_audit_trail does not read.'
+summary_ko: "`hash_file`과 `get_audit_trail`을 부른 뒤 `get_audit_trail`을 다시 부르면 `hash_file` 1건만 나온다. 앞선 `get_audit_trail` 호출은 이 도구가 읽지 않는 별도 파일에만 남는다."
+defect_ko: "이 서버는 `get_audit_trail`이 \"이 세션의 모든 도구 호출\"을 보여 준다고 하면서 이 도구 자신의 호출은 그 기록에서 뺀다. 기록에서 빼는 호출이 있으면 그렇다고 알리거나 함께 보여야 한다. 모델은 기록을 보고 세션의 호출이 `hash_file` 하나뿐이라고 잘못 안다."
+setup_ko: "증거 폴더에 작은 텍스트 파일 하나를 두었다."
+fixture:
+  - path: case01/etc/hostname
+    text: "web01\n"
+steps:
+  - tool: hash_file
+    note_ko: "기록에 남을 호출"
+    args:
+      path: ${EVIDENCE}/case01/etc/hostname
+  - tool: get_audit_trail
+    note_ko: "결함 호출: 기록을 처음 읽는다"
+    args: {}
+  - tool: get_audit_trail
+    note_ko: "기록을 다시 읽는다"
+    args: {}
+expect:
+  - step: 2
+    note_ko: "첫 조회는 `hash_file` 1건을 보여 준다"
+    contains: "`hash_file`: 1"
+  - step: 3
+    note_ko: "둘째 조회도 1건뿐이다"
+    contains: "(1 matching entries"
+  - step: 3
+    note_ko: "앞선 `get_audit_trail` 호출이 기록에 없다"
+    not_contains: "`get_audit_trail`"
+  - file_not_contains: ${DB_DIR}/audit.json
+    note_ko: "기록 파일에 `get_audit_trail` 호출이 없다"
+    text: "get_audit_trail"
+  - file_regex: ${DB_DIR}/get_audit_trail_invocations.jsonl
+    note_ko: "두 호출은 이 도구가 읽지 않는 별도 파일에만 남는다"
+    pattern: '(?s)"filter_tool": "".*\n.*"filter_tool": ""'

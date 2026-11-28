@@ -1,0 +1,46 @@
+{
+  "case_id": "P3187-008",
+  "problem": "P3187",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 3,
+      "note_ko": "덮이기 전에는 같은 호출이 앞 항목을 되살렸다",
+      "regex": "\"entries_recovered\": [1-9]\\d*, \"resumed\": true",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "strings 결과를 trace 경로에 썼다며 성공한다",
+      "regex": "^\\{\"success\": true, \"ascii_lines\": [1-9]",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "덮인 뒤에는 같은 호출이 성공하면서 되살린 항목이 0이다",
+      "regex": "^\\{\"success\": true, [^{}]*\"entries_recovered\": 0, \"resumed\": false",
+      "ok": true
+    },
+    {
+      "step": 6,
+      "note_ko": "앞서 남긴 해시 기록은 trace에서 찾을 수 없다",
+      "regex": "\"body\": \"\", \"truncated\": false",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${DB_DIR}/analysis/P3187-008_trace.json",
+      "note_ko": "새 trace에는 hash_file 결과(hash_result) 기록이 없다",
+      "text": "\"hash_result\"",
+      "ok": true
+    }
+  ],
+  "image": "sha256:80feb386e109a3751ea91db11238a203d8e881b331a66d883298d2c799abc24c",
+  "ran_at": "2026-11-28T07:41:31+00:00"
+}

@@ -1,0 +1,46 @@
+{
+  "case_id": "P3081-019",
+  "problem": "P3081",
+  "server": "findevil",
+  "commit": "d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "열 수 있는 폴더 목록에는 실패 문구가 없다",
+      "not_contains": "[STDERR]",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "응답에는 `ls`가 폴더를 열지 못했다는 문구가 있다",
+      "regex": "\\[STDERR\\]: ls: cannot open directory '[^']*/case01/root'",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "완전한 목록과 실패한 목록이 같은 꼴(줄 수)으로 기록된다",
+      "regex": "(?s)params: \\{\"subdir\": \"case01/etc\"\\}\\n  result: \\d+ lines\\n.*params: \\{\"subdir\": \"case01\"\\}\\n  result: \\d+ lines",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${DB_DIR}/audit.json",
+      "note_ko": "기록 파일에 실패 표시가 없다",
+      "text": "cannot open directory",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${DB_DIR}/audit.json",
+      "note_ko": "기록 파일에 빠진 폴더가 적혀 있지 않다",
+      "text": "case01/root",
+      "ok": true
+    }
+  ],
+  "image": "sha256:50949042aedeb3e2d8216a65d849f3778765f3b0ce8ff6639de10c56dd37fc08",
+  "ran_at": "2026-11-28T07:39:58+00:00"
+}

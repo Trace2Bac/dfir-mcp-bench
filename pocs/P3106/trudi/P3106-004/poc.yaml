@@ -1,0 +1,57 @@
+# Matrix case P3106-004: the executor writes the command it ran as
+# " ".join(cmd) (core/executor.py; strings_grep builds the same string for
+# its own trace entry), so an evidence path with spaces leaves no boundary
+# between it and the other arguments. A Windows XP profile path
+# ("Documents and Settings/.../My Documents/notes 2024.txt") is recorded as
+# one run of words, and read_output on the trace returns it that way.
+case_id: P3106-004
+problem: P3106
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: source-vs-result
+level: mcp
+realism: common
+realism_ko: "Windows 증거의 사용자 폴더 경로(Documents and Settings, My Documents, Program Files)와 파일 이름에는 공백이 흔하다."
+coverage: full
+summary: 'strings_grep on "Documents and Settings/Administrator/My Documents/notes 2024.txt" is recorded in the trace as the cmd "strings -a -n 4 <...>/Documents and Settings/Administrator/My Documents/notes 2024.txt" with no quoting, so the path cannot be told apart from separate arguments.'
+summary_ko: "\"Documents and Settings/Administrator/My Documents/notes 2024.txt\"에 `strings_grep`을 부르면 trace의 cmd가 따옴표 없이 `strings -a -n 4 <...>/Documents and Settings/Administrator/My Documents/notes 2024.txt`로 남아, 경로와 다른 인자의 경계를 알 수 없다."
+defect_ko: "이 서버는 실행한 명령을 인자 경계 표시 없이 공백으로 이은 한 문자열로 기록한다. 정상이라면 인자 목록을 그대로 남기거나 셸 인용으로 경계를 남겨야 한다. 기록을 읽는 모델과 검토자는 공백이 든 증거 경로를 여러 인자로 잘못 나누어, 실제로 어떤 파일에 어떤 명령을 실행했는지 되짚지 못한다."
+setup_ko: "Windows XP 사용자 폴더 경로(Documents and Settings/Administrator/My Documents)에 공백이 든 이름의 메모 파일 notes 2024.txt를 넣었다."
+fixture:
+  - path: analysis/.keep
+    root: db
+    text: ""
+  - path: Documents and Settings/Administrator/My Documents/notes 2024.txt
+    text: |
+      VPN: vpn.corp.example / admin
+      backup share \fs01\backup$
+      download http://203.0.113.7/tools/nc.exe before Friday
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 trace를 연다"
+    args:
+      case_id: P3106-004
+      output_path: ${DB_DIR}/analysis/P3106-004_trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: strings_grep
+    note_ko: "결함 호출: 공백이 든 경로의 메모에서 URL을 찾는다"
+    args:
+      file_path: ${EVIDENCE}/Documents and Settings/Administrator/My Documents/notes 2024.txt
+      pattern: "https?://"
+  - tool: read_output
+    note_ko: "비교 호출: trace에 남은 명령 기록을 읽는다"
+    args:
+      path: ${DB_DIR}/analysis/P3106-004_trace.json
+      query: "strings notes"
+expect:
+  - step: 2
+    note_ko: "그 파일에서 URL을 찾았다"
+    contains: "http://203.0.113.7/tools/nc.exe"
+  - step: 3
+    note_ko: "trace를 다시 읽으면 명령이 인용 없이 공백으로 이어진 한 문자열로 나온다"
+    regex: 'cmd\x5c": \x5c"strings -a -n 4 /[^ ]*/evidence/Documents and Settings/Administrator/My Documents/notes 2024\.txt\x5c"'
+  - file_regex: ${DB_DIR}/analysis/P3106-004_trace.json
+    note_ko: "trace 파일의 그 항목도 인자 목록 없이 이어 붙인 cmd 하나뿐이다"
+    pattern: '"cmd": "strings -a -n 4 /[^ ]*/evidence/Documents and Settings/Administrator/My Documents/notes 2024\.txt",\s*"success": true'

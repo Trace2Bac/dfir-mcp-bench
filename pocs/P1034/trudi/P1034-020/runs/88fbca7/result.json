@@ -1,0 +1,38 @@
+{
+  "case_id": "P1034-020",
+  "problem": "P1034",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "side-effect",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: ewf_mount is run; ewf_mount_ntfs (_mount_ntfs_ro) has the same os.makedirs but is not run",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "`ewf_mount`는 경로 검사 없이 ewfmount를 증거 폴더 아래 마운트 위치로 실행한다",
+      "regex": "\"cmd\": \"sudo ewfmount [^\"]*/cases/WKS-0412/evidence/WKS-0412.E01 [^\"]*/cases/WKS-0412/evidence/mnt1\"",
+      "ok": true
+    },
+    {
+      "file_exists": "${OUTSIDE}/cases/WKS-0412/evidence/mnt1",
+      "note_ko": "증거 폴더 안에 마운트 폴더 `mnt1`이 생긴다",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "같은 폴더를 출력 인자로 준 도구는 보호된 증거 폴더라며 거부된다",
+      "contains": "is inside a protected evidence directory",
+      "ok": true
+    },
+    {
+      "file_missing": "${OUTSIDE}/cases/WKS-0412/evidence/strings.txt",
+      "note_ko": "출력 인자로 준 경로에는 파일이 생기지 않는다",
+      "ok": true
+    }
+  ],
+  "image": "sha256:c8e35c7f6d66263131fac2ef99cb749839dce28d746c8d48aaaf961a55805497",
+  "ran_at": "2026-11-28T07:40:04+00:00"
+}

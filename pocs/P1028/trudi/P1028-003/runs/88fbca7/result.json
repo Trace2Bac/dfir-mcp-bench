@@ -1,0 +1,46 @@
+{
+  "case_id": "P1028-003",
+  "problem": "P1028",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "첫 호출은 증거 종류를 모르는 채로 메모리 도구 vol.pslist를 작업 지시에 남긴다",
+      "regex": "\"directives\": \\{\"priority_tools\": \\[\"ez.lecmd\", \"ez.pecmd\", \"vol.pslist\"\\].*\"evidence_kinds\": \\[\\]\\}$",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "같은 호출을 다시 하면 트리아지 증거를 알고 vol.pslist를 뺀다",
+      "regex": "\"directives\": \\{\"priority_tools\": \\[\"ez.lecmd\", \"ez.pecmd\"\\].*\"evidence_kinds\": \\[\"triage\"\\], \"server_filtered_tools\": \\[\\{\"tool\": \"vol.pslist\", \"needs\": \\[\"memory\"\\]\\}\\]",
+      "ok": true
+    },
+    {
+      "file_regex": "${OUTSIDE}/case01/analysis/CASE-001_trace.json",
+      "note_ko": "첫 호출의 모델 입력은 단계를 Triage로 적고 증거 종류를 모른다",
+      "pattern": "\"tool_results_summary\": \"First call after the restart\\.\",\\s*\"phase_stack\": \\[\\],\\s*\"case_context\": \"CASE-001; host WKSTN-07\",\\s*\"current_phase\": \"Triage\",\\s*\"tool_manifest_version\": \"[^\"]*\",\\s*\"evidence_kinds\": \\[\\],\\s*\"evidence_determined\": false",
+      "ok": true
+    },
+    {
+      "file_regex": "${OUTSIDE}/case01/analysis/CASE-001_trace.json",
+      "note_ko": "첫 호출의 모델 입력에는 EVIDENCE AVAILABLE과 WORK ORDER STATUS 줄이 없다",
+      "pattern": "\"user_message\": \"TOOL RESULTS SUMMARY:\\\\nFirst call after the restart\\.(?:(?!WORK ORDER STATUS|EVIDENCE AVAILABLE)(?:[^\"\\\\]|\\\\.))*\"",
+      "ok": true
+    },
+    {
+      "file_regex": "${OUTSIDE}/case01/analysis/CASE-001_trace.json",
+      "note_ko": "두 번째 호출의 모델 입력은 Collect 단계와 미실행 작업 지시를 담는다",
+      "pattern": "\"user_message\": \"TOOL RESULTS SUMMARY:\\\\nSecond call\\.(?:[^\"\\\\]|\\\\.)*CURRENT PHASE: Collect(?:[^\"\\\\]|\\\\.)*EVIDENCE AVAILABLE: triage(?:[^\"\\\\]|\\\\.)*WORK ORDER STATUS \\(Collect\\): prescribed but not yet run or dispositioned: ez.lecmd, ez.pecmd",
+      "ok": true
+    }
+  ],
+  "image": "sha256:40d62303fd450d207fab9f8fd076071b1d66fc9332ae48c2fa401a2891007fd8",
+  "ran_at": "2026-11-28T07:47:53+00:00"
+}

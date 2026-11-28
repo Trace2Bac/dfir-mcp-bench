@@ -1,0 +1,64 @@
+# Matrix case P3194-006: the server instructions say the audit trail is the
+# record of what ran, but assess_coverage (_audited_tool_calls) skips every
+# line that does not parse as JSON without saying so. With an audit.json whose
+# last line was cut short (same fixture as P3194-002), the first entry of
+# the restarted server is glued to that line, so the auth_summary that just
+# ran is not counted and the auth log is reported as never examined.
+# The fixture is ${DB_DIR}/audit.json as such a run leaves it: one whole
+# entry in server._audit's format, then the start of a hash_file entry with
+# no newline. The server is started with FINDEVIL_LOGS_DIR=${DB_DIR}.
+case_id: P3194-006
+problem: P3194
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "기록 파일은 한 줄씩 덧붙이기만 하므로, 디스크가 가득 차 마지막 줄이 일부만 쓰인 채 서버를 다시 띄우는 일이 있을 수 있다."
+coverage: full
+summary: With an audit.json whose last line was cut off mid-write, auth_summary runs normally on auth.log, but assess_coverage then counts 1 recorded execution, marks the auth log "❌ NOT examined" and asks for auth_summary again, without saying that a record line could not be read.
+summary_ko: "마지막 줄이 쓰다 끊긴 `audit.json`에서 `auth_summary`는 `auth.log`를 정상으로 분석하지만, 그 뒤 `assess_coverage`는 기록된 호출을 1건으로 세고 인증 로그를 `❌ NOT examined`로 표시하며 `auth_summary`를 다시 돌리라고 한다. 기록 줄을 읽지 못했다는 말은 없다."
+defect_ko: "이 서버의 `assess_coverage`는 JSON으로 읽히지 않는 기록 줄을 말없이 건너뛰어, 실제로 실행된 호출을 검사 여부 판정에서 뺀다. 읽지 못한 기록 줄이 있다고 알리고 판정이 불완전하다고 표시해야 한다. 모델은 이미 분석한 인증 로그를 아직 검사하지 않았다고 잘못 안다."
+setup_ko: "`audit.json`에 온전한 `list_evidence` 기록 한 줄과, 쓰다 끊겨 줄바꿈이 없는 `hash_file` 기록 앞부분을 미리 넣었다. 증거에는 공격 흔적이 든 `var/log/auth.log`를 두었다."
+fixture:
+  - path: audit.json
+    root: db
+    fill: true
+    text: |-
+      {"timestamp": "2026-11-27T23:58:30.114208+00:00", "tool": "list_evidence", "params": {"subdir": ""}, "result_summary": "9 lines"}
+      {"timestamp": "2026-11-27T23:58:41.902114+00:00", "tool": "hash_file", "params": {"path": "${EVIDENCE}/var/log/auth.log"}, "result_summary": "## MD5\n9b1c
+  - path: var/log/auth.log
+    text: |
+      Mar  3 02:11:04 web01 sshd[2211]: Failed password for root from 203.0.113.7 port 51022 ssh2
+      Mar  3 02:11:07 web01 sshd[2211]: Failed password for root from 203.0.113.7 port 51022 ssh2
+      Mar  3 02:11:10 web01 sshd[2214]: Invalid user admin from 203.0.113.7 port 51040
+      Mar  3 02:11:12 web01 sshd[2214]: Failed password for invalid user admin from 203.0.113.7 port 51040 ssh2
+      Mar  3 02:12:30 web01 sshd[2230]: Accepted password for root from 203.0.113.7 port 51102 ssh2
+steps:
+  - tool: auth_summary
+    note_ko: "다시 띄운 서버에서 인증 로그를 분석한다"
+    args:
+      path: ${EVIDENCE}/var/log/auth.log
+  - tool: assess_coverage
+    note_ko: "결함 호출: 조사 범위 점검"
+    args: {}
+expect:
+  - step: 1
+    note_ko: "인증 로그 분석은 정상으로 끝난다"
+    contains: "# Auth Log Summary — `auth.log`"
+  - step: 2
+    note_ko: "기록된 호출을 앞 실행의 1건으로만 센다"
+    contains: "- **Tool executions recorded:** 1"
+  - step: 2
+    note_ko: "방금 분석한 인증 로그를 검사하지 않았다고 표시한다"
+    contains: "| auth log (SSH / sudo / useradd) | `var/log/auth.log` | ❌ NOT examined |"
+  - step: 2
+    note_ko: "같은 분석을 다시 하라고 안내한다"
+    contains: "→ run auth_summary"
+  - step: 2
+    note_ko: "읽지 못한 기록 줄이 있다는 말이 없다"
+    not_regex: "(?i)skip|malformed|corrupt|could not parse|unparse|invalid"
+  - file_regex: ${DB_DIR}/audit.json
+    note_ko: "`auth_summary` 기록은 파일에 있지만 끊긴 줄 뒤에 붙어 있다"
+    pattern: '9b1c\{"timestamp": "[^"]+", "tool": "auth_summary"'

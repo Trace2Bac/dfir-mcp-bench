@@ -1,0 +1,40 @@
+{
+  "case_id": "P1177-005",
+  "problem": "P1177",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: DAIR, hypothesis and reviewer answers come from the Anthropic stub; the reviewer's verdict does not depend on the tier_contract it is shown",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 6,
+      "note_ko": "검토 모델은 SUPPORTED를 냈다",
+      "contains": "\"verdict\": \"SUPPORTED\"",
+      "ok": true
+    },
+    {
+      "step": 6,
+      "note_ko": "검토 응답의 tier_contract는 SUSPECTED까지만 된다고 한다",
+      "regex": "\"tier_contract\": \\{\"tier_achievable\": \"SUSPECTED\", \"rule\": \"egress/ftp\"",
+      "ok": true
+    },
+    {
+      "step": 6,
+      "note_ko": "검토 응답은 다음 등급에 transfer 종류가 빠졌다고 안내한다",
+      "regex": "\"tier_path\": \"LIKELY for act=egress/ftp needs[^\"]*transfer",
+      "ok": true
+    },
+    {
+      "step": 7,
+      "note_ko": "같은 주장을 LIKELY로 기록하면 받아들이고, 실제 판정은 transfer 종류를 세어 CONFIRMED까지 된다고 한다",
+      "contains": "\"confidence\": \"LIKELY\", \"_trudi_call_id\": 11, \"finding_id\": \"F-11\", \"revision\": 1, \"tier_achievable\": \"CONFIRMED\", \"artifact_classes\": {\"file_content\": [7, 8], \"receipt\": [8], \"transfer\": [8]}",
+      "ok": true
+    }
+  ],
+  "image": "sha256:fc38f460e7878e257c663bd5eb5a7dce116bf1dea58db26c151abb4e6918cc06",
+  "ran_at": "2026-11-28T07:50:24+00:00"
+}

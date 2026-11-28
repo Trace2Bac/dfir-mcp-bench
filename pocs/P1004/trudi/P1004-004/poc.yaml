@@ -1,0 +1,66 @@
+# Matrix case P1004-004: the read and write guards of trudi decide what is
+# protected by path names (/cases/, /mnt/, /media/, an `evidence` segment, an
+# analysis/exports/reports segment), not by the case the trace is open for.
+# With the trace open for CASE-A, read_output returns the produced output of
+# another case folder (CASE-B) next to it, and the read is recorded in
+# CASE-A's trace as one of its own citable calls.
+# The two case folders sit side by side under ${OUTSIDE}/cases, as install.sh
+# lays out ~/cases/<case>/analysis. CASE-B's file is an EvtxECmd CSV (the
+# column header EvtxECmd 1.5 writes).
+case_id: P1004-004
+problem: P1004
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: response
+level: mcp
+realism: possible
+realism_ko: "`path`는 모델이 주는 인자다. `~/cases` 아래에 사건 여러 개를 두고 한 서버로 번갈아 조사하면, 모델이 앞 사건의 경로를 다시 쓰거나 증거 속 문구에 적힌 다른 사건 경로를 따라 이 호출이 들어온다."
+coverage: full
+summary: With the trace open for CASE-A, read_output(path=<CASE-B>/analysis/...) returns success with CASE-B's event rows and gives the read a citable call id in CASE-A's trace, because the guard checks only for an analysis/exports/reports segment and not for the open case folder.
+summary_ko: "사건 A의 기록을 연 상태에서 `read_output`에 사건 B 폴더의 `analysis/` 파일을 주면 `success` true와 B의 이벤트 행을 돌려주고, 이 읽기를 A trace의 인용 가능한 호출로 남긴다. 검사가 경로에 `analysis` 조각이 있는지만 보고 지금 연 사건 폴더와 대조하지 않기 때문이다."
+defect_ko: "이 서버는 읽기 허용 범위를 `analysis`, `exports`, `reports` 같은 이름 조각으로만 정해, 지금 기록 중인 사건이 아닌 다른 사건 폴더의 산출물도 읽어 준다. 지금 연 사건 폴더 밖의 경로는 거부하거나 적어도 다른 사건의 자료라고 알려야 한다. 모델은 다른 사건의 이벤트 행을 이 사건의 근거로 알고 발견사항에 인용한다."
+setup_ko: "`cases/CASE-A`와 `cases/CASE-B` 두 사건 폴더를 나란히 두고, B의 `analysis/` 아래에 EvtxECmd CSV 한 개를 둔다. A로 `start_execution_log`를 연 뒤 B의 CSV를 읽는다."
+fixture:
+- path: cases/CASE-A/analysis
+  root: outside
+  dir: true
+- path: cases/CASE-A/evidence
+  root: outside
+  dir: true
+- path: cases/CASE-B/analysis/evtxecmd/20261120_EvtxECmd_Output.csv
+  root: outside
+  text: "RecordNumber,EventRecordId,TimeCreated,EventId,Level,Provider,Channel,ProcessId,ThreadId,Computer,ChunkNumber,UserId,MapDescription,UserName,RemoteHost,PayloadData1,PayloadData2,PayloadData3,PayloadData4,PayloadData5,PayloadData6,ExecutableInfo,HiddenRecord,SourceFile,Keywords,ExtraDataOffset,Payload\r\n8812,8812,2026-11-19 22:41:07.1234567,4624,LogAlways,Microsoft-Windows-Security-Auditing,Security,764,8120,FIN-SRV02.corpb.local,3,,Successful logon,CORPB\\svc_backup,WKS-B17 (10.20.4.17),Target: CORPB\\svc_backup,LogonType 3,NtLmSsp,,,,,False,D:\\caseB\\Security.evtx,Audit success,0,\r\n"
+steps:
+- tool: misc_start_execution_log
+  note_ko: "준비: 사건 A의 기록을 연다"
+  args:
+    case_id: CASE-A
+    output_path: ${OUTSIDE}/cases/CASE-A/analysis/CASE-A_trace.json
+    case_dir: ${OUTSIDE}/cases/CASE-A
+    launch_dashboard: false
+- tool: read_output
+  note_ko: "결함 호출: 사건 B 폴더의 산출물을 읽는다"
+  args:
+    path: ${OUTSIDE}/cases/CASE-B/analysis/evtxecmd/20261120_EvtxECmd_Output.csv
+    query: 4624 svc_backup
+- tool: read_output
+  note_ko: "비교 호출: 같은 사건 A의 증거 폴더 경로는 이름 규칙으로 거부된다"
+  args:
+    path: ${OUTSIDE}/cases/CASE-A/evidence/notes.csv
+expect:
+- step: 1
+  note_ko: 지금 열린 기록은 사건 A다
+  regex: '"success": true, "case_id": "CASE-A", "log_path": "[^"]*/cases/CASE-A/analysis/CASE-A_trace.json"'
+- step: 2
+  note_ko: 사건 B의 파일을 성공으로 읽고 인용할 호출 번호를 준다
+  regex: '"success": true, "_trudi_call_id": \d+, "path": "[^"]*/cases/CASE-B/analysis/evtxecmd/20261120_EvtxECmd_Output.csv"'
+- step: 2
+  note_ko: 응답 본문에 사건 B 호스트의 로그온 행이 나온다
+  contains: FIN-SRV02.corpb.local
+- step: 3
+  note_ko: 보호는 경로 이름 조각(evidence)으로만 정해진다
+  contains: is under a protected evidence/mounted location
+- file_regex: ${OUTSIDE}/cases/CASE-A/analysis/CASE-A_trace.json
+  note_ko: 사건 B 파일 읽기가 사건 A의 trace에 성공한 호출로 남는다
+  pattern: 'read\.output --output [^"]*/cases/CASE-B/analysis/evtxecmd/20261120_EvtxECmd_Output\.csv'

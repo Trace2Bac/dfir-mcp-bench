@@ -1,0 +1,52 @@
+{
+  "case_id": "P3005-011",
+  "problem": "P3005",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "source-vs-result",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: network_to_process only; process_to_file reads the trace the same way",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "trace의 기록 여섯 개를 이어 연다",
+      "regex": "\"entries_recovered\":\\s*6\\b",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "base-rd01 이미지의 netstat(call 56) 연결이 들어 있다",
+      "regex": "\"netscan_call_id\":\\s*56\\b",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "base-rd-04 이미지의 netstat(call 624) 연결도 같은 목록에 들어 있다",
+      "regex": "\"netscan_call_id\":\\s*624\\b",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "결과 어디에도 출처 메모리 이미지가 없다",
+      "not_regex": "memory\\.img|base-rd|wkstn",
+      "ok": true
+    },
+    {
+      "file_regex": "${OUTSIDE}/srl-2018-enterprise/analysis/SRL-2018-ENTERPRISE_trace.json",
+      "pattern": "\"call_id\": 56,[^}]*base-rd01-memory\\.img -r json windows\\.netstat",
+      "note_ko": "trace에서 call 56은 base-rd01 이미지의 netstat다",
+      "ok": true
+    },
+    {
+      "file_regex": "${OUTSIDE}/srl-2018-enterprise/analysis/SRL-2018-ENTERPRISE_trace.json",
+      "pattern": "\"call_id\": 624,[^}]*base-rd-04-memory\\.img -r json windows\\.netstat",
+      "note_ko": "trace에서 call 624는 base-rd-04 이미지의 netstat다",
+      "ok": true
+    }
+  ],
+  "image": "sha256:7e93839fd2c3e7e64d10576f3e77dab20b35a4f5ae0be0697f9152c3b580c6b6",
+  "ran_at": "2026-11-28T07:40:52+00:00"
+}

@@ -1,0 +1,46 @@
+{
+  "case_id": "P1004-004",
+  "problem": "P1004",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "response",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "지금 열린 기록은 사건 A다",
+      "regex": "\"success\": true, \"case_id\": \"CASE-A\", \"log_path\": \"[^\"]*/cases/CASE-A/analysis/CASE-A_trace.json\"",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "사건 B의 파일을 성공으로 읽고 인용할 호출 번호를 준다",
+      "regex": "\"success\": true, \"_trudi_call_id\": \\d+, \"path\": \"[^\"]*/cases/CASE-B/analysis/evtxecmd/20261120_EvtxECmd_Output.csv\"",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "응답 본문에 사건 B 호스트의 로그온 행이 나온다",
+      "contains": "FIN-SRV02.corpb.local",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "보호는 경로 이름 조각(evidence)으로만 정해진다",
+      "contains": "is under a protected evidence/mounted location",
+      "ok": true
+    },
+    {
+      "file_regex": "${OUTSIDE}/cases/CASE-A/analysis/CASE-A_trace.json",
+      "note_ko": "사건 B 파일 읽기가 사건 A의 trace에 성공한 호출로 남는다",
+      "pattern": "read\\.output --output [^\"]*/cases/CASE-B/analysis/evtxecmd/20261120_EvtxECmd_Output\\.csv",
+      "ok": true
+    }
+  ],
+  "image": "sha256:6ee2876312e46a61746c49ebe46fc4c91deac158f4c5fa586e721cca336a21a5",
+  "ran_at": "2026-11-28T07:28:15+00:00"
+}

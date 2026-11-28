@@ -1,0 +1,38 @@
+{
+  "case_id": "P1034-007",
+  "problem": "P1034",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "side-effect",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "`Evidence/` 안으로 출력하는 호출이 성공한다",
+      "regex": "\"success\": true, \"ascii_lines\": [1-9]\\d*, .*\"output_path\": \"[^\"]*/cases/WKS-0412/Evidence/out.txt\"",
+      "ok": true
+    },
+    {
+      "file_exists": "${OUTSIDE}/cases/WKS-0412/Evidence/out.txt",
+      "note_ko": "증거 폴더 `Evidence/` 안에 출력 파일이 생긴다",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "소문자 `evidence/`로 주면 보호된 증거 폴더라며 거부한다",
+      "contains": "is inside a protected evidence directory",
+      "ok": true
+    },
+    {
+      "file_missing": "${OUTSIDE}/cases/WKS-0419/evidence/out.txt",
+      "note_ko": "소문자 `evidence/` 폴더에는 파일이 생기지 않는다",
+      "ok": true
+    }
+  ],
+  "image": "sha256:f024ccf742a8d64e1a8b8c97e64537789b7aa07c87af09aad207d28b5caf387e",
+  "ran_at": "2026-11-28T07:35:11+00:00"
+}

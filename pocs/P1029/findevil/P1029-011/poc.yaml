@@ -1,0 +1,86 @@
+# Matrix case P1029-011: _match_artifact never opens a file; any name that
+# contains "journal" is a "systemd journal export". The journald
+# configuration file and a Chrome SQLite rollback journal are listed as
+# journal exports and the gap tells the agent to run analyze_journal on them.
+# - fs/etc/systemd/journald.conf: the commented default file systemd ships.
+# - fs/home/alice/.config/google-chrome/Default/History-journal: the 0-byte
+#   rollback journal Chromium leaves next to its History database (journal
+#   mode TRUNCATE).
+# The fs/etc folder also makes fs a filesystem root; that row is not checked.
+case_id: P1029-011
+problem: P1029
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: response
+level: mcp
+realism: common
+realism_ko: "`journald.conf`는 systemd를 쓰는 리눅스 루트에, `History-journal`은 Chrome 프로필에 늘 있는 파일이다."
+coverage: full
+summary: With the default journald.conf and Chrome's History-journal in a filesystem root and no journal export at all, assess_coverage lists both files in the "systemd journal export" row and tells the agent to run analyze_journal on them.
+summary_ko: "journal export가 하나도 없는 파일 시스템 루트에 기본 `journald.conf`와 Chrome의 `History-journal`만 있는데, `assess_coverage`는 두 파일을 `systemd journal export` 행에 올리고 `analyze_journal`을 돌리라고 안내한다."
+defect_ko: "이 서버의 `assess_coverage`는 파일을 열지 않고 이름에 `journal`이 있으면 journal export로 정한다. 파일 내용으로 종류를 가리거나, 이름만으로 정했다고 알려야 한다. 모델은 설정 파일과 브라우저 DB 보조 파일을 시스템 journal로 잘못 알고 분석 순서를 정한다."
+setup_ko: "파일 시스템 루트 `fs/`에 systemd 기본 `journald.conf`와 Chrome 프로필의 빈 `History-journal`을 두었다. journal export 파일은 두지 않았다."
+fixture:
+  - path: fs/etc/systemd/journald.conf
+    text: |
+      #  This file is part of systemd.
+      #
+      #  systemd is free software; you can redistribute it and/or modify it under the
+      #  terms of the GNU Lesser General Public License as published by the Free
+      #  Software Foundation; either version 2.1 of the License, or (at your option)
+      #  any later version.
+      #
+      # Entries in this file show the compile time defaults. Local configuration
+      # should be created by either modifying this file, or by creating "drop-ins" in
+      # the journald.conf.d/ subdirectory. The latter is generally recommended.
+      # Defaults can be restored by simply deleting this file and all drop-ins.
+      #
+      # Use 'systemd-analyze cat-config systemd/journald.conf' to display the full config.
+      #
+      # See journald.conf(5) for details.
+
+      [Journal]
+      #Storage=auto
+      #Compress=yes
+      #Seal=yes
+      #SplitMode=uid
+      #SyncIntervalSec=5m
+      #RateLimitIntervalSec=30s
+      #RateLimitBurst=10000
+      #SystemMaxUse=
+      #SystemKeepFree=
+      #SystemMaxFileSize=
+      #SystemMaxFiles=100
+      #RuntimeMaxUse=
+      #RuntimeKeepFree=
+      #RuntimeMaxFileSize=
+      #RuntimeMaxFiles=100
+      #MaxRetentionSec=
+      #MaxFileSec=1month
+      #ForwardToSyslog=yes
+      #ForwardToKMsg=no
+      #ForwardToConsole=no
+      #ForwardToWall=yes
+      #TTYPath=/dev/console
+      #MaxLevelStore=debug
+      #MaxLevelSyslog=debug
+      #MaxLevelKMsg=notice
+      #MaxLevelConsole=info
+      #MaxLevelWall=emerg
+      #LineMax=48K
+      #ReadKMsg=yes
+      #Audit=no
+  - path: fs/home/alice/.config/google-chrome/Default/History-journal
+    text: ""
+steps:
+  - tool: assess_coverage
+    note_ko: "결함 호출: 조사 범위 점검"
+    args: {}
+expect:
+  - step: 1
+    note_ko: "설정 파일과 브라우저 DB 보조 파일을 journal export 행에 올린다"
+    contains: "| systemd journal export | `fs/etc/systemd/journald.conf`, `fs/home/alice/.config/google-chrome/Default/History-journal` | ❌ NOT examined |"
+  - step: 1
+    note_ko: "그 두 파일에 `analyze_journal`을 돌리라고 안내한다"
+    contains: "**systemd journal export** present (`fs/etc/systemd/journald.conf`, `fs/home/alice/.config/google-chrome/Default/History-journal`) but never examined → run analyze_journal on the journal export"

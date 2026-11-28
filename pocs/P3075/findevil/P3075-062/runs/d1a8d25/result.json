@@ -1,0 +1,46 @@
+{
+  "case_id": "P3075-062",
+  "problem": "P3075",
+  "server": "findevil",
+  "commit": "d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: fallback_year is shown; fs_subpath, which is left out the same way, is not",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "첫 타임라인의 로그인은 2025년이다",
+      "contains": "2025-03-03T02:14:07+00:00",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "둘째 타임라인의 같은 로그인은 2026년이다",
+      "contains": "2026-03-03T02:14:07+00:00",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "기록에 두 호출이 모두 있다",
+      "contains": "(2 matching entries",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "두 항목의 params와 결과가 똑같다",
+      "regex": "(?s)params: \\{\"evidence_root\": \"[^\"]*/case01\", \"since\": \"\", \"until\": \"\"\\}\\n  result: 2 events from 1 sources\\n.*params: \\{\"evidence_root\": \"[^\"]*/case01\", \"since\": \"\", \"until\": \"\"\\}\\n  result: 2 events from 1 sources",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${DB_DIR}/audit.json",
+      "note_ko": "기록 파일 어디에도 `fallback_year`가 없다",
+      "text": "fallback_year",
+      "ok": true
+    }
+  ],
+  "image": "sha256:1c9107e0b6850b1820a7d36e5fad5acdfa53b841d35794b4632f43cabe41e577",
+  "ran_at": "2026-11-28T07:33:07+00:00"
+}

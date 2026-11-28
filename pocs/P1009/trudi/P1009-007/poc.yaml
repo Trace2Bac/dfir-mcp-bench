@@ -1,0 +1,136 @@
+# Matrix case P1009-007: a tool that runs as a background job records its
+# completion into whatever trace the global log points at when it finishes
+# (core/executor.py _log_tool -> core.execution_log.log), not into the
+# trace of the case it was started for. tsk_recover is always a job
+# (core/jobs.py BACKGROUND_ALWAYS); the job hint tells the model to continue
+# with other work, and misc_start_execution_log may be called at any time.
+# Here a tsk_recover of CASE-A's USB image is started, CASE-B is opened, and
+# CASE-B's memory image is hashed while the job runs: the tsk_recover entry
+# (with CASE-A's image and output folder) lands in CASE-B's trace.
+# The USB image is a real FAT12 volume (boot sector, two FATs, root
+# directory with PAYMENT.TXT, data) written as the first sectors of a
+# 160 KiB image. tsk_recover itself is the real one (The Sleuth Kit); trudi
+# runs it as "sudo tsk_recover ..." (SIFT has passwordless sudo) and the
+# image has no sudo, so ${STUBS}/sudo runs the command after one second, a
+# stand-in for the minutes a real disk image takes (this 160 KiB one would
+# otherwise finish before the next request is read).
+case_id: P1009-007
+problem: P1009
+server: trudi
+variant: trudi-88fbca7-fastmcp3
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: side-effect
+level: mcp
+realism: possible
+realism_ko: "job 응답의 `hint`가 기다리지 말고 다른 일을 하라고 안내하고 `start_execution_log` 설명도 언제 불러도 된다고 하므로, 한 서버에서 앞 사건의 복구 작업을 띄워 둔 채 다음 사건을 여는 흐름은 특별한 상태 없이 생긴다."
+coverage: "partial: job_status is not polled (its job_id is random and a step cannot reuse it); the completion entry is written when the job ends, without a poll"
+coverage_ko: "job_id가 무작위라 다음 단계에서 쓸 수 없어 `job_status`는 부르지 않는다. 완료 기록은 폴링 없이 작업이 끝날 때 쓰인다."
+summary: tsk_recover started as a background job for CASE-A finishes after misc_start_execution_log has opened CASE-B, and its completion entry, with CASE-A's image and output folder, is written to CASE-B's trace while CASE-A's trace has none, because the job records into the global log at completion instead of the case it was started for.
+summary_ko: "사건 A에서 백그라운드 작업으로 띄운 `tsk_recover`가 `misc_start_execution_log`로 사건 B를 연 뒤에 끝나면, 사건 A의 이미지와 출력 폴더가 든 완료 기록이 사건 B의 trace에 쓰이고 사건 A의 trace에는 남지 않는다. 작업이 시작한 사건의 기록이 아니라 끝날 때의 전역 기록에 쓰기 때문이다."
+defect_ko: "이 서버는 백그라운드 작업의 완료 기록을 작업이 끝나는 시점의 전역 기록 객체에 쓰고, 시작할 때의 사건 기록을 작업에 고정하지 않는다. 작업은 자신을 띄운 사건의 trace에 완료를 기록해야 한다. 모델과 보고서는 사건 A의 복구 결과를 사건 B에서 실행한 도구로 알고, 사건 A의 trace에는 복구를 실행한 근거가 없다."
+setup_ko: "`cases/CASE-A`의 `evidence/`에 FAT12 USB 이미지를, `cases/CASE-B`의 `evidence/`에 512 MiB 메모리 이미지를 둔다. A의 기록을 열고 `tsk_recover` 작업을 띄운 뒤, 곧바로 B의 기록을 열고 B의 메모리 이미지를 해시한다."
+env:
+  PATH: ${STUBS}:${PATH}
+stubs:
+- name: sudo
+  text: |
+    #!/bin/sh
+    # Stand-in for passwordless sudo on SIFT: run the command as is, after
+    # one second (a real disk image takes minutes to recover).
+    sleep 1
+    exec "$@"
+fixture:
+- path: cases/CASE-A/analysis
+  root: outside
+  dir: true
+- path: cases/CASE-B/analysis
+  root: outside
+  dir: true
+# FAT12, 512-byte sectors, 320 sectors: boot sector (OEM MSDOS5.0, label
+# USBSTICK), FAT x2 (cluster 2 = end of chain), root directory entry
+# PAYMENT.TXT (cluster 2, 82 bytes, 2026-11-18 14:22), then its data.
+- path: cases/CASE-A/evidence/usb.dd
+  root: outside
+  size: 163840
+  hex: >-
+    eb3c904d53444f53352e3000020101000210004001f80100200002000000000000000000800029071e3c5a555342535449434b20202046415431322020200000
+    00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000055aa
+    f8ffffff0f0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    f8ffffff0f0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    5041594d454e5420545854200000c572725d725d0000c572725d0200560000000000000000000000000000000000000000000000000000000000000000000000
+    00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    576972652034382c3530302055534420746f204942414e20444534342035303031203035313720353430372033323439203331206265666f7265204672696461
+    792e0d0a417070726f7665643a20522e204b696d0d0a
+# A raw physical memory dump (winpmem raw output has no header).
+- path: cases/CASE-B/evidence/FIN-SRV02.raw
+  root: outside
+  size: 536870912
+steps:
+- tool: misc_start_execution_log
+  note_ko: "준비: 사건 A의 기록을 연다"
+  args:
+    case_id: CASE-A
+    output_path: ${OUTSIDE}/cases/CASE-A/analysis/CASE-A_trace.json
+    case_dir: ${OUTSIDE}/cases/CASE-A
+    launch_dashboard: false
+- tool: tsk_recover
+  note_ko: "사건 A의 USB 이미지에서 파일을 복구하는 작업을 띄운다(백그라운드 작업)"
+  args:
+    image: ${OUTSIDE}/cases/CASE-A/evidence/usb.dd
+    output_dir: ${OUTSIDE}/cases/CASE-A/analysis/recovered
+- tool: misc_start_execution_log
+  note_ko: "결함 조건: 작업이 도는 동안 사건 B의 기록을 연다"
+  args:
+    case_id: CASE-B
+    output_path: ${OUTSIDE}/cases/CASE-B/analysis/CASE-B_trace.json
+    case_dir: ${OUTSIDE}/cases/CASE-B
+    launch_dashboard: false
+- tool: hash_file
+  note_ko: "사건 B의 메모리 이미지를 해시한다(그사이 사건 A의 작업이 끝난다)"
+  args:
+    file_path: ${OUTSIDE}/cases/CASE-B/evidence/FIN-SRV02.raw
+  timeout_s: 300
+expect:
+- step: 2
+  note_ko: tsk_recover는 백그라운드 작업 번호를 돌려준다
+  regex: '"success": true, "status": "(running|queued)", "job_id": "tsk_recover-[0-9a-f]+", "tool": "tsk_recover"'
+- step: 3
+  note_ko: 사건 B의 새 기록이 열린다
+  regex: '"success": true, "case_id": "CASE-B", "log_path": "[^"]*CASE-B_trace.json", "entries_recovered": 0'
+- step: 4
+  note_ko: 사건 B의 메모리 이미지 해시가 끝난다
+  regex: '"success": true.*FIN-SRV02.raw'
+- file_exists: ${OUTSIDE}/cases/CASE-A/analysis/recovered/PAYMENT.TXT
+  note_ko: 복구 작업은 실제로 끝나 사건 A 폴더에 파일을 복구했다
+- file_regex: ${OUTSIDE}/cases/CASE-B/analysis/CASE-B_trace.json
+  note_ko: 사건 A 이미지의 tsk_recover 완료 기록이 사건 B의 trace에 있다
+  pattern: '"cmd": "sudo tsk_recover -a [^"]*/cases/CASE-A/evidence/usb\.dd [^"]*/cases/CASE-A/analysis/recovered"'
+- file_not_contains: ${OUTSIDE}/cases/CASE-A/analysis/CASE-A_trace.json
+  note_ko: 사건 A의 trace에는 tsk_recover 실행 기록이 없다
+  text: '"cmd": "sudo tsk_recover'

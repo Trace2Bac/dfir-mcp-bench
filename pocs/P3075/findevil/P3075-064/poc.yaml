@@ -1,0 +1,64 @@
+# Matrix case P3075-064: each findevil tool picks by hand which arguments go
+# into its audit entry, and find_timestamp_anomalies records only root_path.
+# limit, which caps how many files each category lists, is not recorded, so a
+# cut report and a full report read back from get_audit_trail with the same
+# params and the same result.
+# The fixture's future mtimes also make mtime newer than ctime (ctime is the
+# time the fixture is written), so each file falls in both categories.
+# The server is started with FINDEVIL_LOGS_DIR=${DB_DIR}, so the call record
+# is ${DB_DIR}/audit.json.
+case_id: P3075-064
+problem: P3075
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "목록이 잘리면 `limit`을 바꿔 다시 부르는 일은 흔하고, 시각 조작으로 mtime을 미래로 옮긴 파일은 흔한 안티포렌식 흔적이다."
+coverage: full
+summary: 'find_timestamp_anomalies on the same tree with limit 1 and 100 lists one of three future-dated files and then all three, but get_audit_trail shows both entries with the same params (root_path only) and the same counts.'
+summary_ko: "같은 폴더에 `find_timestamp_anomalies`를 `limit` 1과 100으로 부르면 미래 시각 파일 3개 가운데 1개와 3개 전부가 나온다. 그런데 `get_audit_trail`은 두 항목의 params(`root_path`뿐)와 건수를 똑같이 보여 준다."
+defect_ko: "이 서버는 `find_timestamp_anomalies`의 기록에 응답 목록의 길이를 정하는 `limit`을 넣지 않는다. 결과를 정하는 인자는 모두 기록해야 한다. 모델은 기록을 보고 같은 검사를 두 번 했다고 잘못 알고, 어느 응답이 파일 목록을 잘랐는지 되짚지 못한다."
+setup_ko: "mtime을 2031년으로 옮긴 파일 3개를 두었다."
+fixture:
+  - path: case01/fs/usr/sbin/sshd.bak
+    hex: 7f454c4602010100000000000000000003003e00
+    mtime: "2031-01-01T00:00:00+00:00"
+  - path: case01/fs/usr/lib/libhide.so
+    hex: 7f454c4602010100000000000000000003003e00
+    mtime: "2031-01-01T00:05:00+00:00"
+  - path: case01/fs/etc/ld.so.preload
+    text: "/usr/lib/libhide.so\n"
+    mtime: "2031-01-01T00:10:00+00:00"
+steps:
+  - tool: find_timestamp_anomalies
+    note_ko: "`limit` 1로 부른다"
+    args:
+      root_path: ${EVIDENCE}/case01/fs
+      limit: 1
+  - tool: find_timestamp_anomalies
+    note_ko: "결함 호출: `limit`만 바꿔 다시 부른다"
+    args:
+      root_path: ${EVIDENCE}/case01/fs
+      limit: 100
+  - tool: get_audit_trail
+    note_ko: "두 호출의 기록을 다시 읽는다"
+    args:
+      filter_tool: find_timestamp_anomalies
+expect:
+  - step: 1
+    note_ko: "첫 응답의 미래 시각 목록은 1개뿐이다"
+    regex: '## Files with future mtime\n- `[^`\n]+` — mtime=[^\n]+\s*\Z'
+  - step: 2
+    note_ko: "둘째 응답의 미래 시각 목록은 3개다"
+    regex: '## Files with future mtime\n(- `[^`\n]+` — mtime=[^\n]+\n){2}- `[^`\n]+` — mtime=[^\n]+\s*\Z'
+  - step: 3
+    note_ko: "기록에 두 호출이 모두 있다"
+    contains: "(2 matching entries"
+  - step: 3
+    note_ko: "두 항목의 params와 결과가 똑같다"
+    regex: '(?s)params: \{"root_path": "[^"]*/case01/fs"\}\n  result: 3 mt>ct, 3 future, 0 batches\n.*params: \{"root_path": "[^"]*/case01/fs"\}\n  result: 3 mt>ct, 3 future, 0 batches'
+  - file_not_contains: ${DB_DIR}/audit.json
+    note_ko: "기록 파일 어디에도 `limit`이 없다"
+    text: "limit"

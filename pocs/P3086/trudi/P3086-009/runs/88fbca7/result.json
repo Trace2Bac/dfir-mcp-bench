@@ -1,0 +1,46 @@
+{
+  "case_id": "P3086-009",
+  "problem": "P3086",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: strings_extract over a stdout copy only; write_final_report and the other output-path tools pass the same check",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "첫 호출의 인용 번호는 4다",
+      "regex": "\"_trudi_call_id\":\\s*4\\b",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "trace의 stdout 사본을 가리키는 출력 경로를 받아 성공으로 답한다",
+      "regex": "\"success\":\\s*true[\\s\\S]*\"output_path\":\\s*\"[^\"]*/analysis/\\.tool_output/4\\.txt\"",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "call 4의 사본을 읽으면 PING.EXE의 문자열이 나온다",
+      "contains": "PING.EXE",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "SC.EXE의 문자열은 사본에서 사라졌다",
+      "not_contains": "SC.EXE",
+      "ok": true
+    },
+    {
+      "file_regex": "${DB_DIR}/analysis/trace.json",
+      "pattern": "\"call_id\": 4,[^}]*SC\\.EXE-945D79AE\\.pf[^}]*\"stdout_path\": \"[^\"]*/analysis/\\.tool_output/4\\.txt\"",
+      "note_ko": "trace의 call 4 항목은 여전히 SC.EXE에 돌린 명령과 그 사본 경로를 가리킨다",
+      "ok": true
+    }
+  ],
+  "image": "sha256:6edf0b5511dd2e52d518d959592a11e2bdd893be0be599d73c889b3c12f6c755",
+  "ran_at": "2026-11-28T07:32:28+00:00"
+}

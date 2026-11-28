@@ -1,0 +1,63 @@
+# Matrix case P3005-004: baseline_diff never compares the baseline's
+# _metadata.root_path with the root_path it is diffing. A baseline left at
+# the default LOGS_DIR/baseline.json by an earlier case is used for a new
+# case's root: the response prints the earlier case's root as "Baseline root"
+# next to the new root and reports LIKELY COMPROMISE and an etc/passwd change
+# with no warning that the two roots differ.
+# Comparing against another root on purpose (a golden image) is the design
+# and is not counted; the defect shown is the missing warning when the roots
+# differ.
+# The baseline is written by baseline_create itself, so it has the server's
+# own format.
+case_id: P3005-004
+problem: P3005
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "`output_file` 없이 만든 기준선은 늘 기본 경로 `LOGS_DIR/baseline.json`에 남으므로, 다음 사건에서 그 기본 경로를 기준선으로 넘기는 일이 있을 수 있다."
+coverage: full
+summary: After baseline_create on case A's root with the default output path, baseline_diff on case B's root against that file prints case A's root as "Baseline root" above case B's root and reports LIKELY COMPROMISE with etc/passwd modified, without warning that the baseline was taken from a different root.
+summary_ko: "사건 A 루트에 출력 경로 없이 `baseline_create`를 부른 뒤, 사건 B 루트를 그 파일과 `baseline_diff`로 비교하면 응답은 사건 A 루트를 `Baseline root`로, 사건 B 루트를 비교 대상으로 함께 찍으면서 루트가 다르다는 경고 없이 `LIKELY COMPROMISE`와 `etc/passwd` 변경을 낸다."
+defect_ko: "이 서버의 `baseline_diff`는 기준선의 `root_path`와 지금 비교하는 루트를 대조하지 않아, 루트가 달라도 경고 없이 변경과 침해 판정을 낸다. 두 루트가 다르면 다른 루트의 기준선이라고 알려야 한다. 모델은 다른 사건 기준선과의 차이를 이번 호스트의 변경으로 잘못 알고 침해로 판정한다."
+setup_ko: "사건 A와 사건 B의 파일 시스템 루트를 두었다. 두 사건의 `etc/passwd`는 사용자가 달라 내용이 다르다."
+fixture:
+  - path: caseA/fs/etc/passwd
+    text: |
+      root:x:0:0:root:/root:/bin/bash
+      daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+      alice:x:1000:1000:Alice,,,:/home/alice:/bin/bash
+  - path: caseB/fs/etc/passwd
+    text: |
+      root:x:0:0:root:/root:/bin/bash
+      daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+      bob:x:1000:1000:Bob,,,:/home/bob:/bin/bash
+      deploy:x:1001:1001::/home/deploy:/bin/bash
+steps:
+  - tool: baseline_create
+    note_ko: "사건 A에서 기본 경로에 기준선을 만든다"
+    args:
+      root_path: ${EVIDENCE}/caseA/fs
+  - tool: baseline_diff
+    note_ko: "결함 호출: 다음 사건 B의 루트를 기본 경로의 기준선과 비교한다"
+    args:
+      root_path: ${EVIDENCE}/caseB/fs
+      baseline_file: ${DB_DIR}/baseline.json
+expect:
+  - step: 2
+    note_ko: "비교 대상은 사건 B 루트다"
+    regex: "# FIM diff — `[^`]*/caseB/fs`"
+  - step: 2
+    note_ko: "기준선 루트는 사건 A 루트다"
+    regex: "- \\*\\*Baseline root:\\*\\* `[^`]*/caseA/fs`"
+  - step: 2
+    note_ko: "두 루트가 다른데 침해 판정을 낸다"
+    contains: "🚨 **LIKELY COMPROMISE**"
+  - step: 2
+    note_ko: "다른 호스트의 `etc/passwd`를 이번 호스트의 변경으로 보고한다"
+    contains: "### `etc/passwd` — modified"
+  - step: 2
+    note_ko: "루트가 다르다는 경고가 없다"
+    not_regex: "(?i)different root|root mismatch|does not match|another root|other root|⚠ .*root"

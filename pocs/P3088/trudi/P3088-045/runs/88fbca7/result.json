@@ -1,0 +1,58 @@
+{
+  "case_id": "P3088-045",
+  "problem": "P3088",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: ez_evtxecmd only; ez_mftecmd (mft.csv), ez_mftecmd_dir (mft_dir.csv) and the other EZ wrappers have the same fixed defaults",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "PowerShell 로그 처리가 성공한다",
+      "regex": "\"success\":\\s*true",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "첫 호출 뒤 `evtx.csv`에는 lsass 덤프 스크립트(4104, `lsass_wer_ps.ps1`)가 있다",
+      "contains": "lsass_wer_ps.ps1",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "둘째 로그도 같은 폴더·같은 이름으로 처리하고 성공으로 답한다",
+      "regex": "\"success\":\\s*true",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "기존 결과를 바꿨다는 말이 없다(아래 읽기와 대조)",
+      "not_regex": "(?i)overwr|already exist|replac",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "같은 검색에서 첫 로그의 lsass 덤프 스크립트 행이 사라졌다",
+      "not_contains": "lsass_wer_ps.ps1",
+      "ok": true
+    },
+    {
+      "step": 6,
+      "note_ko": "같은 파일에는 이제 LocalSessionManager 로그의 행만 있다",
+      "regex": "Microsoft-Windows-TerminalServices-LocalSessionManager/Operational",
+      "ok": true
+    },
+    {
+      "step": 6,
+      "note_ko": "PowerShell 로그의 행은 없다",
+      "not_contains": "Microsoft-Windows-PowerShell/Operational",
+      "ok": true
+    }
+  ],
+  "image": "sha256:c4869057c8af691a5a4936e9b153146e2f7ed599f20884d48453ff90ac827e9b",
+  "ran_at": "2026-11-28T07:42:11+00:00"
+}

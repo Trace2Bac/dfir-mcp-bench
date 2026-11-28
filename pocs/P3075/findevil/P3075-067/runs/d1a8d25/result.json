@@ -1,0 +1,46 @@
+{
+  "case_id": "P3075-067",
+  "problem": "P3075",
+  "server": "findevil",
+  "commit": "d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "추정 발견이면 확정 주장은 0개다",
+      "contains": "**CONFIRMED claims supplied:** 0",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "확정으로 바꾸면 검증 없는 확정 주장이 공백으로 더해진다",
+      "contains": "1 CONFIRMED claim(s) but only 0 verify_finding call(s) recorded",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "기록에 두 평가가 모두 있다",
+      "contains": "(2 matching entries",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "두 항목의 params가 똑같이 넣었는지 여부뿐이다",
+      "regex": "(?s)params: \\{\"findings_supplied\": true\\}\\n.*params: \\{\"findings_supplied\": true\\}\\n",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "기록에 발견 내용이 없다",
+      "not_regex": "203\\.0\\.113\\.50|confirmed|brute_force",
+      "ok": true
+    }
+  ],
+  "image": "sha256:21903522e909353d4a5d17ad16cfd2427c9f383d094d7e7c3880b1549ebeaa56",
+  "ran_at": "2026-11-28T07:34:12+00:00"
+}

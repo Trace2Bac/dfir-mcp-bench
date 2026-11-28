@@ -1,0 +1,123 @@
+# Matrix case P1030-005: core/evidence_kinds.py classify_name gives no kind to
+# a wrapped file (.zip, .gz): capture.pcapng.gz is not a packet capture and
+# a collection .zip is no kind at all. dair_assess builds the case's evidence
+# inventory from those names, so a case that holds an extracted triage tree
+# and a gzip-compressed capture is "triage only": every net.* tool DAIR
+# prescribes is dropped from the work order as needing pcap evidence, and the
+# DAIR model is told the case holds none, with no word about the compressed
+# capture that was left out.
+# Evidence (case folder <case>/evidence/, under ${OUTSIDE}/cases because the
+# server finds evidence/ next to the trace's analysis/ folder):
+#   WKS-0412_triage/C/...       an extracted triage tree (hosts file and the
+#                               Windows/System32/config folder)
+#   WKS-0419_collection.zip     another host's KAPE-style collection (a real
+#                               zip: hosts file, PowerShell history)
+#   capture.pcapng.gz           a real gzip of a one-packet pcapng (SHB, IDB,
+#                               EPB: TCP SYN 10.0.2.42:50514 -> 203.0.113.7:443)
+# The comparison condition holds the same capture uncompressed
+# (capture.pcapng). DAIR is the server's own model backend; anthropic_stub
+# answers it with one RESULT block (the shape tools/dair.py parses) that
+# prescribes two capture tools and one event-log tool.
+# A case with ONLY the .zip and the .gz is not used: its inventory is empty,
+# which trudi treats as undetermined and filters nothing (fail-open); the IOC
+# coverage rows of the matrix note need a mitre_detection.json, which trudi
+# does not ship.
+case_id: P1030-005
+problem: P1030
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: source-vs-result
+level: mcp
+realism: common
+realism_ko: "수집물과 패킷 캡처를 압축해 넘기는 것은 흔한 증거 형태다(`.pcapng.gz`, KAPE·Velociraptor의 `.zip`). 다른 증거가 함께 있는 사건이면 압축된 캡처만 빠진 채로 증거 목록이 정해진다."
+coverage: "partial: shown through dair_assess's evidence inventory and work-order filter on a case that also holds a triage tree; the IOC coverage rows (not_applicable) need a mitre_detection.json, which trudi does not ship, and a case with only the two compressed files is undetermined and filters nothing"
+coverage_ko: "트리아지 폴더도 함께 든 사건에서 `dair_assess`의 증거 목록과 작업 지시 거르기로 보인다. IOC 범위 행(`not_applicable`)은 trudi가 배포하지 않는 `mitre_detection.json`이 있어야 나오고, 압축 파일 두 개만 있는 사건은 증거 목록이 비어 미정으로 처리되어 아무것도 거르지 않는다."
+summary: In a case holding a triage tree, a collection .zip and capture.pcapng.gz, dair_assess reports evidence_kinds ["triage"], drops net.tcpdump_list_connections and net.http_session_inventory as needing pcap, and tells the DAIR model the case holds no pcap evidence, without mentioning the compressed capture; with the capture uncompressed the kinds are ["pcap", "triage"] and both tools stay.
+summary_ko: "트리아지 폴더, 수집물 `.zip`, `capture.pcapng.gz`가 든 사건에서 `dair_assess`는 `evidence_kinds`를 `[\"triage\"]`로 내고 `net.tcpdump_list_connections`, `net.http_session_inventory`를 pcap이 필요하다며 작업 지시에서 빼며, DAIR 모델에게 pcap 증거가 없다고 알린다. 압축된 캡처가 빠졌다는 말은 없다. 같은 캡처를 압축 없이 두면 `[\"pcap\", \"triage\"]`가 되고 두 도구가 남는다."
+defect_ko: "이 서버는 `.zip`, `.gz`로 감싼 증거를 어느 종류로도 보지 않아 압축된 캡처가 있는 사건을 캡처 없는 사건으로 보고, 빠진 증거를 응답에 알리지 않는다. 감싼 파일은 안의 이름(`capture.pcapng`)으로 종류를 정하거나, 종류를 정하지 못한 증거 파일을 응답에 적어야 한다. 모델과 DAIR는 이 사건에 네트워크 캡처가 없다고 알고 네트워크 분석을 하지 않는다."
+setup_ko: "사건 폴더의 `evidence/`에 풀어 둔 트리아지 폴더, 다른 호스트의 수집물 `.zip`, gzip으로 압축한 패킷 캡처를 두고 기록을 연 뒤 `dair_assess`를 부른다. DAIR 모델 응답은 가짜 Anthropic API가 주며 캡처 도구 두 개와 이벤트 로그 도구 하나를 지시한다. 비교 조건은 같은 캡처를 압축 없이 둔다."
+anthropic_stub:
+  responses:
+  - |
+    The triage tree and the capture of WKS-0412 have not been examined yet. Look at the connections in the capture and the event logs first.
+
+    RESULT:
+    {"schema_version": 1, "rationale": "Triage: network connections from the capture, then event logs.", "assessment": {"current_phase": "Triage", "phase_rationale": "EDR alert on WKS-0412 for an outbound connection to 203.0.113.7; nothing examined yet.", "transition_recommended": false, "next_phase": "", "transition_rationale": "", "stack_action": "stay", "investigation_focus": "Confirm the outbound connection to 203.0.113.7 in the capture and find the process in the event logs.", "verification_satisfied": false, "verification_challenges": [], "recommended_actions": []}, "directives": {"priority_tools": ["net.tcpdump_list_connections", "net.http_session_inventory", "ez.evtxecmd"], "skip_tools": [], "focus_pids": [], "focus_paths": []}}
+conditions:
+- name: gz
+  fixture:
+  - path: cases/WKS-0412/evidence/capture.pcapng.gz
+    root: outside
+    base64: |
+      H4sICGBOCWsC/2NhcHR1cmUucGNhcG5nAOPi5eWSYWBg8LXRlmIE0v+hACQG4otAaQYGFjCbDYgj
+      GCDALhHIm2azxQzIBmGGgLAuaR0GHk0vaR0OBlcGBg0BRgeGBrZFc7kYmLROMxSyHw1i3M0g02AI
+      Vsz064NqKgPUPAAG8RIjiAAAAA==
+- name: pcapng
+  fixture:
+  - path: cases/WKS-0412/evidence/capture.pcapng
+    root: outside
+    base64: |
+      Cg0NChwAAABNPCsaAQAAAP//////////HAAAAAEAAAAUAAAAAQAAAAAABAAUAAAABgAAAFgAAAAA
+      AAAAPmEGAACWPLQ2AAAANgAAAABQVoobLAAMKUobLAgARQAAKBABQACABqKdCgACKssAcQfFUgG7
+      AByAMQAAAABQAvrwJWUAAAAAWAAAAA==
+fixture:
+- path: cases/WKS-0412/analysis
+  root: outside
+  dir: true
+- path: cases/WKS-0412/evidence/WKS-0412_triage/C/Windows/System32/config
+  root: outside
+  dir: true
+- path: cases/WKS-0412/evidence/WKS-0412_triage/C/Windows/System32/drivers/etc/hosts
+  root: outside
+  text: "# Copyright (c) 1993-2009 Microsoft Corp.\r\n#\r\n# localhost name resolution is handled within DNS itself.\r\n"
+- path: cases/WKS-0412/evidence/WKS-0419_collection.zip
+  root: outside
+  base64: |
+    UEsDBBQAAAAIAABNe115x9TKZQAAAGkAAAAkAAAAQy9XaW5kb3dzL1N5c3RlbTMyL2RyaXZlcnMv
+    ZXRjL2hvc3RzBcExDsIwDAXQPVLu8KUsZaAqMGUuK104QZSmjSUTV7ER6u15L2CW4+y0V8OQL7jF
+    +LjepyniRbmLymaYpR+jd8G7AJacuIoaWvoU9KLCXyNpIEVNbeWy4kdWqeG5vEGmhbfRuz9QSwME
+    FAAAAAgAAE17XapuFpBSAAAAUgAAAFwAAABDL1VzZXJzL2pkb2UvQXBwRGF0YS9Sb2FtaW5nL01p
+    Y3Jvc29mdC9XaW5kb3dzL1Bvd2VyU2hlbGwvUFNSZWFkTGluZS9Db25zb2xlSG9zdF9oaXN0b3J5
+    LnR4dPPMK8vPTtUNT00KSi0sTS0uUdANLcpUyCgpKbDS1zcyMNYz0DM0NNYz1y/VS61IVdD1Ly1x
+    y8xJVVBJzSuzCnH1DYgpLkvOyC8uMTYCKeDlAgBQSwECFAAUAAAACAAATXtdecfUymUAAABpAAAA
+    JAAAAAAAAAAAAAAAgAEAAAAAQy9XaW5kb3dzL1N5c3RlbTMyL2RyaXZlcnMvZXRjL2hvc3RzUEsB
+    AhQAFAAAAAgAAE17XapuFpBSAAAAUgAAAFwAAAAAAAAAAAAAAIABpwAAAEMvVXNlcnMvamRvZS9B
+    cHBEYXRhL1JvYW1pbmcvTWljcm9zb2Z0L1dpbmRvd3MvUG93ZXJTaGVsbC9QU1JlYWRMaW5lL0Nv
+    bnNvbGVIb3N0X2hpc3RvcnkudHh0UEsFBgAAAAACAAIA3AAAAHMBAAAAAA==
+steps:
+- tool: misc_start_execution_log
+  note_ko: "준비: 사건 기록을 연다"
+  args:
+    case_id: WKS-0412
+    output_path: ${OUTSIDE}/cases/WKS-0412/analysis/WKS-0412_trace.json
+    case_dir: ${OUTSIDE}/cases/WKS-0412
+    launch_dashboard: false
+- tool: dair_assess
+  note_ko: "결함 호출: 첫 DAIR 판단을 받는다(서버가 증거 목록을 만들어 작업 지시를 거른다)"
+  args:
+    tool_results_summary: "Case opened for WKS-0412 after an EDR alert on an outbound connection to 203.0.113.7:443. Evidence: a triage collection of WKS-0412, a collection of WKS-0419 and a packet capture from the egress tap. Nothing has been examined yet."
+    phase_stack: "[]"
+    case_context: "WKS-0412, EDR alert 2026-11-27 09:31 UTC, outbound 203.0.113.7:443"
+    input_call_ids: [1]
+expect:
+- step: 2
+  condition: gz
+  note_ko: 압축된 캡처가 있는데 사건은 트리아지만 가진 것으로 분류된다
+  contains: '"evidence_kinds": ["triage"]'
+- step: 2
+  condition: gz
+  note_ko: 캡처 도구 두 개가 pcap이 필요하다며 작업 지시에서 빠진다
+  contains: '"server_filtered_tools": [{"tool": "net.tcpdump_list_connections", "needs": ["pcap"]}, {"tool": "net.http_session_inventory", "needs": ["pcap"]}]'
+- file_regex: ${OUTSIDE}/cases/WKS-0412/analysis/WKS-0412_trace.json
+  condition: gz
+  note_ko: DAIR 모델에게 이 사건에 pcap 증거가 없다고 알린다
+  pattern: 'EVIDENCE AVAILABLE: triage [^"]{0,12}do not prescribe tools or verification challenges that need memory, pcap, disk_image, mobile, live evidence; the case holds none'
+- step: 2
+  condition: pcapng
+  note_ko: 같은 캡처를 압축 없이 두면 pcap으로 분류된다
+  contains: '"evidence_kinds": ["pcap", "triage"]'
+- step: 2
+  condition: pcapng
+  note_ko: 이때는 캡처 도구가 작업 지시에 남는다
+  contains: '"priority_tools": ["net.tcpdump_list_connections", "net.http_session_inventory", "ez.evtxecmd"]'

@@ -1,0 +1,52 @@
+# Matrix case P1029-013: _match_artifact never opens a file; any name that
+# starts with "auth.log" is an "auth log", including the gzip archives
+# logrotate leaves (auth.log.2.gz). auth_summary reads that file as text and
+# finds no events, and the next assess_coverage marks the auth log
+# "✅ examined" with COVERAGE CLEAN.
+# auth.log.2.gz is a real gzip (Python gzip, original name auth.log.2) of five
+# sshd lines: four failed attempts and one accepted password from
+# 203.0.113.7.
+case_id: P1029-013
+problem: P1029
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "logrotate 기본 설정은 오래된 `auth.log`를 `auth.log.2.gz`처럼 압축해 두므로, 압축 로그만 남은 증거는 흔하다."
+coverage: full
+summary: assess_coverage lists auth.log.2.gz as the auth log and says to run auth_summary; auth_summary on it reports "no recognizable auth events" although the archive holds four failed and one accepted login; the next assess_coverage marks the auth log "✅ examined" and returns COVERAGE CLEAN.
+summary_ko: "`assess_coverage`는 `auth.log.2.gz`를 인증 로그로 올리고 `auth_summary`를 돌리라고 한다. 그 파일에 실패 네 건과 성공 한 건이 들어 있는데 `auth_summary`는 \"no recognizable auth events\"를 낸다. 다시 부른 `assess_coverage`는 인증 로그를 `✅ examined`로 표시하고 `COVERAGE CLEAN`을 낸다."
+defect_ko: "이 서버의 `assess_coverage`는 이름만 보고 gzip 압축 로그를 인증 로그로 정해 압축을 풀지 못하는 `auth_summary`로 안내하고, 그 호출 뒤에는 검사한 것으로 센다. 압축 파일은 풀어 읽거나 평가하지 못한 자료로 남겨야 한다. 모델은 침입 기록이 든 인증 로그를 분석해 아무 사건도 없었다고 잘못 안다."
+setup_ko: "`fs/var/log/`에 실패 로그인 네 줄과 로그인 성공 한 줄을 gzip으로 압축한 `auth.log.2.gz`만 두었다."
+fixture:
+  - path: fs/var/log/auth.log.2.gz
+    hex: 1f8b08088e43a66902ff617574682e6c6f672e3200b5d0410e82301484e1bda7981390f75e3124ddb93171c1098c8b4a4b6c0294b428d7b7c695880b165ee09b3f539b08289068664d25667725464a377b1661be681c8def9cc568529a43b46843440c61421b430f215550c1ac8a0a638813f64c222f4076f5875dfdcf665ad865b64fc3c374dee29e5c84b1bd1f7eab252d405901d762fda691af74d16a91ae282f1d9ac68dd3a663f2336ffd09b8d8ed99d1010000
+steps:
+  - tool: assess_coverage
+    note_ko: "조사 범위 점검: 압축 로그를 인증 로그로 올린다"
+    args: {}
+  - tool: auth_summary
+    note_ko: "안내대로 그 파일에 `auth_summary`를 부른다"
+    args:
+      path: ${EVIDENCE}/fs/var/log/auth.log.2.gz
+  - tool: assess_coverage
+    note_ko: "결함 호출: 다시 범위를 점검한다"
+    args: {}
+expect:
+  - step: 1
+    note_ko: "gzip 압축 파일을 인증 로그 행에 올린다"
+    contains: "| auth log (SSH / sudo / useradd) | `fs/var/log/auth.log.2.gz` | ❌ NOT examined |"
+  - step: 1
+    note_ko: "그 파일에 `auth_summary`를 돌리라고 안내한다"
+    contains: "→ run auth_summary"
+  - step: 2
+    note_ko: "압축을 풀지 않아 침입 기록이 든 파일에서 인증 사건을 하나도 찾지 못한다"
+    contains: "Log file contains no recognizable auth events."
+  - step: 3
+    note_ko: "그런데도 인증 로그를 검사했다고 표시한다"
+    contains: "| auth log (SSH / sudo / useradd) | `fs/var/log/auth.log.2.gz` | ✅ examined |"
+  - step: 3
+    note_ko: "조사 범위에 빈틈이 없다고 판정한다"
+    contains: "**Verdict: COVERAGE CLEAN**"

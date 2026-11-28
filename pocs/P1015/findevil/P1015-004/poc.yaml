@@ -1,0 +1,86 @@
+# Matrix case P1015-004: _resolve_vol_bin uses FINDEVIL_VOL only when that
+# file exists; otherwise it silently takes the first `vol` on PATH (or the
+# venv's), and the chosen _VOL_BIN is used only in the command line, never in
+# the response or the audit record.
+# Two conditions, both with a stand-in `vol` first on PATH:
+# - missing: FINDEVIL_VOL names a file that does not exist (an install path
+#   that moved, a mount that is not there).
+# - configured: FINDEVIL_VOL names an existing stand-in.
+# Each stand-in answers `--help` and prints `-r json linux.pslist` rows in
+# Volatility 3's JSON renderer format (pslist column names), with one process
+# whose COMM tells which binary ran. External tool output is simulated.
+case_id: P1015-004
+problem: P1015
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: source-vs-result
+level: mcp
+realism: possible
+realism_ko: "`FINDEVIL_VOL`은 운영자가 정하는 설정이라, 설치 경로가 바뀌거나 마운트가 빠지면 가리키는 파일이 없어진 채 서버가 뜰 수 있고, 분석 호스트 PATH에 다른 Volatility가 있는 일도 흔하다."
+coverage: full
+summary: With FINDEVIL_VOL naming a missing file, analyze_memory_processes runs the `vol` found on PATH instead and returns its process list as the result, without saying the configured binary was not found or which binary ran; with FINDEVIL_VOL naming an existing file, that file's output is returned.
+summary_ko: "`FINDEVIL_VOL`이 없는 파일을 가리키면 `analyze_memory_processes`는 PATH에서 찾은 다른 `vol`을 실행해 그 프로세스 목록을 결과로 낸다. 지정한 실행 파일이 없다는 말도, 실제로 어떤 실행 파일을 썼는지도 응답에 없다. `FINDEVIL_VOL`이 있는 파일을 가리키면 그 파일의 출력이 나온다."
+defect_ko: "이 서버는 지정한 `FINDEVIL_VOL`이 없으면 알리지 않고 PATH의 다른 `vol`로 바꿔 실행한다. 지정한 실행 파일이 없으면 오류를 내거나 대신 쓴 실행 파일 경로를 응답과 기록에 남겨야 한다. 모델은 운영자가 정한 Volatility로 분석한 결과로 잘못 안다."
+setup_ko: "작은 LiME 머리 파일을 두고, PATH 앞에 표식 프로세스(`path-vol-marker`)를 내는 `vol` 대역을 두었다. 한 조건은 `FINDEVIL_VOL`을 없는 경로로, 다른 조건은 다른 표식(`cfg-vol-marker`)을 내는 대역으로 두었다."
+stubs:
+  - name: vol
+    text: |
+      #!/bin/sh
+      # Stand-in for another Volatility 3 `vol` on PATH. Output follows vol3's
+      # `-r json` renderer for linux.pslist (list of rows, pslist column names).
+      if [ "$1" = "--help" ]; then echo "usage: vol [-h] [-c CONFIG] [-f FILE] [-r RENDERER] PLUGIN ..."; exit 0; fi
+      for a in "$@"; do last="$a"; done
+      if [ "$last" = "linux.pslist" ]; then
+        echo '[{"OFFSET (V)": 18446623758510108672, "PID": 1, "TID": 1, "PPID": 0, "COMM": "systemd", "UID": 0, "GID": 0, "EUID": 0, "EGID": 0, "CREATION TIME": "2026-03-03T01:58:10+00:00", "File output": "Disabled", "__children": []}, {"OFFSET (V)": 18446623758510501888, "PID": 4242, "TID": 4242, "PPID": 1, "COMM": "path-vol-marker", "UID": 0, "GID": 0, "EUID": 0, "EGID": 0, "CREATION TIME": "2026-03-03T02:14:55+00:00", "File output": "Disabled", "__children": []}]'
+        exit 0
+      fi
+      echo "vol: error: argument PLUGIN: invalid choice: $last" >&2; exit 2
+  - name: vol-configured
+    text: |
+      #!/bin/sh
+      # Stand-in for the Volatility 3 `vol` that FINDEVIL_VOL names. Same output
+      # format as above, with a different marker process.
+      if [ "$1" = "--help" ]; then echo "usage: vol [-h] [-c CONFIG] [-f FILE] [-r RENDERER] PLUGIN ..."; exit 0; fi
+      for a in "$@"; do last="$a"; done
+      if [ "$last" = "linux.pslist" ]; then
+        echo '[{"OFFSET (V)": 18446623758510108672, "PID": 1, "TID": 1, "PPID": 0, "COMM": "systemd", "UID": 0, "GID": 0, "EUID": 0, "EGID": 0, "CREATION TIME": "2026-03-03T01:58:10+00:00", "File output": "Disabled", "__children": []}, {"OFFSET (V)": 18446623758510501888, "PID": 4242, "TID": 4242, "PPID": 1, "COMM": "cfg-vol-marker", "UID": 0, "GID": 0, "EUID": 0, "EGID": 0, "CREATION TIME": "2026-03-03T02:14:55+00:00", "File output": "Disabled", "__children": []}]'
+        exit 0
+      fi
+      echo "vol: error: argument PLUGIN: invalid choice: $last" >&2; exit 2
+conditions:
+  - name: missing
+    env: {FINDEVIL_VOL: "${OUTSIDE}/vol3/vol", PATH: "${STUBS}:${PATH}"}
+  - name: configured
+    env: {FINDEVIL_VOL: "${STUBS}/vol-configured", PATH: "${STUBS}:${PATH}"}
+fixture:
+  - path: mem/host.lime
+    # LiME header: magic 0x4C694D45, version 1, range 0x1000-0x1FFF, then 4096 bytes
+    hex: 454d694c01000000 0010000000000000 ff1f000000000000 0000000000000000
+    size: 4128
+steps:
+  - tool: analyze_memory_processes
+    note_ko: "결함 호출: 메모리 프로세스 목록"
+    args:
+      memory_dump_path: ${EVIDENCE}/mem/host.lime
+expect:
+  - step: 1
+    condition: missing
+    note_ko: "지정한 파일이 없을 때 PATH의 `vol`이 낸 표식 프로세스가 결과로 나온다"
+    contains: "`path-vol-marker`"
+  - step: 1
+    condition: missing
+    note_ko: "결과는 분석이 정상으로 끝난 형태다"
+    contains: "- **Total processes:** 2"
+  - step: 1
+    condition: missing
+    note_ko: "지정한 실행 파일이 없다는 말도, 대신 쓴 실행 파일 경로도 없다"
+    not_regex: "(?i)FINDEVIL_VOL|vol3/vol|not found|does not exist|fall(ing)? ?back|/stubs/vol"
+  - step: 1
+    condition: configured
+    note_ko: "지정한 파일이 있으면 그 파일의 표식 프로세스가 나온다"
+    contains: "`cfg-vol-marker`"
+  - step: 1
+    condition: configured
+    note_ko: "지정한 파일을 쓸 때도 응답에 실행 파일 경로가 없어, 두 응답만으로는 어느 실행 파일이 돌았는지 가릴 수 없다"
+    not_regex: "(?i)FINDEVIL_VOL|vol-configured|/stubs/vol"

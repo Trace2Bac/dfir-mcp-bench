@@ -1,0 +1,143 @@
+# Matrix case P3075-105: verify_evidence_hash takes expected_md5 and
+# expected_sha1, the values it compares against, but neither reaches the
+# trace: hash_file records "hash.file <path>" with the computed hashes, and
+# the reason_call records only "VERIFIED: <path> sha256=<...>". Two calls
+# with different expected values leave the same entries, so the trace cannot
+# say what the evidence was checked against.
+case_id: P3075-105
+problem: P3075
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "획득 기록의 MD5와 SHA1을 넣어 verify_evidence_hash로 증거를 검증하는 것은 도구 설명대로의 흔한 쓰임이고, 증거가 여럿이면 다른 증거의 기록 값을 옮겨 넣는 실수도 생긴다."
+coverage: full
+summary: verify_evidence_hash on a USB image, once with the MD5 and SHA1 of its own acquisition log (both match) and once with those of the second stick's log (neither matches), leaves the same two kinds of entries for both calls, and neither expected value of the second call appears anywhere in the trace.
+summary_ko: "USB 이미지를 자기 획득 기록의 MD5·SHA1로 한 번(둘 다 일치), 두 번째 USB의 기록 값으로 한 번(둘 다 불일치) `verify_evidence_hash`로 검증하면, trace에는 두 호출이 같은 모양의 항목으로 남고 두 번째 호출에 준 기대 값은 trace 어디에도 없다."
+defect_ko: "이 서버는 검증의 기준인 `expected_md5`, `expected_sha1`을 호출 기록에 남기지 않는다. 정상이라면 무엇과 대조했는지와 그 결과를 기록에 함께 남겨야 한다. 기록을 읽는 모델과 검토자는 어떤 기준으로 검증했는지 알 수 없고, 다른 증거의 값과 대조한 호출도 올바른 기준으로 검증한 호출과 구별하지 못한다."
+setup_ko: "USB 이미지 usb.dd와 그 획득 기록 usb.dd.txt, 같은 사건에서 압수한 두 번째 USB의 획득 기록 usb2.dd.txt를 넣었다."
+fixture:
+  - path: analysis/.keep
+    root: db
+    text: ""
+  # A 1 MiB raw image of a USB stick: an MBR (boot code, one FAT32 LBA
+  # partition from sector 1, 55AA); the rest is zero.
+  - path: usb.dd
+    size: 1048576
+    hex: 33c08ed0bc007c8ec08ed8be007cbf0006b90002fcf3a450681c06cbfbb90400bdbe07807e00007c0b0f850e0183c510e2f1cd1888560055c6461105c6461000b441bbaa55cd135d720f81fb55aa7509f7c101007403fe46106660000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000007a3c1e9b0000002021000c41010001000000ff07000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000055aa
+  # The acquisition log written when the stick was imaged (FTK Imager format);
+  # its hashes are those of this image.
+  - path: usb.dd.txt
+    text: |
+      Created By AccessData® FTK® Imager 4.7.1.2
+
+      Case Information:
+      Acquired using: ADI4.7.1.2
+      Case Number: 2026-0412
+      Evidence Number: USB-01
+      Unique description: SanDisk Cruzer Blade 16GB
+      Examiner: J. Park
+      Notes:
+
+      --------------------------------------------------------------
+
+      Information for usb.dd:
+
+      Physical Evidentiary Item (Source) Information:
+      [Device Info]
+       Source Type: Physical
+      [Drive Geometry]
+       Bytes per Sector: 512
+       Sector Count: 2,048
+      [Image]
+       Image Type: Raw (dd)
+       Source data size: 1 MB
+       Sector count:    2048
+      [Computed Hashes]
+       MD5 checksum:    dadee79bae735ca3fadf50940fc59579
+       SHA1 checksum:   c30348f39bc2e59df4c166297a0dd1e2d50c0121
+
+      Image Information:
+       Acquisition started:   Sun Apr 12 09:14:02 2026
+       Acquisition finished:  Sun Apr 12 09:14:03 2026
+       Segment list:
+        usb.dd
+  # The acquisition log of the second stick seized in the same case.
+  - path: usb2.dd.txt
+    text: |
+      Created By AccessData® FTK® Imager 4.7.1.2
+
+      Case Information:
+      Acquired using: ADI4.7.1.2
+      Case Number: 2026-0412
+      Evidence Number: USB-02
+      Unique description: Kingston DataTraveler 32GB
+      Examiner: J. Park
+      Notes:
+
+      --------------------------------------------------------------
+
+      Information for usb2.dd:
+
+      Physical Evidentiary Item (Source) Information:
+      [Device Info]
+       Source Type: Physical
+      [Drive Geometry]
+       Bytes per Sector: 512
+       Sector Count: 2,048
+      [Image]
+       Image Type: Raw (dd)
+       Source data size: 1 MB
+       Sector count:    2048
+      [Computed Hashes]
+       MD5 checksum:    5c2f0a2b7e4b0e1d9a3c6f8e1b2d4a70
+       SHA1 checksum:   8d1e5b3a9c2f7e6d4b0a1c3e5f7092b4d6e8a1c3
+
+      Image Information:
+       Acquisition started:   Sun Apr 12 09:31:02 2026
+       Acquisition finished:  Sun Apr 12 09:31:03 2026
+       Segment list:
+        usb2.dd
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 trace를 연다"
+    args:
+      case_id: P3075-105
+      output_path: ${DB_DIR}/analysis/P3075-105_trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: hash_verify_evidence_hash
+    note_ko: "비교 호출: usb.dd를 자기 획득 기록의 MD5·SHA1로 검증한다"
+    args:
+      evidence_path: ${EVIDENCE}/usb.dd
+      expected_md5: dadee79bae735ca3fadf50940fc59579
+      expected_sha1: c30348f39bc2e59df4c166297a0dd1e2d50c0121
+  - tool: hash_verify_evidence_hash
+    note_ko: "결함 호출: usb.dd를 두 번째 USB 기록의 MD5·SHA1로 검증한다"
+    args:
+      evidence_path: ${EVIDENCE}/usb.dd
+      expected_md5: 5c2f0a2b7e4b0e1d9a3c6f8e1b2d4a70
+      expected_sha1: 8d1e5b3a9c2f7e6d4b0a1c3e5f7092b4d6e8a1c3
+  - tool: read_output
+    note_ko: "비교 호출: trace에 남은 검증 기록을 읽는다"
+    args:
+      path: ${DB_DIR}/analysis/P3075-105_trace.json
+      query: hash_verify_evidence_hash VERIFIED
+expect:
+  - step: 2
+    note_ko: "첫 검증은 MD5와 SHA1이 모두 맞는다"
+    regex: '"md5_match": true, "sha1_match": true, "integrity_verified": true'
+  - step: 3
+    note_ko: "두 번째 검증은 MD5와 SHA1이 모두 맞지 않는다"
+    regex: '"md5_match": false, "sha1_match": false, "integrity_verified": false'
+  - step: 4
+    note_ko: "trace를 다시 읽으면 두 검증이 같은 결론 줄로만 남아 있다"
+    regex: '"conclusion\\": \\"VERIFIED: [^ ]*/usb\.dd sha256=(?P<h>[0-9a-f]{64})\\",[\s\S]*"conclusion\\": \\"VERIFIED: [^ ]*/usb\.dd sha256=(?P=h)\\",'
+  - file_not_contains: ${DB_DIR}/analysis/P3075-105_trace.json
+    note_ko: "두 번째 호출에 준 기대 MD5는 trace 어디에도 없다"
+    text: 5c2f0a2b7e4b0e1d9a3c6f8e1b2d4a70
+  - file_not_contains: ${DB_DIR}/analysis/P3075-105_trace.json
+    note_ko: "두 번째 호출에 준 기대 SHA1도 trace 어디에도 없다"
+    text: 8d1e5b3a9c2f7e6d4b0a1c3e5f7092b4d6e8a1c3

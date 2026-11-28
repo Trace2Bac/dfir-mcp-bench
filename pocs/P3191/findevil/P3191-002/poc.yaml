@@ -1,0 +1,67 @@
+# Matrix case P3191-002: _audit is called after the tool body has run its
+# external command and writes one datetime.now() as "timestamp", with no
+# start time or duration. A Volatility call that takes seconds is recorded
+# with the time it ended only, so audit.json cannot say when it started or how
+# long it ran.
+# vol is chosen with FINDEVIL_VOL: a stub that answers "--help" at once and
+# answers linux.pslist after 3 seconds with vol3 JSON-renderer rows, standing
+# in for a plugin that takes time on a large dump. External tool output is
+# simulated.
+# The server is started with FINDEVIL_LOGS_DIR=${DB_DIR}, so the call record
+# is ${DB_DIR}/audit.json.
+case_id: P3191-002
+problem: P3191
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: time-size
+level: mcp
+realism: common
+realism_ko: "큰 메모리 덤프의 Volatility 플러그인은 몇 분씩 걸리는 일이 흔하다."
+coverage: "partial: the start time and duration missing from one call are shown; the order of calls that overlap is not (the runner makes one call at a time)"
+coverage_ko: "한 호출의 시작 시각과 걸린 시간이 빠지는 것만 보인다. 겹쳐 실행된 호출의 순서는 보이지 않는다(실행기는 한 번에 한 호출만 한다)"
+summary: 'analyze_memory_processes takes more than 3 seconds (measured by the runner), but its audit entry holds a single timestamp taken when the call ended, with no start time or duration, in the same shape as the instant hash_file entry before it.'
+summary_ko: "`analyze_memory_processes`는 실행기가 잰 시간으로 3초 넘게 걸리지만, 그 기록 항목에는 호출이 끝날 때 찍은 시각 하나만 있고 시작 시각이나 걸린 시간은 없다. 바로 앞의 순간에 끝난 `hash_file` 항목과 같은 꼴이다."
+defect_ko: "이 서버는 도구 실행이 끝난 뒤의 시각 하나만 기록한다. 기록에는 시작 시각과 걸린 시간(또는 끝난 시각)이 함께 남아야 한다. 모델은 기록의 시각을 분석을 시작한 시각으로 잘못 알고, 오래 걸린 분석이 언제 돌았는지 되짚지 못한다."
+setup_ko: "작은 파일과 LiME 머리 파일을 두고, Volatility를 3초 뒤에 프로세스 목록을 내는 흉내 스크립트로 바꿨다."
+stubs:
+  - name: vol_slow
+    text: |
+      #!/bin/sh
+      # vol3 "-r json" linux.pslist output, after a 3-second delay.
+      if [ "$1" = "--help" ]; then echo "usage: vol [-h] [-c CONFIG] [-f FILE] PLUGIN ..."; exit 0; fi
+      sleep 3
+      echo '[{"OFFSET (V)": 18446623800405549312, "PID": 1, "TID": 1, "PPID": 0, "COMM": "systemd", "File output": "Disabled", "__children": []}, {"OFFSET (V)": 18446623800532312064, "PID": 812, "TID": 812, "PPID": 1, "COMM": "sshd", "File output": "Disabled", "__children": []}, {"OFFSET (V)": 18446623800611463168, "PID": 1450, "TID": 1450, "PPID": 812, "COMM": "bash", "File output": "Disabled", "__children": []}]'
+      exit 0
+env:
+  FINDEVIL_VOL: ${STUBS}/vol_slow
+fixture:
+  - path: case01/etc/hostname
+    text: "web01\n"
+  - path: mem/host.lime
+    hex: 454d694c0100000000000000000000000000000000000000
+steps:
+  - tool: hash_file
+    note_ko: "바로 끝나는 호출"
+    args:
+      path: ${EVIDENCE}/case01/etc/hostname
+  - tool: analyze_memory_processes
+    note_ko: "결함 호출: 3초 넘게 걸리는 메모리 분석"
+    args:
+      memory_dump_path: ${EVIDENCE}/mem/host.lime
+  - tool: get_audit_trail
+    note_ko: "두 호출의 기록을 다시 읽는다"
+    args: {}
+expect:
+  - step: 2
+    note_ko: "메모리 분석은 정상으로 끝난다"
+    contains: "**Total processes:** 3"
+  - step: 2
+    note_ko: "메모리 분석은 3초 넘게 걸린다"
+    min_seconds: 3
+  - step: 3
+    note_ko: "기록의 두 항목 모두 시각 하나만 있다"
+    regex: '- \*\*[0-9T:.+-]+\*\* `hash_file` — params: [^\n]*\n(?s:.*)- \*\*[0-9T:.+-]+\*\* `analyze_memory_processes` — params: \{"path": "[^"]*/mem/host\.lime"\}\n  result: 3 procs, 0 anomalies'
+  - file_regex: ${DB_DIR}/audit.json
+    note_ko: "기록 파일의 메모리 분석 항목은 `timestamp` 하나와 도구, 인자, 결과뿐이다"
+    pattern: '(?m)^\{"timestamp": "[^"]+", "tool": "analyze_memory_processes", "params": \{"path": "[^"]+"\}, "result_summary": "3 procs, 0 anomalies"\}$'

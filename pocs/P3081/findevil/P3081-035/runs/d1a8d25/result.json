@@ -1,0 +1,40 @@
+{
+  "case_id": "P3081-035",
+  "problem": "P3081",
+  "server": "findevil",
+  "commit": "d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: the plugin-failure path is shown; the time-out path (rc 124, 10-minute limit) is not",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "응답에는 실패 이유(`LayerException`)가 있다",
+      "contains": "LayerException: Offset outside of the buffer boundaries",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "기록에는 종료 코드만 남는다",
+      "regex": "params: \\{\"path\": \"[^\"]*/mem/host\\.lime\"\\}\\n  result: rc=1\\s*\\Z",
+      "ok": true
+    },
+    {
+      "file_contains": "${DB_DIR}/audit.json",
+      "note_ko": "기록 파일의 결과 칸이 `rc=1`뿐이다",
+      "text": "\"result_summary\": \"rc=1\"}",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${DB_DIR}/audit.json",
+      "note_ko": "기록 파일에 실패 이유가 없다",
+      "text": "LayerException",
+      "ok": true
+    }
+  ],
+  "image": "sha256:465a3daaf0fe5f32bbb75c3112888e05f8f24cec4881292ac02f7e3569547867",
+  "ran_at": "2026-11-28T07:40:24+00:00"
+}

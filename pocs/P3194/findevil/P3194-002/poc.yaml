@@ -1,0 +1,59 @@
+# Matrix case P3194-002: the server instructions and tool descriptions say to
+# use the audit trail as the record of what ran, but get_audit_trail skips
+# every line that does not parse as JSON without saying so. _audit only
+# appends one line through logging.FileHandler (no atomic write, no check of
+# the last line on reopen), so when a write was cut short (disk full) and the
+# server is started again, its first new entry is glued to the cut line and
+# that call disappears from the trail with no mark.
+# The fixture is ${DB_DIR}/audit.json as such a run leaves it: one whole
+# entry in server._audit's format, then the start of a hash_file entry with
+# no newline. The server is started with FINDEVIL_LOGS_DIR=${DB_DIR}.
+case_id: P3194-002
+problem: P3194
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "기록 파일은 한 줄씩 덧붙이기만 하므로, 디스크가 가득 차 마지막 줄이 일부만 쓰인 채 서버를 다시 띄우는 일이 있을 수 있다."
+coverage: full
+summary: With an audit.json whose last line was cut off mid-write, hash_file runs normally, but get_audit_trail then reports "1 matching entries" and no hash_file call, because the new entry was appended to the cut line and the joined line is skipped without a note.
+summary_ko: "마지막 줄이 쓰다 끊긴 `audit.json`에서 `hash_file`은 정상으로 끝나지만, 그 뒤 `get_audit_trail`은 \"1 matching entries\"만 내고 방금 한 `hash_file` 호출을 보이지 않는다. 새 항목이 끊긴 줄 뒤에 붙었고, 이어 붙은 그 줄을 말없이 건너뛰기 때문이다."
+defect_ko: "이 서버의 `get_audit_trail`은 JSON으로 읽히지 않는 줄을 건너뛰고 건너뛴 줄이 있다고 알리지 않아, 실제로 실행된 호출이 기록에서 표시 없이 빠진다. 읽지 못한 줄의 수와 위치를 알려야 한다. 모델은 방금 한 해시 계산이 기록에 없다고, 기록이 이번 조사의 전체라고 잘못 안다."
+setup_ko: "`audit.json`에 온전한 `list_evidence` 기록 한 줄과, 쓰다 끊겨 줄바꿈이 없는 `hash_file` 기록 앞부분을 미리 넣었다. 증거에는 `var/log/auth.log`를 두었다."
+fixture:
+  - path: audit.json
+    root: db
+    fill: true
+    text: |-
+      {"timestamp": "2026-11-27T23:58:30.114208+00:00", "tool": "list_evidence", "params": {"subdir": ""}, "result_summary": "9 lines"}
+      {"timestamp": "2026-11-27T23:58:41.902114+00:00", "tool": "hash_file", "params": {"path": "${EVIDENCE}/var/log/auth.log"}, "result_summary": "## MD5\n9b1c
+  - path: var/log/auth.log
+    text: |
+      Mar  3 02:11:04 web01 sshd[2211]: Failed password for root from 203.0.113.7 port 51022 ssh2
+      Mar  3 02:12:30 web01 sshd[2230]: Accepted password for root from 203.0.113.7 port 51102 ssh2
+steps:
+  - tool: hash_file
+    note_ko: "다시 띄운 서버에서 해시를 계산한다"
+    args:
+      path: ${EVIDENCE}/var/log/auth.log
+  - tool: get_audit_trail
+    note_ko: "결함 호출: 기록을 조회한다"
+    args: {}
+expect:
+  - step: 1
+    note_ko: "해시 계산은 정상으로 끝난다"
+    contains: "## SHA256"
+  - step: 2
+    note_ko: "기록은 한 건만 나온다"
+    contains: "# Audit trail (1 matching entries, showing last 1)"
+  - step: 2
+    note_ko: "방금 한 `hash_file` 호출이 기록에 없다"
+    not_contains: "`hash_file`"
+  - step: 2
+    note_ko: "읽지 못한 줄이 있다는 말이 없다"
+    not_regex: "(?i)skip|malformed|corrupt|could not parse|unparse|invalid"
+  - file_regex: ${DB_DIR}/audit.json
+    note_ko: "새 `hash_file` 기록은 파일에 있지만 끊긴 줄 뒤에 붙어 있다"
+    pattern: '9b1c\{"timestamp": "[^"]+", "tool": "hash_file"'

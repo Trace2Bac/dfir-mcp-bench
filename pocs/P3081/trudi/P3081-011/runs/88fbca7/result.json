@@ -1,0 +1,40 @@
+{
+  "case_id": "P3081-011",
+  "problem": "P3081",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: the failure of the job is shown by running the same tcpxtract command directly (batch_run), because the runner cannot pass the random job_id to misc_job_status or read the job's exit file",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "작업은 실행 중으로 시작됐다",
+      "regex": "\"success\": true, \"status\": \"running\", \"job_id\": \"net_tcpxtract_streams-[0-9a-f]{12}\"",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "같은 명령을 직접 돌리면 파일을 열지 못해 실패한다(종료 코드 2)",
+      "regex": "\"success\": false, \"stdout\": \"\", \"stderr\": \"Couldn.t open file [^\"]*/net/beacon\\.pcapng: [^\"]*No such file or directory\", \"exit_code\": 2",
+      "ok": true
+    },
+    {
+      "file_regex": "${DB_DIR}/analysis/P3081-011_trace.json",
+      "note_ko": "trace에는 그 작업 호출이 성공(exit_code 0)으로 남아 있다",
+      "pattern": "\"cmd\": \"<py>:net_tcpxtract_streams\",\\s*\"success\": true,\\s*\"truncated\": false,\\s*\"retries\": 0,\\s*\"exit_code\": 0",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${DB_DIR}/analysis/P3081-011_trace.json",
+      "note_ko": "trace에는 작업 명령(-o .../tcpxtract_streams)의 실행 결과 항목이 없다",
+      "text": "/analysis/tcpxtract_streams\",",
+      "ok": true
+    }
+  ],
+  "image": "sha256:eb8563493289b5f777b86a6719b07d97bbef4ea4dd17ef45a2f670e6c6b2531b",
+  "ran_at": "2026-11-28T07:48:16+00:00"
+}

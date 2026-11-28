@@ -1,0 +1,51 @@
+{
+  "case_id": "P1030-005",
+  "problem": "P1030",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "source-vs-result",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: shown through dair_assess's evidence inventory and work-order filter on a case that also holds a triage tree; the IOC coverage rows (not_applicable) need a mitre_detection.json, which trudi does not ship, and a case with only the two compressed files is undetermined and filters nothing",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "condition": "gz",
+      "note_ko": "압축된 캡처가 있는데 사건은 트리아지만 가진 것으로 분류된다",
+      "contains": "\"evidence_kinds\": [\"triage\"]",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "condition": "gz",
+      "note_ko": "캡처 도구 두 개가 pcap이 필요하다며 작업 지시에서 빠진다",
+      "contains": "\"server_filtered_tools\": [{\"tool\": \"net.tcpdump_list_connections\", \"needs\": [\"pcap\"]}, {\"tool\": \"net.http_session_inventory\", \"needs\": [\"pcap\"]}]",
+      "ok": true
+    },
+    {
+      "file_regex": "${OUTSIDE}/cases/WKS-0412/analysis/WKS-0412_trace.json",
+      "condition": "gz",
+      "note_ko": "DAIR 모델에게 이 사건에 pcap 증거가 없다고 알린다",
+      "pattern": "EVIDENCE AVAILABLE: triage [^\"]{0,12}do not prescribe tools or verification challenges that need memory, pcap, disk_image, mobile, live evidence; the case holds none",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "condition": "pcapng",
+      "note_ko": "같은 캡처를 압축 없이 두면 pcap으로 분류된다",
+      "contains": "\"evidence_kinds\": [\"pcap\", \"triage\"]",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "condition": "pcapng",
+      "note_ko": "이때는 캡처 도구가 작업 지시에 남는다",
+      "contains": "\"priority_tools\": [\"net.tcpdump_list_connections\", \"net.http_session_inventory\", \"ez.evtxecmd\"]",
+      "ok": true
+    }
+  ],
+  "image": "sha256:bee53cfea7fa579b35843efd9e4a9529be9179ca65959b91e19b1b3e39cea815",
+  "ran_at": "2026-11-28T07:46:33+00:00"
+}

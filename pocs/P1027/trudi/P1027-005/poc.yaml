@@ -1,0 +1,103 @@
+# Matrix case P1027-005: the server instructions and the dair_assess
+# description say DAIR refuses next_phase="Report" while the trace holds no
+# finding, and tools/dair.py does refuse it when the MODEL picks Report
+# (server_override report_refused_zero_findings). But the empty-work-order
+# layer that runs after it (_advance3, Analyze branch) moves the phase to
+# Report itself when the model answers stay with an empty priority_tools and
+# there are no open scoping leads, without counting findings. So an Analyze
+# phase with zero findings reaches Report through the server's own override.
+# All four DAIR answers come from the Anthropic stub (RESULT blocks in the
+# shape the DAIR prompt asks for), so the server writes every dair_call:
+# Triage -> Collect, Collect -> Analyze, Analyze -> Report (refused), and
+# Analyze stay with an empty work order. A forensic call afterwards shows the
+# server-side phase: in Report the middleware moves it back to Collect and
+# says so.
+case_id: P1027-005
+problem: P1027
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "단계 상태는 서버가 앞 호출로 남긴 기록이고, DAIR 모델이 Analyze에서 빈 `priority_tools`와 stay를 돌려주는 것은 서버에 그 경우를 처리하는 분기(`_advance3`)가 따로 있을 만큼 예상된 응답이다."
+coverage: full
+summary: In Analyze with zero findings, dair_assess refuses the DAIR model's own push to Report (report_refused_zero_findings), but when the model answers stay with an empty work order the server overrides it to Report (analyze_to_report), and the next forensic call is moved "Report -> Collect", showing the server phase was Report.
+summary_ko: "발견사항이 0건인 Analyze 단계에서 `dair_assess`는 DAIR 모델이 직접 Report로 넘기려는 답은 거부(`report_refused_zero_findings`)하지만, 모델이 빈 작업 지시로 stay를 답하면 서버가 스스로 Report로 바꾼다(`analyze_to_report`). 이어진 증거 도구 호출이 `Report -> Collect`로 옮겨져 서버 단계가 Report였음을 보인다."
+defect_ko: "이 서버는 발견사항 0건이면 Report를 거부한다고 안내하지만, 그 거부는 모델이 Report를 고를 때만 적용되고 빈 작업 지시를 처리하는 서버 재정의는 발견 수를 보지 않고 Report로 넘긴다. 서버 재정의에도 같은 발견 0건 검사를 적용해야 한다. 모델은 조사가 보고 단계에 이를 만큼 끝났다고 알고, 기록한 발견 없이 보고 절차로 들어간다."
+setup_ko: "트리아지 수집물에 hosts 파일을 두고 새 기록을 연다. 가짜 Anthropic API가 Triage→Collect, Collect→Analyze, Analyze→Report(서버가 거부), Analyze에서 빈 작업 지시 stay 순서로 답한다. 발견사항은 하나도 기록하지 않는다."
+env:
+  TRUDI_CACHE_DIR: ${DB_DIR}/cache
+anthropic_stub:
+  responses:
+  - |
+    RESULT: {"schema_version": 1, "assessment": {"current_phase": "Triage", "phase_rationale": "The alert on WKSTN-07 is confirmed; Triage is satisfied.", "transition_recommended": true, "next_phase": "Collect", "transition_rationale": "Triage satisfied; collect host artifacts.", "stack_action": "push", "investigation_focus": "What changed on WKSTN-07 around the alert?", "verification_satisfied": true, "verification_challenges": [], "recommended_actions": [], "directives": {"priority_tools": [], "skip_tools": [], "focus_pids": [], "focus_paths": [], "curiosity_budget": 1}}}
+  - |
+    RESULT: {"schema_version": 1, "assessment": {"current_phase": "Collect", "phase_rationale": "Collection is done.", "transition_recommended": true, "next_phase": "Analyze", "transition_rationale": "Collection complete; analyze.", "stack_action": "push", "investigation_focus": "Reason over the collected artifacts.", "verification_satisfied": true, "verification_challenges": [], "recommended_actions": [], "directives": {"priority_tools": [], "skip_tools": [], "focus_pids": [], "focus_paths": [], "curiosity_budget": 2}}}
+  - |
+    RESULT: {"schema_version": 1, "assessment": {"current_phase": "Analyze", "phase_rationale": "Nothing suspicious was found in the collected artifacts.", "transition_recommended": true, "next_phase": "Report", "transition_rationale": "Analysis complete; write the report.", "stack_action": "push", "investigation_focus": "Write the report.", "verification_satisfied": true, "verification_challenges": [], "recommended_actions": [], "directives": {"priority_tools": [], "skip_tools": [], "focus_pids": [], "focus_paths": [], "curiosity_budget": 0}}}
+  - |
+    RESULT: {"schema_version": 1, "assessment": {"current_phase": "Analyze", "phase_rationale": "No artifact needs further analysis.", "transition_recommended": false, "next_phase": "", "transition_rationale": "", "stack_action": "stay", "investigation_focus": "Nothing further to analyze on WKSTN-07.", "verification_satisfied": true, "verification_challenges": [], "recommended_actions": [], "directives": {"priority_tools": [], "skip_tools": [], "focus_pids": [], "focus_paths": [], "curiosity_budget": 0}}}
+fixture:
+- path: C/Windows/System32/config
+  dir: true
+- path: C/Windows/System32/drivers/etc/hosts
+  text: "# Copyright (c) 1993-2009 Microsoft Corp.\r\n#\r\n# This is a sample HOSTS file used by Microsoft TCP/IP for Windows.\r\n#\r\n127.0.0.1       localhost\r\n::1             localhost\r\n"
+- path: case01/evidence
+  root: outside
+  symlink: ${EVIDENCE}
+- path: case01/analysis
+  root: outside
+  dir: true
+steps:
+- tool: misc_start_execution_log
+  note_ko: "준비: 새 사건 기록을 연다"
+  args:
+    case_id: CASE-001
+    output_path: ${OUTSIDE}/case01/analysis/CASE-001_trace.json
+    case_dir: ${OUTSIDE}/case01
+    launch_dashboard: false
+- tool: dair_assess
+  note_ko: "준비: Triage에서 Collect로 넘어간다"
+  args:
+    tool_results_summary: "Triage confirmed the EDR alert on WKSTN-07. The triage collection is in evidence/C."
+    phase_stack: "[]"
+    case_context: "CASE-001; host WKSTN-07"
+- tool: dair_assess
+  note_ko: "준비: Collect에서 Analyze로 넘어간다"
+  args:
+    tool_results_summary: "The Collect batch found nothing beyond the default configuration."
+    case_context: "CASE-001; host WKSTN-07"
+- tool: dair_assess
+  note_ko: "비교 호출: 발견 0건에서 모델이 Report로 넘기려 하면 서버가 거부한다"
+  args:
+    tool_results_summary: "Analysis found nothing suspicious."
+    case_context: "CASE-001; host WKSTN-07"
+- tool: dair_assess
+  note_ko: "결함 호출: 모델이 빈 작업 지시로 stay를 답한다"
+  args:
+    tool_results_summary: "Analysis found nothing suspicious; no finding was recorded."
+    case_context: "CASE-001; host WKSTN-07"
+- tool: strings_file_identify
+  note_ko: "결함 확인: 증거 도구를 하나 불러 서버 단계를 본다"
+  args:
+    file_path: ${OUTSIDE}/case01/evidence/C/Windows/System32/drivers/etc/hosts
+expect:
+- step: 3
+  note_ko: 조사는 Analyze 단계에 들어갔다
+  regex: '"current_phase": "Collect".*"next_phase": "Analyze".*"stack_action": "push"'
+- step: 4
+  note_ko: 모델이 고른 Report는 발견 0건이라 거부된다
+  regex: '"server_override": \{"kind": "report_refused_zero_findings", "detail": "no finding entries in trace"'
+- step: 5
+  note_ko: 빈 작업 지시의 stay는 서버가 발견 수를 보지 않고 Report로 바꾼다
+  regex: '"transition_recommended": true, "next_phase": "Report", "transition_rationale": "Server override: empty Analyze work order and no open scoping leads'
+- step: 5
+  note_ko: 재정의 종류는 analyze_to_report다
+  contains: '"server_override": {"kind": "analyze_to_report", "detail": "Analyze complete; no open scoping leads; advancing to Report"}'
+- step: 6
+  note_ko: 다음 증거 호출이 Report에서 Collect로 옮겨진다(서버 단계가 Report였다)
+  contains: 'Report -> Collect: strings_file_identify is evidence work.'
+- file_not_contains: ${OUTSIDE}/case01/analysis/CASE-001_trace.json
+  note_ko: trace에는 발견사항이 하나도 없다
+  text: '"type": "finding"'

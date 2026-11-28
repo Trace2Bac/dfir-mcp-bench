@@ -1,0 +1,65 @@
+# Matrix case P3075-024: findevil writes an audit entry only inside a tool
+# body. A call with an argument of the wrong type is rejected by FastMCP's
+# argument validation, and a call to a tool name the server does not have is
+# rejected by FastMCP, both before any tool body runs, so neither is in the
+# record that get_audit_trail reads back.
+# The server is started with FINDEVIL_LOGS_DIR=${DB_DIR}, so the call record
+# is ${DB_DIR}/audit.json.
+case_id: P3075-024
+problem: P3075
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "숫자 인자에 글자를 넣거나 비슷한 이름의 없는 도구를 부르는 일은 모델의 실수로 생길 수 있다."
+coverage: full
+summary: 'Of three calls (hexdump with length "all", a call to the unknown tool analyze_auth_log, a valid hexdump), get_audit_trail lists only the valid hexdump, because the two rejected calls never reached a tool body.'
+summary_ko: "`length`에 `\"all\"`을 준 `hexdump`, 없는 도구 `analyze_auth_log`, 정상 `hexdump`를 차례로 불렀는데 `get_audit_trail`은 정상 `hexdump` 1건만 보여 준다. 거부된 두 호출은 도구 본문에 닿지 않았기 때문이다."
+defect_ko: "이 서버는 인자 검증에서 거부된 호출과 없는 도구 호출을 기록하지 않는다. 받은 호출은 거부되더라도 거부 사유와 함께 기록해야 한다. 모델은 기록을 보고 거부된 호출이 없었다고, 세션의 호출이 `hexdump` 한 번뿐이라고 잘못 안다."
+setup_ko: "증거 폴더에 ELF 머리를 가진 작은 파일 하나를 두었다."
+fixture:
+  - path: case01/tmp/.x/kworkerd
+    # ELF64 little-endian header start (7f 45 4c 46 02 01 01 00 ...), then zeros.
+    hex: 7f454c4602010100000000000000000002003e0001000000784040000000000040000000000000000000000000000000
+steps:
+  - tool: hexdump
+    note_ko: "결함 호출: `length`에 숫자가 아닌 값을 준다"
+    args:
+      path: ${EVIDENCE}/case01/tmp/.x/kworkerd
+      length: all
+  - tool: analyze_auth_log
+    note_ko: "결함 호출: 서버에 없는 도구 이름"
+    args:
+      path: ${EVIDENCE}/case01/tmp/.x/kworkerd
+  - tool: hexdump
+    note_ko: "정상 호출"
+    args:
+      path: ${EVIDENCE}/case01/tmp/.x/kworkerd
+      length: 48
+  - tool: get_audit_trail
+    note_ko: "전체 호출 기록을 다시 읽는다"
+    args: {}
+expect:
+  - step: 1
+    note_ko: "자료형이 틀린 호출은 오류로 거부된다"
+    is_error: true
+  - step: 2
+    note_ko: "없는 도구 호출은 거부된다"
+    regex: "(?i)unknown tool"
+  - step: 3
+    note_ko: "정상 호출은 바이트를 보여 준다"
+    contains: "7f45 4c46"
+  - step: 4
+    note_ko: "세 호출 가운데 기록은 1건뿐이다"
+    contains: "(1 matching entries"
+  - step: 4
+    note_ko: "남은 1건은 정상 `hexdump`다"
+    contains: "\"length\": 48"
+  - step: 4
+    note_ko: "없는 도구 호출이 기록에 없다"
+    not_contains: "analyze_auth_log"
+  - file_not_contains: ${DB_DIR}/audit.json
+    note_ko: "기록 파일에도 거부된 `length` 값이 없다"
+    text: "\"all\""

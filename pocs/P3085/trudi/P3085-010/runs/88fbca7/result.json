@@ -1,0 +1,40 @@
+{
+  "case_id": "P3085-010",
+  "problem": "P3085",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: strings_extract only; the other tools that take an output path pass the same check",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "정한 폴더 밖의 출력 경로를 받아 성공으로 답한다",
+      "regex": "\"success\":\\s*true",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "응답의 출력 경로가 `/tmp/sc_strings.txt`다",
+      "regex": "\"output_path\":\\s*\"/tmp/sc_strings\\.txt\"",
+      "ok": true
+    },
+    {
+      "file_contains": "/tmp/sc_strings.txt",
+      "text": "SC.EXE",
+      "note_ko": "그 경로에 Prefetch 파일의 문자열이 실제로 쓰였다",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "같은 파일을 `read_output`으로 읽으면 정한 폴더 밖이라며 거부된다",
+      "contains": "is not under analysis/ exports/ reports/",
+      "ok": true
+    }
+  ],
+  "image": "sha256:e2d6eaaa5f186e92538a6998bec8252b5a08d5d32bb4ddb5e4d71d8d2ebf052c",
+  "ran_at": "2026-11-28T07:30:57+00:00"
+}

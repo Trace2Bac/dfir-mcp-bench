@@ -1,0 +1,52 @@
+{
+  "case_id": "P3005-049",
+  "problem": "P3005",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "source-vs-result",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: ez_evtxecmd only; any tool whose recorded output is a folder shares it; the reviewer is a stand-in",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "PowerShell 로그 처리는 call 3이다",
+      "regex": "\"success\":\\s*true[\\s\\S]*--csvf powershell\\.csv[\\s\\S]*\"_trudi_call_id\":\\s*3\\b",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "LocalSessionManager 로그 처리는 call 4로, `lsm.csv`를 만든다",
+      "regex": "\"success\":\\s*true[\\s\\S]*--csvf lsm\\.csv[\\s\\S]*\"_trudi_call_id\":\\s*4\\b",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "검토 모델에 보낸 packet에서 call 3의 근거로 자기 출력 `powershell.csv`가 들어간다",
+      "regex": "\\\\\"call_id\\\\\": 3, \\\\\"kind\\\\\": \\\\\"artifact_output\\\\\", \\\\\"path\\\\\": \\\\\"[^\\\\\"]*/analysis/evtx/powershell\\.csv\\\\\"",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "같은 packet에서 call 4가 만든 `lsm.csv`도 call 3의 근거로 들어간다",
+      "regex": "\\\\\"call_id\\\\\": 3, \\\\\"kind\\\\\": \\\\\"artifact_output\\\\\", \\\\\"path\\\\\": \\\\\"[^\\\\\"]*/analysis/evtx/lsm\\.csv\\\\\"",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "packet은 인용 호출 call 3의 근거만 담는다(call 4는 인용하지 않았다)",
+      "not_regex": "\\\\\"call_id\\\\\": 4, \\\\\"kind\\\\\"",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "검토 결과가 그 packet으로 돌아온다",
+      "regex": "\"success\":\\s*true[\\s\\S]*VERDICT: SUPPORTED",
+      "ok": true
+    }
+  ],
+  "image": "sha256:ad5c59a0007b51f2a14e26df408446a3cd6dcf5d27be89e87ee5e7e72ae2a4b3",
+  "ran_at": "2026-11-28T07:44:02+00:00"
+}

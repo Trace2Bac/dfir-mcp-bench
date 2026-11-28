@@ -1,0 +1,88 @@
+# Matrix case P1029-007: core/evidence_kinds.py classify_name decides what a
+# case holds from the file name only: a .img is a memory image when its base
+# name contains "mem", otherwise a disk image. A RAM capture saved as
+# host1.img (dd-style naming) makes the case "disk_image only", and
+# dair_assess then drops every vol.* tool DAIR prescribes as needing memory
+# evidence the case does not hold, and tells the DAIR model so.
+# Evidence: the case folder <case>/evidence/ holds one raw RAM capture of a
+# Windows host. A raw capture (dd, winpmem raw) has no header, so the bytes
+# cannot tell memory from disk either; it is a 4 MiB sparse file here. The
+# comparison condition holds the same capture named host1.mem. The case sits
+# under ${OUTSIDE}/cases because the server finds evidence/ next to the
+# trace's analysis/ folder.
+# DAIR is the server's own model backend; anthropic_stub answers it with one
+# RESULT block (the shape tools/dair.py parses) that stays in Triage and
+# prescribes three Volatility tools for the memory capture.
+case_id: P1029-007
+problem: P1029
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: source-vs-result
+level: mcp
+realism: possible
+realism_ko: "증거 파일 이름은 수집 도구나 분석가가 붙인 값으로 증거와 함께 들어온다. `dd`로 뜬 메모리나 다른 도구의 raw 메모리 덤프를 `host1.img`처럼 `.img`로 저장하는 일은 실제로 있다."
+coverage: "partial: the .img naming rule is shown through dair_assess's evidence inventory; the IOC coverage rows that use the same inventory need a mitre_detection.json, which trudi does not ship, and are not run"
+coverage_ko: "`.img` 이름 규칙이 `dair_assess`의 증거 목록과 작업 지시에 미치는 영향만 보인다. 같은 목록을 쓰는 IOC 범위 행은 trudi가 배포하지 않는 `mitre_detection.json`이 있어야 나오므로 돌리지 않았다."
+summary: With one RAM capture named host1.img in evidence/, dair_assess reports evidence_kinds ["disk_image"], drops vol.pslist, vol.netscan and vol.malfind from the work order as needing memory, and tells the DAIR model the case holds no memory evidence; the same capture named host1.mem gives evidence_kinds ["memory"] and keeps the three tools.
+summary_ko: "`evidence/`에 RAM 캡처 하나를 `host1.img`라는 이름으로 두면 `dair_assess`는 `evidence_kinds`를 `[\"disk_image\"]`로 내고, DAIR가 지시한 `vol.pslist`, `vol.netscan`, `vol.malfind`를 메모리가 필요하다며 작업 지시에서 빼며, DAIR 모델에도 메모리 증거가 없다고 알린다. 같은 캡처를 `host1.mem`으로 두면 `[\"memory\"]`가 되고 세 도구가 남는다."
+defect_ko: "이 서버는 증거의 종류를 파일 이름(확장자와 이름 속 `mem`)으로만 정해, 이름에 `mem`이 없는 `.img` 메모리 이미지를 디스크 이미지로 본다. 이름으로 정할 수 없는 확장자는 두 종류를 함께 두거나 내용과 분석가의 확인으로 정해야 한다. 모델과 DAIR는 이 사건에 메모리 증거가 없다고 알고, 메모리 분석을 하지 않은 채 조사를 진행한다."
+setup_ko: "사건 폴더의 `evidence/`에 Windows 호스트의 RAM 캡처 하나를 `host1.img`로 두고 기록을 연 뒤 `dair_assess`를 부른다. DAIR 모델 응답은 가짜 Anthropic API가 주며 Volatility 도구 세 개를 지시한다. 비교 조건은 같은 캡처를 `host1.mem`으로 둔다."
+anthropic_stub:
+  responses:
+  - |
+    The memory capture of WKS-0412 has not been examined yet. Start with the process list, network sockets and injected-code scan before any timeline work.
+
+    RESULT:
+    {"schema_version": 1, "rationale": "Triage of the memory capture: processes, sockets and injected code first.", "assessment": {"current_phase": "Triage", "phase_rationale": "Alert on WKS-0412; the RAM capture is the only evidence and has not been examined.", "transition_recommended": false, "next_phase": "", "transition_rationale": "", "stack_action": "stay", "investigation_focus": "Enumerate processes, network sockets and injected code in the WKS-0412 memory capture.", "verification_satisfied": false, "verification_challenges": [], "recommended_actions": []}, "directives": {"priority_tools": ["vol.pslist", "vol.netscan", "vol.malfind"], "skip_tools": [], "focus_pids": [], "focus_paths": []}}
+conditions:
+- name: img
+  fixture:
+  - path: cases/WKS-0412/evidence/host1.img
+    root: outside
+    size: 4194304
+- name: mem
+  fixture:
+  - path: cases/WKS-0412/evidence/host1.mem
+    root: outside
+    size: 4194304
+fixture:
+- path: cases/WKS-0412/analysis
+  root: outside
+  dir: true
+steps:
+- tool: misc_start_execution_log
+  note_ko: "준비: 사건 기록을 연다"
+  args:
+    case_id: WKS-0412
+    output_path: ${OUTSIDE}/cases/WKS-0412/analysis/WKS-0412_trace.json
+    case_dir: ${OUTSIDE}/cases/WKS-0412
+    launch_dashboard: false
+- tool: dair_assess
+  note_ko: "결함 호출: 첫 DAIR 판단을 받는다(서버가 증거 목록을 만들어 작업 지시를 거른다)"
+  args:
+    tool_results_summary: "Case opened for WKS-0412 after an EDR alert on a suspicious svchost child process. The only evidence is a RAM capture of the host taken at 09:40 UTC. Nothing has been examined yet."
+    phase_stack: "[]"
+    case_context: "WKS-0412, EDR alert 2026-11-27 09:31 UTC, RAM capture only"
+    input_call_ids: [1]
+expect:
+- step: 2
+  condition: img
+  note_ko: "`host1.img`인 사건은 디스크 이미지만 가진 사건으로 분류된다"
+  contains: '"evidence_kinds": ["disk_image"]'
+- step: 2
+  condition: img
+  note_ko: 지시된 Volatility 도구 세 개가 메모리 증거가 없다며 작업 지시에서 빠진다
+  contains: '"prescription_filtered": ["vol.pslist", "vol.netscan", "vol.malfind"]'
+- file_regex: ${OUTSIDE}/cases/WKS-0412/analysis/WKS-0412_trace.json
+  condition: img
+  note_ko: DAIR 모델에게 이 사건에 메모리 증거가 없다고 알린다
+  pattern: 'EVIDENCE AVAILABLE: disk_image [^"]{0,12}do not prescribe tools or verification challenges that need memory, pcap, triage, mobile, live evidence; the case holds none'
+- step: 2
+  condition: mem
+  note_ko: 같은 캡처를 `host1.mem`으로 두면 메모리로 분류된다
+  contains: '"evidence_kinds": ["memory"]'
+- step: 2
+  condition: mem
+  note_ko: 이때는 세 도구가 작업 지시에 남는다
+  contains: '"priority_tools": ["vol.pslist", "vol.netscan", "vol.malfind"]'

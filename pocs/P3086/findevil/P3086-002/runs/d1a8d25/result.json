@@ -1,0 +1,52 @@
+{
+  "case_id": "P3086-002",
+  "problem": "P3086",
+  "server": "findevil",
+  "commit": "d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "첫 호출은 정상으로 끝난다",
+      "not_contains": "Error",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "기록 파일 경로를 거부하지 않는다",
+      "not_regex": "(?i)^Error",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "기록을 다시 읽으면 한 건도 남아 있지 않다",
+      "contains": "(0 matching entries",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "앞서 한 `hash_file` 호출이 기록에서 사라졌다",
+      "not_contains": "`hash_file`",
+      "ok": true
+    },
+    {
+      "file_contains": "${DB_DIR}/audit.json",
+      "note_ko": "호출 기록 파일 안에 기준선 JSON이 들어 있다",
+      "text": "\"entries\"",
+      "ok": true
+    },
+    {
+      "file_regex": "${DB_DIR}/audit.json",
+      "note_ko": "`baseline_create`의 기록 줄이 기준선 JSON의 마지막 줄에 붙어 있다",
+      "pattern": "\\}\\{\"timestamp\"",
+      "ok": true
+    }
+  ],
+  "image": "sha256:d537427732171efacdf2dc7610fc0334c4fd7058659062df5c670343e89f785b",
+  "ran_at": "2026-11-28T07:19:40+00:00"
+}

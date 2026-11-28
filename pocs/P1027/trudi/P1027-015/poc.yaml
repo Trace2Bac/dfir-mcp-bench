@@ -1,0 +1,105 @@
+# Matrix case P1027-015: the deployed agent instructions (claude/CLAUDE.md,
+# "Triage max-pass cap") tell the agent, after three dair_assess answers of
+# Triage/stay, to record misc_record_self_correction(trigger=
+# "dair_max_pass_cap") and push Collect "manually". The server records the
+# self_correction but does not change its own phase (it stays Triage, and
+# later entries are stamped dair_phase Triage). The pre-report phase-coverage
+# check (tools/dair._phases_entered) nevertheless counts that one
+# self_correction as having entered Collect, so "never entered Collect"
+# disappears from reason_readiness_status.
+# The three DAIR answers come from the Anthropic stub (RESULT blocks in the
+# shape the DAIR prompt asks for): Triage, stay, no open verification
+# challenge, strings.file_identify as the work order. The server writes every
+# dair_call itself.
+case_id: P1027-015
+problem: P1027
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "Triage stay가 이어진 상태는 서버가 앞 호출로 남기는 기록이고, 그 뒤 `record_self_correction(trigger='dair_max_pass_cap')`을 남기는 것은 배포 지침(`claude/CLAUDE.md`)이 모델에게 정한 절차다."
+coverage: full
+summary: After three Triage/stay dair_assess answers, reason_readiness_status reports the phases never entered as Collect and Analyze; after one record_self_correction(trigger='dair_max_pass_cap') it reports only Analyze, while the server phase is still Triage (the self_correction entry itself is stamped dair_phase Triage).
+summary_ko: "Triage stay 답이 세 번 이어진 뒤 `reason_readiness_status`는 들어가지 않은 단계를 Collect와 Analyze로 든다. `record_self_correction(trigger='dair_max_pass_cap')`을 한 번 남기면 Analyze만 들고, 서버 단계는 그대로 Triage다(그 self_correction 항목도 `dair_phase` Triage로 찍힌다)."
+defect_ko: "이 서버는 max-pass cap 기록을 받아도 단계를 바꾸지 않으면서, 보고 전 단계 범위 점검에서는 그 기록 하나로 Collect에 들어간 것으로 센다. 단계 범위는 서버가 실제로 옮긴 단계로만 세거나, cap 기록 때 서버가 단계를 Collect로 옮겨야 한다. 모델과 보고 전 점검은 Collect 단계의 체계적 수집을 거친 것으로 안다."
+setup_ko: "트리아지 수집물에 hosts 파일을 두고 새 기록을 연다. 가짜 Anthropic API가 세 번 모두 Triage에 머무는(stay) 답을 돌려준다. 확인하지 않은 검증 과제는 없다."
+env:
+  TRUDI_CACHE_DIR: ${DB_DIR}/cache
+anthropic_stub:
+  responses:
+  - |
+    RESULT: {"schema_version": 1, "assessment": {"current_phase": "Triage", "phase_rationale": "The EDR alert on WKSTN-07 needs the host files confirmed first.", "transition_recommended": false, "next_phase": "", "transition_rationale": "", "stack_action": "stay", "investigation_focus": "Confirm the files named in the alert exist on WKSTN-07.", "verification_satisfied": false, "verification_challenges": [], "recommended_actions": [], "directives": {"priority_tools": ["strings.file_identify"], "skip_tools": [], "focus_pids": [], "focus_paths": [], "curiosity_budget": 2}}}
+  - |
+    RESULT: {"schema_version": 1, "assessment": {"current_phase": "Triage", "phase_rationale": "The alert is only partly confirmed.", "transition_recommended": false, "next_phase": "", "transition_rationale": "", "stack_action": "stay", "investigation_focus": "Confirm the files named in the alert exist on WKSTN-07.", "verification_satisfied": false, "verification_challenges": [], "recommended_actions": [], "directives": {"priority_tools": ["strings.file_identify"], "skip_tools": [], "focus_pids": [], "focus_paths": [], "curiosity_budget": 2}}}
+  - |
+    RESULT: {"schema_version": 1, "assessment": {"current_phase": "Triage", "phase_rationale": "The alert is still only partly confirmed.", "transition_recommended": false, "next_phase": "", "transition_rationale": "", "stack_action": "stay", "investigation_focus": "Confirm the files named in the alert exist on WKSTN-07.", "verification_satisfied": false, "verification_challenges": [], "recommended_actions": [], "directives": {"priority_tools": ["strings.file_identify"], "skip_tools": [], "focus_pids": [], "focus_paths": [], "curiosity_budget": 2}}}
+fixture:
+- path: C/Windows/System32/config
+  dir: true
+- path: C/Windows/System32/drivers/etc/hosts
+  text: "# Copyright (c) 1993-2009 Microsoft Corp.\r\n#\r\n# This is a sample HOSTS file used by Microsoft TCP/IP for Windows.\r\n#\r\n127.0.0.1       localhost\r\n::1             localhost\r\n"
+- path: case01/evidence
+  root: outside
+  symlink: ${EVIDENCE}
+- path: case01/analysis
+  root: outside
+  dir: true
+steps:
+- tool: misc_start_execution_log
+  note_ko: "준비: 새 사건 기록을 연다"
+  args:
+    case_id: CASE-001
+    output_path: ${OUTSIDE}/case01/analysis/CASE-001_trace.json
+    case_dir: ${OUTSIDE}/case01
+    launch_dashboard: false
+- tool: dair_assess
+  note_ko: "준비: Triage stay 1회"
+  args:
+    tool_results_summary: "The EDR alert on WKSTN-07 names C:\\Windows\\System32\\drivers\\etc\\hosts as modified."
+    phase_stack: "[]"
+    case_context: "CASE-001; host WKSTN-07"
+- tool: strings_file_identify
+  note_ko: "준비: 작업 지시의 도구를 돌린다"
+  args:
+    file_path: ${OUTSIDE}/case01/evidence/C/Windows/System32/drivers/etc/hosts
+- tool: dair_assess
+  note_ko: "준비: Triage stay 2회"
+  args:
+    tool_results_summary: "The hosts file is plain ASCII text."
+    case_context: "CASE-001; host WKSTN-07"
+    input_call_ids: [5]
+- tool: dair_assess
+  note_ko: "준비: Triage stay 3회"
+  args:
+    tool_results_summary: "No change since the last batch."
+    case_context: "CASE-001; host WKSTN-07"
+    input_call_ids: [5]
+- tool: reason_readiness_status
+  note_ko: "비교 호출: cap 기록 전 들어가지 않은 단계"
+- tool: misc_record_self_correction
+  note_ko: "결함 호출: 배포 지침대로 max-pass cap을 기록한다"
+  args:
+    trigger: dair_max_pass_cap
+    prior_belief: "DAIR kept the investigation in Triage for three passes."
+    new_belief: "DAIR Triage max-pass cap (3) reached - forcing transition to Collect."
+    evidence: "three consecutive dair_assess Triage/stay"
+- tool: reason_readiness_status
+  note_ko: "결함 확인: cap 기록 뒤 들어가지 않은 단계"
+expect:
+- step: 5
+  note_ko: 세 번째 답도 Triage stay다
+  regex: '"current_phase": "Triage".*"stack_action": "stay"'
+- step: 6
+  note_ko: cap 기록 전에는 Collect와 Analyze 모두 들어가지 않은 단계다
+  contains: 'Phase coverage: the investigation never entered Collect, Analyze'
+- step: 7
+  note_ko: cap 기록은 받아들여진다
+  regex: '"success": true, "trigger": "dair_max_pass_cap"'
+- step: 8
+  note_ko: cap 기록 하나로 Collect에 들어간 것으로 세어 Analyze만 남는다
+  contains: 'Phase coverage: the investigation never entered Analyze (every dair_assess stayed in Triage)'
+- file_regex: ${OUTSIDE}/case01/analysis/CASE-001_trace.json
+  note_ko: 서버 단계는 그대로 Triage다(cap 기록 자체가 Triage로 찍힌다)
+  pattern: '"type": "self_correction",[^}]*"trigger": "dair_max_pass_cap",[^}]*"dair_phase": "Triage"'

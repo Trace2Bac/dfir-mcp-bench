@@ -1,0 +1,90 @@
+# Matrix case P1026-004: when the DAIR model puts a tool name that is not
+# registered into priority_tools, the server marks it in
+# directives.unknown_priority_tools (tools/tool_capabilities.py) but keeps it
+# in the work order (tools/dair.py). The work-order gate then counts it as
+# unrun forever: the next dair_assess that tries to leave the phase is
+# overridden (work_order_incomplete) and re-issued that tool, which no call
+# can run; only a disposition clears it.
+# The DAIR answers come from the Anthropic stub (RESULT blocks in the shape
+# the DAIR prompt asks for). The first pushes Triage -> Collect with
+# strings.file_identify and the unregistered "ez.evtxparser" (a near-miss of
+# ez.evtxecmd); the second asks to push Collect -> Analyze.
+# The evidence is a CyLR-style triage tree (Windows/System32/config marks it
+# as triage) with the Windows hosts file.
+case_id: P1026-004
+problem: P1026
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "도구 인자는 아니지만 서버가 받아 쓰는 DAIR 모델의 출력이라 모델이 도구 이름을 잘못 지어내는 실수가 그대로 들어온다. 서버가 `unknown_priority_tools`로 표시하는 것은 이런 값이 들어온다고 예상한다는 뜻이다."
+coverage: full
+summary: dair_assess records a Collect work order with the unregistered tool ez.evtxparser and lists it in unknown_priority_tools; calling it fails as an unknown tool, and the next dair_assess that pushes to Analyze is overridden (work_order_incomplete, stay in Collect) because ez.evtxparser was "never run or dispositioned", while the registered strings.file_identify that ran is not; the re-issued work order puts ez.evtxparser first with an empty unknown_priority_tools.
+summary_ko: "`dair_assess`는 등록되지 않은 도구 `ez.evtxparser`가 든 Collect 작업 지시를 기록하고 그 이름을 `unknown_priority_tools`에 표시한다. 이 도구를 부르면 없는 도구로 실패하고, Analyze로 넘어가려는 다음 `dair_assess`는 `ez.evtxparser`를 실행도 처분도 하지 않았다는 이유로 덮어써져(`work_order_incomplete`) Collect에 머문다. 실제로 돌린 `strings.file_identify`는 걸리지 않는다. 다시 내린 작업 지시에서는 `ez.evtxparser`가 맨 앞에 오고 `unknown_priority_tools`는 비어 있다."
+defect_ko: "이 서버는 DAIR 모델이 작업 지시에 넣은 등록되지 않은 도구 이름을 표시만 하고 작업 지시에서 빼지 않아, 작업 지시 검사가 실행할 수 없는 도구의 실행이나 처분을 계속 요구한다. 등록되지 않은 도구는 작업 지시에서 빼거나 대체 도구로 바꿔야 한다. 모델은 없는 도구 때문에 단계를 넘지 못하고, 결국 처분 기록으로 덮게 된다."
+setup_ko: "트리아지 수집물(`Windows/System32/config` 폴더가 있는 트리)에 hosts 파일을 둔다. 가짜 Anthropic API가 첫 답으로 `strings.file_identify`와 없는 도구 `ez.evtxparser`를 Collect 작업 지시로 내리고, 둘째 답으로 Analyze로 넘어가자고 한다."
+env:
+  TRUDI_CACHE_DIR: ${DB_DIR}/cache
+anthropic_stub:
+  responses:
+  - |
+    RESULT: {"schema_version": 1, "assessment": {"current_phase": "Triage", "phase_rationale": "The alert on WKSTN-07 is confirmed; Triage is satisfied.", "transition_recommended": true, "next_phase": "Collect", "transition_rationale": "Triage satisfied; collect host artifacts.", "stack_action": "push", "investigation_focus": "What was changed on WKSTN-07 around the alert time?", "verification_satisfied": true, "verification_challenges": [], "recommended_actions": [], "directives": {"priority_tools": ["strings.file_identify", "ez.evtxparser"], "skip_tools": [], "focus_pids": [], "focus_paths": [], "curiosity_budget": 1}}}
+  - |
+    RESULT: {"schema_version": 1, "assessment": {"current_phase": "Collect", "phase_rationale": "The Collect batch is done; the hosts file is unmodified.", "transition_recommended": true, "next_phase": "Analyze", "transition_rationale": "Collection complete; analyze the collected artifacts.", "stack_action": "push", "investigation_focus": "Reason over the collected artifacts.", "verification_satisfied": true, "verification_challenges": [], "recommended_actions": [], "directives": {"priority_tools": ["reason.hypothesize"], "skip_tools": [], "focus_pids": [], "focus_paths": [], "curiosity_budget": 2}}}
+fixture:
+- path: C/Windows/System32/config
+  dir: true
+- path: C/Windows/System32/drivers/etc/hosts
+  text: "# Copyright (c) 1993-2009 Microsoft Corp.\r\n#\r\n# This is a sample HOSTS file used by Microsoft TCP/IP for Windows.\r\n#\r\n127.0.0.1       localhost\r\n::1             localhost\r\n"
+- path: case01/evidence
+  root: outside
+  symlink: ${EVIDENCE}
+- path: case01/analysis
+  root: outside
+  dir: true
+steps:
+- tool: misc_start_execution_log
+  note_ko: "준비: 새 사건 기록을 연다"
+  args:
+    case_id: CASE-001
+    output_path: ${OUTSIDE}/case01/analysis/CASE-001_trace.json
+    case_dir: ${OUTSIDE}/case01
+    launch_dashboard: false
+- tool: dair_assess
+  note_ko: "결함 호출: DAIR(가짜 API)가 없는 도구 ez.evtxparser를 작업 지시에 넣는다"
+  args:
+    tool_results_summary: "Triage confirmed the EDR alert on WKSTN-07. The triage collection is in evidence/C."
+    phase_stack: "[]"
+    case_context: "CASE-001; host WKSTN-07"
+- tool: strings_file_identify
+  note_ko: "작업 지시의 등록된 도구를 돌린다"
+  args:
+    file_path: ${OUTSIDE}/case01/evidence/C/Windows/System32/drivers/etc/hosts
+- tool: ez_evtxparser
+  note_ko: "작업 지시의 없는 도구를 부르면 실패한다"
+  args:
+    evtx_path: ${OUTSIDE}/case01/evidence/C/Windows/System32/winevt/Logs
+- tool: dair_assess
+  note_ko: "결함 확인: DAIR(가짜 API)가 Analyze로 넘어가자고 한다"
+  args:
+    tool_results_summary: "strings.file_identify shows the hosts file is plain ASCII text with only the default entries. ez.evtxparser is not a tool of this server."
+    case_context: "CASE-001; host WKSTN-07"
+    input_call_ids: [5]
+expect:
+- step: 2
+  note_ko: 서버는 ez.evtxparser를 모르는 도구로 표시하면서 작업 지시에 그대로 둔다
+  regex: '"priority_tools": \["strings.file_identify", "ez.evtxparser"\].*"unknown_priority_tools": \["ez.evtxparser"\]'
+- step: 4
+  note_ko: ez.evtxparser는 이 서버에서 부를 수 없는 도구다
+  regex: 'Unknown tool'
+- step: 5
+  note_ko: Analyze로 넘어가려는 답이 실행할 수 없는 ez.evtxparser 때문에 덮어써진다
+  regex: '"server_override": \{"kind": "work_order_incomplete", "detail": "unrun prescribed tools: ez.evtxparser"'
+- step: 5
+  note_ko: 단계는 Collect에 머문다
+  regex: '"transition_recommended": false, "next_phase": "Analyze", "transition_rationale": "Server override: work order incomplete \\u2014 1 tool\(s\) DAIR prescribed for this phase were never run or dispositioned \(ez.evtxparser\)\..*", "stack_action": "stay", "investigation_focus"'
+- step: 5
+  note_ko: 다시 내린 작업 지시 맨 앞에 없는 도구가 들어가고, 이번에는 모르는 도구 표시도 비어 있다
+  contains: '"priority_tools": ["ez.evtxparser", "reason.hypothesize"], "skip_tools": [], "focus_pids": [], "focus_paths": [], "max_depth": "", "next_hypothesis_triggers": [], "curiosity_budget": 2, "tool_manifest_version": "2026-09-24.1", "unknown_priority_tools": []'

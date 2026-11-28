@@ -1,0 +1,122 @@
+# Matrix case P1177-005: record_finding's tier_contract gate computes the
+# reachable tier from all cited calls (input_call_ids, linked_call_id and the
+# dedicated transfer_call_ids / receipt_call_ids / session_binding_call_ids /
+# rule_outs; tools/_gates/tier_contract.cited_cids). reason_evaluate_finding
+# shows the reviewer and the agent a "tier_contract" (tier_achievable and the
+# tier_path to the next tier) computed by _tier_contract_for from
+# input_call_ids only (tools/reasoning.py). For a claim whose transfer
+# artifact is passed in the dedicated transfer_call_ids field, as the
+# record_finding docstring asks, evaluate says the cited classes reach only
+# SUSPECTED and that LIKELY needs a 'transfer' class, while record_finding
+# with the same claim accepts LIKELY, counts that transfer class and says the
+# cited classes reach CONFIRMED.
+# The evidence is a PowerShell transcript (Start-Transcript output, UTF-8
+# with BOM, CRLF, the header PowerShell 5.1 writes) in which jdoe runs the
+# Windows ftp.exe client: "226 Transfer complete." and "ftp: 52428800 bytes
+# sent in ...". Two strings_grep calls read it: one for the ftp command
+# (input_call_ids), one for the bytes-sent line (transfer_call_ids). DAIR,
+# the hypothesis pass and the reviewer run against the Anthropic stub.
+case_id: P1177-005
+problem: P1177
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "`transfer_call_ids`는 서버가 egress 주장의 전송 근거를 넣으라고 따로 둔 인자라, 모델이 설계대로 전송 근거 호출을 그 칸에만 넣는 흐름은 자연스럽다."
+coverage: "partial: DAIR, hypothesis and reviewer answers come from the Anthropic stub; the reviewer's verdict does not depend on the tier_contract it is shown"
+coverage_ko: "DAIR, 가설, 검토 모델의 답은 가짜 Anthropic API가 준다. 검토 판정 자체는 함께 보여 준 tier_contract에 좌우되지 않게 고정했다."
+summary: For an FTP egress claim whose transfer evidence is cited in transfer_call_ids, reason_evaluate_finding returns tier_contract tier_achievable SUSPECTED with a tier_path saying LIKELY needs a 'transfer' class, while record_finding with the same claim and calls records it as LIKELY, counts the transfer (and receipt) class from call 8 and says the cited classes reach CONFIRMED.
+summary_ko: "전송 근거를 `transfer_call_ids`에 넣은 FTP 유출 주장에 `reason_evaluate_finding`은 `tier_contract`로 도달 가능 등급 SUSPECTED와 LIKELY에 'transfer' 종류가 더 필요하다는 `tier_path`를 돌려준다. 같은 주장과 호출로 `record_finding`을 부르면 LIKELY로 기록되고, 실제 판정은 8번 호출의 transfer·receipt 종류를 세어 CONFIRMED까지 도달한다고 알린다."
+defect_ko: "이 서버의 검토 도구는 `tier_contract`를 `input_call_ids`만으로 계산해, 전용 칸으로 넘긴 전송 근거를 빼고 다음 등급에 transfer 종류가 빠졌다고 안내한다. 실제 판정과 같은 인용 범위(`transfer_call_ids` 등 포함)로 계산해야 한다. 모델과 검토 모델은 이미 있는 전송 근거를 없는 것으로 알고, 불필요한 수집을 하거나 등급을 낮춰 기록한다."
+setup_ko: "증거에 jdoe가 `ftp.exe`로 `payroll_q3.zip`을 203.0.113.50에 올린 PowerShell transcript를 둔다. 가짜 Anthropic API가 DAIR(Collect로 넘김), 가설, 검토(SUPPORTED) 답을 차례로 돌려준다."
+env:
+  TRUDI_CACHE_DIR: ${DB_DIR}/cache
+anthropic_stub:
+  responses:
+  - |
+    RESULT: {"schema_version": 1, "assessment": {"current_phase": "Triage", "phase_rationale": "The DLP alert on WKSTN-07 (outbound FTP from jdoe) is confirmed; Triage is satisfied.", "transition_recommended": true, "next_phase": "Collect", "transition_rationale": "Triage satisfied; collect the transfer artifacts.", "stack_action": "push", "investigation_focus": "What did jdoe send over FTP from WKSTN-07?", "verification_satisfied": true, "verification_challenges": [], "recommended_actions": [], "directives": {"priority_tools": [], "skip_tools": [], "focus_pids": [], "focus_paths": [], "curiosity_budget": 1}}}
+  - |
+    RESULT: {"schema_version": 1, "rationale": "An interactive ftp.exe session in jdoe's PowerShell transcript is a candidate exfiltration channel.", "hypotheses": [{"label": "H1", "title": "jdoe uploaded payroll data to 203.0.113.50 over FTP", "likelihood": "high", "principals": ["jdoe"]}, {"label": "H2", "title": "The FTP session failed before any data was sent", "likelihood": "low", "principals": []}], "directives": {}}
+  - |
+    RESULT: {"schema_version": 1, "verdict": "SUPPORTED", "rationale": "The transcript shows put payroll_q3.zip to 203.0.113.50, 226 Transfer complete and 52428800 bytes sent.", "contradictions": [], "unverifiable": [], "weaknesses": [], "discriminators_missing": []}
+fixture:
+- path: C/Users/jdoe/Documents/20261119/PowerShell_transcript.WKSTN-07.Zq9x3Lm2.20261119224012.txt
+  base64: 77u/KioqKioqKioqKioqKioqKioqKioqKg0KV2luZG93cyBQb3dlclNoZWxsIHRyYW5zY3JpcHQgc3RhcnQNClN0YXJ0IHRpbWU6IDIwMjYxMTE5MjI0MDEyDQpVc2VybmFtZTogQ09SUFxqZG9lDQpSdW5BcyBVc2VyOiBDT1JQXGpkb2UNCkNvbmZpZ3VyYXRpb24gTmFtZToNCk1hY2hpbmU6IFdLU1ROLTA3IChNaWNyb3NvZnQgV2luZG93cyBOVCAxMC4wLjE5MDQ1LjApDQpIb3N0IEFwcGxpY2F0aW9uOiBDOlxXaW5kb3dzXFN5c3RlbTMyXFdpbmRvd3NQb3dlclNoZWxsXHYxLjBccG93ZXJzaGVsbC5leGUNClByb2Nlc3MgSUQ6IDYxMjANClBTVmVyc2lvbjogNS4xLjE5MDQxLjQ2NDgNClBTRWRpdGlvbjogRGVza3RvcA0KUFNDb21wYXRpYmxlVmVyc2lvbnM6IDEuMCwgMi4wLCAzLjAsIDQuMCwgNS4wLCA1LjEuMTkwNDEuNDY0OA0KQnVpbGRWZXJzaW9uOiAxMC4wLjE5MDQxLjQ2NDgNCkNMUlZlcnNpb246IDQuMC4zMDMxOS40MjAwMA0KV1NNYW5TdGFja1ZlcnNpb246IDMuMA0KUFNSZW1vdGluZ1Byb3RvY29sVmVyc2lvbjogMi4zDQpTZXJpYWxpemF0aW9uVmVyc2lvbjogMS4xLjAuMQ0KKioqKioqKioqKioqKioqKioqKioqKg0KUFMgQzpcVXNlcnNcamRvZVxEb2N1bWVudHM+IGZ0cCAtczpDOlxVc2Vyc1xqZG9lXEFwcERhdGFcTG9jYWxcVGVtcFxmLnR4dCAyMDMuMC4xMTMuNTANCkNvbm5lY3RlZCB0byAyMDMuMC4xMTMuNTAuDQoyMjAgKHZzRlRQZCAzLjAuNSkNCjIwMCBBbHdheXMgaW4gVVRGOCBtb2RlLg0KVXNlciAoMjAzLjAuMTEzLjUwOihub25lKSk6DQozMzEgUGxlYXNlIHNwZWNpZnkgdGhlIHBhc3N3b3JkLg0KDQoyMzAgTG9naW4gc3VjY2Vzc2Z1bC4NCmZ0cD4gYmluYXJ5DQoyMDAgU3dpdGNoaW5nIHRvIEJpbmFyeSBtb2RlLg0KZnRwPiBwdXQgcGF5cm9sbF9xMy56aXANCjIwMCBQT1JUIGNvbW1hbmQgc3VjY2Vzc2Z1bC4gQ29uc2lkZXIgdXNpbmcgUEFTVi4NCjE1MCBPayB0byBzZW5kIGRhdGEuDQoyMjYgVHJhbnNmZXIgY29tcGxldGUuDQpmdHA6IDUyNDI4ODAwIGJ5dGVzIHNlbnQgaW4gNC4yMVNlY29uZHMgMTI0NTMuMjFLYnl0ZXMvc2VjLg0KZnRwPiBxdWl0DQoyMjEgR29vZGJ5ZS4NClBTIEM6XFVzZXJzXGpkb2VcRG9jdW1lbnRzPiBSZW1vdmUtSXRlbSBDOlxVc2Vyc1xqZG9lXEFwcERhdGFcTG9jYWxcVGVtcFxmLnR4dA0KKioqKioqKioqKioqKioqKioqKioqKg0KV2luZG93cyBQb3dlclNoZWxsIHRyYW5zY3JpcHQgZW5kDQpFbmQgdGltZTogMjAyNjExMTkyMjQxMzENCioqKioqKioqKioqKioqKioqKioqKioNCg==
+- path: case01/evidence
+  root: outside
+  symlink: ${EVIDENCE}
+- path: case01/analysis
+  root: outside
+  dir: true
+steps:
+- tool: misc_start_execution_log
+  note_ko: "준비: 새 사건 기록을 연다"
+  args:
+    case_id: CASE-001
+    output_path: ${OUTSIDE}/case01/analysis/CASE-001_trace.json
+    case_dir: ${OUTSIDE}/case01
+    launch_dashboard: false
+- tool: dair_assess
+  note_ko: "준비: DAIR(가짜 API)가 Collect로 넘긴다"
+  args:
+    tool_results_summary: "Triage confirmed the DLP alert: outbound FTP from jdoe's session on WKSTN-07. PowerShell transcripts are in evidence/C/Users/jdoe/Documents."
+    phase_stack: "[]"
+    case_context: "CASE-001; host WKSTN-07; user jdoe"
+- tool: reason_hypothesize
+  note_ko: "준비: 가설 단계를 거친다(가짜 API)"
+  args:
+    observation: "jdoe ran ftp.exe against 203.0.113.50 from PowerShell on WKSTN-07"
+    hypothesis_kind: case_question
+- tool: strings_grep
+  note_ko: "준비: transcript에서 ftp 명령을 찾는다(input_call_ids로 쓸 호출)"
+  args:
+    file_path: ${OUTSIDE}/case01/evidence/C/Users/jdoe/Documents/20261119/PowerShell_transcript.WKSTN-07.Zq9x3Lm2.20261119224012.txt
+    pattern: "ftp -s:|put payroll_q3.zip"
+- tool: strings_grep
+  note_ko: "준비: transcript에서 전송 바이트 줄을 찾는다(transfer_call_ids로 쓸 호출)"
+  args:
+    file_path: ${OUTSIDE}/case01/evidence/C/Users/jdoe/Documents/20261119/PowerShell_transcript.WKSTN-07.Zq9x3Lm2.20261119224012.txt
+    pattern: "bytes sent|226 Transfer complete"
+- tool: reason_evaluate_finding
+  note_ko: "결함 호출: 전송 근거를 transfer_call_ids에만 넣은 주장을 검토한다"
+  args:
+    finding: "payroll_q3.zip (52428800 bytes) was uploaded over FTP from WKSTN-07 to 203.0.113.50 on 2026-11-19."
+    supporting_evidence: "strings.grep PowerShell_transcript.WKSTN-07.Zq9x3Lm2.20261119224012.txt: 'ftp -s:C:\\Users\\jdoe\\AppData\\Local\\Temp\\f.txt 203.0.113.50', 'put payroll_q3.zip', '226 Transfer complete.', 'ftp: 52428800 bytes sent in 4.21Seconds'; transcript Start time 20261119224012 (2026-11-19), Machine WKSTN-07"
+    input_call_ids: [7]
+    linked_call_id: 7
+    claim_kind: positive
+    category: exfil
+    act: egress
+    channel: ftp
+    entities: [payroll_q3.zip, 203.0.113.50]
+    transfer_call_ids: [8]
+- tool: misc_record_finding
+  note_ko: "비교 호출: 같은 주장과 호출로 LIKELY를 기록한다"
+  args:
+    description: "payroll_q3.zip (52428800 bytes) was uploaded over FTP from WKSTN-07 to 203.0.113.50 on 2026-11-19."
+    confidence: LIKELY
+    source: strings.grep
+    linked_call_id: 7
+    input_call_ids: [7]
+    supporting_evidence: "strings.grep PowerShell_transcript.WKSTN-07.Zq9x3Lm2.20261119224012.txt: 'ftp -s:C:\\Users\\jdoe\\AppData\\Local\\Temp\\f.txt 203.0.113.50', 'put payroll_q3.zip', '226 Transfer complete.', 'ftp: 52428800 bytes sent in 4.21Seconds'; transcript Start time 20261119224012 (2026-11-19), Machine WKSTN-07"
+    claim_kind: positive
+    category: exfil
+    act: egress
+    channel: ftp
+    entities: [payroll_q3.zip, 203.0.113.50]
+    transfer_call_ids: [8]
+expect:
+- step: 6
+  note_ko: 검토 모델은 SUPPORTED를 냈다
+  contains: '"verdict": "SUPPORTED"'
+- step: 6
+  note_ko: 검토 응답의 tier_contract는 SUSPECTED까지만 된다고 한다
+  regex: '"tier_contract": \{"tier_achievable": "SUSPECTED", "rule": "egress/ftp"'
+- step: 6
+  note_ko: 검토 응답은 다음 등급에 transfer 종류가 빠졌다고 안내한다
+  regex: '"tier_path": "LIKELY for act=egress/ftp needs[^"]*transfer'
+- step: 7
+  note_ko: 같은 주장을 LIKELY로 기록하면 받아들이고, 실제 판정은 transfer 종류를 세어 CONFIRMED까지 된다고 한다
+  contains: '"confidence": "LIKELY", "_trudi_call_id": 11, "finding_id": "F-11", "revision": 1, "tier_achievable": "CONFIRMED", "artifact_classes": {"file_content": [7, 8], "receipt": [8], "transfer": [8]}'

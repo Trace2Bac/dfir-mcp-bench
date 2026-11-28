@@ -1,0 +1,52 @@
+{
+  "case_id": "P1024-022",
+  "problem": "P1024",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: the Amcache rows are read from an AmcacheParser CSV placed in analysis/ (as an earlier session leaves it), because the bench cannot build a real Amcache.hve; DAIR, hypothesis and reviewer answers come from the Anthropic stub",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 6,
+      "note_ko": "발견은 LIKELY로 기록되고 ez_pecmd 등 보강 도구가 없다는 알림이 붙는다",
+      "regex": "\"success\": true.*\"confidence\": \"LIKELY\".*\"completeness_note\": \"Finding grounded on amcache but no FK corroborator for execution ran [^\"]*ez_pecmd",
+      "ok": true
+    },
+    {
+      "step": 7,
+      "note_ko": "파일 목록 전에는 준비 점검이 이 발견을 보강 안 된 실행 발견으로 차단한다",
+      "contains": "Uncorroborated execution finding (\\\"rclone.exe",
+      "ok": true
+    },
+    {
+      "step": 8,
+      "note_ko": "확인한 파일은 Prefetch 파일이 아니라 UTF-16 텍스트인 Layout.ini다",
+      "regex": "\"success\": true, \"stdout\": \"[^\"]*/Windows/Prefetch/Layout.ini: Unicode text, UTF-16, little-endian text",
+      "ok": true
+    },
+    {
+      "step": 9,
+      "note_ko": "폴더 목록 한 번 뒤 보강 안 된 발견 차단이 사라진다",
+      "not_contains": "Uncorroborated execution finding",
+      "ok": true
+    },
+    {
+      "step": 9,
+      "note_ko": "같은 응답에서 점검은 계속 돈다(다른 차단이 남아 있다)",
+      "contains": "\"blocking_issues\": [\"reason.plan was not called",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${OUTSIDE}/case01/analysis/CASE-001_trace.json",
+      "note_ko": "trace에는 PECmd 호출이 하나도 없다",
+      "text": "PECmd.dll",
+      "ok": true
+    }
+  ],
+  "image": "sha256:794170e64081170a85118823075934848ea889f943867d366085d8ad6afea26f",
+  "ran_at": "2026-11-28T07:43:11+00:00"
+}

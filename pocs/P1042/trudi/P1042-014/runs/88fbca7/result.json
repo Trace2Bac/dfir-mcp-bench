@@ -1,0 +1,52 @@
+{
+  "case_id": "P1042-014",
+  "problem": "P1042",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: hashdeep_compute and hashdeep_audit are run; md5deep_scan writes its output_path the same way but is not run",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "목록 작성은 성공으로 끝나고 `manifest_path`를 돌려준다",
+      "regex": "\"success\": true.*\"manifest_path\": \"[^\"]*/analysis/docs.hashdeep\"",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "응답에는 출력이 잘렸다는 표시만 있다",
+      "contains": "\"truncated\": true",
+      "ok": true
+    },
+    {
+      "file_regex": "${OUTSIDE}/cases/WKS-0412/analysis/docs.hashdeep",
+      "note_ko": "목록 파일은 마지막 줄이 중간에서 끊긴 채 끝난다(50 KiB에서 잘림)",
+      "pattern": "\\.txt\\n[^\\n]+\\Z",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "바뀌지 않은 같은 폴더를 그 목록으로 감사하면 감사 실패가 나온다",
+      "contains": "\"stdout\": \"hashdeep: Audit failed\\n\"",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "상한 안의 폴더는 목록에 잘림이 없다",
+      "contains": "\"truncated\": false",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "목록이 온전하면 같은 감사가 통과한다",
+      "contains": "\"stdout\": \"hashdeep: Audit passed\\n\"",
+      "ok": true
+    }
+  ],
+  "image": "sha256:645e35e0af7dd332ea1a3f8922973f2b94c0bcbf8708db91fa04807d114c2cbb",
+  "ran_at": "2026-11-28T07:43:38+00:00"
+}

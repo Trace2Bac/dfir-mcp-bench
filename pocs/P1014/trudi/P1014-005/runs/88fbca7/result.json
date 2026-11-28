@@ -1,0 +1,40 @@
+{
+  "case_id": "P1014-005",
+  "problem": "P1014",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "side-effect",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "서버의 조치 제안에 kill -9 4242가 있다",
+      "contains": "\"manual_command\": \"kill -9 4242\"",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "`execute_action`은 승인 없는 kill 조치를 거부한다",
+      "regex": "\"success\": false, \"gate\": \"approval_required\"",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "같은 kill을 ssh argv로 주면 성공한다",
+      "regex": "^\\{\"success\": true, \"results\": \\[\\{\"success\": true, .*\"cmd\": \"ssh web01 kill -9 4242\"",
+      "ok": true
+    },
+    {
+      "file_contains": "${OUTSIDE}/ssh_argv.log",
+      "note_ko": "ssh 대역이 원격 kill 명령을 받았다",
+      "text": "web01 kill -9 4242",
+      "ok": true
+    }
+  ],
+  "image": "sha256:6f581f19d8d6ddc0ad2fdb8ccd7b3e21d617216b17490e996e559d36b755ec1f",
+  "ran_at": "2026-11-28T07:40:33+00:00"
+}

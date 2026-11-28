@@ -1,0 +1,52 @@
+{
+  "case_id": "P3075-060",
+  "problem": "P3075",
+  "server": "findevil",
+  "commit": "d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "ASCII로 부르면 DOS 스텁 문구가 나오고 URL은 없다",
+      "contains": "This program cannot be run in DOS mode",
+      "ok": true
+    },
+    {
+      "step": 1,
+      "note_ko": "ASCII로 부른 결과에는 UTF-16LE URL이 없다",
+      "not_contains": "198.51.100.23",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "UTF-16LE로 부르면 URL이 나온다",
+      "contains": "http://198.51.100.23/beacon",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "기록에 두 호출이 모두 있다",
+      "contains": "(2 matching entries",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "두 항목의 params가 똑같이 `path`와 `min_length`뿐이다",
+      "regex": "(?s)params: \\{\"path\": \"[^\"]*/payload\\.exe\", \"min_length\": 6\\}\\n.*params: \\{\"path\": \"[^\"]*/payload\\.exe\", \"min_length\": 6\\}\\n",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "기록 어디에도 `encoding`이 없다",
+      "not_contains": "encoding",
+      "ok": true
+    }
+  ],
+  "image": "sha256:0ae2dbf4470e02d2e872380e83daf16c254a68519cd0933da8b06863e9b335ea",
+  "ran_at": "2026-11-28T07:27:06+00:00"
+}

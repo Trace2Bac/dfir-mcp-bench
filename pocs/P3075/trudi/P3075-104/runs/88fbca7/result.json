@@ -1,0 +1,52 @@
+{
+  "case_id": "P3075-104",
+  "problem": "P3075",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 3,
+      "note_ko": "max_rows 3인 읽기는 행 제한에 걸려 잘렸다",
+      "regex": "\"body\": \"file,sha256(\\x5cn/[^\"]*?){3}\\x5cn\\x5cu2026\\[row cap\\]\", \"truncated\": true",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "기본값 읽기는 merger 파일까지 맞는 행을 더 돌려주고 잘리지 않았다",
+      "regex": "merger_dd_checklist\\.xlsx[^\"]*\", \"truncated\": false",
+      "ok": true
+    },
+    {
+      "file_regex": "${DB_DIR}/analysis/P3075-104_trace.json",
+      "note_ko": "trace에는 두 읽기가 앞 80자에서 잘린 질의와 같은 cmd로 남고 max_rows는 없다",
+      "pattern": "\"cmd\": \"read\\.output --output [^ \"]*/analysis/documents_sha256\\.csv query=payroll salary invoice contract vpn password credentials backup customer export \",[\\s\\S]*\"cmd\": \"read\\.output --output [^ \"]*/analysis/documents_sha256\\.csv query=payroll salary invoice contract vpn password credentials backup customer export \",",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${DB_DIR}/analysis/P3075-104_trace.json",
+      "note_ko": "trace에 max_rows는 어디에도 없다",
+      "text": "max_rows",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "기록된 cmd대로 다시 읽어도 결과는 나온다(payroll 파일 포함)",
+      "contains": "payroll_2024_q3.xlsx",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "그러나 앞의 두 읽기에 있던 인수합병 파일은 나오지 않는다(기록과 실제 요청이 다르다)",
+      "not_contains": "merger",
+      "ok": true
+    }
+  ],
+  "image": "sha256:06e99a49d7713c551b107f9ad22ce20eb04ee836dea7df1f952c9bdc9d59fb5e",
+  "ran_at": "2026-11-28T07:48:39+00:00"
+}

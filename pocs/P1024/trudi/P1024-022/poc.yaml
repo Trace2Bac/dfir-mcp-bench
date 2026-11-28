@@ -1,0 +1,133 @@
+# Matrix case P1024-022: the FK corroboration check
+# (tools/_gates/fk_corroboration.py) proves that a corroborator ran by a regex
+# over the cmd of every tool_call; the regex for ez_pecmd is
+# "(?<![a-z])pecmd|prefetch", so ANY call whose command line holds a path
+# under Windows\Prefetch counts as a PECmd run. Here a file-type check of the one file
+# left in the Prefetch folder (strings_file_identify, recorded as
+# "file .../Windows/Prefetch/Layout.ini") clears the "Uncorroborated execution
+# finding" blocker of an Amcache-grounded LIKELY execution finding, although
+# PECmd never ran and the folder holds no .pf file at all.
+# hash_directory, which the matrix summary names, does not show this: its
+# trace entry is "<py>:hash_directory" with no path in the cmd.
+# Amcache is the grounding artifact because its FK sheet disclaims execution
+# and names ez_pecmd as a corroborator (the Prefetch sheet does not disclaim
+# execution, so a Prefetch-grounded finding never gets the check). The
+# Amcache rows come from an AmcacheParser CSV an earlier session left in
+# analysis/ (the column header AmcacheParser writes for
+# UnassociatedFileEntries), read with read_output; the bench cannot build a
+# real Amcache.hve. The Prefetch folder holds only Layout.ini (UTF-16LE with
+# BOM, one path per line, as Windows writes it): the .pf files were deleted,
+# as an intruder clearing Prefetch leaves it. DAIR, the hypothesis pass and
+# the reviewer run against the Anthropic stub.
+case_id: P1024-022
+problem: P1024
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "Prefetch 폴더에 남은 파일의 종류를 보거나 해시·문자열로 살피는 것은 흔한 호출이고, 공격자가 지운 Prefetch 폴더에 `Layout.ini`만 남는 일도 있다."
+coverage: "partial: the Amcache rows are read from an AmcacheParser CSV placed in analysis/ (as an earlier session leaves it), because the bench cannot build a real Amcache.hve; DAIR, hypothesis and reviewer answers come from the Anthropic stub"
+coverage_ko: "실제 Amcache.hve를 만들 수 없어 앞 세션이 `analysis/`에 남긴 AmcacheParser CSV를 읽어 Amcache 행을 얻는다. DAIR, 가설, 검토 모델의 답은 가짜 Anthropic API가 준다."
+summary: An Amcache-grounded LIKELY execution finding is recorded with a completeness_note naming ez_pecmd and reason_readiness_status blocks it as uncorroborated; after strings_file_identify only checks the file type of Windows/Prefetch/Layout.ini (the folder holds no .pf file), the blocker is gone, although PECmd never ran.
+summary_ko: "Amcache에 근거한 LIKELY 실행 발견은 `ez_pecmd`를 보강 도구로 든 `completeness_note`와 함께 기록되고 `reason_readiness_status`가 보강 안 된 발견으로 차단한다. `strings_file_identify`로 `.pf` 없이 `Layout.ini`만 남은 `Windows/Prefetch` 폴더에서 그 파일의 종류만 확인하면 PECmd를 돌리지 않았는데도 이 차단이 사라진다."
+defect_ko: "이 서버는 PECmd 실행 여부를 명령 문자열에 `prefetch`라는 글자가 있는지로도 정해, Prefetch 폴더 경로를 받은 다른 도구의 호출을 보강 도구 실행으로 센다. PECmd(또는 Prefetch 해석 도구)가 실제로 성공해 결과를 낸 호출만 세야 한다. 모델과 보고 전 점검은 Amcache 하나에 기댄 실행 발견을 Prefetch로 보강한 것으로 안다."
+setup_ko: "트리아지 수집물의 `Windows/Prefetch` 폴더에 `Layout.ini`만 남기고(`.pf`는 지워짐), 앞 세션이 `analysis/amcache/`에 남긴 AmcacheParser CSV에 `rclone.exe` 행을 둔다. 가짜 Anthropic API가 DAIR(Collect로 넘김), 가설, 검토(SUPPORTED) 답을 차례로 돌려준다."
+env:
+  TRUDI_CACHE_DIR: ${DB_DIR}/cache
+anthropic_stub:
+  responses:
+  - |
+    RESULT: {"schema_version": 1, "assessment": {"current_phase": "Triage", "phase_rationale": "The DLP alert on WKSTN-07 (rclone traffic from jdoe) is confirmed; Triage is satisfied.", "transition_recommended": true, "next_phase": "Collect", "transition_rationale": "Triage satisfied; collect execution artifacts.", "stack_action": "push", "investigation_focus": "Did rclone.exe run on WKSTN-07, and when?", "verification_satisfied": true, "verification_challenges": [], "recommended_actions": [], "directives": {"priority_tools": [], "skip_tools": [], "focus_pids": [], "focus_paths": [], "curiosity_budget": 1}}}
+  - |
+    RESULT: {"schema_version": 1, "rationale": "rclone.exe in a Temp folder suggests a staged cloud-sync exfiltration tool.", "hypotheses": [{"label": "H1", "title": "jdoe ran rclone.exe from Temp to copy data to cloud storage", "likelihood": "medium", "principals": ["jdoe"]}, {"label": "H2", "title": "rclone.exe was dropped but never executed", "likelihood": "medium", "principals": []}], "directives": {}}
+  - |
+    RESULT: {"schema_version": 1, "verdict": "SUPPORTED", "rationale": "The cited Amcache row records C:\\Users\\jdoe\\AppData\\Local\\Temp\\rc\\rclone.exe with the stated SHA1 and key time.", "contradictions": [], "unverifiable": [], "weaknesses": ["Amcache alone does not prove execution"], "discriminators_missing": ["Prefetch RCLONE.EXE-*.pf"]}
+fixture:
+- path: C/Windows/System32/config
+  dir: true
+- path: C/Windows/Prefetch/Layout.ini
+  base64: //5DADoAXABXAGkAbgBkAG8AdwBzAFwAUwB5AHMAdABlAG0AMwAyAFwAbgB0AGQAbABsAC4AZABsAGwADQAKAEMAOgBcAFcAaQBuAGQAbwB3AHMAXABTAHkAcwB0AGUAbQAzADIAXABrAGUAcgBuAGUAbAAzADIALgBkAGwAbAANAAoAQwA6AFwAVwBpAG4AZABvAHcAcwBcAFMAeQBzAHQAZQBtADMAMgBcAEsAZQByAG4AZQBsAEIAYQBzAGUALgBkAGwAbAANAAoAQwA6AFwAVwBpAG4AZABvAHcAcwBcAFMAeQBzAHQAZQBtADMAMgBcAHUAcwBlAHIAMwAyAC4AZABsAGwADQAKAEMAOgBcAFcAaQBuAGQAbwB3AHMAXABlAHgAcABsAG8AcgBlAHIALgBlAHgAZQANAAoA
+- path: case01/evidence
+  root: outside
+  symlink: ${EVIDENCE}
+- path: case01/analysis/amcache/20261120_Amcache_UnassociatedFileEntries.csv
+  root: outside
+  text: "ProgramName,ProgramID,FileKeyLastWriteTimestamp,SHA1,IsOsComponent,FullPath,Name,FileExtension,LinkDate,ProductName,Size,Version,ProductVersion,LongPathHash,BinaryType,IsPeFile,BinFileVersion,BinProductVersion,Usn,Language,Description\r\nUnassociated,0006c3f1e5e0b8e6a7d9c3a1f4b2e8d7c6a50000ffff,2026-11-19 22:40:11,5b3a9f1c7e2d4b6a8c0e1f3a5b7d9c2e4f6a8b0c,False,c:\\users\\jdoe\\appdata\\local\\temp\\rc\\rclone.exe,rclone.exe,.exe,2025-06-13 10:22:40,rclone,63829504,1.70.1,1.70.1,rclone.exe|6a1f0d3c2b4e5a79,pe64_amd64,True,1.70.1,1.70.1,412983048,0,Rsync for cloud storage\r\n"
+steps:
+- tool: misc_start_execution_log
+  note_ko: "준비: 새 사건 기록을 연다"
+  args:
+    case_id: CASE-001
+    output_path: ${OUTSIDE}/case01/analysis/CASE-001_trace.json
+    case_dir: ${OUTSIDE}/case01
+    launch_dashboard: false
+- tool: dair_assess
+  note_ko: "준비: DAIR(가짜 API)가 Collect로 넘긴다"
+  args:
+    tool_results_summary: "Triage confirmed the DLP alert: rclone traffic from jdoe's session on WKSTN-07. The triage collection is in evidence/C; AmcacheParser output from the earlier session is in analysis/amcache."
+    phase_stack: "[]"
+    case_context: "CASE-001; host WKSTN-07; user jdoe"
+- tool: reason_hypothesize
+  note_ko: "준비: 가설 단계를 거친다(가짜 API)"
+  args:
+    observation: "rclone.exe is present under C:\\Users\\jdoe\\AppData\\Local\\Temp\\rc"
+    hypothesis_kind: case_question
+- tool: read_output
+  note_ko: "준비: 앞 세션의 AmcacheParser 결과에서 rclone 행을 읽는다"
+  args:
+    path: ${OUTSIDE}/case01/analysis/amcache/20261120_Amcache_UnassociatedFileEntries.csv
+    query: rclone
+- tool: reason_evaluate_finding
+  note_ko: "준비: 검토 모델(가짜 API)이 SUPPORTED를 낸다"
+  args:
+    finding: "rclone.exe (c:\\users\\jdoe\\appdata\\local\\temp\\rc\\rclone.exe, SHA1 5b3a9f1c7e2d4b6a8c0e1f3a5b7d9c2e4f6a8b0c) ran on WKSTN-07; its Amcache key was last written 2026-11-19 22:40:11."
+    supporting_evidence: "read.output Amcache_UnassociatedFileEntries.csv: FullPath=c:\\users\\jdoe\\appdata\\local\\temp\\rc\\rclone.exe, SHA1=5b3a9f1c7e2d4b6a8c0e1f3a5b7d9c2e4f6a8b0c, FileKeyLastWriteTimestamp=2026-11-19 22:40:11, host WKSTN-07"
+    input_call_ids: [7]
+    linked_call_id: 7
+    claim_kind: positive
+    category: execution
+    act: execution
+    entities: [rclone.exe]
+- tool: misc_record_finding
+  note_ko: "비교 호출: Amcache 근거 LIKELY 실행 발견을 기록한다"
+  args:
+    description: "rclone.exe (c:\\users\\jdoe\\appdata\\local\\temp\\rc\\rclone.exe, SHA1 5b3a9f1c7e2d4b6a8c0e1f3a5b7d9c2e4f6a8b0c) ran on WKSTN-07; its Amcache key was last written 2026-11-19 22:40:11."
+    confidence: LIKELY
+    source: ez.amcacheparser
+    linked_call_id: 7
+    input_call_ids: [7]
+    supporting_evidence: "read.output Amcache_UnassociatedFileEntries.csv: FullPath=c:\\users\\jdoe\\appdata\\local\\temp\\rc\\rclone.exe, SHA1=5b3a9f1c7e2d4b6a8c0e1f3a5b7d9c2e4f6a8b0c, FileKeyLastWriteTimestamp=2026-11-19 22:40:11, host WKSTN-07"
+    claim_kind: positive
+    category: execution
+    act: execution
+    entities: [rclone.exe]
+- tool: reason_readiness_status
+  note_ko: "비교 호출: 보강 도구가 하나도 돌지 않아 발견이 차단된다"
+- tool: strings_file_identify
+  note_ko: "결함 호출: Prefetch 폴더에 남은 파일의 종류만 확인한다(PECmd는 돌리지 않는다)"
+  args:
+    file_path: ${OUTSIDE}/case01/evidence/C/Windows/Prefetch/Layout.ini
+- tool: reason_readiness_status
+  note_ko: "결함 확인: 같은 점검을 다시 부른다"
+expect:
+- step: 6
+  note_ko: 발견은 LIKELY로 기록되고 ez_pecmd 등 보강 도구가 없다는 알림이 붙는다
+  regex: '"success": true.*"confidence": "LIKELY".*"completeness_note": "Finding grounded on amcache but no FK corroborator for execution ran [^"]*ez_pecmd'
+- step: 7
+  note_ko: 파일 목록 전에는 준비 점검이 이 발견을 보강 안 된 실행 발견으로 차단한다
+  contains: 'Uncorroborated execution finding (\"rclone.exe'
+- step: 8
+  note_ko: 확인한 파일은 Prefetch 파일이 아니라 UTF-16 텍스트인 Layout.ini다
+  regex: '"success": true, "stdout": "[^"]*/Windows/Prefetch/Layout.ini: Unicode text, UTF-16, little-endian text'
+
+- step: 9
+  note_ko: 폴더 목록 한 번 뒤 보강 안 된 발견 차단이 사라진다
+  not_contains: 'Uncorroborated execution finding'
+- step: 9
+  note_ko: 같은 응답에서 점검은 계속 돈다(다른 차단이 남아 있다)
+  contains: '"blocking_issues": ["reason.plan was not called'
+- file_not_contains: ${OUTSIDE}/case01/analysis/CASE-001_trace.json
+  note_ko: trace에는 PECmd 호출이 하나도 없다
+  text: PECmd.dll

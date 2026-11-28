@@ -1,0 +1,38 @@
+{
+  "case_id": "P1034-019",
+  "problem": "P1034",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "side-effect",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: raw batch argv is shown; the mount_point arguments, also outside the guard, are P1034-020",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "증거 폴더로 복사하는 `cp`가 성공한다",
+      "regex": "^\\{\"success\": true, \"results\": \\[\\{\"success\": true, .*\"cmd\": \"cp [^\"]*/exports/ConsoleHost_history.strings.txt [^\"]*/cases/WKS-0412/evidence/copy.txt\"",
+      "ok": true
+    },
+    {
+      "file_exists": "${OUTSIDE}/cases/WKS-0412/evidence/copy.txt",
+      "note_ko": "증거 폴더 안에 복사한 파일이 생긴다",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "같은 폴더를 출력 인자로 준 도구는 보호된 증거 폴더라며 거부된다",
+      "contains": "is inside a protected evidence directory",
+      "ok": true
+    },
+    {
+      "file_missing": "${OUTSIDE}/cases/WKS-0412/evidence/strings.txt",
+      "note_ko": "출력 인자로 준 경로에는 파일이 생기지 않는다",
+      "ok": true
+    }
+  ],
+  "image": "sha256:a8607915c88aca70d4a4cbf3375e400ffc07b98877394539389ff565ef5d118f",
+  "ran_at": "2026-11-28T07:39:53+00:00"
+}

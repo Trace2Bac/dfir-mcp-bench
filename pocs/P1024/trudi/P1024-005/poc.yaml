@@ -1,0 +1,92 @@
+# Matrix case P1024-005: net_tcpxtract_streams starts a background carve and
+# returns {"success": true, "status": "running", "job_id": ...} at once
+# (core/jobs.start_job). The tool does not log itself, so the middleware's
+# success baseline (core/middleware._trace_success_baseline) records that
+# handle as a successful tool_call "<py>:net_tcpxtract_streams". The work-order
+# check (tools/_gates/work_order.unrun_priority_tools) counts any successful
+# tool_call whose mcp_tool holds the signature "tcpxtract" as the tool having
+# run, so the carve drops out of the unrun list the moment it is started,
+# whatever the job later does.
+# The work order is written by the server itself: dair_assess runs against
+# the Anthropic stub, whose answer (the RESULT block the DAIR prompt asks for)
+# pushes Triage -> Collect with net.tcpxtract_streams and
+# net.tcpdump_extract_dns as the Collect work order. tcpdump_extract_dns is
+# never run and stays as the control.
+# The readiness check right after the start is the defect: nothing about the
+# carve has finished or been collected (job_status was never called). The job
+# id is random, so the scripted calls cannot poll it. The image has no sudo,
+# which trudi puts in front of the carve ("sudo timeout 1800 tcpxtract ..."),
+# so the job itself would end with exit 127 here; the work order does not
+# depend on that.
+# The pcap is the one-packet DNS capture of P4111-057 (classic libpcap,
+# little-endian, Ethernet).
+case_id: P1024-005
+problem: P1024
+server: trudi
+variant: trudi-88fbca7-fastmcp3
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "작업 지시는 서버가 `dair_assess` 결과로 trace에 남기는 상태이고, DAIR 지침이 Collect 단계에서 `net.tcpxtract_streams`를 돌리라고 적어 두었다. 이 도구는 늘 백그라운드 작업으로 시작하므로 시작 직후 준비 점검을 부르는 흐름은 특별한 조건 없이 생긴다."
+coverage: "partial: the job is not polled (its id is random and the scripted calls cannot pass it on), so the PoC shows the work order counted at start, not what the job later returns"
+coverage_ko: "작업 ID가 무작위라 정해진 호출로 `job_status`에 넘길 수 없어 작업의 끝 결과는 보지 않았다. 작업 지시가 시작 순간에 채워진 것만 보인다."
+summary: After dair_assess prescribes net.tcpxtract_streams for Collect, reason_readiness_status lists it as never run; once the background carve is only started (success true, status running, never polled or collected) it drops out of the list, while the never-run control tcpdump_extract_dns is still listed.
+summary_ko: "`dair_assess`가 Collect 작업 지시로 `net.tcpxtract_streams`를 내린 뒤 `reason_readiness_status`는 이 도구를 미실행으로 든다. 백그라운드 carve를 시작만 해도(`success` true, `status` running, 결과는 받지 않음) 미실행 목록에서 빠지고, 돌리지 않은 대조 도구 `tcpdump_extract_dns`만 목록에 남는다."
+defect_ko: "이 서버는 백그라운드 작업을 띄운 직후의 `success` true 응답을 성공한 호출로 기록하고, 작업 지시 검사는 그 기록으로 도구를 실행한 것으로 센다. 작업 지시는 작업이 끝나 결과를 받은 뒤에만 채워진 것으로 세야 한다. 모델과 준비 점검은 끝나지 않았거나 실패한 carve를 수행한 조사로 알고 다음 단계로 넘어간다."
+setup_ko: "사건 폴더 `case01`의 `evidence/`가 DNS 패킷 한 개짜리 pcap을 가리키게 둔다. 새 기록을 열고, 가짜 Anthropic API가 Collect로 넘어가며 `net.tcpxtract_streams`와 `net.tcpdump_extract_dns`를 작업 지시로 내리는 DAIR 답을 돌려주게 한다."
+env:
+  TRUDI_CACHE_DIR: ${DB_DIR}/cache
+anthropic_stub:
+  responses:
+  - |
+    Triage confirmed the alert; collection of the capture is next.
+    RESULT: {"schema_version": 1, "assessment": {"current_phase": "Triage", "phase_rationale": "The DNS beacon alert on 10.0.0.8 is confirmed by the capture; Triage is satisfied.", "transition_recommended": true, "next_phase": "Collect", "transition_rationale": "Triage satisfied; carve and enumerate the capture.", "stack_action": "push", "investigation_focus": "Carve the TCP streams and list the DNS queries of the capture.", "verification_satisfied": true, "verification_challenges": [], "recommended_actions": [], "directives": {"priority_tools": ["net.tcpxtract_streams", "net.tcpdump_extract_dns"], "skip_tools": [], "focus_pids": [], "focus_paths": [], "curiosity_budget": 1}}}
+fixture:
+- path: net/beacon.pcap
+  hex: d4c3b2a1020004000000000000000000ffff00000100000000aed869c0d4010052000000520000005254001f2e3d525400a1b2c30800450000443a0140004011ec9f0a0000080a000001cf7a003500301f1f6a1101000001000000000000
+- path: case01/evidence
+  root: outside
+  symlink: ${EVIDENCE}
+- path: case01/analysis
+  root: outside
+  dir: true
+steps:
+- tool: misc_start_execution_log
+  note_ko: "준비: 새 사건 기록을 연다"
+  args:
+    case_id: CASE-001
+    output_path: ${OUTSIDE}/case01/analysis/CASE-001_trace.json
+    case_dir: ${OUTSIDE}/case01
+    launch_dashboard: false
+- tool: dair_assess
+  note_ko: "준비: DAIR(가짜 API)가 Collect로 넘기며 tcpxtract와 DNS 추출을 작업 지시로 내린다"
+  args:
+    tool_results_summary: "Triage confirmed the DNS beacon alert from 10.0.0.8 in net/beacon.pcap. No other artifact has been examined yet."
+    phase_stack: "[]"
+    case_context: "CASE-001; alert: DNS beacon from 10.0.0.8"
+- tool: reason_readiness_status
+  note_ko: "비교 호출: 작업 지시의 두 도구가 아직 미실행으로 나온다"
+- tool: net_tcpxtract_streams
+  note_ko: "결함 호출: carve를 백그라운드로 시작만 한다"
+  args:
+    pcap_file: ${OUTSIDE}/case01/evidence/net/beacon.pcap
+    output_dir: ${OUTSIDE}/case01/analysis/tcpxtract
+- tool: reason_readiness_status
+  note_ko: "결함 확인: 같은 점검을 다시 부른다"
+expect:
+- step: 2
+  note_ko: 서버가 Collect 작업 지시를 기록했다
+  regex: '"priority_tools": \["net.tcpxtract_streams", "net.tcpdump_extract_dns"\]'
+- step: 3
+  note_ko: 작업을 띄우기 전에는 tcpxtract가 미실행 목록에 있다
+  regex: 'never run or dispositioned: net.tcpdump_extract_dns, net.tcpxtract_streams\.'
+- step: 4
+  note_ko: 작업 시작 응답은 끝나지 않은 작업의 성공 응답이다
+  regex: '"success": true, "status": "running", "job_id": "net_tcpxtract_streams-[0-9a-f]+"'
+- step: 5
+  note_ko: 작업을 시작만 한 뒤에는 tcpxtract가 미실행 목록에서 빠지고 대조 도구만 남는다
+  regex: '1 tool\(s\) DAIR prescribed in a priority_tools work order were never run or dispositioned: net.tcpdump_extract_dns\.'
+- file_regex: ${OUTSIDE}/case01/analysis/CASE-001_trace.json
+  note_ko: trace에 작업 시작 응답이 성공한 tcpxtract 호출로 남는다
+  pattern: '"cmd": "<py>:net_tcpxtract_streams",\s*"success": true'

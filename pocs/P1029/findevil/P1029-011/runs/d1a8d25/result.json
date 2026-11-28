@@ -1,0 +1,28 @@
+{
+  "case_id": "P1029-011",
+  "problem": "P1029",
+  "server": "findevil",
+  "commit": "d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1",
+  "display": "response",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "설정 파일과 브라우저 DB 보조 파일을 journal export 행에 올린다",
+      "contains": "| systemd journal export | `fs/etc/systemd/journald.conf`, `fs/home/alice/.config/google-chrome/Default/History-journal` | ❌ NOT examined |",
+      "ok": true
+    },
+    {
+      "step": 1,
+      "note_ko": "그 두 파일에 `analyze_journal`을 돌리라고 안내한다",
+      "contains": "**systemd journal export** present (`fs/etc/systemd/journald.conf`, `fs/home/alice/.config/google-chrome/Default/History-journal`) but never examined → run analyze_journal on the journal export",
+      "ok": true
+    }
+  ],
+  "image": "sha256:aa45afe7dd648c0f287fa833c8627bc8592363efb4d2e92854e4fe3080216809",
+  "ran_at": "2026-11-28T07:40:51+00:00"
+}

@@ -1,0 +1,60 @@
+# Matrix case P3075-060: each findevil tool picks by hand which arguments go
+# into its audit entry, and strings_extract records only path and min_length.
+# encoding, which decides whether ASCII or UTF-16LE strings come back, is not
+# recorded, so two calls that return different strings read back from
+# get_audit_trail as the same call.
+# The server is started with FINDEVIL_LOGS_DIR=${DB_DIR}, so the call record
+# is ${DB_DIR}/audit.json.
+case_id: P3075-060
+problem: P3075
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "Windows 실행 파일의 문자열은 UTF-16LE로 들어 있는 일이 많아, 도구 설명이 안내하는 `encoding=\"l\"`로 한 번 더 부르는 일은 흔하다."
+coverage: full
+summary: 'strings_extract on the same executable with encoding "s" and "l" returns different strings (the DOS stub text, then a UTF-16LE URL), but get_audit_trail shows both entries with the same params, path and min_length only, so the record cannot tell which call produced which strings.'
+summary_ko: "같은 실행 파일에 `strings_extract`를 `encoding` `s`와 `l`로 부르면 서로 다른 문자열(DOS 스텁 문구, UTF-16LE URL)이 나온다. 그런데 `get_audit_trail`은 두 항목의 params를 똑같이 `path`와 `min_length`만으로 보여, 기록으로는 어느 호출이 어느 결과를 냈는지 알 수 없다."
+defect_ko: "이 서버는 `strings_extract`의 기록에 결과를 바꾸는 `encoding`을 넣지 않는다. 결과를 정하는 인자는 모두 기록해야 한다. 모델은 기록을 보고 같은 호출을 두 번 했다고 잘못 알고, UTF-16LE 문자열을 어떤 설정으로 얻었는지 되짚지 못한다."
+setup_ko: "DOS 스텁 문구(ASCII)와 UTF-16LE로 적힌 URL이 함께 든 작은 실행 파일 앞부분을 두었다."
+fixture:
+  - path: case01/bin/payload.exe
+    # MZ header and DOS stub ("This program cannot be run in DOS mode."),
+    # then "http://198.51.100.23/beacon" in UTF-16LE.
+    hex: 4d5a90000300000004000000ffff0000b800000000000000400000000000000000000000000000000000000000000000000000000000000000000000800000000e1fba0e00b409cd21b8014ccd21546869732070726f6772616d2063616e6e6f742062652072756e20696e20444f53206d6f64652e0d0d0a2400000000000000000000000000000068007400740070003a002f002f003100390038002e00350031002e003100300030002e00320033002f0062006500610063006f006e000000
+steps:
+  - tool: strings_extract
+    note_ko: "ASCII 문자열을 뽑는다"
+    args:
+      path: ${EVIDENCE}/case01/bin/payload.exe
+      encoding: s
+  - tool: strings_extract
+    note_ko: "결함 호출: `encoding`만 바꿔 UTF-16LE 문자열을 뽑는다"
+    args:
+      path: ${EVIDENCE}/case01/bin/payload.exe
+      encoding: l
+  - tool: get_audit_trail
+    note_ko: "두 호출의 기록을 다시 읽는다"
+    args:
+      filter_tool: strings_extract
+expect:
+  - step: 1
+    note_ko: "ASCII로 부르면 DOS 스텁 문구가 나오고 URL은 없다"
+    contains: "This program cannot be run in DOS mode"
+  - step: 1
+    note_ko: "ASCII로 부른 결과에는 UTF-16LE URL이 없다"
+    not_contains: "198.51.100.23"
+  - step: 2
+    note_ko: "UTF-16LE로 부르면 URL이 나온다"
+    contains: "http://198.51.100.23/beacon"
+  - step: 3
+    note_ko: "기록에 두 호출이 모두 있다"
+    contains: "(2 matching entries"
+  - step: 3
+    note_ko: "두 항목의 params가 똑같이 `path`와 `min_length`뿐이다"
+    regex: '(?s)params: \{"path": "[^"]*/payload\.exe", "min_length": 6\}\n.*params: \{"path": "[^"]*/payload\.exe", "min_length": 6\}\n'
+  - step: 3
+    note_ko: "기록 어디에도 `encoding`이 없다"
+    not_contains: "encoding"

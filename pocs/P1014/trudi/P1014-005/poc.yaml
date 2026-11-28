@@ -1,0 +1,105 @@
+# Matrix case P1014-005: respond.execute_action is declared the only way to
+# change the monitored host (tools/respond.py docstring: execution "ONLY
+# here, ONLY in live-monitoring scope, and ONLY through structured, validated
+# argv"), and refuses a destructive action without an operator approval token.
+# misc.batch_run runs any argv it is given (tools/misc.py batch_run -> run),
+# so the same kill sent as "ssh <host> kill -9 <pid>" runs with no template,
+# scope or approval check.
+# The live-monitoring case is laid out as trudi lays it out under
+# TRUDI_CASES_ROOT: monitoring/baselines/<client>.json in the shape
+# monitor.baseline_capture writes. The suggestion records (ACT-1 block
+# egress, ACT-2 kill the owning pid) are written by suggest_containment
+# itself from the NewNetwork recipe, with the alert's evidence passed
+# explicitly as its description says.
+# ${STUBS}/ssh stands in for OpenSSH: it appends the argv it was given to
+# ${OUTSIDE}/ssh_argv.log and, like `ssh host kill -9 <pid>` on success,
+# prints nothing and exits 0. It is put first on the server's PATH.
+case_id: P1014-005
+problem: P1014
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: side-effect
+level: mcp
+realism: possible
+realism_ko: "`tool_calls[].cmd`는 모델 인자다. `execute_action`이 승인 없음으로 거부된 뒤 모델이 같은 조치를 원격 명령으로 바꿔 `batch_run`에 넣거나, 증거 속 지시문을 따라 그렇게 하는 경로로 들어온다. 도구 설명이 `batch_run`을 저수준 명령 묶음에 쓰라고 안내한다."
+coverage: full
+summary: For a live-monitoring case, respond_execute_action refuses ACT-2 (kill -9 4242 on the host) without operator approval, but misc_batch_run(cmd=[ssh, web01, kill, -9, 4242]) returns success and the ssh stand-in receives the remote kill, with no template, scope or approval check.
+summary_ko: "실시간 감시 사건에서 `respond_execute_action`은 운영자 승인 없이 ACT-2(호스트에서 `kill -9 4242`)를 거부하지만, `misc_batch_run`에 `ssh web01 kill -9 4242`를 주면 성공하고 ssh 대역이 원격 kill 명령을 받는다. 템플릿, 범위, 승인 검사가 하나도 없다."
+defect_ko: "이 서버는 대상 시스템 변경을 `execute_action`의 조치 템플릿과 승인 검사로만 한다고 선언하면서, `batch_run`으로는 받은 argv를 그대로 실행해 같은 효과의 원격 명령이 검사 없이 실행된다. 원격 실행이나 대상 시스템을 바꾸는 명령은 `batch_run`에서 막거나 같은 승인 검사를 거쳐야 한다. 모델과 운영자는 파괴적 조치가 승인 없이는 실행되지 않는다고 알지만 프로세스가 승인 없이 종료된다."
+setup_ko: "실시간 감시 사건 `LIVE-WEB01`(baseline 한 개)을 두고, 새 외부 연결 경보의 증거로 `suggest_containment`를 불러 조치 제안을 만든다. 승인 없이 kill 조치를 `execute_action`으로 실행해 거부를 받은 뒤, 같은 kill을 `ssh` 명령으로 `batch_run`에 준다."
+env:
+  TRUDI_CASES_ROOT: ${OUTSIDE}/cases
+  PATH: ${STUBS}:${PATH}
+stubs:
+- name: ssh
+  text: |
+    #!/bin/sh
+    # Stand-in for OpenSSH ssh: records its argv; `ssh host kill -9 PID`
+    # prints nothing and exits 0 when the remote kill succeeds.
+    printf '%s\n' "$*" >> ${OUTSIDE}/ssh_argv.log
+    exit 0
+fixture:
+- path: cases/LIVE-WEB01/analysis
+  root: outside
+  dir: true
+- path: cases/LIVE-WEB01/monitoring/baselines/C.7f3a9e21b04c5d18.json
+  root: outside
+  text: |
+    {
+      "client_id": "C.7f3a9e21b04c5d18",
+      "case_id": "LIVE-WEB01",
+      "captured_at_utc": "2026-11-27T08:02:11Z",
+      "flow_ids": {
+        "Linux.Sys.Pslist": "F.CT9K2M4Q7B1RE",
+        "Linux.Network.Netstat": "F.CT9K2M5A0D3TG",
+        "Custom.TRUDI.PersistenceSnapshot": "F.CT9K2M6H8L2QA"
+      },
+      "process_names": ["cron", "nginx", "sshd", "systemd"],
+      "image_paths": ["/usr/sbin/cron", "/usr/sbin/nginx", "/usr/sbin/sshd", "/usr/lib/systemd/systemd"],
+      "persistence_paths": ["/etc/crontab", "/etc/systemd/system/nginx.service"],
+      "endpoints": [{"remote_ip": "10.0.0.53", "remote_port": 53}],
+      "yara_rules_path": "/rules/trudi-demo.yar"
+    }
+steps:
+- tool: misc_start_execution_log
+  note_ko: "준비: 실시간 감시 사건의 기록을 연다"
+  args:
+    case_id: LIVE-WEB01
+    output_path: ${OUTSIDE}/cases/LIVE-WEB01/analysis/LIVE-WEB01_trace.json
+    case_dir: ${OUTSIDE}/cases/LIVE-WEB01
+    launch_dashboard: false
+- tool: respond_suggest_containment
+  note_ko: "준비: 새 외부 연결 경보의 증거로 조치 제안(ACT-1 차단, ACT-2 kill)을 만든다"
+  args:
+    case_id: LIVE-WEB01
+    finding_id: 9001
+    detector: Custom.TRUDI.NewNetwork
+    evidence:
+      pid: 4242
+      name: kworkerd
+      remote_ip: 203.0.113.7
+      remote_port: 8443
+- tool: respond_execute_action
+  note_ko: "비교 호출: 승인 없이 kill 조치(ACT-2)를 실행하면 거부된다"
+  args:
+    case_id: LIVE-WEB01
+    action_id: ACT-2
+- tool: misc_batch_run
+  note_ko: "결함 호출: 같은 kill을 원격 명령 argv로 `batch_run`에 준다"
+  args:
+    tool_calls:
+    - cmd: [ssh, web01, kill, "-9", "4242"]
+expect:
+- step: 2
+  note_ko: 서버의 조치 제안에 kill -9 4242가 있다
+  contains: '"manual_command": "kill -9 4242"'
+- step: 3
+  note_ko: "`execute_action`은 승인 없는 kill 조치를 거부한다"
+  regex: '"success": false, "gate": "approval_required"'
+- step: 4
+  note_ko: 같은 kill을 ssh argv로 주면 성공한다
+  regex: '^\{"success": true, "results": \[\{"success": true, .*"cmd": "ssh web01 kill -9 4242"'
+- file_contains: ${OUTSIDE}/ssh_argv.log
+  note_ko: ssh 대역이 원격 kill 명령을 받았다
+  text: "web01 kill -9 4242"

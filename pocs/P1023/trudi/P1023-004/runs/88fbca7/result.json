@@ -1,0 +1,64 @@
+{
+  "case_id": "P1023-004",
+  "problem": "P1023",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: the plan's model answer comes from anthropic_stub; the empty-phase side is shown before the trace is opened, the only server state with an empty phase",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "단계 값이 빈 상태에서는 절차가 시작되지 않았다는 안내가 붙는다",
+      "contains": "\"dair_notice\": \"DAIR PROTOCOL: the Triage ritual has not started.",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "새 기록이 열린다",
+      "regex": "\"success\": true, \"case_id\": \"CASE-001\", \"log_path\": \"[^\"]*\", \"entries_recovered\": 0",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "단계 Triage에서는 절차가 여전히 시작되지 않았는데 같은 호출에 안내가 없다",
+      "not_contains": "dair_notice",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "같은 상태 조회가 정상으로 돌아온다(대조 대상이 같은 응답임을 확인)",
+      "contains": "\"virustotal\": false, \"abuseipdb\": false",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "조사 계획이 기록된다",
+      "regex": "\"success\": true",
+      "ok": true
+    },
+    {
+      "step": 6,
+      "note_ko": "계획 뒤 DAIR 호출이 없는데도 증거 도구가 막히지 않고 실행된다",
+      "regex": "\"_trudi_call_id\": \\d+, \"success\": true, \"file\": \"[^\"]*install.log\", \"pattern\": \"198\\\\\\\\.51\\\\\\\\.100\\\\\\\\.23\", \"match_count\": 1",
+      "ok": true
+    },
+    {
+      "file_regex": "${OUTSIDE}/cases/CASE-001/analysis/CASE-001_trace.json",
+      "note_ko": "trace에 계획(reason_plan)이 성공으로 남는다",
+      "pattern": "\"type\": \"reason_call\",\\s+\"ts\": \"[^\"]*\",\\s+\"tool\": \"reason_plan\"",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${OUTSIDE}/cases/CASE-001/analysis/CASE-001_trace.json",
+      "note_ko": "trace에 증거 도구 차단 기록이 없다",
+      "text": "dair_engagement_gate",
+      "ok": true
+    }
+  ],
+  "image": "sha256:acce838876a1d1968e44b5ee0d039a143843b687716e42afe21ccc1ae94466a1",
+  "ran_at": "2026-11-28T07:35:12+00:00"
+}

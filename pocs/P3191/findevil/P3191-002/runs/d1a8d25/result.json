@@ -1,0 +1,40 @@
+{
+  "case_id": "P3191-002",
+  "problem": "P3191",
+  "server": "findevil",
+  "commit": "d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1",
+  "display": "time-size",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: the start time and duration missing from one call are shown; the order of calls that overlap is not (the runner makes one call at a time)",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "메모리 분석은 정상으로 끝난다",
+      "contains": "**Total processes:** 3",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "메모리 분석은 3초 넘게 걸린다",
+      "min_seconds": 3,
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "기록의 두 항목 모두 시각 하나만 있다",
+      "regex": "- \\*\\*[0-9T:.+-]+\\*\\* `hash_file` — params: [^\\n]*\\n(?s:.*)- \\*\\*[0-9T:.+-]+\\*\\* `analyze_memory_processes` — params: \\{\"path\": \"[^\"]*/mem/host\\.lime\"\\}\\n  result: 3 procs, 0 anomalies",
+      "ok": true
+    },
+    {
+      "file_regex": "${DB_DIR}/audit.json",
+      "note_ko": "기록 파일의 메모리 분석 항목은 `timestamp` 하나와 도구, 인자, 결과뿐이다",
+      "pattern": "(?m)^\\{\"timestamp\": \"[^\"]+\", \"tool\": \"analyze_memory_processes\", \"params\": \\{\"path\": \"[^\"]+\"\\}, \"result_summary\": \"3 procs, 0 anomalies\"\\}$",
+      "ok": true
+    }
+  ],
+  "image": "sha256:f5bfb5e42e8f8ad263ede15cf987c8251513927771c297314e389368ed6905da",
+  "ran_at": "2026-11-28T07:40:57+00:00"
+}

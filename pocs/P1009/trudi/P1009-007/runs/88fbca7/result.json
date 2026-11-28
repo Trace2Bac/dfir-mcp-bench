@@ -1,0 +1,51 @@
+{
+  "case_id": "P1009-007",
+  "problem": "P1009",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "side-effect",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: job_status is not polled (its job_id is random and a step cannot reuse it); the completion entry is written when the job ends, without a poll",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "tsk_recover는 백그라운드 작업 번호를 돌려준다",
+      "regex": "\"success\": true, \"status\": \"(running|queued)\", \"job_id\": \"tsk_recover-[0-9a-f]+\", \"tool\": \"tsk_recover\"",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "사건 B의 새 기록이 열린다",
+      "regex": "\"success\": true, \"case_id\": \"CASE-B\", \"log_path\": \"[^\"]*CASE-B_trace.json\", \"entries_recovered\": 0",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "사건 B의 메모리 이미지 해시가 끝난다",
+      "regex": "\"success\": true.*FIN-SRV02.raw",
+      "ok": true
+    },
+    {
+      "file_exists": "${OUTSIDE}/cases/CASE-A/analysis/recovered/PAYMENT.TXT",
+      "note_ko": "복구 작업은 실제로 끝나 사건 A 폴더에 파일을 복구했다",
+      "ok": true
+    },
+    {
+      "file_regex": "${OUTSIDE}/cases/CASE-B/analysis/CASE-B_trace.json",
+      "note_ko": "사건 A 이미지의 tsk_recover 완료 기록이 사건 B의 trace에 있다",
+      "pattern": "\"cmd\": \"sudo tsk_recover -a [^\"]*/cases/CASE-A/evidence/usb\\.dd [^\"]*/cases/CASE-A/analysis/recovered\"",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${OUTSIDE}/cases/CASE-A/analysis/CASE-A_trace.json",
+      "note_ko": "사건 A의 trace에는 tsk_recover 실행 기록이 없다",
+      "text": "\"cmd\": \"sudo tsk_recover",
+      "ok": true
+    }
+  ],
+  "image": "sha256:0ddb90635f3867e509182b2416ad57ea5357ea9c33e410ad2bc42c3c4cf68840",
+  "ran_at": "2026-11-28T07:40:46+00:00"
+}

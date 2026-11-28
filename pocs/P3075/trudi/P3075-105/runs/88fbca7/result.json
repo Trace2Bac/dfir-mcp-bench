@@ -1,0 +1,46 @@
+{
+  "case_id": "P3075-105",
+  "problem": "P3075",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "첫 검증은 MD5와 SHA1이 모두 맞는다",
+      "regex": "\"md5_match\": true, \"sha1_match\": true, \"integrity_verified\": true",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "두 번째 검증은 MD5와 SHA1이 모두 맞지 않는다",
+      "regex": "\"md5_match\": false, \"sha1_match\": false, \"integrity_verified\": false",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "trace를 다시 읽으면 두 검증이 같은 결론 줄로만 남아 있다",
+      "regex": "\"conclusion\\\\\": \\\\\"VERIFIED: [^ ]*/usb\\.dd sha256=(?P<h>[0-9a-f]{64})\\\\\",[\\s\\S]*\"conclusion\\\\\": \\\\\"VERIFIED: [^ ]*/usb\\.dd sha256=(?P=h)\\\\\",",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${DB_DIR}/analysis/P3075-105_trace.json",
+      "note_ko": "두 번째 호출에 준 기대 MD5는 trace 어디에도 없다",
+      "text": "5c2f0a2b7e4b0e1d9a3c6f8e1b2d4a70",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${DB_DIR}/analysis/P3075-105_trace.json",
+      "note_ko": "두 번째 호출에 준 기대 SHA1도 trace 어디에도 없다",
+      "text": "8d1e5b3a9c2f7e6d4b0a1c3e5f7092b4d6e8a1c3",
+      "ok": true
+    }
+  ],
+  "image": "sha256:460cf0d875d5ee37b2b0eb93088e962b14f65e0dcb8dff8c04bdd469b382b93c",
+  "ran_at": "2026-11-28T07:31:27+00:00"
+}

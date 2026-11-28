@@ -1,0 +1,52 @@
+{
+  "case_id": "P3075-061",
+  "problem": "P3075",
+  "server": "findevil",
+  "commit": "d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "맥락 없이 부르면 실패 로그인 줄이 없다",
+      "not_contains": "Failed password for root",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "맥락을 넣으면 앞의 실패 로그인과 뒤의 sudo 줄이 함께 나온다",
+      "contains": "Failed password for root",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "뒤의 sudo 줄도 나온다",
+      "contains": "COMMAND=/usr/bin/curl",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "기록에 두 호출이 모두 있다",
+      "contains": "(2 matching entries",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "두 항목의 params가 똑같이 `path`와 `pattern`뿐이다",
+      "regex": "(?s)params: \\{\"path\": \"[^\"]*/auth\\.log\", \"pattern\": \"Accepted password\"\\}\\n.*params: \\{\"path\": \"[^\"]*/auth\\.log\", \"pattern\": \"Accepted password\"\\}\\n",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${DB_DIR}/audit.json",
+      "note_ko": "기록 파일 어디에도 `context_lines`가 없다",
+      "text": "context_lines",
+      "ok": true
+    }
+  ],
+  "image": "sha256:fc3f6bc2bc58dbc36ab839916b017a6de7c3244b4284aa08601b4e7d479569ca",
+  "ran_at": "2026-11-28T07:33:02+00:00"
+}

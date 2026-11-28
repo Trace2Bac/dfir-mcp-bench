@@ -1,0 +1,60 @@
+# Matrix case P3080-013: batch_run runs each command through core.executor.run
+# in a ThreadPoolExecutor, so each command logs its own tool_call (with its
+# own _trudi_call_id), and the worker threads do not carry the middleware's
+# mcp_tool. The middleware then sees that the call "self-logged" and stamps
+# the response's top-level _trudi_call_id with the id of the LAST entry
+# appended, i.e. the command that finished last. The batch as a whole has no
+# entry of its own, so the id the response carries for the call points at
+# one of its commands only. (ez_recmd_batch, which calls the executor once
+# per hive, goes through the same middleware step and is not run here.)
+case_id: P3080-013
+problem: P3080
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "여러 증거 파일의 해시를 한 번에 구하는 것은 batch_run 설명이 드는 쓰임 그대로이고, 크기가 다른 파일이면 늘 앞 명령이 늦게 끝난다."
+coverage: "partial: batch_run only; ez_recmd_batch (one executor run per hive) is not run"
+coverage_ko: "batch_run만 보였다. 하이브마다 실행기를 부르는 ez_recmd_batch는 실행하지 않았다."
+summary: 'misc_batch_run with sha256sum on a 256 MiB disk image and md5sum on a small log returns one top-level _trudi_call_id for the call, and it is the id of the sha256sum command alone (the one that finished last); the trace has an entry for each command and none for the batch.'
+summary_ko: "256 MiB 디스크 이미지의 `sha256sum`과 작은 로그의 `md5sum`을 `misc_batch_run`으로 함께 돌리면 응답 최상위 `_trudi_call_id`는 하나인데, 그 값은 늦게 끝난 `sha256sum` 명령 하나의 ID다. trace에는 명령마다 항목이 있고 batch 호출 자체의 항목은 없다."
+defect_ko: "이 서버는 여러 명령을 돌린 `batch_run` 응답에 마지막으로 끝난 명령 하나의 기록 ID를 호출 전체의 ID처럼 붙인다. 정상이라면 호출 전체를 가리키는 항목을 남기고 그 ID를 주거나, 명령별 ID만 주어야 한다. 모델은 최상위 ID를 인용하면 batch 전체의 결과를 근거로 단다고 잘못 알지만, 그 ID의 기록에는 한 명령만 있다."
+setup_ko: "256 MiB 디스크 이미지와 작은 웹 서버 로그를 넣었다."
+fixture:
+  - path: analysis/.keep
+    root: db
+    text: ""
+  # A raw disk image (dd); only its size matters for the hash time.
+  - path: disk/WKSTN-07.dd
+    size: 268435456
+    hex: 33c08ed0bc007c
+  - path: logs/access.log
+    text: |
+      203.0.113.7 - - [12/Apr/2026:09:14:02 +0000] "GET /wp-login.php HTTP/1.1" 200 4521 "-" "Mozilla/5.0"
+      203.0.113.7 - - [12/Apr/2026:09:14:05 +0000] "POST /wp-login.php HTTP/1.1" 302 0 "-" "Mozilla/5.0"
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 trace를 연다"
+    args:
+      case_id: P3080-013
+      output_path: ${DB_DIR}/analysis/P3080-013_trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: misc_batch_run
+    note_ko: "결함 호출: 디스크 이미지와 로그의 해시를 한 번에 구한다"
+    args:
+      tool_calls:
+        - cmd: [sha256sum, "${EVIDENCE}/disk/WKSTN-07.dd"]
+        - cmd: [md5sum, "${EVIDENCE}/logs/access.log"]
+expect:
+  - step: 2
+    note_ko: "두 명령은 각자 다른 ID로 기록됐고, 응답 최상위 ID는 첫 명령(sha256sum, 늦게 끝남)의 ID와 같다"
+    regex: '"results": \[\{[^{}]*"cmd": "sha256sum [^"]*", [^{}]*"_trudi_call_id": (?P<a>\d+)[^{}]*\}, \{[^{}]*"cmd": "md5sum [^"]*", [^{}]*"_trudi_call_id": (?!(?P=a)\D)\d+[^{}]*\}\], "_trudi_call_id": (?P=a)\D'
+  - file_regex: ${DB_DIR}/analysis/P3080-013_trace.json
+    note_ko: "trace에서 최상위 ID가 가리키는 항목에는 sha256sum 한 명령만 있다"
+    pattern: '"call_id": 4,\s*"type": "tool_call",\s*"ts": "[^"]+",\s*"cmd": "sha256sum [^"]*/disk/WKSTN-07\.dd"'
+  - file_not_contains: ${DB_DIR}/analysis/P3080-013_trace.json
+    note_ko: "batch_run 호출 자체를 가리키는 항목은 없다"
+    text: batch_run

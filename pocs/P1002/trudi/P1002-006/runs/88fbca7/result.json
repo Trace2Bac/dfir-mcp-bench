@@ -1,0 +1,45 @@
+{
+  "case_id": "P1002-006",
+  "problem": "P1002",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "side-effect",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "사건 A의 발견사항이 call_id 4로 기록된다",
+      "regex": "\"success\": true.*\"_trudi_call_id\": 4",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "사건 B 이름으로 사건 A 발견사항의 제안이 성공한다",
+      "regex": "\"success\": true, \"case_id\": \"CASE-B\", \"detector\": \"Custom.TRUDI.NewNetwork\", \"finding_id\": 4",
+      "ok": true
+    },
+    {
+      "file_regex": "${OUTSIDE}/cases/CASE-B/monitoring/response/suggestions/ACT-2.json",
+      "note_ko": "사건 B 폴더의 제안 자료가 사건 A의 발견사항 번호와 그 경보의 프로세스 종료 명령을 담는다",
+      "pattern": "\"case_id\": \"CASE-B\",\\s+\"finding_id\": 4,\\s+\"detector\": \"Custom.TRUDI.NewNetwork\",[\\s\\S]*\"manual_command\": \"kill -9 4242\"",
+      "ok": true
+    },
+    {
+      "file_regex": "${OUTSIDE}/cases/CASE-A/analysis/CASE-A_trace.json",
+      "note_ko": "그 발견사항 4는 사건 A의 trace에 있다",
+      "pattern": "\"call_id\": 4,\\s+\"finding_id\": \"F-4\",\\s+\"revision\": 1,\\s+\"type\": \"finding\",\\s+\"ts\": \"[^\"]*\",\\s+\"description\": \"Custom\\.TRUDI\\.NewNetwork alert on web-01",
+      "ok": true
+    },
+    {
+      "file_missing": "${OUTSIDE}/cases/CASE-B/analysis/CASE-B_trace.json",
+      "note_ko": "사건 B에는 trace가 없다",
+      "ok": true
+    }
+  ],
+  "image": "sha256:cb12d5c5576d303b98e9bf266ed51378c05248e017328bd86992840c68ba21b1",
+  "ran_at": "2026-11-28T07:40:34+00:00"
+}

@@ -1,0 +1,34 @@
+{
+  "case_id": "P3106-004",
+  "problem": "P3106",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "source-vs-result",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "그 파일에서 URL을 찾았다",
+      "contains": "http://203.0.113.7/tools/nc.exe",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "trace를 다시 읽으면 명령이 인용 없이 공백으로 이어진 한 문자열로 나온다",
+      "regex": "cmd\\x5c\": \\x5c\"strings -a -n 4 /[^ ]*/evidence/Documents and Settings/Administrator/My Documents/notes 2024\\.txt\\x5c\"",
+      "ok": true
+    },
+    {
+      "file_regex": "${DB_DIR}/analysis/P3106-004_trace.json",
+      "note_ko": "trace 파일의 그 항목도 인자 목록 없이 이어 붙인 cmd 하나뿐이다",
+      "pattern": "\"cmd\": \"strings -a -n 4 /[^ ]*/evidence/Documents and Settings/Administrator/My Documents/notes 2024\\.txt\",\\s*\"success\": true",
+      "ok": true
+    }
+  ],
+  "image": "sha256:5274b3e54f676ac9d5a842c98a21ce58c6d7ea35c58a41eb7179be5f73b15fed",
+  "ran_at": "2026-11-28T07:41:04+00:00"
+}

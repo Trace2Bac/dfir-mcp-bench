@@ -1,0 +1,46 @@
+{
+  "case_id": "P3075-066",
+  "problem": "P3075",
+  "server": "findevil",
+  "commit": "d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "첫 IP는 Tor 출구로 걸린다",
+      "contains": "`185.220.100.240` — **tor_exit_node**",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "둘째 IP는 캐시에 없다",
+      "contains": "`198.51.100.240` — not in cache",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "기록에 두 호출이 모두 있다",
+      "contains": "(2 matching entries",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "두 항목의 params가 똑같이 글 길이뿐이다",
+      "regex": "(?s)params: \\{\"text_len\": (\\d+)\\}\\n.*params: \\{\"text_len\": \\1\\}\\n",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "기록에 조회한 IP가 없다",
+      "not_regex": "185\\.220\\.100\\.240|198\\.51\\.100\\.240",
+      "ok": true
+    }
+  ],
+  "image": "sha256:2147cffbfb481443fc57170b95bb74295cd5cde1403c9d37224fc85a47ffb9e3",
+  "ran_at": "2026-11-28T07:34:08+00:00"
+}

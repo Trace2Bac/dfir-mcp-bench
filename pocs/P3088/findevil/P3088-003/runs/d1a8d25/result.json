@@ -1,0 +1,58 @@
+{
+  "case_id": "P3088-003",
+  "problem": "P3088",
+  "server": "findevil",
+  "commit": "d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: overwriting an explicit output_file that already exists is not shown here (P3088-026)",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "사건 A 기준선은 기본 경로에 쓰인다",
+      "regex": "- \\*\\*Output:\\*\\* `/tmp/tmp[^/`]+/db/baseline\\.json`",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "사건 B 기준선도 같은 경로에 쓰인다",
+      "regex": "- \\*\\*Output:\\*\\* `/tmp/tmp[^/`]+/db/baseline\\.json`",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "앞 기준선을 덮어썼다는 말이 없다",
+      "not_regex": "(?i)overwr|replac|already exist|previous",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "사건 A 루트를 비교했는데 기준선 루트는 사건 B다",
+      "regex": "- \\*\\*Baseline root:\\*\\* `[^`]*/caseB/fs`",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "사건 A의 `etc/passwd`가 바뀌었다고 보고한다",
+      "contains": "### `etc/passwd` — modified",
+      "ok": true
+    },
+    {
+      "file_regex": "${DB_DIR}/baseline.json",
+      "note_ko": "기본 경로의 기준선 파일에는 사건 B 루트만 남았다",
+      "pattern": "\"root_path\": \"[^\"]*/caseB/fs\"",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${DB_DIR}/baseline.json",
+      "note_ko": "사건 A 기준선은 남아 있지 않다",
+      "text": "caseA",
+      "ok": true
+    }
+  ],
+  "image": "sha256:88c1e63dc0a64cd1d2a41c3de61ef97812a91186134513a19ffc3dd724de769c",
+  "ran_at": "2026-11-28T07:41:34+00:00"
+}

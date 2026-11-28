@@ -1,0 +1,40 @@
+{
+  "case_id": "P1024-021",
+  "problem": "P1024",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 3,
+      "note_ko": "JLECmd를 돌리기 전에는 세 도구가 모두 미실행이다",
+      "contains": "3 tool(s) DAIR prescribed in a priority_tools work order were never run or dispositioned: ez.jlecmd, ez.lecmd, ez.pecmd.",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "JLECmd가 Jump List를 해석해 성공한다",
+      "regex": "\"success\": true.*\"cmd\": \"dotnet /opt/zimmermantools/JLECmd.dll -f ",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "JLECmd 한 번 뒤 LECmd도 미실행 목록에서 빠지고 PECmd만 남는다",
+      "contains": "1 tool(s) DAIR prescribed in a priority_tools work order were never run or dispositioned: ez.pecmd.",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${OUTSIDE}/case01/analysis/CASE-001_trace.json",
+      "note_ko": "trace에는 LECmd 호출이 하나도 없다",
+      "text": "/opt/zimmermantools/LECmd.dll",
+      "ok": true
+    }
+  ],
+  "image": "sha256:8785349e40b03ae84d3ed8f4ea6b1307d0d9ce56ca84211c6bdfe24a1ee877f4",
+  "ran_at": "2026-11-28T07:34:47+00:00"
+}

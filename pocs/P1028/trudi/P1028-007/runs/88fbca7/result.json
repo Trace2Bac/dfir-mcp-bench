@@ -1,0 +1,52 @@
+{
+  "case_id": "P1028-007",
+  "problem": "P1028",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "첫 조사의 첫 검색은 실행되어 0건을 돌려준다",
+      "regex": "\"success\": true, \"file\": \"[^\"]*ConsoleHost_history.txt\", \"pattern\": \"mimikatz\", \"match_count\": 0",
+      "ok": true
+    },
+    {
+      "step": 7,
+      "note_ko": "첫 조사 안에서는 다섯 번 같은 결과 뒤 막힌다",
+      "contains": "repeat_call_gate: this exact strings_grep call has run 4 times with an IDENTICAL result",
+      "ok": true
+    },
+    {
+      "step": 9,
+      "note_ko": "새 조사의 기록은 비어 있는 새 기록이다",
+      "regex": "\"success\": true, \"case_id\": \"CASE-002\", \"log_path\": \"[^\"]*\", \"entries_recovered\": 0, \"resumed\": false",
+      "ok": true
+    },
+    {
+      "step": 10,
+      "note_ko": "새 조사의 첫 검색이 실행되지 않고 앞 조사의 횟수로 막힌다",
+      "contains": "Tool strings_grep blocked: repeat_call_gate: this exact strings_grep call has run 4 times with an IDENTICAL result",
+      "ok": true
+    },
+    {
+      "file_regex": "${OUTSIDE}/cases/CASE-002/analysis/CASE-002_trace.json",
+      "note_ko": "새 조사의 trace에 이 검색이 반복 게이트로 막힌 기록이 남는다",
+      "pattern": "\"type\": \"tool_blocked\"[^}]*repeat_call_gate",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${OUTSIDE}/cases/CASE-002/analysis/CASE-002_trace.json",
+      "note_ko": "새 조사의 trace에는 이 검색을 실행한 기록이 없다",
+      "text": "\"mcp_tool\": \"strings_grep\"",
+      "ok": true
+    }
+  ],
+  "image": "sha256:7748bf0ac46f6b75bae132e908c14e83462db4aa14eb6848f48c6ce0ad7d7c61",
+  "ran_at": "2026-11-28T07:30:30+00:00"
+}

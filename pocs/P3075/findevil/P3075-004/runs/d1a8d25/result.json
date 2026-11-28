@@ -1,0 +1,64 @@
+{
+  "case_id": "P3075-004",
+  "problem": "P3075",
+  "server": "findevil",
+  "commit": "d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "증거 밖 경로는 거부된다",
+      "contains": "Error: Access denied: /etc/shadow",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "없는 파일은 찾지 못했다고 돌아온다",
+      "contains": "File not found:",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "있는 파일은 정상으로 처리된다",
+      "contains": "## File Type",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "세 번 부른 `file_info`가 기록에는 1건뿐이다",
+      "contains": "(1 matching entries",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "호출 수 집계도 1이다",
+      "contains": "`file_info`: 1",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "남은 1건은 성공한 호출이다",
+      "regex": "params: \\{\"path\": \"[^\"]*/case01/var/log/auth\\.log\"\\}",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${DB_DIR}/audit.json",
+      "note_ko": "기록 파일에 증거 밖 경로 호출이 없다",
+      "text": "/etc/shadow",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${DB_DIR}/audit.json",
+      "note_ko": "기록 파일에 없는 파일 호출이 없다",
+      "text": "auth.log.2.gz",
+      "ok": true
+    }
+  ],
+  "image": "sha256:a6f11687e67140d3974e90bce524be1a11ea76bd182e95d115749d713b775eb9",
+  "ran_at": "2026-11-28T07:29:34+00:00"
+}

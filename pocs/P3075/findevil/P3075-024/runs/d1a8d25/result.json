@@ -1,0 +1,58 @@
+{
+  "case_id": "P3075-024",
+  "problem": "P3075",
+  "server": "findevil",
+  "commit": "d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "자료형이 틀린 호출은 오류로 거부된다",
+      "is_error": true,
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "없는 도구 호출은 거부된다",
+      "regex": "(?i)unknown tool",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "정상 호출은 바이트를 보여 준다",
+      "contains": "7f45 4c46",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "세 호출 가운데 기록은 1건뿐이다",
+      "contains": "(1 matching entries",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "남은 1건은 정상 `hexdump`다",
+      "contains": "\"length\": 48",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "없는 도구 호출이 기록에 없다",
+      "not_contains": "analyze_auth_log",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${DB_DIR}/audit.json",
+      "note_ko": "기록 파일에도 거부된 `length` 값이 없다",
+      "text": "\"all\"",
+      "ok": true
+    }
+  ],
+  "image": "sha256:fbf887d5b73ba8dd2d333bb09fdd4c3a51803a2c1696d09192c3f3cbe0f7e0ee",
+  "ran_at": "2026-11-28T07:29:44+00:00"
+}

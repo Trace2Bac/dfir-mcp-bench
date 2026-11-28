@@ -1,0 +1,40 @@
+{
+  "case_id": "P3190-004",
+  "problem": "P3190",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "source-vs-result",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: only the missing cache_hit in the trace; a cache entry that no longer matches the file (block-level change under a mount, st_dev missing from the key, a changed hash_cache.json) is not built",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "첫 해시는 파일을 읽어 계산했다",
+      "contains": "\"cache_hit\": false",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "두 번째 해시는 캐시에서 나왔다고 응답이 말한다",
+      "contains": "\"cache_hit\": true",
+      "ok": true
+    },
+    {
+      "file_regex": "${DB_DIR}/analysis/P3190-004_trace.json",
+      "note_ko": "trace에는 두 호출이 모두 같은 모양의 hash.file 항목과 hash_result(파일, 크기, 해시뿐)로 남았다",
+      "pattern": "\"cmd\": \"hash\\.file [^\"]*/memory/WKSTN-07\\.raw\"[\\s\\S]*\"hash_result\": \\{\\s*\"file\": \"[^\"]*WKSTN-07\\.raw\",\\s*\"size_bytes\": 4194304,\\s*\"md5\": \"[0-9a-f]{32}\",\\s*\"sha1\": \"[0-9a-f]{40}\",\\s*\"sha256\": \"[0-9a-f]{64}\"\\s*\\}[\\s\\S]*\"cmd\": \"hash\\.file [^\"]*/memory/WKSTN-07\\.raw\"[\\s\\S]*\"hash_result\": \\{\\s*\"file\": \"[^\"]*WKSTN-07\\.raw\",\\s*\"size_bytes\": 4194304,\\s*\"md5\": \"[0-9a-f]{32}\",\\s*\"sha1\": \"[0-9a-f]{40}\",\\s*\"sha256\": \"[0-9a-f]{64}\"\\s*\\}",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${DB_DIR}/analysis/P3190-004_trace.json",
+      "note_ko": "trace 어디에도 cache_hit이 없다(응답과 기록이 다르다)",
+      "text": "cache_hit",
+      "ok": true
+    }
+  ],
+  "image": "sha256:35245ebac3ba2175ac05a8c4941e8c4c78ef5a6f566ef53a2d7f68e488711df1",
+  "ran_at": "2026-11-28T07:30:36+00:00"
+}

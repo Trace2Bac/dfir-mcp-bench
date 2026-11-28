@@ -1,0 +1,52 @@
+{
+  "case_id": "P3075-102",
+  "problem": "P3075",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: the baseline entry of a pure-Python tool only; the exception entry, which keeps argument names and types but no values, is not run",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "첫 호출은 성공했고 호출 번호를 받았다",
+      "regex": "\"success\": true, \"connections\": \\[\\], \"pids_indexed\": 0, \"_trudi_call_id\": 3",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "두 번째 호출도 성공했고 다른 호출 번호를 받았다",
+      "regex": "\"success\": true, \"connections\": \\[\\], \"pids_indexed\": 0, \"_trudi_call_id\": 4",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "trace를 다시 읽으면 두 호출이 같은 cmd로만 남아 있다",
+      "regex": "cmd\\\\\": \\\\\"<py>:correlate_network_to_process\\\\\"[\\s\\S]*cmd\\\\\": \\\\\"<py>:correlate_network_to_process\\\\\"",
+      "ok": true
+    },
+    {
+      "file_regex": "${DB_DIR}/analysis/P3075-102_trace.json",
+      "note_ko": "두 항목은 call_id와 시각만 다르고 cmd와 출력이 같다",
+      "pattern": "\"call_id\": 3,\\s*\"type\": \"tool_call\",\\s*\"ts\": \"[^\"]+\",\\s*\"cmd\": \"<py>:correlate_network_to_process\",[^{}]*\"stdout_excerpt\": (?P<o>[^ ]*) [\\s\\S]*\"call_id\": 4,\\s*\"type\": \"tool_call\",\\s*\"ts\": \"[^\"]+\",\\s*\"cmd\": \"<py>:correlate_network_to_process\",[^{}]*\"stdout_excerpt\": (?P=o) ",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${DB_DIR}/analysis/P3075-102_trace.json",
+      "note_ko": "첫 호출에 준 IP는 trace 어디에도 없다",
+      "text": "203.0.113.7",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${DB_DIR}/analysis/P3075-102_trace.json",
+      "note_ko": "두 번째 호출에 준 IP도 trace 어디에도 없다",
+      "text": "198.51.100.23",
+      "ok": true
+    }
+  ],
+  "image": "sha256:b08a83d062c079f44e0f99f298f2e9421527a33669ea9e83302a616f2ca3e424",
+  "ran_at": "2026-11-28T07:33:21+00:00"
+}

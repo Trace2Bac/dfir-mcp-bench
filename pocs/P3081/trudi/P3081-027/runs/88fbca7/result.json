@@ -1,0 +1,52 @@
+{
+  "case_id": "P3081-027",
+  "problem": "P3081",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "매니페스트를 열지 못해 실패했다",
+      "regex": "No such file or directory: .[^ ]*/analysis/hashes/documents\\.csv",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "오류 응답이다",
+      "is_error": true,
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "trace를 다시 읽으면 hash_directory는 시작 항목에만 나온다",
+      "regex": "\"body\": \"[^\"]*\\x5c\"tool\\x5c\": \\x5c\"hash_directory\\x5c\",",
+      "ok": true
+    },
+    {
+      "file_regex": "${DB_DIR}/analysis/P3081-027_trace.json",
+      "note_ko": "trace에는 hash_directory의 call_initiated 항목이 있다",
+      "pattern": "\"type\": \"call_initiated\",[^{}]*\"tool\": \"hash_directory\"",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${DB_DIR}/analysis/P3081-027_trace.json",
+      "note_ko": "그 호출의 결과나 실패를 적은 항목은 없다(오류 문구가 어디에도 없다)",
+      "text": "No such file or directory",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${DB_DIR}/analysis/P3081-027_trace.json",
+      "note_ko": "hash_directory를 가리키는 tool_call 항목도 없다",
+      "text": "\"mcp_tool\": \"hash_directory\"",
+      "ok": true
+    }
+  ],
+  "image": "sha256:31eca1befc647d0b8e473ede14a0405f948f215c3e5fec4afd8fb1ee32de267a",
+  "ran_at": "2026-11-28T07:42:19+00:00"
+}

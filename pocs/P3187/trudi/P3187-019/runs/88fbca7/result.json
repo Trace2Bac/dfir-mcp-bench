@@ -1,0 +1,46 @@
+{
+  "case_id": "P3187-019",
+  "problem": "P3187",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 3,
+      "note_ko": "앞 사건의 발견이 기록됐다",
+      "regex": "\"success\": true, \"description\": \"Scheduled task OneDriveUpdater[^\"]*\", \"confidence\": \"SUSPECTED\"",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "새 사건으로 열면 되살린 항목이 0이라고 답한다",
+      "regex": "\"case_id\": \"CASE-2026-0413\", [^{}]*\"entries_recovered\": 0, \"resumed\": false",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "그런데 새 사건의 준비 상태는 앞 사건의 SUSPECTED 발견 때문에 Persistence 단계를 suspected로 본다",
+      "regex": "\"persistence\": \\{\"label\": \"Persistence\", \"status\": \"suspected\", \"sources_examined\": \\[\"scheduled_tasks\"\\]",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "새 사건이 만든 항목은 3개인데 준비 상태는 trace 항목을 8개로 센다(앞 사건의 5개가 섞였다)",
+      "contains": "\"trace_entries\": 8,",
+      "ok": true
+    },
+    {
+      "file_regex": "${DB_DIR}/analysis/WKSTN-07_trace.json",
+      "note_ko": "새 사건의 trace 파일에 앞 사건의 발견이 들어 있다",
+      "pattern": "^\\{\\s*\"schema_version\": \"2\\.0\",\\s*\"case_id\": \"CASE-2026-0413\"[\\s\\S]*\"type\": \"finding\"[\\s\\S]*Scheduled task OneDriveUpdater runs hidden PowerShell at logon",
+      "ok": true
+    }
+  ],
+  "image": "sha256:9d4d468c1f7da2338c73ed8d2b872b568d76b127df9acf88f4f6b0299faf8cf9",
+  "ran_at": "2026-11-28T07:46:16+00:00"
+}

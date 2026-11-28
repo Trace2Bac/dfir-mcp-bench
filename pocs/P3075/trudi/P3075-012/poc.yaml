@@ -1,0 +1,83 @@
+# Matrix case P3075-012: NarrationMiddleware.on_call_tool says every call
+# leaves at least one trace entry, but its _invoke re-raises a ToolError
+# without recording it (core/middleware.py, "except ToolError: raise"). Under
+# FastMCP 3.4.7 (variant trudi-88fbca7-fastmcp3) an exception raised in a
+# tool body reaches the middleware already turned into a ToolError, so a
+# call refused by the output-path check (core/paths.py assert_output_safe,
+# via @output_safe) leaves no entry at all. The same tool with an allowed
+# output path is recorded. (A call ended by a wrong case_id in the monitor
+# tools goes through the same path and is not run here.)
+case_id: P3075-012
+problem: P3075
+server: trudi
+variant: trudi-88fbca7-fastmcp3
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "strings 결과를 표본 옆(증거 폴더 안)에 저장하려는 것은 흔한 모델 실수이고, 서버가 그 경로를 거부하는 것은 정상 동작이다. 거부된 호출이 기록에서 사라지는 것은 어떤 도구의 출력 경로 거부에서나 생긴다."
+coverage: "partial: an output-path refusal only; calls ended by a wrong case_id (tools/misc.py, tools/monitor.py) take the same path and are not run"
+coverage_ko: "출력 경로 거부만 보였다. 잘못된 case_id로 끝난 호출(tools/misc.py, tools/monitor.py)도 같은 경로를 타지만 실행하지 않았다."
+summary: 'strings_extract on a suspicious executable with output_path inside the evidence folder is refused with an error, and the trace read right after has no entry of that call; the same call with an output path under analysis/ is recorded as its two strings commands.'
+summary_ko: "의심 실행 파일에 `strings_extract`를 증거 폴더 안의 `output_path`로 부르면 오류로 거부되는데, 바로 뒤에 trace를 읽으면 그 호출의 항목이 없다. 같은 호출을 analysis/ 아래 출력 경로로 부르면 strings 명령 두 개로 기록된다."
+defect_ko: "이 서버는 출력 경로 검사에 거부된 호출을 호출 기록에 남기지 않는다(`ToolError`를 기록 없이 넘긴다). 정상이라면 거부된 호출도 받은 인자와 거부 사유와 함께 기록해야 한다. 기록을 읽는 모델과 검토자는 증거 폴더에 쓰려던 시도가 없었던 것으로 잘못 안다."
+setup_ko: "사용자 Downloads 폴더에서 나온 의심 실행 파일 조각(DOS 헤더와 C2 주소, Run 키 문자열)을 넣었다."
+fixture:
+  - path: analysis/.keep
+    root: db
+    text: ""
+  # The first 667 bytes of a dropper carved from the user's Downloads: DOS
+  # header and stub, PE signature, then its .rdata strings (C2 URL, user
+  # agent, Run key, a discovery command).
+  - path: Users/jdoe/Downloads/upd.exe
+    base64: TVoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAA4fug4AtAnNIbgBTM0hVGhpcyBwcm9ncmFtIGNhbm5vdCBiZSBydW4gaW4gRE9TIG1vZGUuDQ0KJAAAAAAAAABQRQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAaHR0cDovLzIwMy4wLjExMy43L2dhdGUucGhwAE1vemlsbGEvNS4wIChXaW5kb3dzIE5UIDEwLjA7IFdpbjY0OyB4NjQpAFNPRlRXQVJFXE1pY3Jvc29mdFxXaW5kb3dzXEN1cnJlbnRWZXJzaW9uXFJ1bgBjbWQuZXhlIC9jIHdob2FtaSAvYWxsAA==
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 trace를 연다"
+    args:
+      case_id: P3075-012
+      output_path: ${DB_DIR}/analysis/P3075-012_trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: strings_extract
+    note_ko: "결함 호출: strings 결과를 표본 옆(증거 폴더 안)에 저장하려 한다"
+    args:
+      file_path: ${EVIDENCE}/Users/jdoe/Downloads/upd.exe
+      output_path: ${EVIDENCE}/Users/jdoe/Downloads/upd.exe.strings.txt
+  - tool: read_output
+    note_ko: "비교 호출: 바로 뒤에 trace에서 strings 기록을 찾는다"
+    args:
+      path: ${DB_DIR}/analysis/P3075-012_trace.json
+      query: strings upd.exe
+  - tool: strings_extract
+    note_ko: "비교 호출: 같은 호출을 analysis/ 아래 출력 경로로 다시 한다"
+    args:
+      file_path: ${EVIDENCE}/Users/jdoe/Downloads/upd.exe
+      output_path: ${DB_DIR}/analysis/upd.exe.strings.txt
+  - tool: read_output
+    note_ko: "비교 호출: 다시 trace에서 strings 기록을 찾는다"
+    args:
+      path: ${DB_DIR}/analysis/P3075-012_trace.json
+      query: strings upd.exe
+expect:
+  - step: 2
+    note_ko: "증거 폴더 안 출력 경로라 거부됐다"
+    regex: "inside a protected evidence directory"
+  - step: 2
+    note_ko: "거부는 오류 응답이다"
+    is_error: true
+  - step: 3
+    note_ko: "거부 직후 trace에는 그 호출의 기록이 하나도 없다"
+    regex: '"body": "", "truncated": false'
+  - step: 4
+    note_ko: "같은 호출을 허용된 경로로 하면 성공한다"
+    regex: '^\{"success": true, "ascii_lines": [1-9]'
+  - step: 5
+    note_ko: "그 호출은 strings 명령으로 trace에 기록됐다"
+    regex: 'strings -a -n 8 [^ ]*/Users/jdoe/Downloads/upd\.exe'
+  - file_not_contains: ${DB_DIR}/analysis/P3075-012_trace.json
+    note_ko: "trace 어디에도 증거 폴더로 향한 출력 경로가 없다"
+    text: Downloads/upd.exe.strings.txt
+  - file_not_contains: ${DB_DIR}/analysis/P3075-012_trace.json
+    note_ko: "trace 어디에도 거부 사유가 없다"
+    text: protected evidence directory

@@ -1,0 +1,46 @@
+{
+  "case_id": "P3075-025",
+  "problem": "P3075",
+  "server": "findevil",
+  "commit": "d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "첫 조회는 `hash_file` 1건을 보여 준다",
+      "contains": "`hash_file`: 1",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "둘째 조회도 1건뿐이다",
+      "contains": "(1 matching entries",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "앞선 `get_audit_trail` 호출이 기록에 없다",
+      "not_contains": "`get_audit_trail`",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${DB_DIR}/audit.json",
+      "note_ko": "기록 파일에 `get_audit_trail` 호출이 없다",
+      "text": "get_audit_trail",
+      "ok": true
+    },
+    {
+      "file_regex": "${DB_DIR}/get_audit_trail_invocations.jsonl",
+      "note_ko": "두 호출은 이 도구가 읽지 않는 별도 파일에만 남는다",
+      "pattern": "(?s)\"filter_tool\": \"\".*\\n.*\"filter_tool\": \"\"",
+      "ok": true
+    }
+  ],
+  "image": "sha256:5d84c3aa6b73401af2d4eaa69f5d08c032b42209c8cb4c01ff30f50cd7e18979",
+  "ran_at": "2026-11-28T07:29:50+00:00"
+}

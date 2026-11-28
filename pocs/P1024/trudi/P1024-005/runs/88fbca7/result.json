@@ -1,0 +1,46 @@
+{
+  "case_id": "P1024-005",
+  "problem": "P1024",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: the job is not polled (its id is random and the scripted calls cannot pass it on), so the PoC shows the work order counted at start, not what the job later returns",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "서버가 Collect 작업 지시를 기록했다",
+      "regex": "\"priority_tools\": \\[\"net.tcpxtract_streams\", \"net.tcpdump_extract_dns\"\\]",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "작업을 띄우기 전에는 tcpxtract가 미실행 목록에 있다",
+      "regex": "never run or dispositioned: net.tcpdump_extract_dns, net.tcpxtract_streams\\.",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "작업 시작 응답은 끝나지 않은 작업의 성공 응답이다",
+      "regex": "\"success\": true, \"status\": \"running\", \"job_id\": \"net_tcpxtract_streams-[0-9a-f]+\"",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "작업을 시작만 한 뒤에는 tcpxtract가 미실행 목록에서 빠지고 대조 도구만 남는다",
+      "regex": "1 tool\\(s\\) DAIR prescribed in a priority_tools work order were never run or dispositioned: net.tcpdump_extract_dns\\.",
+      "ok": true
+    },
+    {
+      "file_regex": "${OUTSIDE}/case01/analysis/CASE-001_trace.json",
+      "note_ko": "trace에 작업 시작 응답이 성공한 tcpxtract 호출로 남는다",
+      "pattern": "\"cmd\": \"<py>:net_tcpxtract_streams\",\\s*\"success\": true",
+      "ok": true
+    }
+  ],
+  "image": "sha256:9ddd6714cbd7e29692810bb70bcbaa2f522464999bb758f0b284c86155046c18",
+  "ran_at": "2026-11-28T07:32:02+00:00"
+}

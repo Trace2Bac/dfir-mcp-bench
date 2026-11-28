@@ -1,0 +1,52 @@
+{
+  "case_id": "P3194-006",
+  "problem": "P3194",
+  "server": "findevil",
+  "commit": "d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "인증 로그 분석은 정상으로 끝난다",
+      "contains": "# Auth Log Summary — `auth.log`",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "기록된 호출을 앞 실행의 1건으로만 센다",
+      "contains": "- **Tool executions recorded:** 1",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "방금 분석한 인증 로그를 검사하지 않았다고 표시한다",
+      "contains": "| auth log (SSH / sudo / useradd) | `var/log/auth.log` | ❌ NOT examined |",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "같은 분석을 다시 하라고 안내한다",
+      "contains": "→ run auth_summary",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "읽지 못한 기록 줄이 있다는 말이 없다",
+      "not_regex": "(?i)skip|malformed|corrupt|could not parse|unparse|invalid",
+      "ok": true
+    },
+    {
+      "file_regex": "${DB_DIR}/audit.json",
+      "note_ko": "`auth_summary` 기록은 파일에 있지만 끊긴 줄 뒤에 붙어 있다",
+      "pattern": "9b1c\\{\"timestamp\": \"[^\"]+\", \"tool\": \"auth_summary\"",
+      "ok": true
+    }
+  ],
+  "image": "sha256:1de8e1aea2dac3da3987c35186a34d3036bb430b493e3de987a000b64274f095",
+  "ran_at": "2026-11-28T07:41:43+00:00"
+}

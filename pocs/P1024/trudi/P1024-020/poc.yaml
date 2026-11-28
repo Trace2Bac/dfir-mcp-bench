@@ -1,0 +1,62 @@
+# Matrix case P1024-020: lifecycle_coverage (tools/_gates/_lifecycle.coverage)
+# marks an attack-lifecycle phase "examined" when one of the phase's source
+# regexes matches the command line or mcp_tool name of any successful
+# tool_call. hash_file records its call as "hash.file <path>"
+# (tools/hashing._record_hash_result), so hashing a collection named
+# collection.zip matches the exfiltration archiver pattern (\bzip\b) and the
+# Exfiltration phase reads as examined, with archive_sync_tools as the source,
+# although nothing inside the archive (or any exfiltration artifact) was read.
+# The archive is a real ZIP (deflate) holding one file of a KAPE-style
+# collection (C/Windows/System32/drivers/etc/hosts), as an endpoint
+# collection is commonly delivered.
+case_id: P1024-020
+problem: P1024
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "KAPE나 Velociraptor 수집물을 zip으로 받아 열기 전에 먼저 해시해 두는 것은 흔한 보관 절차다."
+coverage: full
+summary: Before any call reason_readiness_status reports the Exfiltration phase as not_examined; after only hash_file on collection.zip it reports Exfiltration as examined with archive_sync_tools as the examined source, because the hash call's command line contains "zip".
+summary_ko: "호출 전 `reason_readiness_status`는 Exfiltration 단계를 `not_examined`로 보고하지만, `collection.zip`에 `hash_file`만 부른 뒤에는 Exfiltration을 `examined`로, 조사한 자료를 `archive_sync_tools`로 보고한다. 해시 호출의 명령 문자열에 `zip`이 들어 있기 때문이다."
+defect_ko: "이 서버는 공격 단계의 조사 여부를 성공한 호출의 명령 문자열에 단계별 정규식이 맞는지로 정해, 압축 파일 이름의 `.zip`만으로 압축 도구 자료를 조사한 것으로 센다. 해당 단계의 자료를 실제로 읽은 호출만 조사로 세야 한다. 모델과 보고서는 유출 단계를 조사했다고 알고 범위 경고를 받지 못한다."
+setup_ko: "증거 폴더에 수집물 `collection.zip`(실제 ZIP)을 두고 새 기록을 연다."
+env:
+  TRUDI_CACHE_DIR: ${DB_DIR}/cache
+fixture:
+- path: collection.zip
+  base64: UEsDBBQAAAAIAMFJdF34CkPDhQAAAKwAAAAkAAAAQy9XaW5kb3dzL1N5c3RlbTMyL2RyaXZlcnMvZXRjL2hvc3RzZYw9C8IwFEX3Qv7DhS46GJM6SLt20UEsNOAc069A9IW8ivTfOxRB8I7ncG6OmuKS/DjN2LgtdFkedoVSJS7eJWIaZtSUohRZLrIcZvIMz7Bg+4ihx+namhaDDz1e3He4Lz+lqZv9ucFACTf/7OjN648ujlJJJTXWBXI2TMSzyKrqC//UB1BLAQIUABQAAAAIAMFJdF34CkPDhQAAAKwAAAAkAAAAAAAAAAAAAACAAQAAAABDL1dpbmRvd3MvU3lzdGVtMzIvZHJpdmVycy9ldGMvaG9zdHNQSwUGAAAAAAEAAQBSAAAAxwAAAAAA
+- path: case01/evidence
+  root: outside
+  symlink: ${EVIDENCE}
+- path: case01/analysis
+  root: outside
+  dir: true
+steps:
+- tool: misc_start_execution_log
+  note_ko: "준비: 새 사건 기록을 연다"
+  args:
+    case_id: CASE-001
+    output_path: ${OUTSIDE}/case01/analysis/CASE-001_trace.json
+    case_dir: ${OUTSIDE}/case01
+    launch_dashboard: false
+- tool: reason_readiness_status
+  note_ko: "비교 호출: 호출 전 유출 단계는 조사하지 않은 것으로 나온다"
+- tool: hash_file
+  note_ko: "결함 호출: 수집물 zip의 해시만 계산한다"
+  args:
+    file_path: ${OUTSIDE}/case01/evidence/collection.zip
+- tool: reason_readiness_status
+  note_ko: "결함 확인: 같은 점검을 다시 부른다"
+expect:
+- step: 2
+  note_ko: 해시 전에는 유출 단계가 조사되지 않았다
+  contains: '"exfil": {"label": "Exfiltration", "status": "not_examined", "sources_examined": []'
+- step: 3
+  note_ko: 해시 계산은 zip 안의 내용을 읽지 않고 파일 해시만 돌려준다
+  regex: '"success": true, "file": "[^"]*/collection.zip", "size_bytes": 303, "md5": "[0-9a-f]{32}"'
+- step: 4
+  note_ko: 해시 한 번 뒤 유출 단계가 압축 도구 자료를 조사한 것으로 바뀐다
+  contains: '"exfil": {"label": "Exfiltration", "status": "examined", "sources_examined": ["archive_sync_tools"]'

@@ -1,0 +1,142 @@
+# Matrix case P1024-017: the FK corroboration check
+# (tools/_gates/fk_corroboration.py) decides whether a corroborator ran by
+# matching its command signature against the cmd of EVERY tool_call in the
+# trace (_ran_cmds), with no look at success. A corroborator call that failed
+# therefore counts as corroboration: record_finding's completeness_note and
+# the readiness check's "Uncorroborated execution finding" blocker (both built
+# on _ran_cmds) go away once a failed RECmd run is in the trace.
+# The grounding artifact is Amcache: its FK sheet says Amcache does not prove
+# "File was executed", and names ez_pecmd, vol_userassist, ez_recmd_hive and
+# misc_regripper_hive as execution corroborators. (A Prefetch-grounded
+# finding, as the matrix summary has it, never gets the note: the Prefetch
+# sheet does not disclaim execution.) The failed corroborator is ez_recmd_hive
+# on an NTUSER.DAT path the collection does not hold.
+# The Amcache rows come from an AmcacheParser CSV that an earlier session left
+# in analysis/ (the column header AmcacheParser writes for
+# UnassociatedFileEntries), read with read_output; the bench cannot build a
+# real Amcache.hve. DAIR, the hypothesis pass and the reviewer run against the
+# Anthropic stub (RESULT blocks in the shapes the prompts ask for).
+case_id: P1024-017
+problem: P1024
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "hive 경로는 모델이 주는 인자라, 수집물에 없는 사용자 프로필의 `NTUSER.DAT` 경로를 짐작해 넣는 모델 실수로 보강 도구 호출이 실패한다. 손상된 hive로도 같은 실패가 생긴다."
+coverage: "partial: the Amcache rows are read from an AmcacheParser CSV placed in analysis/ (as an earlier session leaves it), because the bench cannot build a real Amcache.hve; DAIR, hypothesis and reviewer answers come from the Anthropic stub"
+coverage_ko: "실제 Amcache.hve를 만들 수 없어 앞 세션이 `analysis/`에 남긴 AmcacheParser CSV를 읽어 Amcache 행을 얻는다. DAIR, 가설, 검토 모델의 답은 가짜 Anthropic API가 준다."
+summary: A LIKELY execution finding grounded on Amcache is recorded with a completeness_note and reason_readiness_status blocks it as uncorroborated; after one ez_recmd_hive call that fails on a missing NTUSER.DAT the uncorroborated blocker is gone (only a separate "FAILED" blocker for RECmd is left), and once that failure is dispositioned as the server suggests, nothing holds the Amcache-only finding any more.
+summary_ko: "Amcache에 근거한 LIKELY 실행 발견은 `completeness_note`와 함께 기록되고 `reason_readiness_status`가 보강 안 된 발견으로 차단한다. 없는 `NTUSER.DAT`로 `ez_recmd_hive`를 한 번 실패시키면 이 차단이 사라지고 RECmd 실패 차단만 따로 남는다. 서버가 권하는 대로 그 실패를 처분하면 Amcache 하나에 기댄 발견을 막는 것이 더는 없다."
+defect_ko: "이 서버는 보강 도구 실행 여부를 trace의 모든 도구 호출 명령 문자열로 정하고 성공 여부를 보지 않아, 실패한 RECmd 호출도 보강으로 센다. 성공해 결과를 낸 보강 호출만 세야 한다. 모델과 보고 전 점검은 Amcache 하나에 기댄 실행 발견을 다른 자료로 보강한 것으로 안다."
+setup_ko: "트리아지 수집물에 `NTUSER.DAT`는 두지 않고, 앞 세션이 `analysis/amcache/`에 남긴 AmcacheParser CSV에 `rclone.exe` 행을 둔다. 가짜 Anthropic API가 DAIR(Collect로 넘김), 가설, 검토(SUPPORTED) 답을 차례로 돌려준다."
+env:
+  TRUDI_CACHE_DIR: ${DB_DIR}/cache
+anthropic_stub:
+  responses:
+  - |
+    RESULT: {"schema_version": 1, "assessment": {"current_phase": "Triage", "phase_rationale": "The DLP alert on WKSTN-07 (rclone traffic from jdoe) is confirmed; Triage is satisfied.", "transition_recommended": true, "next_phase": "Collect", "transition_rationale": "Triage satisfied; collect execution artifacts.", "stack_action": "push", "investigation_focus": "Did rclone.exe run on WKSTN-07, and when?", "verification_satisfied": true, "verification_challenges": [], "recommended_actions": [], "directives": {"priority_tools": [], "skip_tools": [], "focus_pids": [], "focus_paths": [], "curiosity_budget": 1}}}
+  - |
+    RESULT: {"schema_version": 1, "rationale": "rclone.exe in a Temp folder suggests a staged cloud-sync exfiltration tool.", "hypotheses": [{"label": "H1", "title": "jdoe ran rclone.exe from Temp to copy data to cloud storage", "likelihood": "medium", "principals": ["jdoe"]}, {"label": "H2", "title": "rclone.exe was dropped but never executed", "likelihood": "medium", "principals": []}], "directives": {}}
+  - |
+    RESULT: {"schema_version": 1, "verdict": "SUPPORTED", "rationale": "The cited Amcache row records C:\\Users\\jdoe\\AppData\\Local\\Temp\\rc\\rclone.exe with the stated SHA1 and key time.", "contradictions": [], "unverifiable": [], "weaknesses": ["Amcache alone does not prove execution"], "discriminators_missing": ["Prefetch RCLONE.EXE-*.pf"]}
+fixture:
+- path: C/Windows/System32/config
+  dir: true
+- path: case01/evidence
+  root: outside
+  symlink: ${EVIDENCE}
+- path: case01/analysis/amcache/20261120_Amcache_UnassociatedFileEntries.csv
+  root: outside
+  text: "ProgramName,ProgramID,FileKeyLastWriteTimestamp,SHA1,IsOsComponent,FullPath,Name,FileExtension,LinkDate,ProductName,Size,Version,ProductVersion,LongPathHash,BinaryType,IsPeFile,BinFileVersion,BinProductVersion,Usn,Language,Description\r\nUnassociated,0006c3f1e5e0b8e6a7d9c3a1f4b2e8d7c6a50000ffff,2026-11-19 22:40:11,5b3a9f1c7e2d4b6a8c0e1f3a5b7d9c2e4f6a8b0c,False,c:\\users\\jdoe\\appdata\\local\\temp\\rc\\rclone.exe,rclone.exe,.exe,2025-06-13 10:22:40,rclone,63829504,1.70.1,1.70.1,rclone.exe|6a1f0d3c2b4e5a79,pe64_amd64,True,1.70.1,1.70.1,412983048,0,Rsync for cloud storage\r\n"
+steps:
+- tool: misc_start_execution_log
+  note_ko: "준비: 새 사건 기록을 연다"
+  args:
+    case_id: CASE-001
+    output_path: ${OUTSIDE}/case01/analysis/CASE-001_trace.json
+    case_dir: ${OUTSIDE}/case01
+    launch_dashboard: false
+- tool: dair_assess
+  note_ko: "준비: DAIR(가짜 API)가 Collect로 넘긴다"
+  args:
+    tool_results_summary: "Triage confirmed the DLP alert: rclone traffic from jdoe's session on WKSTN-07. The triage collection is in evidence/C; AmcacheParser output from the earlier session is in analysis/amcache."
+    phase_stack: "[]"
+    case_context: "CASE-001; host WKSTN-07; user jdoe"
+- tool: reason_hypothesize
+  note_ko: "준비: 가설 단계를 거친다(가짜 API)"
+  args:
+    observation: "rclone.exe is present under C:\\Users\\jdoe\\AppData\\Local\\Temp\\rc"
+    hypothesis_kind: case_question
+- tool: read_output
+  note_ko: "준비: 앞 세션의 AmcacheParser 결과에서 rclone 행을 읽는다"
+  args:
+    path: ${OUTSIDE}/case01/analysis/amcache/20261120_Amcache_UnassociatedFileEntries.csv
+    query: rclone
+- tool: reason_evaluate_finding
+  note_ko: "준비: 검토 모델(가짜 API)이 SUPPORTED를 낸다"
+  args:
+    finding: "rclone.exe (c:\\users\\jdoe\\appdata\\local\\temp\\rc\\rclone.exe, SHA1 5b3a9f1c7e2d4b6a8c0e1f3a5b7d9c2e4f6a8b0c) ran on WKSTN-07; its Amcache key was last written 2026-11-19 22:40:11."
+    supporting_evidence: "read.output Amcache_UnassociatedFileEntries.csv: FullPath=c:\\users\\jdoe\\appdata\\local\\temp\\rc\\rclone.exe, SHA1=5b3a9f1c7e2d4b6a8c0e1f3a5b7d9c2e4f6a8b0c, FileKeyLastWriteTimestamp=2026-11-19 22:40:11, host WKSTN-07"
+    input_call_ids: [7]
+    linked_call_id: 7
+    claim_kind: positive
+    category: execution
+    act: execution
+    entities: [rclone.exe]
+- tool: misc_record_finding
+  note_ko: "비교 호출: Amcache 근거 LIKELY 실행 발견을 기록한다"
+  args:
+    description: "rclone.exe (c:\\users\\jdoe\\appdata\\local\\temp\\rc\\rclone.exe, SHA1 5b3a9f1c7e2d4b6a8c0e1f3a5b7d9c2e4f6a8b0c) ran on WKSTN-07; its Amcache key was last written 2026-11-19 22:40:11."
+    confidence: LIKELY
+    source: ez.amcacheparser
+    linked_call_id: 7
+    input_call_ids: [7]
+    supporting_evidence: "read.output Amcache_UnassociatedFileEntries.csv: FullPath=c:\\users\\jdoe\\appdata\\local\\temp\\rc\\rclone.exe, SHA1=5b3a9f1c7e2d4b6a8c0e1f3a5b7d9c2e4f6a8b0c, FileKeyLastWriteTimestamp=2026-11-19 22:40:11, host WKSTN-07"
+    claim_kind: positive
+    category: execution
+    act: execution
+    entities: [rclone.exe]
+- tool: reason_readiness_status
+  note_ko: "비교 호출: 보강 도구가 하나도 돌지 않아 발견이 차단된다"
+- tool: ez_recmd_hive
+  note_ko: "결함 호출: 수집물에 없는 NTUSER.DAT로 보강 도구 RECmd를 부른다(실패)"
+  args:
+    hive_path: ${OUTSIDE}/case01/evidence/C/Users/jdoe/NTUSER.DAT
+    output_dir: ${OUTSIDE}/case01/analysis/recmd
+- tool: reason_readiness_status
+  note_ko: "결함 확인: 같은 점검을 다시 부른다"
+- tool: misc_record_disposition
+  note_ko: "실패 차단 문구가 권하는 대로 실패한 RECmd를 '증거에 없음'으로 처분한다(실제로 NTUSER.DAT가 없다)"
+  args:
+    target_kind: tool
+    target_id: ez.recmd_hive
+    reason: absent_from_evidence
+- tool: reason_readiness_status
+  note_ko: "결함 확인: 처분 뒤 점검을 다시 부른다"
+expect:
+- step: 6
+  note_ko: 발견은 LIKELY로 기록되고 보강 도구가 없다는 알림이 붙는다
+  regex: '"success": true.*"confidence": "LIKELY".*"completeness_note": "Finding grounded on amcache but no FK corroborator for execution ran'
+- step: 7
+  note_ko: 보강 전에는 준비 점검이 이 발견을 보강 안 된 실행 발견으로 차단한다
+  contains: 'Uncorroborated execution finding (\"rclone.exe'
+- step: 8
+  note_ko: RECmd 호출은 hive가 없어 실패한다
+  regex: '"success": false, "stdout": "RECmd version [^"]*does not exist'
+- step: 9
+  note_ko: 실패한 RECmd 한 번 뒤에는 보강 안 된 발견 차단이 사라지고 실패 도구 차단만 남는다
+  not_contains: 'Uncorroborated execution finding'
+- step: 9
+  note_ko: 같은 응답에 RECmd 실패 차단이 있다(점검 자체는 돈다)
+  contains: 'Tool ez.recmd_hive FAILED and was never re-run successfully'
+- step: 10
+  note_ko: 실패한 RECmd 처분은 받아들여진다
+  regex: '"success": true, "call_id": \d+, "_trudi_call_id": \d+, "target_kind": "tool", "target_norm": "ez.recmd_hive"'
+- step: 11
+  note_ko: 처분 뒤에는 Amcache 하나에 기댄 실행 발견을 막는 차단이 하나도 남지 않는다
+  not_contains: 'Uncorroborated execution finding'
+- step: 11
+  note_ko: 처분 뒤 실패 도구 차단도 사라진다
+  not_contains: 'ez.recmd_hive FAILED'

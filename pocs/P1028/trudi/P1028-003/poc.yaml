@@ -1,0 +1,179 @@
+# Matrix case P1028-003: after a server restart the trace is bound lazily:
+# the first record_* call runs ExecutionLog._auto_recover, which reopens the
+# trace that session.json names. dair_assess builds the DAIR model's input
+# (current phase, EVIDENCE AVAILABLE, WORK ORDER STATUS, evidence-kind
+# filtering) BEFORE its first trace write (record_call_initiated inside
+# _ask_claude), so the first dair_assess after a restart runs on an empty,
+# unbound log: the phase is taken from the agent's phase_stack ("[]" ->
+# Triage) instead of the recorded Collect, the evidence inventory is
+# undetermined, the unrun work order is not listed, and a tool the case's
+# evidence cannot feed (vol.pslist on a disk-triage case) is not filtered.
+# The second, identical call sees all of it.
+# The restart is prepared as the previous session leaves it: the trace in the
+# shape the server writes (trace_initialized, run_profile, call_initiated, and
+# a dair_call that pushed Triage -> Collect with ez.lecmd and ez.pecmd as the
+# Collect work order, stamped dair_phase Collect), and session.json in
+# TRUDI_CACHE_DIR with the two keys _save_session writes (case_id and the
+# absolute trace path). The DAIR answers come from the Anthropic stub; the
+# model's input for each call is recorded by the server on the dair_call
+# entry (inputs.user_message), which the file checks read.
+case_id: P1028-003
+problem: P1028
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "서버를 다시 띄운 뒤 `session.json`으로 앞 trace를 되살리는 것은 서버가 설계한 정상 흐름이고, `start_execution_log` 없이 바로 `dair_assess`를 부르는 것도 도구 설명이 첫 호출에 `phase_stack='[]'`를 주라고 안내하는 흐름과 같다."
+coverage: full
+summary: On the first dair_assess after a restart the server builds the DAIR input before it recovers the trace, so the recorded input says CURRENT PHASE Triage (the trace is in Collect) with no EVIDENCE AVAILABLE or WORK ORDER STATUS line, and the response keeps vol.pslist on a disk-triage case with evidence_kinds []; the same call repeated sees phase Collect, the triage evidence, the unrun ez.lecmd and ez.pecmd, and drops vol.pslist.
+summary_ko: "서버를 다시 띄운 뒤 첫 `dair_assess`는 trace를 되살리기 전에 DAIR 입력을 만들어, 기록된 입력이 현재 단계를 Triage로 적고(trace는 Collect) `EVIDENCE AVAILABLE`과 `WORK ORDER STATUS` 줄이 없다. 응답은 디스크 트리아지 사건에서 `vol.pslist`를 그대로 두고 `evidence_kinds`는 빈 목록이다. 같은 호출을 다시 하면 Collect 단계, 트리아지 증거, 미실행 `ez.lecmd`·`ez.pecmd`가 보이고 `vol.pslist`는 빠진다."
+defect_ko: "이 서버는 `dair_assess`에서 모델 입력을 만든 뒤에야 첫 기록 단계에서 trace를 되살려, 재시작 직후 첫 판단이 빈 기록을 바탕으로 이루어진다. 입력을 만들기 전에 trace를 되살려야 한다. DAIR 모델은 조사가 Triage에 있고 남은 작업 지시가 없다고 알고, 증거에 맞지 않는 도구까지 다음 작업 지시로 내린다."
+setup_ko: "앞 세션이 남긴 trace(Collect 단계, 작업 지시 `ez.lecmd`·`ez.pecmd`)와 그 trace를 가리키는 `session.json`을 두고 서버를 띄운다. 트리아지 수집물(`Windows/System32/config` 폴더)만 있고 메모리 이미지는 없다. 가짜 Anthropic API는 두 번 모두 같은 Collect stay 답(`ez.lecmd`, `ez.pecmd`, `vol.pslist`)을 돌려준다."
+env:
+  TRUDI_CACHE_DIR: ${DB_DIR}/cache
+anthropic_stub:
+  responses:
+  - |
+    RESULT: {"schema_version": 1, "assessment": {"current_phase": "Collect", "phase_rationale": "Collection of the user's file-access and execution artifacts continues.", "transition_recommended": false, "next_phase": "", "transition_rationale": "", "stack_action": "stay", "investigation_focus": "Which files did jdoe open and which programs ran on WKSTN-07?", "verification_satisfied": true, "verification_challenges": [], "recommended_actions": [], "directives": {"priority_tools": ["ez.lecmd", "ez.pecmd", "vol.pslist"], "skip_tools": [], "focus_pids": [], "focus_paths": [], "curiosity_budget": 1}}}
+  - |
+    RESULT: {"schema_version": 1, "assessment": {"current_phase": "Collect", "phase_rationale": "Collection of the user's file-access and execution artifacts continues.", "transition_recommended": false, "next_phase": "", "transition_rationale": "", "stack_action": "stay", "investigation_focus": "Which files did jdoe open and which programs ran on WKSTN-07?", "verification_satisfied": true, "verification_challenges": [], "recommended_actions": [], "directives": {"priority_tools": ["ez.lecmd", "ez.pecmd", "vol.pslist"], "skip_tools": [], "focus_pids": [], "focus_paths": [], "curiosity_budget": 1}}}
+fixture:
+- path: C/Windows/System32/config
+  dir: true
+- path: case01/evidence
+  root: outside
+  symlink: ${EVIDENCE}
+- path: cache/session.json
+  root: db
+  fill: true
+  text: '{"case_id": "CASE-001", "path": "${OUTSIDE}/case01/analysis/CASE-001_trace.json"}'
+- path: case01/analysis/CASE-001_trace.json
+  root: outside
+  text: |
+    {
+      "schema_version": "2.0",
+      "case_id": "CASE-001",
+      "entry_count": 4,
+      "entries": [
+        {
+          "call_id": 1,
+          "type": "system_error",
+          "ts": "2026-11-27T21:02:11+00:00",
+          "category": "trace_initialized",
+          "detail": "trace path /home/sansforensics/cases/CASE-001/analysis/CASE-001_trace.json",
+          "dair_phase": "Triage",
+          "dair_depth": 1
+        },
+        {
+          "call_id": 2,
+          "type": "run_profile",
+          "ts": "2026-11-27T21:02:11+00:00",
+          "code_identity": "commit 88fbca7 branch main code_sha256 574f193597479d13",
+          "dair_phase": "Triage",
+          "dair_depth": 1
+        },
+        {
+          "call_id": 3,
+          "type": "call_initiated",
+          "ts": "2026-11-27T21:04:37+00:00",
+          "tool": "dair_assess",
+          "backend": "claude",
+          "inputs": {
+            "model": "claude-haiku-4-5-20251001"
+          },
+          "dair_phase": "Triage",
+          "dair_depth": 1
+        },
+        {
+          "call_id": 4,
+          "type": "dair_call",
+          "ts": "2026-11-27T21:04:41+00:00",
+          "current_phase": "Triage",
+          "phase_rationale": "The DLP alert on WKSTN-07 (jdoe opening payroll files) is confirmed; Triage is satisfied.",
+          "transition_recommended": true,
+          "next_phase": "Collect",
+          "transition_rationale": "Triage satisfied; collect the file-access artifacts.",
+          "stack_action": "push",
+          "investigation_focus": "Which files did jdoe open on WKSTN-07, and which programs ran?",
+          "verification_satisfied": true,
+          "verification_challenges": [],
+          "recommended_actions": [],
+          "directives": {
+            "priority_tools": [
+              "ez.lecmd",
+              "ez.pecmd"
+            ],
+            "skip_tools": [],
+            "focus_pids": [],
+            "focus_paths": [],
+            "max_depth": "",
+            "next_hypothesis_triggers": [],
+            "curiosity_budget": 1,
+            "tool_manifest_version": "2026-09-24.1",
+            "unknown_priority_tools": [],
+            "priority_tool_capabilities": [
+              {
+                "tool": "ez.lecmd",
+                "capability": "disk_filesystem_timeline"
+              },
+              {
+                "tool": "ez.pecmd",
+                "capability": "disk_filesystem_timeline"
+              }
+            ]
+          },
+          "input_tokens": 3120,
+          "output_tokens": 410,
+          "inputs": {
+            "tool_results_summary": "Triage confirmed the DLP alert: jdoe on WKSTN-07 opened payroll spreadsheets outside working hours.",
+            "phase_stack": [],
+            "case_context": "CASE-001; host WKSTN-07; user jdoe",
+            "current_phase": "Triage",
+            "tool_manifest_version": "2026-09-24.1",
+            "evidence_kinds": [
+              "triage"
+            ],
+            "evidence_determined": true,
+            "user_message": "TOOL RESULTS SUMMARY:\nTriage confirmed the DLP alert: jdoe on WKSTN-07 opened payroll spreadsheets outside working hours.\n\nCURRENT PHASE STACK (newest last):\n[]\n\nCURRENT PHASE: Triage\n\nCASE CONTEXT:\nCASE-001; host WKSTN-07; user jdoe\n\nEVIDENCE AVAILABLE: triage — do not prescribe tools or verification challenges that need memory, pcap, disk_image, mobile, live evidence; the case holds none"
+          },
+          "parse_path": "result_json",
+          "evidence_kinds": [
+            "triage"
+          ],
+          "evidence_determined": true,
+          "dair_phase": "Collect",
+          "dair_depth": 2
+        }
+      ]
+    }
+steps:
+- tool: dair_assess
+  note_ko: "결함 호출: 다시 띄운 서버의 첫 호출로 dair_assess를 부른다"
+  args:
+    tool_results_summary: "First call after the restart."
+    phase_stack: "[]"
+    case_context: "CASE-001; host WKSTN-07"
+- tool: dair_assess
+  note_ko: "비교 호출: 같은 호출을 한 번 더 한다"
+  args:
+    tool_results_summary: "Second call."
+    phase_stack: "[]"
+    case_context: "CASE-001; host WKSTN-07"
+expect:
+- step: 1
+  note_ko: 첫 호출은 증거 종류를 모르는 채로 메모리 도구 vol.pslist를 작업 지시에 남긴다
+  regex: '"directives": \{"priority_tools": \["ez.lecmd", "ez.pecmd", "vol.pslist"\].*"evidence_kinds": \[\]\}$'
+- step: 2
+  note_ko: 같은 호출을 다시 하면 트리아지 증거를 알고 vol.pslist를 뺀다
+  regex: '"directives": \{"priority_tools": \["ez.lecmd", "ez.pecmd"\].*"evidence_kinds": \["triage"\], "server_filtered_tools": \[\{"tool": "vol.pslist", "needs": \["memory"\]\}\]'
+- file_regex: ${OUTSIDE}/case01/analysis/CASE-001_trace.json
+  note_ko: 첫 호출의 모델 입력은 단계를 Triage로 적고 증거 종류를 모른다
+  pattern: '"tool_results_summary": "First call after the restart\.",\s*"phase_stack": \[\],\s*"case_context": "CASE-001; host WKSTN-07",\s*"current_phase": "Triage",\s*"tool_manifest_version": "[^"]*",\s*"evidence_kinds": \[\],\s*"evidence_determined": false'
+- file_regex: ${OUTSIDE}/case01/analysis/CASE-001_trace.json
+  note_ko: 첫 호출의 모델 입력에는 EVIDENCE AVAILABLE과 WORK ORDER STATUS 줄이 없다
+  pattern: '"user_message": "TOOL RESULTS SUMMARY:\\nFirst call after the restart\.(?:(?!WORK ORDER STATUS|EVIDENCE AVAILABLE)(?:[^"\\]|\\.))*"'
+- file_regex: ${OUTSIDE}/case01/analysis/CASE-001_trace.json
+  note_ko: 두 번째 호출의 모델 입력은 Collect 단계와 미실행 작업 지시를 담는다
+  pattern: '"user_message": "TOOL RESULTS SUMMARY:\\nSecond call\.(?:[^"\\]|\\.)*CURRENT PHASE: Collect(?:[^"\\]|\\.)*EVIDENCE AVAILABLE: triage(?:[^"\\]|\\.)*WORK ORDER STATUS \(Collect\): prescribed but not yet run or dispositioned: ez.lecmd, ez.pecmd'

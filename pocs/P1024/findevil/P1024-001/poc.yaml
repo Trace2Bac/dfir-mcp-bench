@@ -1,0 +1,85 @@
+# Matrix case P1024-001: a memory tool that ends in `no symbols` or `rc=N`
+# still writes its name to audit.json, and assess_coverage marks an artifact
+# class examined when any expected tool name is in the record, without
+# reading result_summary. A memory image whose only record is a failed run is
+# reported as examined, and the verdict is COVERAGE CLEAN.
+# FINDEVIL_VOL is a stand-in so the result does not depend on the image:
+# - crash: answers --help, fails every plugin with rc 1 and a vol3-style
+#   exception (as on a truncated or unsupported dump), like P4095-016.
+# - nosymbols: answers --help, fails every plugin with rc 1 and vol3's
+#   "Unable to validate the plugin requirements" message for a missing
+#   symbol table.
+# External tool output is simulated.
+case_id: P1024-001
+problem: P1024
+server: findevil
+variant: findevil-d1a8d25
+commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "맞는 커널 심볼 표가 없거나 덤프 문제로 Volatility 플러그인이 실패하는 일은 리눅스 메모리 분석에서 흔하다."
+coverage: full
+summary: After analyze_memory_processes fails on the only memory image (rc 1, or the kernel-symbols block), assess_coverage marks that image "✅ examined" and returns COVERAGE CLEAN, because it checks only that a memory tool name is in audit.json.
+summary_ko: "하나뿐인 메모리 이미지에서 `analyze_memory_processes`가 실패해도(rc 1, 또는 커널 심볼 없음) 그 뒤 `assess_coverage`는 그 이미지를 `✅ examined`로 표시하고 `COVERAGE CLEAN`을 낸다. 기록에 메모리 도구 이름이 있는지만 보기 때문이다."
+defect_ko: "이 서버의 `assess_coverage`는 기록의 결과 요약을 보지 않고 도구 이름만으로 검사 여부를 정해, 실패한 실행도 검사한 것으로 센다. 실패한 실행만 있으면 검사하지 않은 자료로 남기고 다시 실행하라고 안내해야 한다. 모델은 메모리 이미지를 분석했다고 잘못 알고 조사를 마친다."
+setup_ko: "작은 LiME 머리 파일 하나만 둔 증거에서, Volatility를 '플러그인 실패'와 '심볼 표 없음' 두 대역으로 바꿔 각각 띄웠다."
+stubs:
+  - name: vol_crash
+    text: |
+      #!/bin/sh
+      if [ "$1" = "--help" ]; then echo "usage: vol [-h] [-c CONFIG] [-f FILE] PLUGIN ..."; exit 0; fi
+      echo "Volatility 3 Framework 2.7.0" >&2
+      echo "volatility3.framework.exceptions.LayerException: Offset outside of the buffer boundaries" >&2
+      exit 1
+  - name: vol_nosymbols
+    text: |
+      #!/bin/sh
+      if [ "$1" = "--help" ]; then echo "usage: vol [-h] [-c CONFIG] [-f FILE] PLUGIN ..."; exit 0; fi
+      echo "Volatility 3 Framework 2.7.0" >&2
+      echo "Unsatisfied requirement plugins.PsList.kernel.symbol_table_name: " >&2
+      echo "Unable to validate the plugin requirements: ['plugins.PsList.kernel.symbol_table_name']" >&2
+      exit 1
+conditions:
+  - name: crash
+    env: {FINDEVIL_VOL: "${STUBS}/vol_crash"}
+  - name: nosymbols
+    env: {FINDEVIL_VOL: "${STUBS}/vol_nosymbols"}
+fixture:
+  - path: mem/host.lime
+    # LiME header: magic 0x4C694D45, version 1, range 0x1000-0x1FFF, then 4096 bytes
+    hex: 454d694c01000000 0010000000000000 ff1f000000000000 0000000000000000
+    size: 4128
+steps:
+  - tool: analyze_memory_processes
+    note_ko: "메모리 도구가 실패한다"
+    args:
+      memory_dump_path: ${EVIDENCE}/mem/host.lime
+  - tool: assess_coverage
+    note_ko: "결함 호출: 조사 범위 점검"
+    args: {}
+expect:
+  - step: 1
+    condition: crash
+    note_ko: "플러그인 실패가 응답에 나온다"
+    contains: "vol failed (rc=1)"
+  - step: 2
+    condition: crash
+    note_ko: "그런데도 메모리 이미지를 검사했다고 표시한다"
+    contains: "| memory image | `mem/host.lime` | ✅ examined |"
+  - step: 2
+    condition: crash
+    note_ko: "조사 범위에 빈틈이 없다고 판정한다"
+    contains: "**Verdict: COVERAGE CLEAN**"
+  - step: 1
+    condition: nosymbols
+    note_ko: "커널 심볼이 없어 분석하지 못했다는 안내가 나온다"
+    contains: "Kernel symbols required"
+  - step: 2
+    condition: nosymbols
+    note_ko: "그런데도 메모리 이미지를 검사했다고 표시한다"
+    contains: "| memory image | `mem/host.lime` | ✅ examined |"
+  - step: 2
+    condition: nosymbols
+    note_ko: "조사 범위에 빈틈이 없다고 판정한다"
+    contains: "**Verdict: COVERAGE CLEAN**"

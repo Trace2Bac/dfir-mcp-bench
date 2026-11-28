@@ -1,0 +1,51 @@
+{
+  "case_id": "P3081-038",
+  "problem": "P3081",
+  "server": "findevil",
+  "commit": "d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "플러그인이 돌면 프로세스 3개가 나온다",
+      "condition": "ok",
+      "contains": "- Processes: 3 (0 anomalies)",
+      "ok": true
+    },
+    {
+      "step": 1,
+      "note_ko": "플러그인이 모두 실패하면 프로세스 0개가 나온다",
+      "condition": "crash",
+      "contains": "- Processes: 0 (0 anomalies)",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "깨끗한 분석의 기록",
+      "condition": "ok",
+      "regex": "params: \\{\"path\": \"[^\"]*/mem/host\\.lime\"\\}\\n  result: hidden=0 malfind=0 proc_anomalies=0\\s*\\Z",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "모든 플러그인이 실패한 분석도 같은 기록이다",
+      "condition": "crash",
+      "regex": "params: \\{\"path\": \"[^\"]*/mem/host\\.lime\"\\}\\n  result: hidden=0 malfind=0 proc_anomalies=0\\s*\\Z",
+      "ok": true
+    },
+    {
+      "condition": "crash",
+      "file_not_contains": "${DB_DIR}/audit.json",
+      "note_ko": "실패한 분석의 기록 파일에 실패 이유가 없다",
+      "text": "LayerException",
+      "ok": true
+    }
+  ],
+  "image": "sha256:e257b069b8f039bedce77333dc740ed2865332531ff42633d5625d8179ad9b71",
+  "ran_at": "2026-11-28T07:40:48+00:00"
+}

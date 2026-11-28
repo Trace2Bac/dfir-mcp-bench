@@ -1,0 +1,51 @@
+{
+  "case_id": "P1042-003",
+  "problem": "P1042",
+  "server": "findevil",
+  "commit": "d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "추적 대상 두 파일 중 항목은 1개다",
+      "contains": "- **Entries:** 1",
+      "ok": true
+    },
+    {
+      "step": 1,
+      "note_ko": "읽지 못한 파일이 있다는 말이 없다",
+      "not_regex": "(?i)shadow|unreadable|could not|skipp|permission|denied",
+      "ok": true
+    },
+    {
+      "file_not_contains": "${DB_DIR}/fs-baseline.json",
+      "note_ko": "기준선 파일에 `etc/shadow`가 없다",
+      "text": "etc/shadow",
+      "ok": true
+    },
+    {
+      "file_contains": "${DB_DIR}/fs-baseline.json",
+      "note_ko": "기준선의 항목 수도 성공한 1개만 적혀 있다",
+      "text": "\"entry_count\": 1",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "비교는 기준선이 그대로라고 한다",
+      "contains": "✓ No changes detected. Baseline state intact.",
+      "ok": true
+    },
+    {
+      "file_exists": "${EVIDENCE}/fs/etc/shadow",
+      "note_ko": "`etc/shadow`는 실제로 디스크에 있다",
+      "ok": true
+    }
+  ],
+  "image": "sha256:f1c19f596f35e988cfd136c66c7380ad3fd43ff798148d9b3992b9711e6ebcbc",
+  "ran_at": "2026-11-28T07:41:14+00:00"
+}

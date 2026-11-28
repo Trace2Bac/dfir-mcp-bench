@@ -1,0 +1,46 @@
+{
+  "case_id": "P3075-069",
+  "problem": "P3075",
+  "server": "findevil",
+  "commit": "d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "첫 보고는 침해 결론으로 받아들여진다",
+      "contains": "SSH brute force from 203.0.113.50 led to a deploy login",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "둘째 보고는 반대 결론으로 받아들여진다",
+      "contains": "no successful login from external addresses",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "기록에 두 확정이 모두 있다",
+      "contains": "(2 matching entries",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "두 항목의 params와 결과가 똑같다",
+      "regex": "(?s)params: \\{\"claim_count\": 2\\}\\n  result: ACCEPTED: 0 rejected, 0 contradictions\\n.*params: \\{\"claim_count\": 2\\}\\n  result: ACCEPTED: 0 rejected, 0 contradictions",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "기록에 확정한 결론이 없다",
+      "not_regex": "brute force|no successful login|cron",
+      "ok": true
+    }
+  ],
+  "image": "sha256:9bcc7eb3748d31f76031135e10d7ba321c42b456b9ccfcb70046e22e086faf3f",
+  "ran_at": "2026-11-28T07:34:22+00:00"
+}
