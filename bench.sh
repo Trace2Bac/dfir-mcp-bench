@@ -274,7 +274,7 @@ run_poc() {
     mkdir -p "$dir"
     build "$v" -q >/dev/null
     image=$(variant_image "$v")
-    local model=()
+    local model_args=()
     if [ -z "$no_model" ] && grep -q '^model:' "$f"; then
         names=$(docker run --rm --entrypoint "" -v "$ROOT/pocs:/pocs:ro" "$image" \
             python3 -m bench poc-models "/$f" ${models:+--models "$models"})
@@ -292,17 +292,17 @@ run_poc() {
             # With a token, Claude Code gets an empty config folder of its own
             # instead of the sign-in folder (unreadable there on macOS).
             if [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
-                model=(-e CLAUDE_CODE_OAUTH_TOKEN -e CLAUDE_CONFIG_DIR=/tmp/claude-config)
+                model_args=(-e CLAUDE_CODE_OAUTH_TOKEN -e CLAUDE_CONFIG_DIR=/tmp/claude-config)
             else
-                model=(-e CLAUDE_CODE_OAUTH_TOKEN -e CLAUDE_CONFIG_DIR="$CLAUDE_CONFIG" -v "$ROOT/data/claude:$CLAUDE_CONFIG")
+                model_args=(-e CLAUDE_CODE_OAUTH_TOKEN -e CLAUDE_CONFIG_DIR="$CLAUDE_CONFIG" -v "$ROOT/data/claude:$CLAUDE_CONFIG")
             fi
         fi
         if [ -n "$local_model" ]; then
             # An unreachable Ollama fails the local model's runs only; the others still run.
-            model+=(-e BENCH_LOCAL_MODEL -e BENCH_OLLAMA_URL)
+            model_args+=(-e BENCH_LOCAL_MODEL -e BENCH_OLLAMA_URL)
             # host.docker.internal is the Docker host on Linux and WSL too (Docker Desktop has it already).
             case "${BENCH_OLLAMA_URL:-http://host.docker.internal:11434}" in
-            *host.docker.internal*) model+=(--add-host=host.docker.internal:host-gateway) ;;
+            *host.docker.internal*) model_args+=(--add-host=host.docker.internal:host-gateway) ;;
             esac
         fi
     else
@@ -310,9 +310,9 @@ run_poc() {
     fi
     docker run --rm --entrypoint "" --user "$RUN_AS" -e HOME=/tmp \
         -e BENCH_IMAGE_ID="$(docker image inspect -f '{{.Id}}' "$image")" \
-        -e BENCH_SERVER_CMD="$(server_cmd "$v")" ${model[@]+"${model[@]}"} \
+        -e BENCH_SERVER_CMD="$(server_cmd "$v")" ${model_args[@]+"${model_args[@]}"} \
         -v "$ROOT/pocs:/pocs:ro" -v "$ROOT/$dir:/out" \
-        "$image" python3 -m bench poc "/$f" --out /out $no_model ${models:+--models "$models"}
+        "$image" python3 -m bench poc "/$f" --out /out ${no_model:+"$no_model"} ${models:+--models "$models"}
 }
 
 # Options of poc and poc-all: [--no-model] [--models a,b], into no_model and models.
