@@ -6,41 +6,47 @@
   "display": "multi-call",
   "level": "mcp",
   "realism": "possible",
-  "coverage": "partial: shown with 401 (rejected key) from the live services; 429 (quota) goes through the same code but is not triggered here; vt_lookup_domain is not called",
+  "coverage": "partial: shown with 401 (rejected key) from a local stand-in that returns the real services' 401 bodies; 429 (quota) goes through the same code but is not triggered here; vt_lookup_domain is not called",
   "result": "reproduced",
   "reproduced_runs": "1/1",
   "checks": [
     {
-      "step": 2,
+      "step": 3,
       "note_ko": "키가 거부됐는데 해시 조회는 성공으로 끝난다",
       "regex": "\"success\":\\s*true",
       "ok": true
     },
     {
-      "step": 2,
+      "step": 3,
       "note_ko": "해시가 VirusTotal에 있다고 답한다",
       "regex": "\"found\":\\s*true",
       "ok": true
     },
     {
-      "step": 2,
+      "step": 3,
       "note_ko": "악성 판정 0, 검사 엔진 0으로 채운다",
       "regex": "\"malicious\":\\s*0\\b[\\s\\S]*\"total_engines\":\\s*0\\b",
       "ok": true
     },
     {
-      "step": 3,
+      "step": 4,
       "note_ko": "IP 조회도 성공으로 끝나고 평판 칸이 비어 있다",
       "regex": "\"success\":\\s*true[\\s\\S]*\"malicious\":\\s*0\\b[\\s\\S]*\"country\":\\s*null",
       "ok": true
     },
     {
-      "step": 4,
+      "step": 5,
       "note_ko": "AbuseIPDB도 성공으로 끝나고 점수가 비어 있다",
       "regex": "\"success\":\\s*true[\\s\\S]*\"abuse_confidence_score\":\\s*null",
       "ok": true
+    },
+    {
+      "step": 6,
+      "note_ko": "대역 기록에는 세 요청(해시·IP는 VirusTotal, IP는 AbuseIPDB)만 있고 모두 대역이 401로 답했다. 요청은 컨테이너 밖으로 나가지 않았다",
+      "regex": "\"stdout\": \"proxy: CONNECT www\\.virustotal\\.com:443 HTTP/1\\.1\\\\n  GET /api/v3/files/275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f HTTP/1\\.1(?:(?!proxy:)[^\"])*answered: 401 Unauthorized\\\\nproxy: CONNECT www\\.virustotal\\.com:443 HTTP/1\\.1\\\\n  GET /api/v3/ip_addresses/185\\.220\\.101\\.1 HTTP/1\\.1(?:(?!proxy:)[^\"])*answered: 401 Unauthorized\\\\nproxy: CONNECT api\\.abuseipdb\\.com:443 HTTP/1\\.1\\\\n  GET /api/v2/check\\?ipAddress=185\\.220\\.101\\.1(?:(?!proxy:)[^\"])*answered: 401 Unauthorized\\\\n\", \"stderr\"",
+      "ok": true
     }
   ],
-  "image": "sha256:a3f27a966e729d008f5bf214c9204dd04218322a499a1328161d56e2da68b2ba",
-  "ran_at": "2026-11-27T20:22:22+00:00"
+  "image": "sha256:03fe66093fa9770121f22ba858e7480a6b4d1ae8375687254c8ad038a2a3415b",
+  "ran_at": "2026-11-28T04:33:12+00:00"
 }

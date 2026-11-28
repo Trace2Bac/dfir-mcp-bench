@@ -1,0 +1,124 @@
+# Matrix case P2055-089: live_event_log_tail (lines up to 5000) and
+# live_read_file (max_bytes up to 1 MiB) accept ranges larger than ssh_run's
+# output caps (51,200 characters, then 150 lines), and the tool definitions
+# do not say so. ssh_run first cuts stdout at 51,200 characters and only then
+# counts lines, so the "[TRUNCATED — N lines omitted]" mark counts only the
+# lines left after the character cut, not the lines the command printed.
+# Neither tool takes an offset, so the rest cannot be fetched page by page.
+# The live host is simulated: ${STUBS}/ssh drops the ssh options and
+# user@host and runs the remote command line locally, as the remote shell
+# would; ${STUBS}/journalctl prints the host's ssh unit journal in
+# journalctl's short format (OpenSSH 8.9 messages): 1,200 password-guessing
+# attempts from 203.0.113.45 and then a successful login as deploy.
+# `journalctl -u ssh -n 2000` prints 2,000 lines (200,327 bytes).
+case_id: P2055-089
+problem: P2055
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "인터넷에 열린 서버의 sshd 로그는 무차별 대입 시도로 수천 줄씩 쌓이므로, 침입 시점을 찾으려고 수천 줄을 요청하는 것은 흔하고 도구도 5,000줄까지 받는다."
+coverage: "partial: the live host is simulated (ssh and journalctl are stubs in their real output formats); live_event_log_tail is run, live_read_file goes through the same ssh_run caps but is not called"
+coverage_ko: "실제 원격 호스트가 아니라 흉내 낸 호스트다(ssh, journalctl은 실제 출력 형식을 따른 대역). live_event_log_tail만 돌렸고 live_read_file은 같은 ssh_run 상한을 지나지만 부르지 않았다"
+summary: "On a host whose ssh journal holds a password-guessing run ending in a successful login as deploy, live_event_log_tail with lines 2000 returns the oldest 150 lines (up to 01:38:58) and the mark \"[TRUNCATED — 362 lines omitted]\", although 1,850 lines were left out, including the login at 02:20:41; the tool has no offset to fetch them. Asking for 20 lines shows that login."
+summary_ko: "ssh 저널에 암호 대입 시도와 그 끝의 deploy 로그인 성공이 있는 호스트에서 live_event_log_tail을 lines 2000으로 부르면, 가장 오래된 150줄(01:38:58까지)과 \"[TRUNCATED — 362 lines omitted]\" 표시가 온다. 실제로 빠진 줄은 1,850줄이고 02:20:41의 로그인 성공도 그 안에 있다. 도구에는 나머지를 받을 offset이 없다. 20줄만 요청하면 그 로그인이 보인다."
+defect_ko: "이 서버는 출력을 51,200자에서 먼저 자른 뒤 줄 수를 세어, 생략 표시의 줄 수가 실제로 빠진 줄 수보다 훨씬 작다. 나머지를 받을 offset도 없다. 정상이라면 명령이 낸 전체 줄 수 기준으로 생략 건수를 알리고, 나머지를 이어 받는 방법을 주거나 도구 정의에 상한을 밝혀야 한다. 모델은 빠진 줄이 362줄뿐이라고 보고, 저널 끝(가장 최근)의 로그인 성공이 빠졌다는 것을 모른다."
+setup_ko: "원격 호스트를 흉내 내고, ssh 유닛 저널을 journalctl 기본 형식으로 넣었다. 01:00~02:20 동안 203.0.113.45의 암호 대입 1,200회(줄 3개씩)가 있고, 02:20:41에 같은 주소에서 deploy 계정 로그인이 성공한다."
+env:
+  TRUDI_CACHE_DIR: ${DB_DIR}/cache
+  TRUDI_LIVE_HOSTS_CONFIG: ${DB_DIR}/live_hosts.json
+  PATH: ${STUBS}:${PATH}
+stubs:
+  - name: ssh
+    text: |
+      #!/bin/sh
+      # Stand-in for ssh to the registered live host: skip the options and
+      # user@host up to "--", then run the remote command line (already
+      # shell-quoted by trudi) the way the remote shell would.
+      while [ $# -gt 0 ]; do
+        if [ "$1" = "--" ]; then shift; break; fi
+        shift
+      done
+      exec sh -c "$*"
+  - name: journalctl
+    text: |
+      #!/bin/sh
+      # Stand-in for journalctl on the host (systemd 249, Ubuntu 22.04):
+      # `journalctl -u ssh -n N --no-pager` in the default short format. The
+      # ssh unit's journal is generated here: 1,200 password-guessing attempts
+      # from 203.0.113.45 (Invalid user / Failed password / Connection closed,
+      # as OpenSSH 8.9 logs them) between 01:00 and 02:20, then the successful
+      # login as deploy. -n N prints the newest N entries, oldest first.
+      n=10; unit=""
+      while [ $# -gt 0 ]; do
+        case "$1" in
+          -u) unit="$2"; shift 2 ;;
+          -n) n="$2"; shift 2 ;;
+          *) shift ;;
+        esac
+      done
+      if [ "$unit" != "ssh" ] && [ "$unit" != "ssh.service" ]; then
+        echo "-- No entries --"; exit 0
+      fi
+      awk 'function ts(s) { return sprintf("Nov 27 %02d:%02d:%02d web01", int(s/3600), int(s%3600/60), s%60) }
+      BEGIN {
+        split("admin test oracle ubuntu guest postgres git ftpuser user support mysql pi", u, " ")
+        for (k = 0; k < 1200; k++) {
+          s = 3600 + k*4 + (k*7)%3; pid = 20113 + k*3; port = 40000 + (k*137)%25000; name = u[(k%12)+1]
+          printf "%s sshd[%d]: Invalid user %s from 203.0.113.45 port %d\n", ts(s), pid, name, port
+          printf "%s sshd[%d]: Failed password for invalid user %s from 203.0.113.45 port %d ssh2\n", ts(s+2), pid, name, port
+          printf "%s sshd[%d]: Connection closed by invalid user %s 203.0.113.45 port %d [preauth]\n", ts(s+2), pid, name, port
+        }
+        s = 3600 + 1200*4 + 41
+        printf "%s sshd[23911]: Accepted password for deploy from 203.0.113.45 port 52811 ssh2\n", ts(s)
+        printf "%s sshd[23911]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)\n", ts(s)
+        printf "%s systemd-logind[612]: New session 731 of user deploy.\n", ts(s)
+      }' | tail -n "$n"
+fixture:
+  - path: live_hosts.json
+    root: db
+    text: |
+      {"web01": {"user": "trudi", "host": "198.51.100.20", "identity": "~/.ssh/trudi_live", "port": 22}}
+  - path: case01/analysis/.keep
+    root: outside
+    text: ""
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 기록을 연다"
+    args:
+      case_id: CASE-001
+      output_path: ${OUTSIDE}/case01/analysis/trace.json
+      case_dir: ${OUTSIDE}/case01
+      launch_dashboard: false
+  - tool: live_event_log_tail
+    note_ko: "결함 호출: ssh 유닛 저널의 마지막 2,000줄을 요청함"
+    args:
+      host: web01
+      unit: ssh
+      lines: 2000
+  - tool: live_event_log_tail
+    note_ko: "비교 호출: 같은 저널의 마지막 20줄만 요청함"
+    args:
+      host: web01
+      unit: ssh
+      lines: 20
+  - list_tools: true
+    note_ko: "비교 호출: 도구 목록에서 live_event_log_tail의 인자를 본다"
+expect:
+  - step: 2
+    note_ko: "2,000줄 요청이 성공했고 잘렸다고 표시한다"
+    regex: '"success": true[\s\S]*"truncated": true[\s\S]*"cmd": "ssh trudi@198\.51\.100\.20:22 -- journalctl -u ssh -n 2000 --no-pager"'
+  - step: 2
+    note_ko: "보인 줄은 01:38:58에서 끝나고 생략 표시는 362줄이라고 한다. 명령은 2,000줄을 냈으므로 실제로 빠진 줄은 1,850줄이다"
+    regex: 'Nov 27 01:38:58 web01 sshd\[21865\]: Invalid user user from 203\.0\.113\.45 port 45008\\n\\n\[TRUNCATED \\u2014 362 lines omitted\]'
+  - step: 2
+    note_ko: "보인 부분은 01:35:38부터 01:38:58까지 약 3분이고, 저널 끝(02:20)의 줄은 하나도 없다"
+    not_regex: 'Nov 27 0(1:[4-5]\d|2:\d\d):\d\d web01'
+  - step: 3
+    note_ko: "빠진 부분 끝에 같은 주소의 deploy 로그인 성공(02:20:41)이 있다"
+    regex: 'Nov 27 02:20:41 web01 sshd\[23911\]: Accepted password for deploy from 203\.0\.113\.45 port 52811 ssh2'
+  - step: 4
+    note_ko: "도구 인자는 host·unit·lines뿐이라 나머지를 이어 받을 offset이 없다"
+    regex: '"name": "live_event_log_tail"[^{]*\{[^{]*"properties": \{"host": \{[^}]*\}, "unit": \{[^}]*\}, "lines": \{[^}]*\}\}'

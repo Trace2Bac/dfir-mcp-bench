@@ -8,10 +8,12 @@
 # mulder user. mulder itself is not used.
 #
 # Built by `./bench.sh build <variant>`, which reads the build arguments from
-# servers/trudi/variants/<variant>.env.
+# servers/trudi/variants/<variant>.env. A variant that sets TARGET is built
+# from that stage (below the trudi stage); the others get the trudi stage
+# unchanged, through the last line.
 
 ARG BASE_IMAGE
-FROM ${BASE_IMAGE}
+FROM ${BASE_IMAGE} AS trudi
 
 ARG REF
 ARG PATCHES=""
@@ -45,3 +47,21 @@ RUN set -eux; \
 
 COPY runner/ /opt/bench-runner/
 ENV PYTHONPATH=/opt/bench-runner
+
+# TARGET=fastmcp3: the environment trudi's job tools need, which is likely
+# the author's own. fastmcp 3.4.7 instead of 4 (constraints-fastmcp3.txt):
+# trudi's job path imports fastmcp.tools.tool, which fastmcp 4 removed. And
+# /usr/local/bin/evtx_dump.py, the SIFT path trudi runs python-evtx's
+# evtx_dump.py by: the image's python-evtx 0.8.1 wheel lacks its scripts
+# package, so evtx_dump.py is taken from the v0.8.1 tag and checked.
+FROM trudi AS fastmcp3
+COPY servers/trudi/constraints-fastmcp3.txt /tmp/trudi-constraints-fastmcp3.txt
+RUN uv pip sync -q --no-cache --python /opt/trudi/.venv/bin/python /tmp/trudi-constraints-fastmcp3.txt
+RUN set -eux; \
+    curl -fsSL -o /usr/local/bin/evtx_dump.py \
+        https://raw.githubusercontent.com/williballenthin/python-evtx/cab997af04b6caae68b306e5c2c40b3aa751454e/scripts/evtx_dump.py; \
+    echo "24bb121d10fb662e88b844a555324356e6427313932d3e56ff9825af719e8f24  /usr/local/bin/evtx_dump.py" | sha256sum -c -; \
+    chmod 755 /usr/local/bin/evtx_dump.py
+
+# The default image: the trudi stage as it is.
+FROM trudi

@@ -5,7 +5,9 @@ reproduced.
 A PoC is pocs/<problem>/<server>/<case-id>/poc.yaml. In fixture paths, tool
 arguments and env values, ${EVIDENCE}, ${DB_DIR}, ${OUTSIDE} (a folder next to
 the evidence that the server is not given), ${STUBS} (stub programs) and
-${PATH} (the runner's PATH) are filled in.
+${PATH} (the runner's PATH) are filled in, and ${ANTHROPIC_STUB_URL} with an
+`anthropic_stub`. A PoC's `services` run beside the server and its
+`anthropic_stub` answers the server's own model calls (see _prepared).
 
 Besides the tool calls, the transcript keeps what the model would be given:
 the server's instructions and its tool list (descriptions, schemas,
@@ -34,16 +36,22 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import contextlib
+import http.server
 import json
 import os
 import re
 import shlex
 import shutil
+import signal
+import socket
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import urllib.request
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, TextIO
@@ -83,6 +91,12 @@ _LOCAL_TOOL_S = 600
 _LOCAL_OPTIONS = {"temperature": 0, "num_ctx": 65536}
 # The local loop's system message, after the server's own instructions.
 _LOCAL_SYSTEM = "You are a forensic analyst. Use the tools to answer. Give a final answer when done."
+# The API key the server is given with anthropic_stub; the stub accepts any key.
+_STUB_API_KEY = "sk-ant-bench-stub"
+# The end of each service's stdout and stderr that the transcript keeps.
+_SERVICE_LOG_CHARS = 8000
+# A file read by a file_contains / file_not_contains / file_regex rule: what the transcript keeps.
+_FILE_KEEP_CHARS = 4000
 
 
 def _fill(value: Any, env: dict[str, str]) -> Any:
@@ -112,8 +126,16 @@ def _content(item: dict[str, Any], i: int | None) -> bytes:
     return (text.replace("{i}", str(i)) if i is not None else text).encode()
 
 
-def _write_one(path: Path, item: dict[str, Any], env: dict[str, str], i: int | None) -> int:
+def _write_one(
+    path: Path, item: dict[str, Any], env: dict[str, str], i: int | None, later: list[tuple[Path, dict[str, Any]]]
+) -> int:
     path.parent.mkdir(parents=True, exist_ok=True)
+    if item.get("dir"):
+        # A folder's mode and mtime are set after every fixture is written (_finish_dirs),
+        # so files can be written into a folder that is then made read-only.
+        path.mkdir(exist_ok=True)
+        later.append((path, item))
+        return 0
     if "symlink" in item:
         path.symlink_to(_fill(item["symlink"], env))
         return 0
@@ -136,8 +158,20 @@ def _write_one(path: Path, item: dict[str, Any], env: dict[str, str], i: int | N
     return size
 
 
-def _write_fixture(item: dict[str, Any], env: dict[str, str], roots: dict[str, Path]) -> dict[str, Any]:
-    """Write one fixture item; `repeat: N` writes N files, {i} in path and text."""
+def _finish_dirs(later: list[tuple[Path, dict[str, Any]]]) -> None:
+    """The mtime and mode of the `dir: true` fixtures, deepest folder first."""
+    for path, item in sorted(later, key=lambda x: len(x[0].parts), reverse=True):
+        if "mtime" in item:
+            t = _mtime(item["mtime"])
+            os.utime(path, (t, t))
+        if "mode" in item:
+            os.chmod(path, int(str(item["mode"]), 8))
+
+
+def _write_fixture(
+    item: dict[str, Any], env: dict[str, str], roots: dict[str, Path], later: list[tuple[Path, dict[str, Any]]]
+) -> dict[str, Any]:
+    """Write one fixture item; `repeat: N` writes N files, {i} in path and text; `dir: true` a folder."""
     root = roots[item.get("root", "evidence")]
     if item.get("fill") and "text" in item:  # opt-in: ${UID} and the like in the text
         item = {**item, "text": _fill(item["text"], env)}
@@ -145,12 +179,12 @@ def _write_fixture(item: dict[str, Any], env: dict[str, str], roots: dict[str, P
     paths = [item["path"].replace("{i}", str(i)) for i in range(n)] if n else [item["path"]]
     total = 0
     for k, rel in enumerate(paths):
-        total += _write_one(root / _fill(rel, env), item, env, k if n else None)
+        total += _write_one(root / _fill(rel, env), item, env, k if n else None, later)
     kept: dict[str, Any] = {"path": item["path"], "root": item.get("root", "evidence"), "size": total}
-    for key in ("mode", "mtime", "symlink", "repeat"):
+    for key in ("dir", "mode", "mtime", "symlink", "repeat"):
         if key in item:
             kept[key] = item[key]
-    if not n and "symlink" not in item and "size" not in item:
+    if not n and "symlink" not in item and "size" not in item and not item.get("dir"):
         data = _content(item, None)
         if len(data) <= _KEEP_BYTES:
             kept["hex"] = data.hex()
@@ -224,7 +258,221 @@ def _server_command(base: str, extra_env: dict[str, str]) -> str:
     return "env " + " ".join(shlex.quote(f"{k}={v}") for k, v in extra_env.items()) + " " + base
 
 
-def _prepare(tmp: str, poc: dict[str, Any], cond: dict[str, Any], server_cmd: str) -> dict[str, Any]:
+class _AnthropicStub:
+    """A stand-in for the Anthropic Messages API on 127.0.0.1, for a server that calls a model itself.
+
+    POST /v1/messages is answered with the PoC's `anthropic_stub.responses` in order
+    (a string is one text block; a mapping gives `content` blocks and `stop_reason`),
+    as JSON or, when the request asks for `stream`, as server-sent events. A request
+    after the last response gets a 400 error. POST /v1/messages/count_tokens answers
+    0 tokens. Every request is recorded with its body.
+    """
+
+    def __init__(self, spec: dict[str, Any]) -> None:
+        self.responses: list[Any] = list(spec.get("responses") or [])  # filled in by _prepare
+        self.requests: list[dict[str, Any]] = []
+        self.lock = threading.Lock()
+        stub = self
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *args: Any) -> None:
+                pass
+
+            def _send(self, code: int, body: bytes, kind: str = "application/json") -> None:
+                self.send_response(code)
+                self.send_header("Content-Type", kind)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def do_GET(self) -> None:
+                stub._record(self, None)
+                self._send(404, json.dumps(_api_error("not_found_error", "anthropic_stub: no such path")).encode())
+
+            def do_POST(self) -> None:
+                raw = self.rfile.read(int(self.headers.get("Content-Length") or 0))
+                try:
+                    body = json.loads(raw) if raw else {}
+                except ValueError:
+                    body = {"_raw": raw.decode("utf-8", "backslashreplace")}
+                n = stub._record(self, body)
+                path = self.path.split("?", 1)[0].rstrip("/")
+                if path.endswith("/v1/messages/count_tokens"):
+                    self._send(200, b'{"input_tokens": 0}')
+                elif not path.endswith("/v1/messages"):
+                    self._send(404, json.dumps(_api_error("not_found_error", "anthropic_stub: no such path")).encode())
+                elif n >= len(stub.responses):
+                    msg = f"anthropic_stub: no response left ({len(stub.responses)} given)"
+                    self._send(400, json.dumps(_api_error("invalid_request_error", msg)).encode())
+                else:
+                    message = _stub_message(stub.responses[n], n, body if isinstance(body, dict) else {})
+                    if isinstance(body, dict) and body.get("stream"):
+                        self._send(200, _stub_events(message), "text/event-stream")
+                    else:
+                        self._send(200, json.dumps(message).encode())
+
+        self.httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.url = f"http://127.0.0.1:{self.httpd.server_address[1]}"
+        self.thread = threading.Thread(target=self.httpd.serve_forever, daemon=True)
+        self.thread.start()
+
+    def _record(self, handler: http.server.BaseHTTPRequestHandler, body: Any) -> int:
+        """Record a request; returns the number of /v1/messages requests before it."""
+        path = handler.path.split("?", 1)[0].rstrip("/")
+        with self.lock:
+            n = sum(r["path"].split("?", 1)[0].rstrip("/").endswith("/v1/messages") for r in self.requests)
+            self.requests.append({"method": handler.command, "path": handler.path, "body": body})
+            return n if path.endswith("/v1/messages") else -1
+
+    def stop(self) -> dict[str, Any]:
+        self.httpd.shutdown()
+        self.httpd.server_close()
+        return {"url": self.url, "responses": len(self.responses), "requests": self.requests}
+
+
+def _api_error(kind: str, message: str) -> dict[str, Any]:
+    return {"type": "error", "error": {"type": kind, "message": message}}
+
+
+def _stub_message(response: Any, n: int, request: dict[str, Any]) -> dict[str, Any]:
+    if isinstance(response, dict):
+        content = response.get("content") or [{"type": "text", "text": str(response.get("text", ""))}]
+        stop = response.get("stop_reason") or (
+            "tool_use" if any(b.get("type") == "tool_use" for b in content) else "end_turn"
+        )
+    else:
+        content, stop = [{"type": "text", "text": str(response)}], "end_turn"
+    return {
+        "id": f"msg_bench_stub_{n + 1}",
+        "type": "message",
+        "role": "assistant",
+        "model": str(request.get("model") or "anthropic-stub"),
+        "content": content,
+        "stop_reason": stop,
+        "stop_sequence": None,
+        "usage": {"input_tokens": 0, "output_tokens": 0},
+    }
+
+
+def _stub_events(message: dict[str, Any]) -> bytes:
+    """*message* as the Messages API streams it."""
+
+    def event(name: str, data: dict[str, Any]) -> str:
+        return f"event: {name}\ndata: {json.dumps({'type': name, **data})}\n\n"
+
+    out = [event("message_start", {"message": {**message, "content": [], "stop_reason": None}})]
+    for i, block in enumerate(message["content"]):
+        if block.get("type") == "tool_use":
+            start = {**block, "input": {}}
+            delta = {"type": "input_json_delta", "partial_json": json.dumps(block.get("input", {}))}
+        else:
+            start, delta = {"type": "text", "text": ""}, {"type": "text_delta", "text": str(block.get("text", ""))}
+        out.append(event("content_block_start", {"index": i, "content_block": start}))
+        out.append(event("content_block_delta", {"index": i, "delta": delta}))
+        out.append(event("content_block_stop", {"index": i}))
+    out.append(
+        event(
+            "message_delta",
+            {"delta": {"stop_reason": message["stop_reason"], "stop_sequence": None}, "usage": {"output_tokens": 0}},
+        )
+    )
+    out.append(event("message_stop", {}))
+    return "".join(out).encode()
+
+
+def _wait_port(port: int, proc: subprocess.Popen[bytes], seconds: float) -> bool:
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline and proc.poll() is None:
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=1):
+                return True
+        except OSError:
+            time.sleep(0.1)
+    return False
+
+
+def _start_services(specs: list[dict[str, Any]], env: dict[str, str], tmp: str) -> list[dict[str, Any]]:
+    """Write each service's script under ${STUBS} and start it; wait for its ready_port."""
+    started: list[dict[str, Any]] = []
+    for spec in specs:
+        name = str(spec["name"])
+        script = Path(env["STUBS"], name)
+        script.write_text(_fill(spec["text"], env))
+        script.chmod(0o755)
+        args = [str(a) for a in _fill(spec.get("args", []), env)]
+        out, err = Path(tmp, f"service-{name}.out"), Path(tmp, f"service-{name}.err")
+        with open(out, "wb") as fo, open(err, "wb") as fe:
+            proc = subprocess.Popen(
+                [str(script), *args],
+                cwd=tmp,
+                env={**os.environ, **_fill(spec.get("env", {}), env)},
+                stdin=subprocess.DEVNULL,
+                stdout=fo,
+                stderr=fe,
+                start_new_session=True,
+            )
+        svc = {"name": name, "args": args, "proc": proc, "out": out, "err": err}
+        started.append(svc)
+        port = spec.get("ready_port")
+        if port is not None and not _wait_port(
+            int(_fill(str(port), env)), proc, float(spec.get("ready_timeout_s", 20))
+        ):
+            records = _stop_services(started)
+            raise SystemExit(f"service {name} did not listen on port {port}: {json.dumps(records[-1])}")
+    return started
+
+
+def _stop_services(started: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Stop the services (SIGTERM, then SIGKILL); return what each one printed."""
+    records = []
+    for svc in started:
+        proc = svc["proc"]
+        if proc.poll() is None:
+            try:
+                os.killpg(proc.pid, signal.SIGTERM)
+                proc.wait(5)
+            except (OSError, subprocess.TimeoutExpired):
+                with contextlib.suppress(OSError):
+                    os.killpg(proc.pid, signal.SIGKILL)
+                proc.wait()
+        records.append(
+            {
+                "name": svc["name"],
+                "args": svc["args"],
+                "returncode": proc.returncode,
+                "stdout": svc["out"].read_text(errors="replace")[-_SERVICE_LOG_CHARS:],
+                "stderr": svc["err"].read_text(errors="replace")[-_SERVICE_LOG_CHARS:],
+            }
+        )
+    return records
+
+
+@contextlib.contextmanager
+def _prepared(tmp: str, poc: dict[str, Any], cond: dict[str, Any], server_cmd: str) -> Iterator[dict[str, Any]]:
+    """_prepare, and the PoC's stand-ins running until the block ends.
+
+    The Anthropic stub and the `services` are started before the server; when the
+    block ends they are stopped and their records put in prep["backing"]
+    (`anthropic_stub`, `services`), which is empty for a PoC with neither.
+    """
+    stub = _AnthropicStub(poc["anthropic_stub"]) if poc.get("anthropic_stub") else None
+    started: list[dict[str, Any]] = []
+    backing: dict[str, Any] = {}
+    try:
+        prep = _prepare(tmp, poc, cond, server_cmd, stub)
+        prep["backing"] = backing
+        started = _start_services(poc.get("services", []) + cond.get("services", []), prep["env"], tmp)
+        yield prep
+    finally:
+        if started:
+            backing["services"] = _stop_services(started)
+        if stub:
+            backing["anthropic_stub"] = stub.stop()
+
+
+def _prepare(
+    tmp: str, poc: dict[str, Any], cond: dict[str, Any], server_cmd: str, stub: _AnthropicStub | None = None
+) -> dict[str, Any]:
     """Write the stubs and fixtures under *tmp*; return the folders, fixtures, env and server command."""
     roots = {name: Path(tmp, name) for name in ("evidence", "db", "outside", "stubs")}
     for p in roots.values():
@@ -239,36 +487,68 @@ def _prepare(tmp: str, poc: dict[str, Any], cond: dict[str, Any], server_cmd: st
         "UID": str(os.getuid()),
         "GID": str(os.getgid()),
     }
-    for stub in poc.get("stubs", []):
-        path = roots["stubs"] / stub["name"]
-        path.write_text(_fill(stub["text"], env))
+    base: dict[str, str] = {}
+    if stub:
+        # The server's own model backend; the PoC's env can still override or rename these.
+        env["ANTHROPIC_STUB_URL"] = stub.url
+        stub.responses = [_fill(r, env) for r in stub.responses]
+        base = {"ANTHROPIC_BASE_URL": stub.url, "ANTHROPIC_API_KEY": _STUB_API_KEY}
+    for item in poc.get("stubs", []):
+        path = roots["stubs"] / item["name"]
+        path.write_text(_fill(item["text"], env))
         path.chmod(0o755)
-    fixtures = [_write_fixture(f, env, roots) for f in poc.get("fixture", []) + cond.get("fixture", [])]
-    extra = _fill({**poc.get("env", {}), **cond.get("env", {})}, env)
+    later: list[tuple[Path, dict[str, Any]]] = []
+    fixtures = [_write_fixture(f, env, roots, later) for f in poc.get("fixture", []) + cond.get("fixture", [])]
+    _finish_dirs(later)
+    extra = {**base, **_fill({**poc.get("env", {}), **cond.get("env", {})}, env)}
     command = _server_command(_fill(server_cmd, env), extra)
     return {"roots": roots, "env": env, "fixtures": fixtures, "extra": extra, "command": command}
 
 
+_FILE_TEXT_RULES = ("file_contains", "file_not_contains", "file_regex")
+
+
+def _read_after(path: Path) -> str | None:
+    """A file the server wrote, as text; None when there is no such file."""
+    try:
+        return path.read_bytes().decode("utf-8", "backslashreplace")
+    except OSError:
+        return None
+
+
 def _run_condition(poc: dict[str, Any], cond: dict[str, Any], server_cmd: str) -> dict[str, Any]:
     with tempfile.TemporaryDirectory() as tmp:
-        prep = _prepare(tmp, poc, cond, server_cmd)
-        env = prep["env"]
-        with open(Path(tmp, "server.log"), "w") as errlog:
-            record = asyncio.run(_session(prep["command"], poc["steps"], env, errlog))
+        with _prepared(tmp, poc, cond, server_cmd) as prep:
+            env = prep["env"]
+            with open(Path(tmp, "server.log"), "w") as errlog:
+                record = asyncio.run(_session(prep["command"], poc["steps"], env, errlog))
+        # Read once the services have stopped, so a recorder has written everything.
         files = {}
+        texts: dict[str, str | None] = {}
         for r in poc.get("expect", []):
             key = r.get("file_exists") or r.get("file_missing")
             if key:
                 files[key] = Path(_fill(key, env)).exists()
+            key = next((r[k] for k in _FILE_TEXT_RULES if k in r), None)
+            if key and key not in texts:
+                texts[key] = _read_after(Path(_fill(key, env)))
         log = Path(tmp, "server.log").read_text(errors="replace")
-    return {
+    run = {
         "condition": cond.get("name", "default"),
         "env": prep["extra"],
         "fixtures": prep["fixtures"],
         **record,
         "files_after": files,
         "server_log": log[-4000:],
+        **prep["backing"],
     }
+    if texts:
+        # The whole text is checked (_check); the transcript keeps the start of it.
+        run["_file_texts"] = texts
+        run["file_texts"] = {
+            k: None if t is None else _cut(t, _FILE_KEEP_CHARS, f"cut: {len(t)} characters") for k, t in texts.items()
+        }
+    return run
 
 
 def _step(runs: dict[str, dict[str, Any]], rule: dict[str, Any], cond: str | None = None) -> dict[str, Any]:
@@ -299,6 +579,17 @@ def _check(rule: dict[str, Any], runs: dict[str, dict[str, Any]]) -> dict[str, A
         key = rule.get("file_exists") or rule.get("file_missing")
         exists = run["files_after"].get(key, False)
         return {**rule, "ok": exists if "file_exists" in rule else not exists}
+    kind = next((k for k in _FILE_TEXT_RULES if k in rule), None)
+    if kind:
+        # The file must exist; then `text` is looked for (file_contains, file_not_contains)
+        # or `pattern` searched for (file_regex) in it.
+        run = runs[rule.get("condition") or next(iter(runs))]
+        text = run["_file_texts"].get(rule[kind])
+        if text is None:
+            return {**rule, "ok": False, "missing": True}
+        if kind == "file_regex":
+            return {**rule, "ok": re.search(rule["pattern"], text) is not None}
+        return {**rule, "ok": (rule["text"] in text) == (kind == "file_contains")}
     step = _step(runs, rule)
     text = step["response"]["text"]
     ok = _text_rule(rule, text)
@@ -325,6 +616,13 @@ def _untemp(text: str, roots: dict[str, Path]) -> str:
     for key, path in roots.items():
         text = text.replace(str(path.resolve()), "${" + names[key] + "}").replace(str(path), "${" + names[key] + "}")
     return text
+
+
+def _backing(prep: dict[str, Any]) -> dict[str, Any]:
+    """A model run's service and Anthropic stub records, with ${EVIDENCE} and the like for the temporary folders."""
+    if not prep["backing"]:
+        return {}
+    return dict(json.loads(_untemp(json.dumps(prep["backing"], ensure_ascii=False), prep["roots"])))
 
 
 def _model_prompt(server: str, question: str) -> str:
@@ -481,8 +779,7 @@ def _model_run(
     """One Claude Code run on fresh evidence; its stream-json is kept as <folder>/run-<n>.jsonl."""
     cond = _model_condition(poc, spec)
     server = str(poc["server"])
-    with tempfile.TemporaryDirectory() as tmp:
-        prep = _prepare(tmp, poc, cond, server_cmd)
+    with tempfile.TemporaryDirectory() as tmp, _prepared(tmp, poc, cond, server_cmd) as prep:
         env = prep["env"]
         argv = shlex.split(prep["command"])
         config = {"mcpServers": {server: {"command": argv[0], "args": argv[1:]}}}
@@ -538,6 +835,7 @@ def _model_run(
         stderr = _untemp(stderr or "", prep["roots"])
         prompt = _untemp(prompt, prep["roots"])
     (folder / f"run-{n}.jsonl").write_text(stream)
+    backing = _backing(prep)
 
     events = []
     for line in stream.splitlines():
@@ -593,6 +891,7 @@ def _model_run(
         "claude_code_version": init.get("claude_code_version"),
         "api_cost_usd": result.get("total_cost_usd"),
         "stderr": stderr[-2000:],
+        **backing,
     }
 
 
@@ -730,8 +1029,7 @@ def _local_run(
 ) -> dict[str, Any]:
     """One local loop run on fresh evidence; its log is kept as <folder>/run-<n>.jsonl."""
     cond = _model_condition(poc, spec)
-    with tempfile.TemporaryDirectory() as tmp:
-        prep = _prepare(tmp, poc, cond, server_cmd)
+    with tempfile.TemporaryDirectory() as tmp, _prepared(tmp, poc, cond, server_cmd) as prep:
         question = _fill(str(spec["question"]).strip(), prep["env"])
         started = time.monotonic()
         with open(Path(tmp, "server.log"), "w") as errlog:
@@ -740,7 +1038,7 @@ def _local_run(
             except Exception as exc:  # noqa: BLE001 - the server or the loop failed; recorded as the run's result
                 run = {"log": [], "calls": [], "turns": 0, "answer": "", "end_reason": "not_started"}
                 # anyio wraps the real error in an ExceptionGroup; record the innermost ones
-                while isinstance(exc, BaseExceptionGroup) and len(exc.exceptions) == 1:
+                while len(getattr(exc, "exceptions", ())) == 1:  # ExceptionGroup (3.11+)
                     exc = exc.exceptions[0]
                 run["error"] = f"{type(exc).__name__}: {exc}"
         seconds = round(time.monotonic() - started, 1)
@@ -749,6 +1047,7 @@ def _local_run(
         run = json.loads(_untemp(json.dumps(run, ensure_ascii=False), prep["roots"]))
         question = _untemp(question, prep["roots"])
         server_log = _untemp(server_log, prep["roots"])
+    backing = _backing(prep)
     (folder / f"run-{n}.jsonl").write_text("".join(json.dumps(e, ensure_ascii=False) + "\n" for e in run["log"]))
     status, reason = _classify_local(run)
     reached = _reached(spec, run["calls"])
@@ -773,6 +1072,7 @@ def _local_run(
         "model": tag,
         "options": _local_options(spec),
         "stderr": "\n".join(x for x in (run.get("error", ""), server_log[-2000:]) if x),
+        **backing,
     }
 
 
@@ -899,6 +1199,8 @@ def run_poc(poc_file: str, out_dir: str, with_model: bool = True, models: list[s
     for n in range(repeat):
         runs = {c.get("name", "default"): _run_condition(poc, c, server_cmd) for c in conditions}
         checks = [_check(r, runs) for r in poc.get("expect", [])]
+        for r in runs.values():
+            r.pop("_file_texts", None)
         attempts.append(
             {
                 "attempt": n + 1,

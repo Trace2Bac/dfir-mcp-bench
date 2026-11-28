@@ -324,9 +324,9 @@ poc_options() {
 build() {
     local v=$1; shift
     # shellcheck disable=SC1090
-    (set -a; . "$(variant_file "$v")"; set +a
+    (TARGET=; set -a; . "$(variant_file "$v")"; set +a
      docker build "$@" -f "servers/$(variant_server "$v")/Dockerfile" \
-        --build-arg BASE_IMAGE="$BASE_IMAGE" --build-arg REF="$REF" --build-arg PATCHES="$PATCHES" \
+        --build-arg BASE_IMAGE="$BASE_IMAGE" --build-arg REF="$REF" --build-arg PATCHES="$PATCHES" ${TARGET:+--target "$TARGET"} \
         -t "$(variant_image "$v")" .)
 }
 

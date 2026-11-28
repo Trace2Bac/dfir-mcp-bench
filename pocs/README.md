@@ -37,13 +37,55 @@ within the problem (`P4192-010`).
 | `realism_ko` | in Korean: why the condition is that likely |
 | `coverage` | whether the PoC shows the whole case or part of it, and what is left out |
 | `coverage_ko` | what a partial PoC leaves out (the text after `partial:`), in Korean |
-| `fixture` | files written before the server starts (text, bytes, size, mode, modification time, symbolic link, many generated files), in the evidence folder, the server's data folder or a folder next to the evidence that the server is not given |
+| `fixture` | files written before the server starts (text, bytes, size, mode, modification time, symbolic link, many generated files) and folders (`dir: true`), in the evidence folder, the server's data folder or a folder next to the evidence that the server is not given; a folder's mode and modification time are set after every fixture is written, so a read-only folder can still hold fixture files |
 | `stubs`, `env` | stand-in programs and server environment variables, for an external tool whose output the case depends on; a stub imitates the tool's real output format and says which in a comment |
+| `services` | optional: programs that run beside the server, such as a local HTTP(S) stand-in for a remote service or a recorder of what the server sends (below) |
+| `anthropic_stub` | optional: a stand-in for the Anthropic Messages API, for a server that calls a model itself (below) |
 | `conditions`, `repeat` | the same calls under different settings (for example two time zones) or several times |
 | `steps` | MCP calls in order: tools, prompts, resources, the tool list; `note_ko` on a step says in Korean why the call is made |
-| `expect` | checks on the responses; the case is reproduced only if every check holds; `note_ko` on a check says in Korean what it confirms (without it, the page writes a sentence from the rule) |
+| `expect` | checks on the responses, and on files after the last call (below); the case is reproduced only if every check holds; `note_ko` on a check says in Korean what it confirms (without it, the page writes a sentence from the rule) |
 | `level` | `mcp` when the PoC checks the server's responses only, `model` when it also has a `model` block |
 | `model` | optional: one question a model is asked about the same evidence (below) |
+
+## Checks on files
+
+`file_exists` and `file_missing` check whether a path exists after the last
+call. `file_contains` and `file_not_contains` (with `text`) and `file_regex`
+(with `pattern`, searched as `regex` is) check the content of a file the
+server wrote. The path may use `${EVIDENCE}`, `${DB_DIR}` and `${OUTSIDE}`.
+The file must exist: on a missing file every content rule fails and is marked
+`missing`. The whole file is checked, and the transcript keeps the first 4,000
+characters of each one under `file_texts`. Files are read after the services
+below have stopped.
+
+## Services and the Anthropic stub
+
+A case can depend on something the server talks to: a reputation service, a
+download site, a model API. A PoC starts its own stand-in for it, so that the
+server is not used to start one (which is itself a defect in some cases) and
+nothing leaves the container.
+
+Each entry in `services` has a `name` and a `text`, a script written as
+`${STUBS}/<name>` and started before the server with `args` and `env`. With
+`ready_port`, the server is started only once the service accepts connections
+on that port of 127.0.0.1 (within `ready_timeout_s`, 20 by default); a service
+that does not is an error in the PoC. The services are stopped when the calls
+end. The transcript keeps each one's arguments, exit code and the end of its
+stdout and stderr under `services`.
+
+`anthropic_stub: {responses: [...]}` runs a local HTTP server that answers
+`POST /v1/messages` with the given responses in order: a string is one text
+block, and a mapping gives its own `content` blocks (for example `tool_use`)
+and `stop_reason`. A request that asks for `stream` gets the same message as
+server-sent events. A request after the last response gets a 400 error. The
+server is given `ANTHROPIC_BASE_URL` (the stub) and a dummy
+`ANTHROPIC_API_KEY`; the PoC's `env` can set other names from
+`${ANTHROPIC_STUB_URL}`. Every request and its body are kept in the transcript
+under `anthropic_stub`. This is for a server that asks a model itself; it has
+nothing to do with the model check below.
+
+Services and the stub run for the scripted calls and for each model run, and
+`conditions` can add services of their own.
 
 ## Model check
 

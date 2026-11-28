@@ -4,9 +4,11 @@
 # report with no analysis stats, so the tool answers success, found true and
 # malicious 0. enrich_vt_lookup_ip and enrich_abuseipdb_check do not look at
 # the status code at all.
-# The calls go to the real VirusTotal and AbuseIPDB APIs (the container needs
-# network access) with a key that the services reject; the 401 bodies are the
-# services' own.
+# No request leaves the container: HTTPS_PROXY points httpx at a stand-in
+# proxy on 127.0.0.1:18443 (outside/recorder.py, started by the first
+# batch_run), which ends TLS with its own certificate (SSL_CERT_FILE), logs
+# what it is sent and answers 401 with the services' own bodies for a
+# rejected key. The API keys are fake.
 case_id: P4093-034
 problem: P4093
 server: trudi
@@ -16,20 +18,129 @@ display: multi-call
 level: mcp
 realism: possible
 realism_ko: "API 키는 만료·폐기·교체되고 무료 키는 하루·분당 한도가 작아 조사 중간에 401·429가 나는 일이 있으며, 서버는 키가 설정돼 있으면 그대로 요청한다."
-coverage: "partial: shown with 401 (rejected key) from the live services; 429 (quota) goes through the same code but is not triggered here; vt_lookup_domain is not called"
-coverage_ko: "거부된 키의 401만 실제 서비스로 보였다. 한도 초과 429는 같은 코드를 지나지만 여기서 일으키지 않았고 vt_lookup_domain은 부르지 않았다."
+coverage: "partial: shown with 401 (rejected key) from a local stand-in that returns the real services' 401 bodies; 429 (quota) goes through the same code but is not triggered here; vt_lookup_domain is not called"
+coverage_ko: "거부된 키의 401만 보였다. 외부 서비스는 실제 서비스의 401 응답 본문을 돌려주는 로컬 대역이다. 한도 초과 429는 같은 코드를 지나지만 여기서 일으키지 않았고 vt_lookup_domain은 부르지 않았다."
 summary: With a VirusTotal key the service rejects (HTTP 401), enrich_vt_lookup_hash on the EICAR test file's SHA-256 answers success, found true, malicious 0 and total_engines 0; enrich_vt_lookup_ip and enrich_abuseipdb_check likewise answer success with empty reputation fields.
 summary_ko: "VirusTotal이 거부하는 키(HTTP 401)로 EICAR 시험 파일의 SHA-256을 enrich_vt_lookup_hash로 조회하면 success, found true, malicious 0, total_engines 0이 나오고, enrich_vt_lookup_ip와 enrich_abuseipdb_check도 평판 칸이 빈 채 성공으로 답한다."
 defect_ko: "이 서버는 404만 따로 보고 401·429 같은 오류 응답도 정상 보고서처럼 읽어 success, found true, malicious 0을 채운다. 정상이라면 HTTP 상태가 200이 아니면 실패와 오류 내용(키 거부, 한도 초과)을 돌려줘야 한다. 모델은 해시가 VirusTotal에 있고 어느 엔진도 악성으로 보지 않았다고 잘못 안다."
-setup_ko: "VirusTotal·AbuseIPDB 키를 설정했지만 서비스가 받아 주지 않는 키(폐기된 키와 같은 상태)다. 조회 대상은 모든 백신이 탐지하는 EICAR 시험 파일의 SHA-256이다."
+setup_ko: "VirusTotal·AbuseIPDB 키를 설정했지만 서비스가 받아 주지 않는 키(폐기된 키와 같은 상태)다. 서버의 HTTPS 요청은 컨테이너 안 대역 프록시(127.0.0.1:18443)로 가고, 대역은 받은 요청을 기록하고 실제 서비스가 거부된 키에 돌려주는 401 본문으로 답한다. 조회 대상은 모든 백신이 탐지하는 EICAR 시험 파일의 SHA-256이다."
 env:
   # 64-hex keys of the shape both services issue; neither service accepts them.
   VIRUSTOTAL_API_KEY: 3f9c2a7d1e8b4c6f0a5d9e2b7c1f4a8d6e3b0c9f2a5d8e1b4c7f0a3d6e9b2c5f
   ABUSEIPDB_API_KEY: 8e1b4c7f0a3d6e9b2c5f3f9c2a7d1e8b4c6f0a5d9e2b7c1f4a8d6e3b0c9f2a5d1a2b3c4d5e6f7a8b
+  HTTPS_PROXY: http://127.0.0.1:18443
+  SSL_CERT_FILE: ${OUTSIDE}/cert.pem
 fixture:
   - path: analysis/.keep
     root: db
     text: ""
+  # Self-signed certificate of the stand-in (SAN www.virustotal.com,
+  # api.abuseipdb.com) and its key; made for this PoC only.
+  - path: cert.pem
+    root: outside
+    text: |
+      -----BEGIN CERTIFICATE-----
+      MIIDdTCCAl2gAwIBAgIUU1qmXcQmY0cQqcjJi2d32PfcBZIwDQYJKoZIhvcNAQEL
+      BQAwMDEuMCwGA1UEAwwlYmVuY2ggc3RhbmQtaW4gZm9yIHd3dy52aXJ1c3RvdGFs
+      LmNvbTAeFw0yNjExMjcyMDUxMTZaFw0zNjExMjQyMDUxMTZaMDAxLjAsBgNVBAMM
+      JWJlbmNoIHN0YW5kLWluIGZvciB3d3cudmlydXN0b3RhbC5jb20wggEiMA0GCSqG
+      SIb3DQEBAQUAA4IBDwAwggEKAoIBAQDDNYMefJ5WAOufNQgv3h1TZ4G08mTh1X3u
+      ierx+Js7uBJyFTM3Y3jJWFu6pqr8glQLunmwNPW6RhohsWka88MxNgAiWFpT9VmQ
+      IHQhNplcL/MADl/cPaG1rTVU1G8SXWCXwZbN466WqAAHDuJYMzlFHiLb7ywu7yNB
+      suBTA0aDf9P9yIZ340tIu+ny7cmfpg9hQ1Q/UGSJcDSKOMjVVZn42jSScQpJYZm7
+      bNC1lLfsns34akPfANncsor+wL1arRu3HciOuKbGY7aN5hHtjXgSQaFiUIv4Ec9u
+      VwJBuRdhNELG7w+DHICzR7X7PpHfQtjt+xyO9DmwKQp/zvbipYEHAgMBAAGjgYYw
+      gYMwHQYDVR0OBBYEFCr/0SIoDUkULWCAWZJ2lZUX59JrMB8GA1UdIwQYMBaAFCr/
+      0SIoDUkULWCAWZJ2lZUX59JrMDAGA1UdEQQpMCeCEnd3dy52aXJ1c3RvdGFsLmNv
+      bYIRYXBpLmFidXNlaXBkYi5jb20wDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0B
+      AQsFAAOCAQEAtcBnw0i5gVvYwOnpx4HNesgRnxve1sjmBaAHsjCwf8e77+7WEJkl
+      MX6FtQdFJR40IULOHd2bFvft8VKh9xU/9smXwN4IjOeWJ8j3WObIYqTfvx19WxBJ
+      IJiQa6bKqYBV+6C3W6G9QB77W0xVoJSC42dA/0ecrBeCIf4sCGxBntwObPwKEIZK
+      AyFNhmZviOFaBAwfUrROukmjkf5d+qFy0VQTU6I40xDyVu19hZXBLXP9o9FCpbd3
+      Y0ljYCbOlWvHhiUFwgk4OSLxNFaghpzLK0qg32UxgJbqr+EW1SsaUPyUSDEXUx+n
+      afGImL9s2clcQuQzto3TN9IUa+nnpUtQ3A==
+      -----END CERTIFICATE-----
+  - path: key.pem
+    root: outside
+    text: |
+      -----BEGIN PRIVATE KEY-----
+      MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDDNYMefJ5WAOuf
+      NQgv3h1TZ4G08mTh1X3uierx+Js7uBJyFTM3Y3jJWFu6pqr8glQLunmwNPW6Rhoh
+      sWka88MxNgAiWFpT9VmQIHQhNplcL/MADl/cPaG1rTVU1G8SXWCXwZbN466WqAAH
+      DuJYMzlFHiLb7ywu7yNBsuBTA0aDf9P9yIZ340tIu+ny7cmfpg9hQ1Q/UGSJcDSK
+      OMjVVZn42jSScQpJYZm7bNC1lLfsns34akPfANncsor+wL1arRu3HciOuKbGY7aN
+      5hHtjXgSQaFiUIv4Ec9uVwJBuRdhNELG7w+DHICzR7X7PpHfQtjt+xyO9DmwKQp/
+      zvbipYEHAgMBAAECggEAUvxKP+khVJVylU1xrAvEMsMzYE2Vdm4QaZpG/1O9Bk+z
+      w7zgd4D5hbriz//ve4YaHZxKBA8XkXcgv8cQVA1houd+ehtOVxfb2cn6JG52Frsp
+      lhIGTXYD61x1ahkfGNMKb6k0J1XN0C0eSeHZdj5cb9YmYpIUGeW+er0E4TVowhiU
+      2u2iE7UGLevip2AKjXIK79wcPd66wZ3LA6qZnOojbt+s5oU5h8Kqy6NcBPZ5Fgsw
+      0el2kcvD5K0LxhB/OGY7oyprdbYSL3nB3rjeuJw48rAlsaNsQLoFKgZscHdYqQsb
+      kgm8yDCG4CL/f8lzKfIdPM6bH2L+y9VfpQItTHIh6QKBgQDi+S/OSxzhw+vCWeOT
+      RbF6z7qMAnDj9K3mGR+SM+1nUjAAgkRsGpttgtO/T2HB3kPX3nwGJX04UB24DAsM
+      MlbK3FlUiH9VVE2DXM9O1EiCULLgcDgPc01UJPtrxYWpQ/k4jqS3cLQHn8kh8qhu
+      onDidLbp7WThlvWEALYVIidm3wKBgQDcLGbe/A0m5af42lLHvRvtWsYxiP8fsWPt
+      wTaRivBBYVvLUfMymQLlNDMh482ehmSjYl3cOL8D9cFJzVUcvAbMCv5RR+druFpN
+      jwkyExvhs+SsUbT5dt3/2u2MtZ9maRgZXbL42vczDqc35X7b0w+d6hJ3Ba2g0aJO
+      8WyBOpBy2QKBgDXOPLb6t24Ns+XuyTQwYVJrzB1Ett5TMqZJbmKKTM0hfp+gQfge
+      lpnvWaMQfmwm9I5H/761RGoFFAZ9VGEfzdNpSQPxF75yra1mYv6c9FNwLfdmouOG
+      wd4gpjl2Kalmo730krep0AO+rT+O9r7DY19Lq9DopfGUh78zK/b2kcChAoGAL6zR
+      rbEoa+bIw4MK78NMO84vImTG0acIu1/eIA/UzGN3jAQ3xBoL3XO7Krh4Or5hJlvT
+      dS84dXQOoZt7tZglZKNwxErsmo+1xhuV4yjuHaZlesbKiEYr9g4C6Dgfxv40wLFg
+      YrCPXJfsr5bbLGB8fjZEP0+UdEFQgwWV+DmlM6kCgYAYPrhdiJZepmJri5pdIgFG
+      ZpxmD8V1Ldi7LDvSEwvjw//xe+w75sA7yl+27deulThwzR+SgHsPZrUV/Rx1ry+A
+      4/fdZoiKzBOyHo7dDNdtejkPBHscNn9f1GTeBxWIQ+a/lX4k7yI+7VBafQMWca7A
+      u51Dtu6CuM6Hd1pWmPPUfA==
+      -----END PRIVATE KEY-----
+  - path: recorder.py
+    root: outside
+    text: |
+      # Stand-in for the reputation services: an HTTPS proxy on 127.0.0.1:18443
+      # that answers CONNECT, ends TLS with its own certificate (trusted by the
+      # server through SSL_CERT_FILE), logs the request it is sent and answers
+      # 401 with the body the real service sends for a rejected key (taken from
+      # www.virustotal.com and api.abuseipdb.com on 2026-11-28). Nothing is
+      # forwarded.
+      import socket, ssl, sys, time
+      log = open(sys.argv[1], "w")
+      ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+      ctx.load_cert_chain(sys.argv[2], sys.argv[3])
+      srv = socket.socket(); srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+      srv.bind(("127.0.0.1", 18443)); srv.listen(8); srv.settimeout(5)
+      end = time.time() + 90
+      def head(f):
+          lines = []
+          while True:
+              ln = f.readline()
+              if not ln or ln in (b"\r\n", b"\n"):
+                  return lines
+              lines.append(ln.decode(errors="replace").rstrip())
+      while time.time() < end:
+          try:
+              c, _ = srv.accept()
+          except socket.timeout:
+              continue
+          try:
+              f = c.makefile("rb")
+              connect = head(f)
+              log.write(f"proxy: {connect[0]}\n")
+              c.sendall(b"HTTP/1.1 200 Connection established\r\n\r\n")
+              t = ctx.wrap_socket(c, server_side=True)
+              req = head(t.makefile("rb"))
+              for ln in req:
+                  if not ln.lower().startswith(("accept", "user-agent", "connection")):
+                      log.write(f"  {ln}\n")
+              log.flush()
+              if "abuseipdb" in connect[0]:
+                  body = (b'{"errors":[{"detail":"Authentication failed. Your API key is either missing,'
+                          b' incorrect, or revoked. Note: The APIv2 key differs from the APIv1 key.","status":401}]}')
+              else:
+                  body = b'{"error": {"code": "WrongCredentialsError", "message": "Wrong API key"}}'
+              t.sendall(b"HTTP/1.1 401 Unauthorized\r\nContent-Type: application/json\r\nContent-Length: "
+                        + str(len(body)).encode() + b"\r\nConnection: close\r\n\r\n" + body)
+              log.write("  answered: 401 Unauthorized\n"); log.flush()
+              t.close()
+          except Exception as e:
+              log.write(f"error: {e}\n"); log.flush()
 steps:
   - tool: misc_start_execution_log
     note_ko: "준비: 사건 trace를 연다"
@@ -38,6 +149,11 @@ steps:
       output_path: ${DB_DIR}/analysis/trace.json
       case_dir: ${DB_DIR}
       launch_dashboard: false
+  - tool: misc_batch_run
+    note_ko: "준비: 평판 서비스 대역 프록시를 띄운다"
+    args:
+      tool_calls:
+        - cmd: ["sh", "-c", "python3 ${OUTSIDE}/recorder.py ${OUTSIDE}/received.log ${OUTSIDE}/cert.pem ${OUTSIDE}/key.pem >/dev/null 2>&1 & sleep 1"]
   - tool: enrich_vt_lookup_hash
     note_ko: "결함 호출: EICAR 시험 파일 해시를 VirusTotal에서 조회한다"
     args:
@@ -50,19 +166,27 @@ steps:
     note_ko: "결함 호출: 같은 IP를 AbuseIPDB에서 조회한다"
     args:
       ip_address: 185.220.101.1
+  - tool: misc_batch_run
+    note_ko: "확인: 대역 프록시가 받은 요청 기록을 읽는다"
+    args:
+      tool_calls:
+        - cmd: ["cat", "${OUTSIDE}/received.log"]
 expect:
-  - step: 2
+  - step: 3
     note_ko: "키가 거부됐는데 해시 조회는 성공으로 끝난다"
     regex: "\"success\":\\s*true"
-  - step: 2
+  - step: 3
     note_ko: "해시가 VirusTotal에 있다고 답한다"
     regex: "\"found\":\\s*true"
-  - step: 2
+  - step: 3
     note_ko: "악성 판정 0, 검사 엔진 0으로 채운다"
     regex: "\"malicious\":\\s*0\\b[\\s\\S]*\"total_engines\":\\s*0\\b"
-  - step: 3
+  - step: 4
     note_ko: "IP 조회도 성공으로 끝나고 평판 칸이 비어 있다"
     regex: "\"success\":\\s*true[\\s\\S]*\"malicious\":\\s*0\\b[\\s\\S]*\"country\":\\s*null"
-  - step: 4
+  - step: 5
     note_ko: "AbuseIPDB도 성공으로 끝나고 점수가 비어 있다"
     regex: "\"success\":\\s*true[\\s\\S]*\"abuse_confidence_score\":\\s*null"
+  - step: 6
+    note_ko: "대역 기록에는 세 요청(해시·IP는 VirusTotal, IP는 AbuseIPDB)만 있고 모두 대역이 401로 답했다. 요청은 컨테이너 밖으로 나가지 않았다"
+    regex: '"stdout": "proxy: CONNECT www\.virustotal\.com:443 HTTP/1\.1\\n  GET /api/v3/files/275a021bbfb6489e54d471899f7db9d1663fc695ec2fe2a2c4538aabf651fd0f HTTP/1\.1(?:(?!proxy:)[^"])*answered: 401 Unauthorized\\nproxy: CONNECT www\.virustotal\.com:443 HTTP/1\.1\\n  GET /api/v3/ip_addresses/185\.220\.101\.1 HTTP/1\.1(?:(?!proxy:)[^"])*answered: 401 Unauthorized\\nproxy: CONNECT api\.abuseipdb\.com:443 HTTP/1\.1\\n  GET /api/v2/check\?ipAddress=185\.220\.101\.1(?:(?!proxy:)[^"])*answered: 401 Unauthorized\\n", "stderr"'
