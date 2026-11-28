@@ -18,7 +18,7 @@ summary: >-
   ("invalid value ... for '--from <FROM>': trailing input"), while the same
   hour without 'Z' runs and detects the lsass dump script block.
 summary_ko: "`run_chainsaw`를 hunt 모드로 `time_range_start`·`time_range_end`에 `2020-06-30T14:00:00Z`·`2020-06-30T15:00:00Z`를 주면 Chainsaw가 \"invalid value ... for '--from <FROM>': trailing input\"으로 거부한다. `Z`를 뺀 같은 한 시간은 실행되어 lsass 덤프 스크립트 블록을 탐지한다."
-defect_ko: "이 서버는 ISO 8601이라고 알린 시각을 그대로 Chainsaw에 넘겨, `Z`나 오프셋이 붙은 ISO 시각은 Chainsaw가 거부한다. 서버가 ISO 8601 시각을 Chainsaw 형식(`YYYY-MM-DDTHH:MM:SS`)으로 바꿔 넘기거나, 받는 형식을 정확히 알려야 한다. 모델은 설명대로 준 시간 범위가 왜 실패하는지 모르고 그 시간 범위의 Sigma 탐지를 건너뛰기 쉽다."
+defect_ko: "이 서버는 ISO 8601이라고 알린 시각을 그대로 Chainsaw에 넘겨, `Z`나 오프셋이 붙은 ISO 시각은 Chainsaw가 거부한다. 서버가 ISO 8601 시각을 Chainsaw 형식(`YYYY-MM-DDTHH:MM:SS`)으로 바꿔 넘기거나, 받는 형식을 정확히 알려야 한다. 모델은 설명대로 준 시간 범위가 거부되므로, 오류 문구를 보고 형식을 바꿔 다시 부르지 않으면 그 시간 범위의 Sigma 탐지를 건너뛴다."
 setup_ko: "lsass를 MiniDumpWriteDump로 덤프하는 스크립트 블록(4104, 2020-06-30 14:24:08 UTC)이 든 공개 샘플 PowerShell Operational 로그를 두었다."
 fixture:
   # Windows PowerShell Operational log from the public EVTX-ATTACK-SAMPLES set

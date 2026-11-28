@@ -23,7 +23,7 @@ summary: >-
   window 29, the "Accepted password for svc_backup from 198.51.100.23" login
   that ends the brute force, which the same search outside run_parallel
   returns.
-summary_ko: "`run_parallel` 안에서 웹 서버 auth.log를 \"Accepted\"로 `search`하면 window 5개(4·8·12·16·20)만 싣고도 `result_count: 8`, `returned: 8`, `remaining: 0`, `has_more: false`라 한다. 빠진 3개에는 무차별 대입 끝에 성공한 \"Accepted password for svc_backup from 198.51.100.23\"(window 29)이 들어 있고, 같은 검색을 따로 부르면 나온다."
+summary_ko: "`run_parallel` 안에서 웹 서버 auth.log를 \"Accepted\"로 `search`하면 window 5개(4·8·12·16·20)만 싣고도 `result_count: 8`, `returned: 8`, `remaining: 0`, `has_more: false`라 한다(같은 결과에 `results_truncated: true`·`results_total: 8`도 붙어 서로 맞지 않는다). 빠진 3개에는 무차별 대입 끝에 성공한 \"Accepted password for svc_backup from 198.51.100.23\"(window 29)이 들어 있고, 같은 검색을 따로 부르면 나온다."
 defect_ko: "이 서버는 `run_parallel` 응답에서 하위 결과 목록을 5개로 줄이면서 건수·남은 수·`has_more`는 줄이기 전 값으로 둔다. 정상이라면 실린 항목 수와 남은 수를 줄인 뒤 값으로 고치고, 나머지를 받는 방법을 알려야 한다. 모델은 `returned: 8`, `has_more: false`를 보고 일치 항목을 다 받았다고 믿어, 실린 5개(무차별 대입 실패와 정상 관리자 로그인)만으로 침입이 성공하지 않았다고 판단한다."
 setup_ko: "198.51.100.23의 SSH 무차별 대입과 정상 관리자(ops) 공개키 로그인이 섞이고, 마지막에 svc_backup 계정의 비밀번호 로그인과 sudo curl이 이어지는 웹 서버 auth.log(1,234줄)를 `run_strings`로 적재하고, `run_parallel`로 두 키워드를 함께 검색했다."
 fixture:

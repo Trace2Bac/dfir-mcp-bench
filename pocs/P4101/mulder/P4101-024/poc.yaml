@@ -18,7 +18,7 @@ coverage_ko: "알 수 없는 인코딩 경로만 보인다. hex·base64·utf16le
 summary: >-
   decode_payload on the base64 body of a certutil -encode file (64-character lines) with the default encoding auto answers status success with decoded "[unknown encoding: unknown]"; the same text with encoding base64 decodes to the PowerShell downloader.
 summary_ko: "`certutil -encode` 파일의 base64 본문(64자 줄)을 기본값 `encoding: auto`로 `decode_payload`에 넣으면 `status: success`에 `decoded`가 `[unknown encoding: unknown]`이다. 같은 문자열을 `encoding: base64`로 주면 PowerShell 다운로더가 풀린다."
-defect_ko: "이 서버는 디코딩하지 못했을 때 실패 문구를 결과(`decoded`) 자리에 넣고 `status: success`로 답한다. 정상이라면 실패를 `status: error`로 알려야 한다. 상태로 판단하는 모델은 디코딩이 끝났다고 보고, 이 페이로드를 해독할 수 없는 값으로 잘못 안다."
+defect_ko: "이 서버는 디코딩하지 못했을 때 실패 문구를 결과(`decoded`) 자리에 넣고 `status: success`로 답한다. 정상이라면 실패를 `status: error`로 알려야 한다. 상태 값으로 성공·실패를 가르는 클라이언트와 모델은 이 호출을 성공으로 처리한다. 결과 자리의 실패 문구를 읽은 모델도 auto가 줄바꿈 때문에 실패했다는 것은 알 수 없어, 이 페이로드를 해독할 수 없는 값으로 잘못 알 수 있다."
 setup_ko: "`certutil -encode`로 만든 형식(BEGIN/END 줄, 64자 줄바꿈)의 PowerShell 다운로더 파일 `Users/Public/Downloads/upd.txt`를 넣었다."
 fixture:
   - path: Users/Public/Downloads/upd.txt
