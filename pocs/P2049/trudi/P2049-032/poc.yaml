@@ -1,0 +1,93 @@
+# Matrix case P2049-032: verify_evidence_hash says it records the
+# verification state in the trace so later tools can look it up, but it
+# always records a successful reason_call "VERIFIED: <path>", even when the
+# expected MD5/SHA1 do not match (or none was given and nothing was compared).
+case_id: P2049-032
+problem: P2049
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "복사·전송 중 손상으로 이미지 해시가 획득 기록과 다른 일은 실제로 있고, 그때 바로 이 검증이 필요하다."
+coverage: full
+summary: 'An image whose MD5 and SHA1 differ from its acquisition log gets md5_match false and sha1_match false, yet the trace records a successful hash_verify_evidence_hash with the conclusion "VERIFIED: <path>", the same as for a match.'
+summary_ko: "MD5·SHA1이 획득 기록과 다른 이미지에 md5_match false, sha1_match false가 나오는데도, trace에는 일치할 때와 같이 성공한 hash_verify_evidence_hash와 \"VERIFIED: <경로>\" 결론이 기록된다."
+defect_ko: "이 서버는 해시가 맞지 않아도 trace에 검증 성공(VERIFIED)을 남긴다. 정상이라면 불일치를 실패나 MISMATCH로 남기고, 비교 값이 없으면 검증하지 않았다고 남겨야 한다. trace를 읽는 모델·검토자는 이 증거가 무결성 검증을 통과했다고 잘못 안다."
+setup_ko: "USB 이미지 usb.dd와, 원본 획득 때 기록한(지금 사본과 다른) MD5·SHA1이 적힌 획득 기록 usb.dd.txt를 넣었다."
+fixture:
+  - path: analysis/.keep
+    root: db
+    text: ""
+  # A 1 MiB raw image of a USB stick: an MBR (boot code, one FAT32 LBA
+  # partition from sector 1, 55AA); the rest is zero.
+  - path: usb.dd
+    size: 1048576
+    hex: 33c08ed0bc007c8ec08ed8be007cbf0006b90002fcf3a450681c06cbfbb90400bdbe07807e00007c0b0f850e0183c510e2f1cd1888560055c6461105c6461000b441bbaa55cd135d720f81fb55aa7509f7c101007403fe46106660000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000007a3c1e9b0000002021000c41010001000000ff07000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000055aa
+  # The acquisition log written when the stick was imaged (FTK Imager format);
+  # its hashes are those of the original, not of this copy.
+  - path: usb.dd.txt
+    text: |
+      Created By AccessData® FTK® Imager 4.7.1.2
+
+      Case Information:
+      Acquired using: ADI4.7.1.2
+      Case Number: 2026-0412
+      Evidence Number: USB-01
+      Unique description: SanDisk Cruzer Blade 16GB
+      Examiner: J. Park
+      Notes:
+
+      --------------------------------------------------------------
+
+      Information for usb.dd:
+
+      Physical Evidentiary Item (Source) Information:
+      [Device Info]
+       Source Type: Physical
+      [Drive Geometry]
+       Bytes per Sector: 512
+       Sector Count: 2,048
+      [Image]
+       Image Type: Raw (dd)
+       Source data size: 1 MB
+       Sector count:    2048
+      [Computed Hashes]
+       MD5 checksum:    5c2f0a2b7e4b0e1d9a3c6f8e1b2d4a70
+       SHA1 checksum:   8d1e5b3a9c2f7e6d4b0a1c3e5f7092b4d6e8a1c3
+
+      Image Information:
+       Acquisition started:   Sun Apr 12 09:14:02 2026
+       Acquisition finished:  Sun Apr 12 09:14:03 2026
+       Segment list:
+        usb.dd
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 trace를 연다"
+    args:
+      case_id: P2049-032
+      output_path: ${DB_DIR}/analysis/trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: hash_verify_evidence_hash
+    note_ko: "결함 호출: 획득 기록의 MD5·SHA1로 이미지를 검증한다"
+    args:
+      evidence_path: ${EVIDENCE}/usb.dd
+      expected_md5: 5c2f0a2b7e4b0e1d9a3c6f8e1b2d4a70
+      expected_sha1: 8d1e5b3a9c2f7e6d4b0a1c3e5f7092b4d6e8a1c3
+  - tool: read_output
+    note_ko: "비교 호출: trace에 남은 검증 기록을 읽는다"
+    args:
+      path: ${DB_DIR}/analysis/trace.json
+      query: hash_verify_evidence_hash VERIFIED
+expect:
+  - step: 2
+    note_ko: "MD5가 맞지 않는다"
+    regex: "\"md5_match\":\\s*false"
+  - step: 2
+    note_ko: "SHA1도 맞지 않는다"
+    regex: "\"sha1_match\":\\s*false"
+  - step: 3
+    note_ko: "trace의 hash_verify_evidence_hash 기록에 그 이미지가 VERIFIED로 남아 있다"
+    regex: "\"tool\\\\?\": \\\\?\"hash_verify_evidence_hash\\\\?\",[^{}]{0,40}\"conclusion\\\\?\": \\\\?\"VERIFIED: [^ \"]*usb\\.dd sha256="

@@ -1,0 +1,34 @@
+{
+  "case_id": "P4127-014",
+  "problem": "P4127",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "response",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: the findings and earlier phases come from a resumed trace (entries in the shapes the server writes), because the bench has no DAIR/review backend key; no model check, since the rendered report is not returned to a model in the server's flow",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "보고 전 검사가 통과한다",
+      "regex": "\"ready_to_report\": true",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "보고서를 쓴다",
+      "regex": "\"success\": true, \"output_path\": \"[^\"]*CASE-001_final\\.md\"",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "서버의 발견 절 안에서 노트의 ## 줄이 최상위 절 제목으로 들어가고, 다음 발견 F-7이 그 아래에 놓인다",
+      "regex": "\\\\n## Current recorded findings\\\\n[^\"]*\\\\n### F-6 [^\"]*\\\\n## What happened\\?\\\\n[^\"]*\\\\n## How to recover\\?\\\\n[^\"]*\\\\n### F-7 ",
+      "ok": true
+    }
+  ],
+  "image": "sha256:4d39fe2b0257de05c9d3e5b796d463a6f8bafe95e5b664a1238d85645d78394f",
+  "ran_at": "2026-11-27T20:38:41+00:00"
+}

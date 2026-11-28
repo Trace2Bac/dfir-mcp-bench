@@ -1,0 +1,71 @@
+# Matrix case P4156-011: machinae_lookup has no key or setting in front of
+# it: enrichment_status reports machinae as always available ("no API key
+# required"), and the tool runs `machinae <indicator>` whenever it is
+# called, so the indicator goes to every site in machinae's default
+# configuration. trudi has no setting that turns outside lookups off.
+# machinae is not in the image; ${STUBS}/machinae stands in for it. It
+# records the argv it was started with and prints the header machinae
+# prints before its per-site results (README example format), and contacts
+# nothing.
+case_id: P4156-011
+problem: P4156
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: network
+level: mcp
+realism: common
+realism_ko: "외부 조회를 쓰지 않으려고 API 키를 넣지 않은 설치에서도 모델은 지표를 보면 '키 없이 되는' machinae 조회를 부르기 쉽다."
+coverage: "partial: machinae is a stub that records its argv; the sites machinae would query are not shown"
+coverage_ko: "machinae는 받은 인자만 기록하는 대역이다. machinae가 실제로 조회할 사이트는 보이지 않았다."
+summary: With no VirusTotal or AbuseIPDB key set, enrichment_status still reports machinae true, and machinae_lookup runs `machinae 203.0.113.7` with no check of any key or setting and answers success, so the indicator goes to machinae's outside sites without the user having turned anything on.
+summary_ko: "VirusTotal·AbuseIPDB 키가 없어도 enrichment_status는 machinae를 true로 보고하고, machinae_lookup은 키나 설정 확인 없이 `machinae 203.0.113.7`을 실행해 성공으로 답한다. 사용자가 켠 것이 없는데도 실행되므로, 실제 machinae라면 지표가 기본 설정의 외부 사이트로 간다(여기서는 대역이라 실제 전송은 보지 않았다)."
+defect_ko: "이 서버는 machinae 조회를 아무 설정 없이 늘 켜 두고, 키가 필요 없다는 이유로 외부 조회 여부를 묻지 않는다. 정상이라면 외부 조회는 사용자가 켰을 때만 실행하고, 꺼져 있으면 실행하지 않았다고 알려야 한다. 조사 중인 지표와 조사 사실이 사용자가 고르지 않은 외부 서비스에 알려진다."
+setup_ko: "위협 정보 키를 하나도 넣지 않았다. machinae 자리에는 받은 인자만 기록하고 외부로 연결하지 않는 대역을 두었다."
+env:
+  PATH: ${STUBS}:${PATH}
+stubs:
+  - name: machinae
+    text: |
+      #!/bin/sh
+      # Stand-in for machinae (not in the image): records the argv and prints
+      # machinae's per-indicator header (as in its README); contacts nothing.
+      echo "machinae $*" >> ${OUTSIDE}/machinae_calls.log
+      echo "********************************************************************************"
+      echo "* Information for $1"
+      echo "* Observable type: ipv4 (Auto-detected: True)"
+      echo "********************************************************************************"
+      echo "Not seeing what you expect? Likely not a valid site. Try running with --list-sites"
+fixture:
+  - path: analysis/.keep
+    root: db
+    text: ""
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 trace를 연다"
+    args:
+      case_id: P4156-011
+      output_path: ${DB_DIR}/analysis/trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: enrich_enrichment_status
+    note_ko: "비교 호출: 외부 조회 설정 상태를 본다"
+  - tool: enrich_machinae_lookup
+    note_ko: "결함 호출: 로그에서 나온 IP를 machinae로 조회한다"
+    args:
+      indicator: 203.0.113.7
+  - tool: misc_batch_run
+    note_ko: "확인: machinae 대역이 받은 실행 기록을 읽는다"
+    args:
+      tool_calls:
+        - cmd: ["cat", "${OUTSIDE}/machinae_calls.log"]
+expect:
+  - step: 2
+    note_ko: "키는 하나도 없는데 machinae는 늘 켜져 있다고 보고한다"
+    regex: '"virustotal":\s*false,\s*"abuseipdb":\s*false,\s*"machinae":\s*true'
+  - step: 3
+    note_ko: "machinae 조회는 확인 없이 실행되어 성공으로 답한다"
+    regex: '^\{"success":\s*true[\s\S]*Information for 203\.0\.113\.7[\s\S]*"cmd":\s*"machinae 203\.0\.113\.7"'
+  - step: 4
+    note_ko: "machinae가 그 지표를 인자로 받아 실행됐다"
+    regex: '"stdout":\s*"machinae 203\.0\.113\.7\\n"'

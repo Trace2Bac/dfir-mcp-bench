@@ -1,0 +1,46 @@
+{
+  "case_id": "P4117-127",
+  "problem": "P4117",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: the live host is simulated (ssh, cat for /proc/4242, lsof are stubs in their real output formats); only live_process_details' head -c 8192 cut is run, not the head/tail cuts of live_users, live_recent_logins and live_persistence_audit",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "maps 구역이 실린 성공 응답이다",
+      "regex": "\"success\": true[\\s\\S]*===/proc/4242/maps===\\\\n55d4c3a00000-55d4c3a15000 r--p",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "그런데 잘리지 않았다고 한다",
+      "contains": "\"truncated\": false",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "maps는 8,192바이트에서 줄 중간에 끊겨 ld-linux와 [stack]까지 가지 못한다",
+      "not_regex": "ld-linux-x86-64|\\[stack\\]",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "maps에 루트킷 라이브러리가 없다",
+      "not_contains": "libsysupdate",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "같은 프로세스에 /usr/local/lib/libsysupdate.so가 매핑되어 있다",
+      "regex": "apache2 4242 root  mem    REG +8,1 +\\d+ +\\d+ /usr/local/lib/libsysupdate\\.so",
+      "ok": true
+    }
+  ],
+  "image": "sha256:885c47d8916614d161cafbca6f976f06d9d5be4849a9f037ca3b9d8c4a2256b3",
+  "ran_at": "2026-11-27T20:33:49+00:00"
+}

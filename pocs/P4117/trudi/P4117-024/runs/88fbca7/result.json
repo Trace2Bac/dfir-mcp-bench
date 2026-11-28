@@ -1,0 +1,52 @@
+{
+  "case_id": "P4117-024",
+  "problem": "P4117",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: af_prefetch_deletion only; af_event_log_clear on the same excerpt is in P2049-137/P2049-065, and the correlate tools need vol output of a memory image",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "PECmd는 Prefetch 파일 5개를 찾았다",
+      "contains": "Found 5 Prefetch files",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "PECmd 출력에는 다섯째 파일 SCHTASKS.EXE까지 처리한 줄이 있다",
+      "regex": "Processing [^\\n]*SCHTASKS\\.EXE-AD598958\\.pf",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "AppCompatCacheParser는 ShimCache 항목 292개를 찾았다",
+      "contains": "Found 292 cache entries",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "탐지 도구는 Prefetch 실행 파일을 5개가 아닌 1개로 센다",
+      "regex": "\"prefetched_count\":\\s*1\\b",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "실행된 파일은 0개로 센다",
+      "regex": "\"executed_count\":\\s*0\\b",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "그런데도 대조를 끝냈다고 하고, 대조 범위나 잘림을 알리는 칸이 없다",
+      "regex": "\"cross_ref_complete\":\\s*true, \"suggested_finding\": null, \"_trudi_call_id\": \\d+, \"_metadata\"",
+      "ok": true
+    }
+  ],
+  "image": "sha256:728ed69cec5d2451c3c21ef6372a0169ad8f08c9547c46aadf56c0e3d9057142",
+  "ran_at": "2026-11-27T20:34:37+00:00"
+}

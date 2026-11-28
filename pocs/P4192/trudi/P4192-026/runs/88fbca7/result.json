@@ -1,0 +1,40 @@
+{
+  "case_id": "P4192-026",
+  "problem": "P4192",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "source-vs-result",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "UTF-16LE 작업은 내용이 읽히고 injector payload로 잡힌다",
+      "regex": "\"injector_payload_tasks\":\\s*\\[\"/OneDriveSyncHealthTasks\"\\][\\s\\S]*-nop -w hidden -enc",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "같은 작업을 UTF-8로 두면 잡히지 않는다",
+      "regex": "\"injector_payload_tasks\":\\s*\\[\\]",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "content는 UTF-16으로 잘못 풀린 한자 모양 글이다('<?xml'이 '㼼浸'이 된다)",
+      "regex": "\"content\":\\s*\"\\\\u3f3c\\\\u6d78",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "오류로 처리되지도 않는다",
+      "regex": "\"errors\":\\s*\\[\\]",
+      "ok": true
+    }
+  ],
+  "image": "sha256:d3c48b7f784287aca046402018d996300a88defd6d2c2894ed8c44c37923ec0c",
+  "ran_at": "2026-11-27T20:46:33+00:00"
+}

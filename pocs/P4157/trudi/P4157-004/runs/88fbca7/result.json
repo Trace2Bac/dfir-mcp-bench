@@ -1,0 +1,34 @@
+{
+  "case_id": "P4157-004",
+  "problem": "P4157",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "network",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: curl only (ssh to an unregistered host is not run); the outside host is a local stand-in",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 3,
+      "note_ko": "live 도구는 등록되지 않은 호스트를 거부한다",
+      "regex": "(?i)not (registered|configured|found|in)[^\"]*live_hosts",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "curl 실행은 성공했고 대역 서버의 답이 돌아왔다",
+      "regex": "^\\{\"success\":\\s*true[\\s\\S]*stand-in received 80 bytes",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "대역 서버는 증거 파일 내용(VPN 계정)이 담긴 POST를 받았다",
+      "regex": "POST /upload Host=127\\.0\\.0\\.1:18080 bytes=80\\\\nvpn\\.corp\\.example  alice\\.kim  Spring2024!",
+      "ok": true
+    }
+  ],
+  "image": "sha256:6264ef5749d92db42d7f7bbefffad3482c70f2ab9dd1c773a9196ddb25e612c6",
+  "ran_at": "2026-11-27T20:50:36+00:00"
+}

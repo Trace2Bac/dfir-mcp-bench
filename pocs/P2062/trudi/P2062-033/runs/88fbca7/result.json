@@ -1,0 +1,28 @@
+{
+  "case_id": "P2062-033",
+  "problem": "P2062",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: shows the narration cap only; the supporting_evidence (2,000), disposition note (500) and target_id (200) caps are not called",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "기록 요청은 성공으로 끝나고 응답에 잘림 표시가 없다",
+      "regex": "^\\{\"success\": true, \"call_id\": \\d+(, \"_metadata\": \\{[^{}]*\\})?\\}$",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "trace의 해석 기록은 2,000자째인 'svc_s'에서 끝난다",
+      "regex": "before Report; svc_s\\\\\\\\?\"",
+      "ok": true
+    }
+  ],
+  "image": "sha256:02d3e36aee10534cab3ef5ac87e58b3c75d3a5e64ef29656afe90b5d720b1e31",
+  "ran_at": "2026-11-27T20:18:40+00:00"
+}

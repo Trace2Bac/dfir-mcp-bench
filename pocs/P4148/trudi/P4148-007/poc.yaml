@@ -1,0 +1,60 @@
+# Matrix case P4148-007: trudi loads its .env (ANTHROPIC_API_KEY for the
+# reason/DAIR backend, VIRUSTOTAL_API_KEY / ABUSEIPDB_API_KEY for
+# enrichment) into the server's environment with load_dotenv, run() starts
+# every child with that environment unchanged (env=None), and
+# misc_batch_run runs any argv the model gives it. So the model can read the
+# keys with one call, and they land in its context.
+# The keys are fake values given as server environment variables, which is
+# what load_dotenv does with /opt/trudi/.env (install.sh creates it from
+# .env.example and asks for ANTHROPIC_API_KEY); no request is sent anywhere.
+case_id: P4148-007
+problem: P4148
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: secret
+level: mcp
+realism: possible
+realism_ko: "trudi 설치는 .env에 ANTHROPIC_API_KEY를 넣으라고 안내하고, 모델이 도구 경로·설정 문제를 살피려고 env를 실행하거나 증거 속 지시에 따라 명령을 실행하는 일은 있을 수 있다."
+coverage: "partial: the keys are set as server environment variables instead of /opt/trudi/.env (same result after load_dotenv); only the env route is shown, not reading .env itself with cat"
+coverage_ko: "키를 /opt/trudi/.env 대신 서버 환경 변수로 넣었다(load_dotenv 뒤와 같은 상태). env로 읽는 길만 보였고 cat으로 .env를 읽는 길은 보이지 않았다."
+summary: enrichment_status says the VirusTotal key is configured without showing it, but misc_batch_run with the argv ["env"] returns the server's ANTHROPIC_API_KEY, VIRUSTOTAL_API_KEY and ABUSEIPDB_API_KEY in full in its stdout, with success true.
+summary_ko: "enrichment_status는 VirusTotal 키가 설정됐다고만 말하지만, misc_batch_run에 [\"env\"]를 주면 서버의 ANTHROPIC_API_KEY·VIRUSTOTAL_API_KEY·ABUSEIPDB_API_KEY가 값 그대로 stdout에 실려 성공으로 돌아온다."
+defect_ko: "이 서버는 .env의 API 키를 자기 환경에 올린 채 모든 자식 프로세스에 물려주고, 모델이 준 명령을 허용 목록 없이 실행한다. 정상이라면 자식 환경에서 비밀을 빼고 batch_run의 명령을 정해진 도구로 제한해야 한다. 분석에 필요 없는 모델 API 키와 위협 정보 키가 모델 문맥(그리고 대화 기록)에 들어간다."
+setup_ko: "trudi .env처럼 서버 환경에 가짜 ANTHROPIC_API_KEY·VIRUSTOTAL_API_KEY·ABUSEIPDB_API_KEY를 넣었다."
+env:
+  ANTHROPIC_API_KEY: sk-ant-api03-BENCHFAKEKEY0000000000000000000000000000000000000000000000000000000000000000000000-AAAAAA
+  VIRUSTOTAL_API_KEY: 0bench0fake0virustotal0key00000000000000000000000000000000000000
+  ABUSEIPDB_API_KEY: benchfakeabuseipdbkey000000000000000000000000000000000000000000000000000000000000
+fixture:
+  - path: analysis/.keep
+    root: db
+    text: ""
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 trace를 연다"
+    args:
+      case_id: P4148-007
+      output_path: ${DB_DIR}/analysis/trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: enrich_enrichment_status
+    note_ko: "비교 호출: 위협 정보 키가 설정됐는지만 확인하는 도구는 값을 보이지 않는다"
+  - tool: misc_batch_run
+    note_ko: "결함 호출: batch_run으로 env를 실행한다"
+    args:
+      tool_calls:
+        - cmd: ["env"]
+expect:
+  - step: 2
+    note_ko: "상태 도구는 키가 있다는 것만 말한다"
+    regex: '"virustotal":\s*true'
+  - step: 3
+    note_ko: "모델 API 키가 값 그대로 응답에 실린다"
+    contains: "ANTHROPIC_API_KEY=sk-ant-api03-BENCHFAKEKEY"
+  - step: 3
+    note_ko: "위협 정보 서비스 키도 값 그대로 실린다"
+    contains: "VIRUSTOTAL_API_KEY=0bench0fake0virustotal0key0000"
+  - step: 3
+    note_ko: "실행은 성공으로 돌아온다"
+    regex: '^\{"success":\s*true'

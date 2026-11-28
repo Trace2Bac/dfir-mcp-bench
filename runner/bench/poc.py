@@ -60,7 +60,9 @@ _KEEP_BYTES = 4096
 # is the Ollama model BENCH_LOCAL_MODEL (`local:<tag>` names a tag) of the
 # Ollama server at BENCH_OLLAMA_URL (the Docker host's port 11434 by
 # default), run by the loop in _local_run, not by Claude Code.
-DEFAULT_MODELS = ["claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5", "local"]
+# Haiku by default, to check that a case holds; Opus and the local model are added
+# later with --models or model.models.
+DEFAULT_MODELS = ["claude-haiku-4-5"]
 LOCAL = "local"
 _LOCAL_DEFAULT = "qwen3.5:9b"
 # Ollama on the Docker host (Docker Desktop resolves the name; bench.sh adds it on Linux).
@@ -137,6 +139,8 @@ def _write_one(path: Path, item: dict[str, Any], env: dict[str, str], i: int | N
 def _write_fixture(item: dict[str, Any], env: dict[str, str], roots: dict[str, Path]) -> dict[str, Any]:
     """Write one fixture item; `repeat: N` writes N files, {i} in path and text."""
     root = roots[item.get("root", "evidence")]
+    if item.get("fill") and "text" in item:  # opt-in: ${UID} and the like in the text
+        item = {**item, "text": _fill(item["text"], env)}
     n = item.get("repeat")
     paths = [item["path"].replace("{i}", str(i)) for i in range(n)] if n else [item["path"]]
     total = 0
@@ -231,6 +235,9 @@ def _prepare(tmp: str, poc: dict[str, Any], cond: dict[str, Any], server_cmd: st
         "OUTSIDE": str(roots["outside"]),
         "STUBS": str(roots["stubs"]),
         "PATH": os.environ.get("PATH", ""),
+        # the user the server runs as, for fixtures that record file owners (a baseline)
+        "UID": str(os.getuid()),
+        "GID": str(os.getgid()),
     }
     for stub in poc.get("stubs", []):
         path = roots["stubs"] / stub["name"]
@@ -557,12 +564,14 @@ def _model_run(
                     "tool": claude_code._tool_name(block["name"]),
                     "args": block.get("input", {}),
                     "is_error": bool(res.get("is_error")) if res else True,
-                    "result": _kept(claude_code._text(res.get("content")), n),
+                    "result": claude_code._text(res.get("content")),
                 }
             )
     answer = str(result.get("result") or "")
     status, reason = _classify(events, server, answer)
+    # defect_response is matched on the whole result; model.json keeps it trimmed
     reached = _reached(spec, calls)
+    calls = [{**c, "result": _kept(c["result"], n)} for c in calls]
     checks, status, misled = _judge(spec, answer, status, reached)
     reason = "defect_not_reached" if status == "not_reached" else reason
     return {

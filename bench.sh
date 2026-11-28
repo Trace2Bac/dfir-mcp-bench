@@ -129,6 +129,13 @@ CLAUDE_BIN=/usr/local/lib/python3.12/dist-packages/claude_agent_sdk/_bundled/cla
 # Its sign-in (`./bench.sh login`) lives in data/claude/ on the host. Mounted
 # under ~/.mulder, which the image's entrypoint hands to the mulder user.
 CLAUDE_CONFIG=/home/mulder/.mulder/claude
+# Docker Desktop on macOS shows that folder's files to the container as root's
+# with mode 600, so the mulder user cannot read the sign-in. There, a token from
+# `claude setup-token` kept in data/oauth-token is passed as CLAUDE_CODE_OAUTH_TOKEN.
+if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] && [ -s data/oauth-token ]; then
+    CLAUDE_CODE_OAUTH_TOKEN=$(tr -d '[:space:]' < data/oauth-token)
+    export CLAUDE_CODE_OAUTH_TOKEN
+fi
 
 in_tools() {
     docker run --rm --entrypoint "" --user "$(id -u):$(id -g)" -e HOME=/tmp \
@@ -275,7 +282,13 @@ run_poc() {
                 return 1
             fi
             # The token is passed by name from this shell, not on the command line.
-            model=(-e CLAUDE_CODE_OAUTH_TOKEN -e CLAUDE_CONFIG_DIR="$CLAUDE_CONFIG" -v "$ROOT/data/claude:$CLAUDE_CONFIG")
+            # With a token, Claude Code gets an empty config folder of its own
+            # instead of the sign-in folder (unreadable there on macOS).
+            if [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
+                model=(-e CLAUDE_CODE_OAUTH_TOKEN -e CLAUDE_CONFIG_DIR=/tmp/claude-config)
+            else
+                model=(-e CLAUDE_CODE_OAUTH_TOKEN -e CLAUDE_CONFIG_DIR="$CLAUDE_CONFIG" -v "$ROOT/data/claude:$CLAUDE_CONFIG")
+            fi
         fi
         if [ -n "$local_model" ]; then
             # An unreachable Ollama fails the local model's runs only; the others still run.

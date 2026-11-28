@@ -1,0 +1,83 @@
+# Matrix case P4192-025: read_mail's _body decodes every body as UTF-8
+# (errors="replace") whatever charset the message declares, and returns ""
+# for a multipart message without a text/plain part. A Korean webmail
+# message in EUC-KR comes back as U+FFFD runs, and an HTML-only message
+# (multipart/related: text/html plus an inline logo) comes back with an empty
+# body; neither is marked.
+case_id: P4192-025
+problem: P4192
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: source-vs-result
+level: mcp
+realism: common
+realism_ko: "국내 메일은 아직 EUC-KR로 오가는 경우가 많고, 피싱 메일은 대개 text/plain 없이 HTML과 로고 이미지만 담는다."
+coverage: full
+summary: read_mail returns the body of a text/plain; charset=euc-kr message as U+FFFD runs (only ASCII such as "0815" survives) and the body of an HTML-only phishing message (multipart/related) as an empty string, with no note on either.
+summary_ko: "read_mail은 charset=euc-kr인 text/plain 메일 본문을 U+FFFD 덩어리로(\"0815\" 같은 ASCII만 남는다), HTML만 있는 피싱 메일(multipart/related) 본문을 빈 문자열로 돌려주고 어느 쪽에도 표시가 없다."
+defect_ko: "이 서버는 메일 본문을 선언된 charset과 상관없이 UTF-8로 풀고, text/plain 파트가 없으면 빈 본문을 싣는다. 정상이라면 선언된 charset으로 풀고 HTML 본문도 싣거나, 풀지 못했다·본문이 HTML이다라고 알려야 한다. 모델은 고객 명단 유출 메일의 내용을 읽을 수 없고, 피싱 메일은 본문이 없는 메일로 잘못 안다."
+setup_ko: "추출한 메일 폴더에 .eml 두 통을 넣었다. 하나는 EUC-KR(base64)로 쓴 한국어 본문, 하나는 HTML 본문과 로고 이미지만 있는 피싱 메일이다."
+fixture:
+  # Korean webmail message: text/plain in EUC-KR, base64 transfer encoding.
+  - path: exports/mail/jhpark/0001.eml
+    root: db
+    text: |
+      Return-Path: <jhpark@example.co.kr>
+      From: =?EUC-KR?B?udrB9sjG?= <jhpark@example.co.kr>
+      To: jh.park.home@example.net
+      Subject: =?EUC-KR?B?M7rQseIgsO2wtCC47bTc?=
+      Date: Mon, 28 Oct 2024 09:12:44 +0900
+      Message-ID: <20241028091244.4821@mail.example.co.kr>
+      MIME-Version: 1.0
+      Content-Type: text/plain; charset=euc-kr
+      Content-Transfer-Encoding: base64
+
+      seggsPrA5bTULA0KDQq/5MO7x8+9xSAzutCx4iCw7bC0ILjttNwgxsTAz8C7ILCzwM4guN7Az7fO
+      ILq4s7u15biztM+02S4NCr7Qw+AguvG50Ln4yKO0wiAwODE1IMDUtM+02S4NCg0KudrB9sjGILXl
+      uLINCg==
+  # HTML-only phishing message: multipart/related with the HTML body and an
+  # inline logo, no text/plain part.
+  - path: exports/mail/jhpark/0002.eml
+    root: db
+    text: |
+      Return-Path: <it-servicedesk@mail-notice.example>
+      From: IT Service Desk <it-servicedesk@mail-notice.example>
+      To: jhpark@example.co.kr
+      Subject: Mailbox storage full - action required
+      Date: Mon, 28 Oct 2024 10:03:17 +0000
+      Message-ID: <5f2c91d0a7@mail-notice.example>
+      MIME-Version: 1.0
+      Content-Type: multipart/related; boundary="----=_Part_8812_1"
+
+      ------=_Part_8812_1
+      Content-Type: text/html; charset=utf-8
+      Content-Transfer-Encoding: base64
+
+      PGh0bWw+PGJvZHk+PHA+WW91ciBtYWlsYm94IHN0b3JhZ2UgaXMgZnVsbC4gPGEgaHJlZj0iaHR0
+      cDovLzIwMy4wLjExMy40NS9vd2EvdmVyaWZ5LnBocCI+VmVyaWZ5IHlvdXIgYWNjb3VudDwvYT4g
+      d2l0aGluIDI0IGhvdXJzIHRvIGtlZXAgcmVjZWl2aW5nIG1haWwuPC9wPjxwPklUIFNlcnZpY2Ug
+      RGVzazwvcD48L2JvZHk+PC9odG1sPg==
+      ------=_Part_8812_1
+      Content-Type: image/png
+      Content-Transfer-Encoding: base64
+      Content-ID: <logo@mail-notice>
+      Content-Disposition: inline
+
+      iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==
+      ------=_Part_8812_1--
+steps:
+  - tool: read_mail
+    note_ko: "결함 호출: 추출한 메일 폴더의 메일을 본문과 함께 읽는다"
+    args:
+      mail_path: ${DB_DIR}/exports/mail/jhpark
+expect:
+  - step: 1
+    note_ko: "EUC-KR 본문은 대체 문자 덩어리가 되고 ASCII 숫자만 남는다"
+    regex: '"body":\s*"\\ufffd[^"]*\\ufffd 0815 \\ufffd'
+  - step: 1
+    note_ko: "같은 메일의 EUC-KR 제목(\"3분기 고객 명단\")은 제대로 풀려 있다"
+    regex: '"subject":\s*"3\\ubd84\\uae30 \\uace0\\uac1d \\uba85\\ub2e8"'
+  - step: 1
+    note_ko: "HTML만 있는 피싱 메일은 본문이 빈 문자열이다"
+    regex: '"subject":\s*"Mailbox storage full - action required",\s*"body":\s*""'

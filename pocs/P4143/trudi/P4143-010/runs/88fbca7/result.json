@@ -1,0 +1,28 @@
+{
+  "case_id": "P4143-010",
+  "problem": "P4143",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: the sidecar is read back directly; the reviewer step that expands a cited call from it needs the Anthropic API and was not run",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "read_mail은 본문을 돌려주고 본문 증거가 이 호출(3)에 있다고 안내한다",
+      "regex": "\"_trudi_call_id\": 3, [\\s\\S]*recipient/body evidence lives here[\\s\\S]*\"body\": \"Kevin,[^\"]*full customer export from the CRM",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "그 호출의 보관본에는 보낸 사람·받는 사람·제목 한 줄만 있다",
+      "regex": "\"body\": \"John Doe <j\\.doe@corp\\.example\\.com> -> k\\.wright@mail\\.example\\.net \\| Re: our call\", \"truncated\"",
+      "ok": true
+    }
+  ],
+  "image": "sha256:f3df13d892272ce8eba3c1ba81aeeac89b14309b138b9f40cb1a7f159dbf1c29",
+  "ran_at": "2026-11-27T20:44:46+00:00"
+}

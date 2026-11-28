@@ -1,0 +1,28 @@
+{
+  "case_id": "P4193-015",
+  "problem": "P4193",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "time-size",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: strings_grep only, with a zero-filled image (no output for a long time) instead of a stalled read; misc_evtx_filter (evtx_dump.py is not in the image) is not run",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "시한 10초를 훨씬 넘겨 20초 넘게 걸렸다",
+      "min_seconds": 20,
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "시한 초과 없이 끝까지 읽었다고 답한다",
+      "regex": "\"success\":\\s*true[\\s\\S]*\"complete\":\\s*true[\\s\\S]*\"elapsed_seconds\":\\s*(2\\d|[3-9]\\d|\\d{3,})\\.",
+      "ok": true
+    }
+  ],
+  "image": "sha256:40aac514f6b1d0b3143047c72dfb9d4cd0573cbf60a05fa4139a1e6346e79907",
+  "ran_at": "2026-11-27T21:13:02+00:00"
+}

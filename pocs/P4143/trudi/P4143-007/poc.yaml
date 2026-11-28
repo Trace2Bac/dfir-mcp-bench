@@ -1,0 +1,63 @@
+# Matrix case P4143-007: core.executor.run passes
+# _stdout_full = stdout[:STDOUT_SIDECAR_CAP] (8 MiB) to the trace, and
+# execution_log sets stdout_partial only when the text it is given is longer
+# than that cap, which it never is. An output over 8 MiB is therefore stored
+# cut, with stdout_chars equal to the cap and no stdout_partial; readers of
+# the trace (entry_text_sources) treat such a sidecar as the complete stdout.
+# The evidence is the WinSxS\Manifests folder of a mounted Windows volume:
+# 50,000 manifest files with WinSxS-style names (a real one holds 20,000 to
+# 100,000). md5deep prints one line per file, about 9 MB in all.
+case_id: P4143-007
+problem: P4143
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "마운트한 Windows 볼륨의 Windows 폴더나 WinSxS처럼 파일이 수만 개인 곳을 md5deep로 해시하면 출력이 8MB를 넘는다."
+coverage: "partial: the trace entry and the line count are checked; the reviewer step that labels the sidecar complete needs the Anthropic API and was not run"
+coverage_ko: "trace 기록과 줄 수만 확인했다. 사이드카를 완전한 출력으로 표시하는 검토 단계는 Anthropic API가 필요해 돌리지 않았다."
+summary: md5deep_scan over 50,000 WinSxS manifests (about 9 MB of output, one line per file) is recorded in the trace with stdout_chars 8388608, exactly the sidecar cap, stdout_lines below 50,000 and no stdout_partial, so the sidecar that is kept as the complete stdout is cut with nothing recording it.
+summary_ko: "WinSxS 매니페스트 5만 개에 md5deep_scan을 부르면(파일마다 한 줄, 약 9MB) trace에 stdout_chars가 사이드카 상한과 똑같은 8388608로, stdout_lines는 5만보다 적게 기록되고 stdout_partial은 없다. 전체 stdout으로 보관한다는 사이드카가 잘렸는데 그 사실이 어디에도 기록되지 않는다."
+defect_ko: "이 서버는 출력을 8MiB에서 먼저 자른 뒤 기록 함수에 넘겨, 기록 함수가 사이드카가 잘렸는지(stdout_partial) 알 수 없다. 정상이라면 원래 길이로 잘림 여부를 판단해 stdout_partial과 실제 길이를 기록해야 한다. 검토 단계와 모델은 사이드카를 전체 출력으로 믿고, 잘린 뒤쪽 파일의 해시가 없음을 그 파일이 없다는 뜻으로 잘못 읽는다."
+setup_ko: "마운트한 Windows 볼륨의 Windows\\WinSxS\\Manifests 폴더를 흉내 내 WinSxS 이름 형식의 매니페스트 파일 5만 개를 넣었다. md5deep은 파일 하나에 한 줄(약 180자)을 낸다."
+fixture:
+  - path: analysis/.keep
+    root: db
+    text: ""
+  - path: Windows/WinSxS/Manifests/amd64_microsoft-windows-servicingstack_31bf3856ad364e35_10.0.19041.{i}_none_7e3d3a6f0b5a2c11.manifest
+    repeat: 50000
+    text: "<?xml version=\"1.0\" encoding=\"UTF-8\"?><assembly manifestVersion=\"1.0\"><assemblyIdentity version=\"10.0.19041.{i}\"/></assembly>"
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 trace를 연다"
+    args:
+      case_id: P4143-007
+      output_path: ${DB_DIR}/analysis/trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: hash_md5deep_scan
+    note_ko: "결함 호출: WinSxS 매니페스트 폴더를 md5deep로 해시한다"
+    args:
+      directory: ${EVIDENCE}/Windows/WinSxS/Manifests
+    timeout_s: 600
+  - tool: read_output
+    note_ko: "비교 호출: trace에 기록된 그 호출의 출력 길이·줄 수를 본다"
+    args:
+      path: ${DB_DIR}/analysis/trace.json
+      query: stdout_chars stdout_lines stdout_partial
+expect:
+  - step: 2
+    note_ko: "md5deep는 성공했고 응답용 출력은 잘렸다"
+    regex: "^\\{\"success\": true[\\s\\S]*\"truncated\": true"
+  - step: 3
+    note_ko: "trace에 기록된 출력 길이가 사이드카 상한(8 MiB)과 정확히 같다"
+    regex: "stdout_chars.{1,3}: 8388608,"
+  - step: 3
+    note_ko: "기록된 줄 수는 5만보다 적다(md5deep는 파일마다 한 줄을 내므로 뒤쪽 파일이 빠졌다)"
+    regex: "stdout_lines.{1,3}: 4\\d{4},"
+  - step: 3
+    note_ko: "그런데 사이드카가 잘렸다는 stdout_partial은 없다"
+    not_regex: "stdout_partial.{1,3}: true"
+

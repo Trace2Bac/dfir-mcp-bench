@@ -5,19 +5,17 @@ import Layout from '@theme/Layout';
 import Translate, {translate} from '@docusaurus/Translate';
 import {usePluginData} from '@docusaurus/useGlobalData';
 import type {PocSummary} from '../../plugins/poc-data';
-import {realismText, resultText} from '../components/PocPage/links';
-import poc from '../components/PocPage/styles.module.css';
+import {realismText} from '../components/PocPage/links';
 import styles from './index.module.css';
 
-// PoCs: one row per matrix case run against a server, grouped by server, with
-// whether the run reproduced the case. A case whose condition is forced is
-// counted apart: it is a candidate for removal from the matrix.
+// PoCs: one row per matrix case reproduced on a server, grouped by server,
+// with how many models the defective response misled when the PoC has a
+// model check.
 export default function Pocs() {
   const {pocs} = usePluginData('bench-data') as {pocs: PocSummary[]};
   const history = useHistory();
   const pocsUrl = useBaseUrl('/pocs/');
   const servers = [...new Set(pocs.map(p => p.server))];
-  const forced = (p: PocSummary) => p.realism === 'forced';
   const count = (server: string, test: (p: PocSummary) => boolean = () => true) =>
     pocs.filter(p => p.server === server && test(p)).length;
   return (
@@ -30,10 +28,10 @@ export default function Pocs() {
         </h1>
         <p className={styles.muted}>
           <Translate id="pocs.intro">
-            Each PoC takes one case from dfir-mcp-matrix and tries to make it happen on the real server: it writes small
-            evidence files, calls the server's tools over MCP with no model, and checks the responses against the pass
-            criteria. A case counts as reproduced only when every criterion holds. A case whose condition is forced is
-            counted separately, as a candidate for removal from the matrix.
+            Each PoC takes one case from dfir-mcp-matrix and makes it happen on the real server: it writes small evidence
+            files, calls the server's tools over MCP with no model, and checks the responses against the pass criteria.
+            Only reproduced cases are listed. Some PoCs also give the defective response to several models and check
+            whether it misleads them.
           </Translate>
         </p>
         <table className={styles.list}>
@@ -46,13 +44,7 @@ export default function Pocs() {
                 <Translate id="pocs.col.pocs">PoCs</Translate>
               </th>
               <th>
-                <Translate id="pocs.col.reproduced">Reproduced</Translate>
-              </th>
-              <th>
-                <Translate id="pocs.col.notReproduced">Not reproduced</Translate>
-              </th>
-              <th>
-                <Translate id="pocs.col.forced">Forced</Translate>
+                <Translate id="pocs.col.modelChecked">With a model check</Translate>
               </th>
             </tr>
           </thead>
@@ -65,9 +57,7 @@ export default function Pocs() {
                   </a>
                 </td>
                 <td>{count(s)}</td>
-                <td>{count(s, p => !forced(p) && p.result === 'reproduced')}</td>
-                <td>{count(s, p => !forced(p) && p.result !== 'reproduced')}</td>
-                <td>{count(s, forced)}</td>
+                <td>{count(s, p => Boolean(p.model))}</td>
               </tr>
             ))}
           </tbody>
@@ -90,10 +80,10 @@ export default function Pocs() {
                     <Translate id="pocs.col.summary">Summary</Translate>
                   </th>
                   <th className={styles.colCode}>
-                    <Translate id="pocs.col.result">Result</Translate>
+                    <Translate id="pocs.col.realism">Realism</Translate>
                   </th>
                   <th className={styles.colCode}>
-                    <Translate id="pocs.col.realism">Realism</Translate>
+                    <Translate id="pocs.col.model">Model impact</Translate>
                   </th>
                 </tr>
               </thead>
@@ -101,10 +91,7 @@ export default function Pocs() {
                 {pocs
                   .filter(p => p.server === s)
                   .map(p => (
-                    <tr
-                      key={p.caseId}
-                      className={forced(p) ? poc.forcedRow : undefined}
-                      onClick={() => history.push(`${pocsUrl}${p.caseId}`)}>
+                    <tr key={p.caseId} onClick={() => history.push(`${pocsUrl}${p.caseId}`)}>
                       <td className={styles.colCode}>
                         <Link to={`/pocs/${p.caseId}`} className={styles.title}>
                           {p.caseId}
@@ -112,16 +99,19 @@ export default function Pocs() {
                       </td>
                       <td className={styles.colCode}>{p.problem}</td>
                       <td className={styles.muted}>{p.summary}</td>
-                      <td className={styles.colCode}>
-                        {resultText(p.result)}
-                        {p.model && (
-                          <span className={poc.modelBadge} title={p.model.model}>
-                            {translate({id: 'pocs.model', message: 'model {k}/{n}'}, {k: p.model.misled, n: p.model.runs})}
-                          </span>
-                        )}
-                      </td>
-                      <td className={styles.colCode}>
-                        {forced(p) ? <span className={`${poc.realismLabel} ${poc.realismForced}`}>{realismText(p.realism)}</span> : realismText(p.realism)}
+                      <td className={styles.colCode}>{realismText(p.realism)}</td>
+                      <td
+                        className={styles.colCode}
+                        title={
+                          p.model
+                            ? translate(
+                                {id: 'pocs.model.title', message: '{k} of {n} models were misled at least once'},
+                                {k: p.model.misled, n: p.model.judged},
+                              )
+                            : undefined
+                        }>
+                        {p.model &&
+                          translate({id: 'pocs.model', message: '{k}/{n} models'}, {k: p.model.misled, n: p.model.judged})}
                       </td>
                     </tr>
                   ))}

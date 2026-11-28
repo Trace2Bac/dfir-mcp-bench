@@ -1,0 +1,34 @@
+{
+  "case_id": "P4192-025",
+  "problem": "P4192",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "source-vs-result",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "EUC-KR 본문은 대체 문자 덩어리가 되고 ASCII 숫자만 남는다",
+      "regex": "\"body\":\\s*\"\\\\ufffd[^\"]*\\\\ufffd 0815 \\\\ufffd",
+      "ok": true
+    },
+    {
+      "step": 1,
+      "note_ko": "같은 메일의 EUC-KR 제목(\"3분기 고객 명단\")은 제대로 풀려 있다",
+      "regex": "\"subject\":\\s*\"3\\\\ubd84\\\\uae30 \\\\uace0\\\\uac1d \\\\uba85\\\\ub2e8\"",
+      "ok": true
+    },
+    {
+      "step": 1,
+      "note_ko": "HTML만 있는 피싱 메일은 본문이 빈 문자열이다",
+      "regex": "\"subject\":\\s*\"Mailbox storage full - action required\",\\s*\"body\":\\s*\"\"",
+      "ok": true
+    }
+  ],
+  "image": "sha256:e6c5682f12c1d253d9991f9e9072ce6f3258cafaf867052427c9c537daae423d",
+  "ran_at": "2026-11-27T20:45:25+00:00"
+}

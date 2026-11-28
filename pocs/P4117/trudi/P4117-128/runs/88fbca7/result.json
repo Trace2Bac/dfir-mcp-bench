@@ -1,0 +1,46 @@
+{
+  "case_id": "P4117-128",
+  "problem": "P4117",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "어긋난 레코드 수가 상한 그대로 200이다",
+      "regex": "\"drift_count\": 200\\b",
+      "ok": true
+    },
+    {
+      "step": 1,
+      "note_ko": "561개 중 399개만 보고 멈췄다",
+      "regex": "\"total_checked\": 399\\b",
+      "ok": true
+    },
+    {
+      "step": 1,
+      "note_ko": "판정 문장도 200건으로 쓴다",
+      "contains": "Timestomp evidence: 200 MFT records",
+      "ok": true
+    },
+    {
+      "step": 1,
+      "note_ko": "멈췄다는 표시 없이 성공 응답이다",
+      "not_regex": "\"(truncated|capped|complete|limit_reached)\"",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "끝까지 보면 561개를 검사하고 wuauhelper.exe(SI 2019, FN 2026-11-02)가 나온다",
+      "regex": "\"total_checked\": 561[\\s\\S]*wuauhelper\\.exe\", \"si_ts\": \"2019-03-19T04:43:05\", \"fn_ts\": \"2026-11-02T23:41:07",
+      "ok": true
+    }
+  ],
+  "image": "sha256:9546b734e2b1a429a9c0303050522b8eecd06639583ff5a3b4d118ae0d1414b5",
+  "ran_at": "2026-11-27T20:30:59+00:00"
+}

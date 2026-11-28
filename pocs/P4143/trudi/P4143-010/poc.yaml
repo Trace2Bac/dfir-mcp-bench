@@ -1,0 +1,64 @@
+# Matrix case P4143-010: read_mail returns message bodies and a hint "cite
+# this _trudi_call_id — recipient/body evidence lives here", but the trace
+# entry it writes for that call id (_selflog) gets as its full stdout only one
+# "from -> to | subject" line per match, so the call's sidecar
+# (.tool_output/<cid>.txt), which the reviewer reads for a cited call, holds
+# no body.
+# The store is j.doe's Sent Items exported with `readpst -e` (one .eml per
+# message) under exports/mail; one message to an outside address says in its
+# body that the customer export is attached and asks to delete the mail.
+case_id: P4143-010
+problem: P4143
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "유출 조사에서 메일 본문 문구를 근거로 발견을 기록하는 것은 흔하고, 도구가 그 근거로 read_mail의 _trudi_call_id를 인용하라고 직접 안내한다."
+coverage: "partial: the sidecar is read back directly; the reviewer step that expands a cited call from it needs the Anthropic API and was not run"
+coverage_ko: "사이드카를 직접 읽어 확인했다. 인용된 호출을 사이드카로 펼쳐 보는 검토 단계는 Anthropic API가 필요해 돌리지 않았다."
+summary: >-
+  read_mail over j.doe's Sent Items returns the matching message with its body ("full customer export from the CRM … please delete this mail") and tells the model that body evidence lives under its _trudi_call_id, but the sidecar kept for that call id holds only "John Doe <j.doe@corp.example.com> -> k.wright@mail.example.net | Re: our call", with no body.
+summary_ko: "j.doe의 Sent Items에 read_mail을 부르면 일치한 메일을 본문('CRM 고객 전체 내보내기 … 이 메일은 지워 달라')과 함께 돌려주고 본문 증거가 이 _trudi_call_id에 있다고 안내하지만, 그 호출 번호로 보관된 사이드카에는 'John Doe <j.doe@corp.example.com> -> k.wright@mail.example.net | Re: our call' 한 줄만 있고 본문이 없다."
+defect_ko: "이 서버는 read_mail 결과의 보관본에 보낸 사람·받는 사람·제목만 남기면서, 본문 증거가 그 호출에 있다고 안내한다. 정상이라면 돌려준 메시지(본문 포함)를 보관하거나, 보관본에 본문이 없음을 기록해야 한다. 검토 단계와 모델은 인용한 호출 보관본에 본문 근거가 있다고 믿고, 보관본만 다시 본 검토에서는 본문을 근거로 한 발견이 뒷받침되지 않는다."
+setup_ko: "readpst -e로 내보낸 j.doe의 Sent Items(3통)를 exports/mail에 두었다. 그중 한 통이 외부 주소 k.wright@mail.example.net으로 고객 내보내기 파일을 보내며 메일을 지워 달라고 쓴 메일이다."
+fixture:
+  - path: analysis/.keep
+    root: db
+    text: ""
+  - path: "exports/mail/j.doe/Sent Items/1.eml"
+    root: db
+    text: "From: John Doe <j.doe@corp.example.com>\r\nTo: Martin Lee <m.lee@corp.example.com>\r\nSubject: RE: Q3 review slides\r\nDate: Thu, 05 Nov 2026 10:02:11 +0000\r\nMessage-ID: <a81c@corp.example.com>\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nThanks, I will add the regional numbers tomorrow.\r\n"
+  - path: "exports/mail/j.doe/Sent Items/2.eml"
+    root: db
+    text: "From: John Doe <j.doe@corp.example.com>\r\nTo: k.wright@mail.example.net\r\nSubject: Re: our call\r\nDate: Fri, 06 Nov 2026 22:47:35 +0000\r\nMessage-ID: <c55e@corp.example.com>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/mixed; boundary=\"b1\"\r\n\r\n--b1\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nKevin,\r\n\r\nAs promised, attached is the full customer export from the CRM (all accounts with contract values and renewal dates). Please delete this mail once you have saved the file, and do not reply to this address.\r\n\r\nJohn\r\n--b1\r\nContent-Type: application/zip; name=\"crm_export.zip\"\r\nContent-Disposition: attachment; filename=\"crm_export.zip\"\r\nContent-Transfer-Encoding: base64\r\n\r\nUEsFBgAAAAAAAAAAAAAAAAAAAAAAAA==\r\n--b1--\r\n"
+  - path: "exports/mail/j.doe/Sent Items/3.eml"
+    root: db
+    text: "From: John Doe <j.doe@corp.example.com>\r\nTo: ServiceDesk <servicedesk@corp.example.com>\r\nSubject: RE: [SD-4410] Ticket updated: VPN client prompts for re-authentication\r\nDate: Mon, 09 Nov 2026 07:58:02 +0000\r\nMessage-ID: <d02f@corp.example.com>\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nStill happening after the update.\r\n"
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 trace를 연다"
+    args:
+      case_id: P4143-010
+      output_path: ${DB_DIR}/analysis/trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: read_mail
+    note_ko: "결함 호출: 보낸 편지함 본문에서 고객 자료 언급을 찾는다"
+    args:
+      mail_path: ${DB_DIR}/exports/mail/j.doe/Sent Items
+      query: customer
+      field: body
+  - tool: read_output
+    note_ko: "비교 호출: 안내받은 호출 번호의 보관본(사이드카)을 읽는다"
+    args:
+      path: ${DB_DIR}/analysis/.tool_output/3.txt
+expect:
+  - step: 2
+    note_ko: "read_mail은 본문을 돌려주고 본문 증거가 이 호출(3)에 있다고 안내한다"
+    regex: "\"_trudi_call_id\": 3, [\\s\\S]*recipient/body evidence lives here[\\s\\S]*\"body\": \"Kevin,[^\"]*full customer export from the CRM"
+  - step: 3
+    note_ko: "그 호출의 보관본에는 보낸 사람·받는 사람·제목 한 줄만 있다"
+    regex: "\"body\": \"John Doe <j\\.doe@corp\\.example\\.com> -> k\\.wright@mail\\.example\\.net \\| Re: our call\", \"truncated\""
+

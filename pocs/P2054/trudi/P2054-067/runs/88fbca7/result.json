@@ -1,0 +1,40 @@
+{
+  "case_id": "P2054-067",
+  "problem": "P2054",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: the phase comes from a resumed trace (one dair_call entry in the shape the server writes), because the bench has no DAIR backend key",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "trace를 이어서 열었다",
+      "contains": "\"resumed\": true",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "거부 응답이 Collect 단계라고 하며 dair_assess를 stack_action='pop'으로 부르라고 안내한다",
+      "regex": "Current \\(server-recorded\\) DAIR phase: Collect.*call dair_assess \\(stack_action='pop'",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "안내대로 부른 dair_assess가 stack_action을 모르는 인자로 거부한다",
+      "regex": "stack_action\\s+Unexpected keyword argument",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "거부는 오류 응답이다",
+      "is_error": true,
+      "ok": true
+    }
+  ],
+  "image": "sha256:caa67f97ae758792e7df752c69edd2ca2a1cfa846869fa34f894af116dc629d3",
+  "ran_at": "2026-11-27T20:03:04+00:00"
+}

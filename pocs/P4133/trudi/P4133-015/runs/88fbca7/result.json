@@ -1,0 +1,34 @@
+{
+  "case_id": "P4133-015",
+  "problem": "P4133",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "response",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: the Velociraptor server is a stub; velo_query parses the same way and was not run",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "rows의 마지막 항목은 51,200자에서 끊긴 프로세스 레코드 반쪽이 든 _raw 행이다",
+      "regex": "\\{\"_raw\": \"\\{\\\\\"Pid\\\\\":\\d+,[^\\]]*\"\\}\\], \"_metadata\"",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "그 앞은 정상 프로세스 행이다(_raw 행이 실제 행과 섞여 있다)",
+      "regex": "\"rows\": \\[\\{\"Pid\": 4, \"Ppid\": 0",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "잘린 뒤의 rundll32.exe(Public\\Libraries의 DLL 로드)는 결과 어디에도 없다",
+      "not_contains": "rundll32.exe",
+      "ok": true
+    }
+  ],
+  "image": "sha256:b96601385d5d592463ef20f1e836e5094e387f64655794787f874de73888669e",
+  "ran_at": "2026-11-27T20:42:51+00:00"
+}

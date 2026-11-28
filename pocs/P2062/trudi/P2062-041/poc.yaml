@@ -1,0 +1,126 @@
+# Matrix case P2062-041: read_mail documents field as any | sender |
+# recipient | subject | body, but a value outside that list (here 'from', the
+# mail header name) is not refused: the lookup returns None and the query is
+# matched against sender, recipients, subject and body together ('any'). The
+# response echoes field 'from' with success true.
+# The store is a readpst -e export (one folder per PST folder, numbered .eml
+# files), the layout misc_readpst_extract writes.
+case_id: P2062-041
+problem: P2062
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: response
+level: mcp
+realism: common
+realism_ko: "보낸 사람을 가리키는 메일 헤더 이름이 From이라, 보낸 사람으로 찾으려고 field에 'from'을 주는 일은 흔하다."
+coverage: 'partial: shows the field fallback only; the mode fallback (an unlisted mode runs as messages) is not called'
+coverage_ko: "`field` 대체만 보이고, 목록 밖 `mode`가 messages로 바뀌는 부분은 부르지 않았다."
+summary: read_mail with field 'from' and query eve@rival.example returns success with field 'from' echoed and three messages, two of them sent by the mailbox owner to eve, while field 'sender' returns only the one message eve sent.
+summary_ko: "`read_mail`에 `field: from`, `query: eve@rival.example`을 주면 응답에 `field: from`이 그대로 실린 채 세 통이 오는데, 그중 두 통은 메일함 주인이 eve에게 보낸 메일이다. `field: sender`로 주면 eve가 보낸 한 통만 온다."
+defect_ko: "이 서버는 목록에 없는 `field` 값을 거부하지 않고 모든 필드에서 찾는다. 정상이라면 `from`을 거부하거나 `sender`로 맞춰 보낸 사람만 찾아야 한다. 모델은 메일함 주인이 eve에게 보낸 메일까지 eve가 보낸 메일로 잘못 세고, match_count 3을 eve가 보낸 메일 수로 잘못 안다."
+setup_ko: "readpst -e로 뽑은 메일함에 eve@rival.example이 보낸 메일 한 통과, 메일함 주인 j.doe가 eve에게 보낸 메일 두 통, 관계없는 메일 한 통을 넣었다."
+fixture:
+  - path: analysis/.keep
+    root: db
+    text: ""
+  - path: exports/mail/j.doe/Inbox/1.eml
+    root: db
+    text: |
+      Return-Path: <eve@rival.example>
+      Received: from mail.rival.example (mail.rival.example [198.51.100.25])
+      	by mx01.corp.example with ESMTPS id 4XbQ2k1Zt9z; Mon, 21 Oct 2024 08:02:11 +0000
+      From: Eve Martin <eve@rival.example>
+      To: John Doe <j.doe@corp.example>
+      Subject: Re: the numbers
+      Date: Mon, 21 Oct 2024 10:02:07 +0200
+      Message-ID: <a41f0c2e-77d1@rival.example>
+      MIME-Version: 1.0
+      Content-Type: text/plain; charset="utf-8"
+      Content-Transfer-Encoding: 7bit
+
+      John, send the Q4 pricing sheet when you can. Use the personal address
+      if you are worried about the gateway.
+      Eve
+  - path: exports/mail/j.doe/Inbox/2.eml
+    root: db
+    text: |
+      From: HR Team <hr@corp.example>
+      To: All Staff <staff@corp.example>
+      Subject: Open enrollment reminder
+      Date: Tue, 22 Oct 2024 09:00:00 +0200
+      Message-ID: <hr-20241022@corp.example>
+      MIME-Version: 1.0
+      Content-Type: text/plain; charset="utf-8"
+
+      Open enrollment closes on Friday.
+  - path: exports/mail/j.doe/Sent Items/1.eml
+    root: db
+    text: |
+      From: John Doe <j.doe@corp.example>
+      To: Eve Martin <eve@rival.example>
+      Subject: Q4 pricing
+      Date: Wed, 23 Oct 2024 21:14:52 +0200
+      Message-ID: <CAJd0e-1@corp.example>
+      MIME-Version: 1.0
+      Content-Type: multipart/mixed; boundary="b1_8f3c"
+
+      --b1_8f3c
+      Content-Type: text/plain; charset="utf-8"
+
+      Attached. Delete after reading.
+      --b1_8f3c
+      Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet; name="Q4_pricing_internal.xlsx"
+      Content-Disposition: attachment; filename="Q4_pricing_internal.xlsx"
+      Content-Transfer-Encoding: base64
+
+      UEsDBBQABgAIAAAAIQBi7p1oXgEAAJAEAAATAAgCW0NvbnRlbnRfVHlwZXNdLnhtbCCiBAIooAAC
+      --b1_8f3c--
+  - path: exports/mail/j.doe/Sent Items/2.eml
+    root: db
+    text: |
+      From: John Doe <j.doe@corp.example>
+      To: Eve Martin <eve@rival.example>
+      Subject: Re: Q4 pricing
+      Date: Wed, 23 Oct 2024 21:20:03 +0200
+      Message-ID: <CAJd0e-2@corp.example>
+      MIME-Version: 1.0
+      Content-Type: text/plain; charset="utf-8"
+
+      Did it come through?
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 trace를 연다"
+    args:
+      case_id: CASE-001
+      output_path: ${DB_DIR}/analysis/trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: read_mail
+    note_ko: "결함 호출: 메일 헤더 이름 'from'으로 eve가 보낸 메일을 찾는다"
+    args:
+      mail_path: ${DB_DIR}/exports/mail/j.doe
+      query: eve@rival.example
+      field: from
+  - tool: read_mail
+    note_ko: "비교 호출: 정의된 값 'sender'로 같은 주소를 찾는다"
+    args:
+      mail_path: ${DB_DIR}/exports/mail/j.doe
+      query: eve@rival.example
+      field: sender
+expect:
+  - step: 2
+    note_ko: "응답은 성공이고 field에 from이 그대로 실린다"
+    regex: '"success": true.*"field": "from"'
+  - step: 2
+    note_ko: "메일함 주인이 eve에게 보낸 메일이 결과에 들어 있다"
+    regex: '"from": "John Doe <j\.doe@corp\.example>", "to": "Eve Martin <eve@rival\.example>"'
+  - step: 2
+    note_ko: "결과는 세 통이다"
+    contains: '"match_count": 3'
+  - step: 3
+    note_ko: "sender로 찾으면 eve가 보낸 한 통만 온다"
+    contains: '"match_count": 1'
+  - step: 3
+    note_ko: "sender로 찾은 결과에는 eve가 보낸 메일이 있다"
+    regex: '"from": "Eve Martin <eve@rival\.example>"'

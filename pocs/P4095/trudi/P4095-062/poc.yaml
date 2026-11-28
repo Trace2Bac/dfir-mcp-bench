@@ -1,0 +1,54 @@
+# Matrix case P4095-062: misc_clear_case_run joins case_dir with analysis/,
+# exports/ and reports/ without expanding "~", and treats the os.listdir
+# failure of each (FileNotFoundError on the literal "~/..." path) as an empty
+# folder. Nothing is deleted, errors stays empty and the tool answers success.
+# Its own docstring gives "~/cases/example-case" as the form of case_dir.
+# HOME is set to a folder under the server's data folder so that "~" names a
+# case written by the PoC.
+case_id: P4095-062
+problem: P4095
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "도구 설명이 case_dir 예로 `~/cases/example-case`를 들고 trudi의 사건 폴더도 ~/cases 아래라, 모델이 ~로 시작하는 경로를 넘기는 것은 흔하다."
+coverage: full
+summary: For a case with a previous run's outputs under ~/cases/acme-01 (analysis/, exports/, reports/), misc_clear_case_run with case_dir "~/cases/acme-01" answers success with cleared_count 0 and no errors; the same call with the absolute path clears four entries (analysis/evtx, analysis/.tool_output, exports/iocs.csv, reports/report.md).
+summary_ko: "지난 실행의 결과가 ~/cases/acme-01 아래(analysis/, exports/, reports/)에 있는 사건에서 misc_clear_case_run을 case_dir \"~/cases/acme-01\"로 부르면 cleared_count 0, errors 없음으로 성공을 돌려주고, 같은 호출을 절대 경로로 하면 항목 네 개(analysis/evtx, analysis/.tool_output, exports/iocs.csv, reports/report.md)를 지운다."
+defect_ko: "이 서버는 case_dir의 ~를 펼치지 않아 폴더 목록 읽기가 실패하는데 그 실패를 빈 폴더로 처리해 아무것도 지우지 않고 성공으로 답한다. 정상이라면 ~를 펼치거나 폴더를 찾지 못했다고 오류로 알려야 한다. 모델은 사건이 초기화됐다고 잘못 알고, 새 실행이 지난 실행의 결과(.tool_output 등)를 읽게 된다."
+setup_ko: "~/cases/acme-01 사건 폴더에 지난 실행이 남긴 analysis/evtx CSV, analysis/.tool_output 사이드카, exports·reports 파일을 두었다."
+env:
+  HOME: ${DB_DIR}/home
+fixture:
+  - path: home/cases/acme-01/analysis/evtx/Security.csv
+    root: db
+    text: |
+      RecordNumber,EventRecordId,TimeCreated,EventId,Level,Provider,Channel,ProcessId,ThreadId,Computer,ChunkNumber,UserId,MapDescription,UserName,RemoteHost,PayloadData1,PayloadData2,PayloadData3,PayloadData4,PayloadData5,PayloadData6,ExecutableInfo,HiddenRecord,SourceFile,Keywords,ExtraDataOffset,Payload
+      1,1,2026-11-20 09:14:07.1234567,4624,LogAlways,Microsoft-Windows-Security-Auditing,Security,612,700,WS01.acme.local,0,,Successful logon,ACME\alice,,LogonType 3,,,,,,,False,C:\Windows\System32\winevt\Logs\Security.evtx,Audit success,0,
+  - path: home/cases/acme-01/analysis/.tool_output/7.txt
+    root: db
+    text: "Processed 1 file in 0.4 seconds\n"
+  - path: home/cases/acme-01/exports/iocs.csv
+    root: db
+    text: "type,value\nsha1,d241df7b9d2ec0b8194751cd5ce153e27cc40fa4\n"
+  - path: home/cases/acme-01/reports/report.md
+    root: db
+    text: "# acme-01 findings (previous run)\n"
+steps:
+  - tool: misc_clear_case_run
+    note_ko: "결함 호출: ~로 시작하는 사건 경로로 사건을 초기화한다"
+    args:
+      case_dir: ~/cases/acme-01
+  - tool: misc_clear_case_run
+    note_ko: "비교 호출: 같은 사건을 절대 경로로 초기화한다"
+    args:
+      case_dir: ${DB_DIR}/home/cases/acme-01
+expect:
+  - step: 1
+    note_ko: "아무것도 지우지 않고 오류 없이 성공으로 끝난다"
+    regex: "\"success\":\\s*true,\\s*\"cleared_count\":\\s*0,\\s*\"cleared\":\\s*\\[\\],\\s*\"errors\":\\s*\\[\\]"
+  - step: 2
+    note_ko: "절대 경로로는 지난 실행의 항목 네 개(사이드카 폴더 포함)를 지운다. 즉 첫 호출 때 파일이 그대로 있었다"
+    regex: "\"cleared_count\":\\s*4\\b[\\s\\S]*\\.tool_output"

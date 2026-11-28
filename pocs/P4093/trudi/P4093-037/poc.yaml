@@ -1,0 +1,110 @@
+# Matrix case P4093-037: live_scheduled_tasks sends one `sh -c` string that
+# lists timers, /etc/cron.*, /etc/anacrontab and then every user's crontab
+# through `sudo -n crontab -u <user> -l 2>/dev/null`. The shell's exit status
+# is that of the last command (the for loop), so when sudo refuses (no
+# NOPASSWD rule for the read-only account) every user crontab is dropped with
+# its error, and the tool still answers success with exit_code 0 and an empty
+# USER_CRONTABS section.
+# The image has no live endpoint, so ${STUBS}/ssh stands in for ssh(1): like
+# sshd, it joins the words after `--` and runs them with `sh -c` on the
+# "remote", here the container. On that remote, `sudo` is the stub
+# remote-sudo (the message and exit status 1 of sudo -n when a password is
+# required) and `systemctl` is remote-systemctl (the `list-timers --all
+# --no-pager --plain` table of an Ubuntu server), since the container has no
+# systemd. The command string trudi sends is real.
+case_id: P4093-037
+problem: P4093
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: response
+level: mcp
+realism: common
+realism_ko: "live 도구는 읽기 전용 계정으로 접속하라고 안내하고, 그런 계정에 crontab용 NOPASSWD sudo가 없는 것이 보통이라 sudo -n은 비밀번호를 요구하며 실패한다."
+coverage: "partial: ssh, sudo and systemctl on the endpoint are stubs; the command trudi sends and the shell that runs it are real; live_recent_logins and live_persistence_audit are not called"
+coverage_ko: "ssh와 원격의 sudo·systemctl은 흉내 스크립트다. trudi가 보내는 명령과 그것을 돌리는 셸은 실제다. live_recent_logins·live_persistence_audit은 부르지 않았다."
+summary: On an endpoint where the read-only account has no passwordless sudo, every `sudo -n crontab -u <user> -l` fails ("sudo - a password is required", exit 1, sent to /dev/null), yet live_scheduled_tasks answers success with exit_code 0, empty stderr and an empty USER_CRONTABS section.
+summary_ko: "읽기 전용 계정에 비밀번호 없는 sudo가 없는 단말에서 `sudo -n crontab -u <사용자> -l`이 모두 실패하는데(\"a password is required\", 종료 코드 1, /dev/null로 버림), live_scheduled_tasks는 success, exit_code 0, 빈 stderr와 빈 USER_CRONTABS 칸을 돌려준다."
+defect_ko: "이 서버는 여러 명령을 `sh -c` 하나로 묶어 마지막 명령(for 반복)의 종료 코드만 보고, sudo 오류는 2>/dev/null로 버린다. 정상이라면 사용자 crontab을 읽지 못했다고 실패나 경고로 알려야 한다. 모델은 이 단말에 사용자 crontab이 하나도 없다고 잘못 안다."
+setup_ko: "live_hosts.json에 단말 하나(읽기 전용 계정 trudi)를 등록했다. 그 계정은 sudo에 비밀번호가 필요하다. ssh는 받은 명령을 컨테이너에서 sh -c로 돌리는 흉내 스크립트다."
+env:
+  PATH: ${STUBS}:${PATH}
+  TRUDI_LIVE_HOSTS_CONFIG: ${DB_DIR}/live_hosts.json
+stubs:
+  - name: ssh
+    text: |
+      #!/bin/sh
+      # Stub of ssh(1) for one endpoint: skip the options up to `--`, then run
+      # the remote words joined by spaces with `sh -c`, as sshd hands them to
+      # the account's shell. The endpoint's sudo and systemctl are the
+      # remote-* stubs next to this file.
+      while [ $# -gt 0 ]; do
+        if [ "$1" = "--" ]; then shift; break; fi
+        shift
+      done
+      bin=${STUBS}/remote-bin
+      mkdir -p "$bin"
+      ln -sf ${STUBS}/remote-sudo "$bin/sudo"
+      ln -sf ${STUBS}/remote-systemctl "$bin/systemctl"
+      PATH="$bin:$PATH" exec sh -c "$*"
+  - name: remote-sudo
+    text: |
+      #!/bin/sh
+      # Stub of sudo(8) for an account with no NOPASSWD rule: with -n, sudo
+      # prints this line and exits 1 instead of prompting.
+      echo "sudo: a password is required" >&2
+      exit 1
+  - name: remote-systemctl
+    text: |
+      #!/bin/sh
+      # Stub of `systemctl list-timers --all --no-pager --plain` on an Ubuntu
+      # 22.04 server (systemd 249 table format).
+      cat <<'T'
+      NEXT                        LEFT          LAST                        PASSED       UNIT                         ACTIVATES
+      Sat 2026-11-28 15:39:12 UTC 2h 11min left Fri 2026-11-27 15:39:12 UTC 21h ago      systemd-tmpfiles-clean.timer systemd-tmpfiles-clean.service
+      Sun 2026-11-29 00:00:00 UTC 10h left      Sat 2026-11-28 00:00:03 UTC 13h ago      logrotate.timer              logrotate.service
+      Sun 2026-11-29 06:41:27 UTC 17h left      Sat 2026-11-28 06:12:44 UTC 7h ago       apt-daily-upgrade.timer      apt-daily-upgrade.service
+      Mon 2026-11-30 00:00:00 UTC 1 day 10h left Mon 2026-11-23 00:00:12 UTC 5 days ago  fstrim.timer                 fstrim.service
+
+      4 timers listed.
+      T
+fixture:
+  - path: analysis/.keep
+    root: db
+    text: ""
+  - path: live_hosts.json
+    root: db
+    text: |
+      {
+        "web01": {
+          "user": "trudi",
+          "host": "10.20.0.15",
+          "identity": "~/.ssh/trudi_live",
+          "port": 22
+        }
+      }
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 trace를 연다"
+    args:
+      case_id: P4093-037
+      output_path: ${DB_DIR}/analysis/trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: live_scheduled_tasks
+    note_ko: "결함 호출: 단말의 timer·cron·사용자 crontab을 모은다"
+    args:
+      host: web01
+expect:
+  - step: 2
+    note_ko: "sudo가 모두 실패했는데 성공, 종료 코드 0으로 끝난다"
+    regex: "\"success\":\\s*true[\\s\\S]*\"exit_code\":\\s*0\\b"
+  - step: 2
+    note_ko: "sudo 오류는 응답 어디에도 없다(stderr가 비어 있다)"
+    regex: "\"stderr\":\\s*\"\""
+  - step: 2
+    note_ko: "사용자 crontab 칸은 빈 채로 출력이 끝나 '없음'과 구분되지 않는다"
+    regex: "===USER_CRONTABS===\\\\n\""
+  - step: 2
+    note_ko: "같은 명령의 다른 칸(timer)은 정상으로 나와 접속 자체는 됐다"
+    contains: "logrotate.timer"

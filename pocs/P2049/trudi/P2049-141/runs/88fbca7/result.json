@@ -1,0 +1,40 @@
+{
+  "case_id": "P2049-141",
+  "problem": "P2049",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: the Velociraptor server is a stub; the VQL trudi sends is real",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "성공으로 답한다",
+      "regex": "\"success\":\\s*true",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "아티팩트 이름을 넣는 patch만 보냈다",
+      "regex": "\"applied_ops\":\\s*\\[\\{\"op\":\\s*\"add\",\\s*\"path\":\\s*\"/artifacts/artifacts/-\",\\s*\"value\":\\s*\"Windows\\.Detection\\.Usn\"\\}\\]",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "보낸 VQL(cmd)을 포함한 응답 어디에도 PathRegex 파라미터가 없다",
+      "not_contains": "PathRegex",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "다시 읽은 모니터링 표에 Windows.Detection.Usn이 들어 있다(파라미터 spec은 Generic.Client.Stats 것뿐)",
+      "regex": "\"artifacts\":\\s*\\[\"Generic\\.Client\\.Stats\",\\s*\"Windows\\.Detection\\.Usn\"\\]",
+      "ok": true
+    }
+  ],
+  "image": "sha256:ae8fa338c15a62415ecc273dd40627935b80859361be865fa63da8129f8c3e7c",
+  "ran_at": "2026-11-27T20:13:36+00:00"
+}

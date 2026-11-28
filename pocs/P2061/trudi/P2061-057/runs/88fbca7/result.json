@@ -1,0 +1,46 @@
+{
+  "case_id": "P2061-057",
+  "problem": "P2061",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "response",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: the phase comes from a resumed trace (one dair_call entry in the shape the server writes), because the bench has no DAIR backend key",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 3,
+      "note_ko": "같은 발견을 CONFIRMED로 주면 근거 관문에서 거부된다",
+      "contains": "\"gate\": \"evidence_strength\"",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "confidence 'HIGH'로 준 발견은 기록된다",
+      "regex": "\"success\": true, \"description\": \"Scheduled task OneDriveUpdater[^\"]*\", \"confidence\": \"HIGH\"",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "HIGH 발견은 어떤 관문도 거치지 않았다",
+      "contains": "\"gate_chain\": {}",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "없는 기법 T1053.009를 단 발견이 표 미완성을 이유로 기록된다",
+      "regex": "\"success\": true.*\"technique_id\": \"T1053.009\", \"name\": \"\", \"tactic\": \"\", \"unvalidated\": true, \"reason\": \"table_incomplete\", \"table_size\": 486",
+      "ok": true
+    },
+    {
+      "step": 6,
+      "note_ko": "표에는 T1053.009가 없다",
+      "contains": "\"exists\": false, \"technique_id\": \"T1053.009\", \"available_count\": 486",
+      "ok": true
+    }
+  ],
+  "image": "sha256:fcded2691c1039f3560af342258054668654a4412918e122fb3aba9eae50ca9c",
+  "ran_at": "2026-11-27T20:09:20+00:00"
+}

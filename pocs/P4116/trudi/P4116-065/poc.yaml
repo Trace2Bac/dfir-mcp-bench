@@ -1,0 +1,76 @@
+# Matrix case P4116-065: af_usn_gaps reports every step of more than 100
+# between consecutive USN values as journal pruning ("USN journal pruning
+# detected", SUSPECTED, T1070). A USN is the byte offset of the record in
+# $UsnJrnl:$J, so consecutive records differ by the record length: a
+# USN_RECORD_V2 is 60 bytes plus the UTF-16 file name, rounded up to 8. Any
+# file name longer than 20 characters makes the next USN more than 100 higher
+# with nothing removed.
+# The CSV is a Velociraptor Windows.Forensics.Usn result exported as CSV (its
+# columns, with Usn), the one documented-looking source that carries a Usn
+# column; misc_usnparser_parse's CSV has none. The 15 records are contiguous:
+# each Usn is the previous one plus the previous record's length. Word saving
+# a document (three DATA_OVERWRITE records, a ~WRL temp file created and
+# deleted, three more), a Windows Search package file and a spreadsheet.
+case_id: P4116-065
+problem: P4116
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: response
+level: mcp
+realism: possible
+realism_ko: "Velociraptor 오프라인 수집기의 USN 결과는 Usn 열이 있는 CSV로 받는 일이 흔하고, 이름이 20자를 넘는 파일은 어느 볼륨에나 많다."
+coverage: full
+summary: On 15 contiguous USN records (each USN is the previous one plus the previous record's length), af_usn_gaps returns 9 gaps over 100 and a suggested finding "USN journal pruning detected", because USNs are byte offsets and any record with a file name over 20 characters is longer than 100 bytes.
+summary_ko: "빠진 레코드 없이 이어진 USN 레코드 15개(각 USN = 앞 USN + 앞 레코드 길이)에서 `af_usn_gaps`가 100 넘는 간격 9개와 \"USN journal pruning detected\" 발견 제안을 낸다. USN은 바이트 오프셋이라 파일 이름이 20자를 넘는 레코드 다음은 늘 100 넘게 벌어진다."
+defect_ko: "이 서버는 이웃한 USN 값 차이가 100을 넘으면 저널이 일부 지워졌다고 본다. USN은 레코드의 바이트 위치라서, 정상이라면 앞 레코드의 길이(60바이트 + 파일 이름)만큼의 차이는 빼고 그보다 큰 빈 구간만 간격으로 내야 한다. 모델은 정상 저널을 공격자가 레코드를 지운 흔적(T1070)으로 잘못 안다."
+setup_ko: "Velociraptor `Windows.Forensics.Usn` 결과를 CSV로 내보낸 형식으로, 빠진 것 없이 이어진 USN 레코드 15개를 넣었다. Word가 문서를 저장하는 과정(임시 파일 `~WRL0003.tmp` 생성·삭제 포함)과 검색 패키지 파일, 스프레드시트 수정이다."
+env:
+  TRUDI_CACHE_DIR: ${DB_DIR}/cache
+fixture:
+  - path: analysis/.keep
+    root: db
+    text: ""
+  - path: velociraptor/Windows.Forensics.Usn.csv
+    text: |
+      Timestamp,Filename,OSPath,MFTId,Sequence,ParentMFTId,ParentSequence,FileAttributes,Reason,SourceInfo,Usn
+      2024-10-25T16:40:02.551234Z,Quarterly_Financial_Report_FINAL_v3.docx,\\.\C:\Users\alice\Documents\Quarterly_Financial_Report_FINAL_v3.docx,104322,4,3471,1,ARCHIVE,DATA_OVERWRITE,,93355496
+      2024-10-25T16:40:02.588234Z,Quarterly_Financial_Report_FINAL_v3.docx,\\.\C:\Users\alice\Documents\Quarterly_Financial_Report_FINAL_v3.docx,104322,4,3471,1,ARCHIVE,DATA_OVERWRITE|DATA_EXTEND,,93355640
+      2024-10-25T16:40:02.625234Z,Quarterly_Financial_Report_FINAL_v3.docx,\\.\C:\Users\alice\Documents\Quarterly_Financial_Report_FINAL_v3.docx,104322,4,3471,1,ARCHIVE,DATA_OVERWRITE|DATA_EXTEND|CLOSE,,93355784
+      2024-10-25T16:40:02.662234Z,~WRL0003.tmp,\\.\C:\Users\alice\Documents\~WRL0003.tmp,104411,4,3471,1,HIDDEN|ARCHIVE|TEMPORARY,FILE_CREATE,,93355928
+      2024-10-25T16:40:02.699234Z,~WRL0003.tmp,\\.\C:\Users\alice\Documents\~WRL0003.tmp,104411,4,3471,1,HIDDEN|ARCHIVE|TEMPORARY,FILE_CREATE|CLOSE,,93356016
+      2024-10-25T16:40:02.736234Z,~WRL0003.tmp,\\.\C:\Users\alice\Documents\~WRL0003.tmp,104411,4,3471,1,HIDDEN|ARCHIVE|TEMPORARY,FILE_DELETE|CLOSE,,93356104
+      2024-10-25T16:40:02.773234Z,Quarterly_Financial_Report_FINAL_v3.docx,\\.\C:\Users\alice\Documents\Quarterly_Financial_Report_FINAL_v3.docx,104322,4,3471,1,ARCHIVE,DATA_OVERWRITE,,93356192
+      2024-10-25T16:40:02.810234Z,Quarterly_Financial_Report_FINAL_v3.docx,\\.\C:\Users\alice\Documents\Quarterly_Financial_Report_FINAL_v3.docx,104322,4,3471,1,ARCHIVE,DATA_OVERWRITE|DATA_EXTEND,,93356336
+      2024-10-25T16:40:02.847234Z,Quarterly_Financial_Report_FINAL_v3.docx,\\.\C:\Users\alice\Documents\Quarterly_Financial_Report_FINAL_v3.docx,104322,4,3471,1,ARCHIVE,DATA_OVERWRITE|DATA_EXTEND|CLOSE,,93356480
+      2024-10-25T16:40:02.884234Z,Microsoft.Windows.Search_cw5n1h2txyewy.json,\\.\C:\Users\alice\AppData\Local\Packages\Microsoft.Windows.Search_cw5n1h2txyewy.json,105002,4,3990,1,ARCHIVE,DATA_OVERWRITE,,93356624
+      2024-10-25T16:40:02.921234Z,Microsoft.Windows.Search_cw5n1h2txyewy.json,\\.\C:\Users\alice\AppData\Local\Packages\Microsoft.Windows.Search_cw5n1h2txyewy.json,105002,4,3990,1,ARCHIVE,DATA_OVERWRITE|DATA_EXTEND,,93356776
+      2024-10-25T16:40:02.958234Z,Microsoft.Windows.Search_cw5n1h2txyewy.json,\\.\C:\Users\alice\AppData\Local\Packages\Microsoft.Windows.Search_cw5n1h2txyewy.json,105002,4,3990,1,ARCHIVE,DATA_OVERWRITE|DATA_EXTEND|CLOSE,,93356928
+      2024-10-25T16:40:02.995234Z,budget_2024.xlsx,\\.\C:\Users\alice\Documents\budget_2024.xlsx,104390,4,3471,1,ARCHIVE,DATA_OVERWRITE,,93357080
+      2024-10-25T16:40:03.032234Z,budget_2024.xlsx,\\.\C:\Users\alice\Documents\budget_2024.xlsx,104390,4,3471,1,ARCHIVE,DATA_OVERWRITE|DATA_EXTEND,,93357176
+      2024-10-25T16:40:03.069234Z,budget_2024.xlsx,\\.\C:\Users\alice\Documents\budget_2024.xlsx,104390,4,3471,1,ARCHIVE,DATA_OVERWRITE|DATA_EXTEND|CLOSE,,93357272
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 trace를 연다"
+    args:
+      case_id: P4116-065
+      output_path: ${DB_DIR}/analysis/trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: af_usn_gaps
+    note_ko: "결함 호출: USN 저널에서 지워진 구간을 찾음"
+    args:
+      usn_csv_path: ${EVIDENCE}/velociraptor/Windows.Forensics.Usn.csv
+expect:
+  - step: 2
+    note_ko: "레코드 15개를 모두 읽었다"
+    contains: '"total_entries": 15'
+  - step: 2
+    note_ko: "긴 이름 문서 레코드 하나 길이(144바이트)만큼의 차이가 간격으로 나온다"
+    contains: '{"prior_usn": 93355496, "next_usn": 93355640, "delta": 144}'
+  - step: 2
+    note_ko: "빠진 레코드가 없는데도 간격이 9개다"
+    contains: '"gap_count": 9'
+  - step: 2
+    note_ko: "정상 저널로 USN 저널 정리(T1070) 발견을 제안한다"
+    regex: 'USN journal pruning detected \(9 gaps > 100 USNs; T1070\)'

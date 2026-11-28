@@ -1,0 +1,53 @@
+{
+  "case_id": "P4111-057",
+  "problem": "P4111",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "response",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: live_recent_logins and live_event_log_tail (the remote host's clock, no year or zone) are not run",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "USB 메모리의 처음 본 시각이 로그의 동부 현지 시각(UTC로는 10-28 02:15:31) 그대로다",
+      "contains": "\"first_seen\": \"2024-10-27 22:15:31\"",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "조사 범위 시각도 현지 시각 그대로, 시간대 없이 나온다",
+      "contains": "\"coverage_window\": {\"start\": \"2024-10-27 22:15:31\", \"end\": \"2024-10-27 22:15:32\"}",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "condition": "utc",
+      "note_ko": "UTC 서버에서는 첫 패킷이 08:00:00으로 나온다",
+      "regex": "2026-04-10 08:00:00\\.\\d+ IP 10\\.0\\.0\\.8",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "condition": "new_york",
+      "note_ko": "시간대가 뉴욕인 서버에서는 같은 패킷이 04:00:00으로, 표시 없이 나온다",
+      "regex": "2026-04-10 04:00:00\\.\\d+ IP 10\\.0\\.0\\.8",
+      "ok": true
+    },
+    {
+      "differs": {
+        "step": 3,
+        "conditions": [
+          "utc",
+          "new_york"
+        ]
+      },
+      "note_ko": "같은 pcap인데 서버 시간대에 따라 응답이 다르다",
+      "ok": true
+    }
+  ],
+  "image": "sha256:bef6e6042af49f0d92bd7ae5281dc4a7824f0c8564c3962a892858c03d8741fa",
+  "ran_at": "2026-11-27T20:26:57+00:00"
+}

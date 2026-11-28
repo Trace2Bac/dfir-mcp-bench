@@ -18,15 +18,19 @@ export const shortDigest = (image: string) => image.replace(/^(sha256:)?([0-9a-f
 // The day a run was made, from its ISO time.
 export const runDate = (iso: string) => iso.slice(0, 10);
 
-export function resultText(result: string): string {
-  if (result === 'reproduced') return translate({id: 'pocs.result.reproduced', message: 'reproduced'});
-  if (result === 'not reproduced') return translate({id: 'pocs.result.notReproduced', message: 'not reproduced'});
-  return result;
-}
-
 export function realismText(realism: string): string {
   if (realism === 'common') return translate({id: 'pocs.realism.common', message: 'common'});
   if (realism === 'possible') return translate({id: 'pocs.realism.possible', message: 'possible'});
-  if (realism === 'forced') return translate({id: 'pocs.realism.forced', message: 'forced'});
   return realism || '—';
+}
+
+// A model's short name: claude-opus-4-6 as Opus 4.6, a local qwen3.5:9b as
+// Qwen3.5 9B (local).
+export function modelName(key: string, modelId: string, local: boolean): string {
+  const claude = /^claude-(opus|sonnet|haiku)-(\d+)-(\d+)/.exec(modelId) ?? /^claude-(opus|sonnet|haiku)-(\d+)-(\d+)/.exec(key);
+  if (claude) return `${claude[1][0].toUpperCase()}${claude[1].slice(1)} ${claude[2]}.${claude[3]}`;
+  if (!local) return key;
+  const [name, tag] = (modelId || key.replace(/^local-/, '')).split(':');
+  const base = `${name[0]?.toUpperCase() ?? ''}${name.slice(1)}${tag ? ` ${tag.toUpperCase()}` : ''}`;
+  return translate({id: 'poc.model.local', message: '{name} (local)'}, {name: base});
 }

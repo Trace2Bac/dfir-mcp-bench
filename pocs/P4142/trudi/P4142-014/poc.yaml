@@ -1,0 +1,67 @@
+# Matrix case P4142-014: core.executor.run ends a capped output with
+# "[TRUNCATED — n lines omitted. Use a targeted follow-up query with
+# focus_paths or focus_pids to retrieve specific records.]", but no tool of
+# the 288 takes focus_paths or focus_pids, and the response does not give the
+# path of the full-output sidecar (.tool_output/<cid>.txt), so the advice
+# cannot be followed.
+# Same evidence as P4135-014: 300 phone photos, 8,700 lines of exiftool
+# output, of which 150 are returned.
+case_id: P4142-014
+problem: P4142
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "출력이 150줄이나 51,200자를 넘으면 executor를 거치는 모든 도구에 이 안내가 붙는다. 사진·로그 폴더처럼 파일이 수백 개인 폴더면 흔히 넘는다."
+coverage: full
+summary: strings_exiftool_batch over 300 photos returns 150 of 8,700 lines and tells the model to retrieve specific records with focus_paths or focus_pids; calling the same tool with focus_paths for a photo that was cut off is rejected as an unexpected argument, no tool in the tool list has either argument, and the response names no file that holds the rest.
+summary_ko: "사진 300장에 strings_exiftool_batch를 부르면 8,700줄 중 150줄만 주고 focus_paths나 focus_pids로 특정 레코드를 다시 조회하라고 안내한다. 그러나 잘린 사진을 focus_paths로 지정해 같은 도구를 부르면 알 수 없는 인자로 거부되고, 도구 목록 어디에도 두 인자가 없으며, 응답에는 나머지가 든 파일 경로도 없다."
+defect_ko: "이 서버는 잘린 출력에 있지도 않은 인자(focus_paths·focus_pids)로 다시 조회하라고 안내하고, 전체 출력을 보관한 사이드카 경로는 알려 주지 않는다. 정상이라면 실제로 쓸 수 있는 이어 읽기 방법(오프셋 인자나 사이드카 경로)을 안내해야 한다. 모델은 안내대로 다시 불러도 실패하고, 나머지 사진 290여 장의 메타데이터를 얻지 못한 채 앞부분만으로 판단한다."
+setup_ko: "사용자 Pictures 폴더에 휴대폰 사진 300장(IMG_0.jpg~IMG_299.jpg, Apple iPhone 13 EXIF가 든 JPEG)을 넣었다. exiftool은 사진 한 장에 29줄, 모두 8,700줄을 낸다."
+fixture:
+  - path: analysis/.keep
+    root: db
+    text: ""
+  # 32x24 JPEG made with Pillow, EXIF Make Apple, Model iPhone 13, Software
+  # 16.3.1, DateTimeOriginal 2026:03:14 09:12:44 (842 bytes).
+  - path: Users/alice/Pictures/IMG_{i}.jpg
+    repeat: 300
+    base64: /9j/4AAQSkZJRgABAQAAAQABAAD/4QDERXhpZgAATU0AKgAAAAgABQEPAAIAAAAGAAAASgEQAAIAAAAKAAAAUAExAAIAAAAHAAAAWgEyAAIAAAAUAAAAYodpAAQAAAABAAAAdgAAAABBcHBsZQBpUGhvbmUgMTMAMTYuMy4xAAAyMDI2OjAzOjE0IDA5OjEyOjQ0AAACkAMAAgAAABQAAACUkAQAAgAAABQAAACoAAAAADIwMjY6MDM6MTQgMDk6MTI6NDQAMjAyNjowMzoxNCAwOToxMjo0NAD/2wBDAAoHBwgHBgoICAgLCgoLDhgQDg0NDh0VFhEYIx8lJCIfIiEmKzcvJik0KSEiMEExNDk7Pj4+JS5ESUM8SDc9Pjv/2wBDAQoLCw4NDhwQEBw7KCIoOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozv/wAARCAAYACADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDUooor1jzQooooAKKKKACiiigD/9k=
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 trace를 연다"
+    args:
+      case_id: P4142-014
+      output_path: ${DB_DIR}/analysis/trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: strings_exiftool_batch
+    note_ko: "결함 호출: 사진 폴더 전체의 메타데이터를 뽑는다. 잘린 출력에 focus_paths·focus_pids로 다시 조회하라는 안내가 붙는다"
+    args:
+      directory: ${EVIDENCE}/Users/alice/Pictures
+  - tool: strings_exiftool_batch
+    note_ko: "비교 호출: 안내대로 잘린 사진 한 장을 focus_paths로 지정해 다시 부른다"
+    args:
+      directory: ${EVIDENCE}/Users/alice/Pictures
+      focus_paths:
+        - ${EVIDENCE}/Users/alice/Pictures/IMG_299.jpg
+  - list_tools: true
+    note_ko: "비교 호출: 도구 목록에서 focus_paths·focus_pids 인자를 찾는다"
+expect:
+  - step: 2
+    note_ko: "응답은 잘렸고 focus_paths·focus_pids로 다시 조회하라고 안내한다"
+    regex: "lines omitted\\. Use a targeted follow-up query with focus_paths or focus_pids"
+  - step: 2
+    note_ko: "응답에는 전체 출력이 든 사이드카(.tool_output) 경로가 없다"
+    not_contains: ".tool_output"
+  - step: 3
+    note_ko: "안내대로 focus_paths를 주면 알 수 없는 인자로 거부된다"
+    regex: "focus_paths\\s+Unexpected keyword argument"
+  - step: 4
+    note_ko: "288개 도구 어디에도 focus_paths 인자가 없다"
+    not_contains: "focus_paths"
+  - step: 4
+    note_ko: "focus_pids 인자도 없다"
+    not_contains: "focus_pids"

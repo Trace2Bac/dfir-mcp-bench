@@ -1,0 +1,93 @@
+# Matrix case P2049-184: yara_scan_file (and yara_scan_directory) say
+# rules_path may be "a directory of .yar/.yara files", but _compile_rules
+# keys the files by basename ({basename: path}) before yara.compile, so of
+# two files with the same name in different subfolders only one is compiled;
+# the other is dropped without a word.
+# The rules folder holds a community rule set and the team's own rules, each
+# with a cobaltstrike.yar (different rules). The sample matches both. The
+# match is done by yara-python (real).
+case_id: P2049-184
+problem: P2049
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "공개 규칙 모음과 자체 규칙을 하위 폴더로 나눠 두면 같은 위협 이름의 파일(`cobaltstrike.yar` 등)이 겹치기 쉽다."
+coverage: full
+summary: With rules_path set to a folder whose community/ and inhouse/ subfolders each have a cobaltstrike.yar, yara_scan_file returns success with one match, while scanning the same sample with each file on its own matches both rules, so one rule file was silently left out.
+summary_ko: "하위 폴더 community/와 inhouse/에 각각 `cobaltstrike.yar`가 있는 규칙 폴더로 `yara_scan_file`을 돌리면 일치 1건의 성공 응답이 온다. 같은 샘플을 두 파일로 하나씩 검사하면 두 규칙이 모두 맞으므로, 규칙 파일 하나가 말없이 빠졌다."
+defect_ko: "이 서버는 규칙 파일을 파일 이름으로 모아 같은 이름의 파일 하나를 버린다. 설명대로라면 폴더의 .yar/.yara를 모두 써야 한다. 모델은 폴더의 모든 규칙으로 검사했다고 알고, 빠진 규칙에 맞는 샘플을 그 규칙에 맞지 않는다고 잘못 안다."
+setup_ko: "규칙 폴더의 community/와 inhouse/에 서로 다른 규칙이 든 `cobaltstrike.yar`를 두고, 두 규칙에 모두 맞는 샘플을 넣었다."
+env:
+  TRUDI_CACHE_DIR: ${DB_DIR}/cache
+fixture:
+  - path: rules/community/cobaltstrike.yar
+    root: db
+    text: |
+      rule CobaltStrike_Beacon_Strings
+      {
+          meta:
+              description = "Cobalt Strike beacon strings"
+              author = "community"
+          strings:
+              $s1 = "%s as %s\\%s: %d" ascii
+              $s2 = "beacon.dll" ascii
+              $s3 = "ReflectiveLoader" ascii
+          condition:
+              2 of them
+      }
+  - path: rules/inhouse/cobaltstrike.yar
+    root: db
+    text: |
+      rule CASE_CobaltStrike_C2_Profile
+      {
+          meta:
+              description = "Malleable C2 profile seen in this intrusion"
+              author = "ir-team"
+          strings:
+              $uri = "/jquery-3.3.1.min.js" ascii
+              $host = "cdn-update.example.net" ascii
+          condition:
+              all of them
+      }
+  - path: host/ProgramData/Microsoft/update.bin
+    # PE header bytes, then beacon strings and the malleable profile values.
+    hex: 4d5a90000300000004000000ffff0000b800000000000000400000000000000000000000000000000000000000000000000000000000000000000000800000000e1fba0e00b409cd21b8014ccd21546869732070726f6772616d2063616e6e6f742062652072756e20696e20444f53206d6f64652e0d0d0a24000000000000000000000000000000000000000000000000000000000000000000000000000000626561636f6e2e646c6c005265666c6563746976654c6f616465720025732061732025735c25733a2025640000474554002f6a71756572792d332e332e312e6d696e2e6a7300486f73743a2063646e2d7570646174652e6578616d706c652e6e6574004163636570743a20746578742f68746d6c2c6170706c69636174696f6e2f7868746d6c2b786d6c0000000000000000000000000000000000
+  - path: case01/analysis/.keep
+    root: outside
+    text: ""
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 기록을 연다"
+    args:
+      case_id: CASE-001
+      output_path: ${OUTSIDE}/case01/analysis/trace.json
+      case_dir: ${OUTSIDE}/case01
+      launch_dashboard: false
+  - tool: yara_scan_file
+    note_ko: "결함 호출: 규칙 폴더 전체로 샘플을 검사함"
+    args:
+      file_path: ${EVIDENCE}/host/ProgramData/Microsoft/update.bin
+      rules_path: ${DB_DIR}/rules
+  - tool: yara_scan_file
+    note_ko: "비교 호출: community 규칙 파일 하나로 검사함"
+    args:
+      file_path: ${EVIDENCE}/host/ProgramData/Microsoft/update.bin
+      rules_path: ${DB_DIR}/rules/community/cobaltstrike.yar
+  - tool: yara_scan_file
+    note_ko: "비교 호출: inhouse 규칙 파일 하나로 검사함"
+    args:
+      file_path: ${EVIDENCE}/host/ProgramData/Microsoft/update.bin
+      rules_path: ${DB_DIR}/rules/inhouse/cobaltstrike.yar
+expect:
+  - step: 3
+    note_ko: "community 규칙은 샘플에 맞는다"
+    contains: '"rule": "CobaltStrike_Beacon_Strings"'
+  - step: 4
+    note_ko: "inhouse 규칙도 샘플에 맞는다"
+    contains: '"rule": "CASE_CobaltStrike_C2_Profile"'
+  - step: 2
+    note_ko: "폴더 전체로 검사하면 성공 응답에 일치가 1건뿐이다"
+    contains: '"match_count": 1'

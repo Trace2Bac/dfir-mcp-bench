@@ -1,0 +1,72 @@
+# Matrix case P2062-040: read_output documents `where` as a 'column=value'
+# exact-match row filter, but when the column is not in the CSV header it
+# drops the filter and returns unfiltered rows (read_relevant), with success
+# true and `where` echoed back in the response as if it had been applied.
+# The CSV is in EvtxECmd's column layout (EvtxECmd puts the logon account in
+# UserName and the source address in RemoteHost); TargetUserName is the field
+# name in the 4624/4625 event XML itself.
+case_id: P2062-040
+problem: P2062
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: response
+level: mcp
+realism: possible
+realism_ko: "4625 이벤트 XML의 필드 이름은 TargetUserName이고 EvtxECmd CSV의 열 이름은 UserName이라, 이벤트 필드 이름으로 열을 짐작해 거르는 일이 생긴다."
+coverage: full
+summary: read_output with where 'TargetUserName=svc_backup' on an EvtxECmd CSV that has no such column returns success with rows for other accounts and echoes the where back, while 'UserName=CORP\svc_backup' returns only that account.
+summary_ko: "`read_output`에 CSV에 없는 열로 `where: TargetUserName=svc_backup`을 주면 다른 계정의 행까지 담은 성공 응답이 오고 응답의 `where`에는 그 조건이 그대로 실린다. `UserName=CORP\\svc_backup`으로 주면 그 계정의 행만 온다."
+defect_ko: "이 서버는 `where`의 열이 없으면 필터를 버리고 거르지 않은 행을 돌려준다. 정상이라면 그 열이 없다고 알리고 있는 열 이름을 보여 줘야 한다. 모델은 응답의 행이 모두 svc_backup의 로그온 실패라고 잘못 안다."
+setup_ko: "EvtxECmd 형식으로 뽑은 Security 로그 CSV에 svc_backup, alice, administrator의 로그온 실패(4625)와 성공(4624)을 넣었다."
+fixture:
+  - path: analysis/.keep
+    root: db
+    text: ""
+  # EvtxECmd CSV (header as EvtxECmd 1.5 writes it, trimmed to the first
+  # payload columns), Security.evtx 4624/4625.
+  - path: exports/evtx/20261027_EvtxECmd_Output.csv
+    root: db
+    text: |
+      RecordNumber,EventRecordId,TimeCreated,EventId,Level,Provider,Channel,ProcessId,ThreadId,Computer,UserId,MapDescription,UserName,RemoteHost,PayloadData1,PayloadData2
+      1,48211,2024-10-27 02:11:04.1812345,4625,LogAlways,Microsoft-Windows-Security-Auditing,Security,684,1220,FS01.corp.local,,Failed logon,CORP\alice,WKSTN-12 (10.0.4.21),Target: CORP\alice,LogonType 3
+      2,48212,2024-10-27 02:11:09.5523410,4625,LogAlways,Microsoft-Windows-Security-Auditing,Security,684,1220,FS01.corp.local,,Failed logon,CORP\administrator,- (185.220.101.33),Target: CORP\administrator,LogonType 3
+      3,48213,2024-10-27 02:11:10.0091822,4625,LogAlways,Microsoft-Windows-Security-Auditing,Security,684,1220,FS01.corp.local,,Failed logon,CORP\administrator,- (185.220.101.33),Target: CORP\administrator,LogonType 3
+      4,48220,2024-10-27 02:14:51.7310044,4625,LogAlways,Microsoft-Windows-Security-Auditing,Security,684,1220,FS01.corp.local,,Failed logon,CORP\svc_backup,- (185.220.101.33),Target: CORP\svc_backup,LogonType 3
+      5,48221,2024-10-27 02:14:53.1044987,4624,LogAlways,Microsoft-Windows-Security-Auditing,Security,684,1220,FS01.corp.local,,Successful logon,CORP\svc_backup,- (185.220.101.33),Target: CORP\svc_backup,LogonType 3
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 trace를 연다"
+    args:
+      case_id: CASE-001
+      output_path: ${DB_DIR}/analysis/trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: read_output
+    note_ko: "결함 호출: 이벤트 XML의 필드 이름 TargetUserName으로 svc_backup 행만 거른다"
+    args:
+      path: ${DB_DIR}/exports/evtx/20261027_EvtxECmd_Output.csv
+      columns: TimeCreated,EventId,UserName,RemoteHost
+      where: TargetUserName=svc_backup
+  - tool: read_output
+    note_ko: "비교 호출: CSV의 열 이름 UserName으로 같은 계정을 거른다"
+    args:
+      path: ${DB_DIR}/exports/evtx/20261027_EvtxECmd_Output.csv
+      columns: TimeCreated,EventId,UserName,RemoteHost
+      where: 'UserName=CORP\svc_backup'
+expect:
+  - step: 2
+    note_ko: "응답에는 요청한 조건이 그대로 실린다"
+    regex: '"success": true.*"where": "TargetUserName=svc_backup"'
+  - step: 2
+    note_ko: "svc_backup이 아닌 alice의 행이 함께 온다"
+    contains: 'CORP\\alice'
+  - step: 2
+    note_ko: "administrator의 행도 함께 온다"
+    contains: 'CORP\\administrator'
+  - step: 3
+    note_ko: "있는 열로 거르면 svc_backup의 행이 온다"
+    contains: 'CORP\\svc_backup,- (185.220.101.33)'
+  - step: 3
+    note_ko: "있는 열로 거르면 다른 계정의 행은 오지 않는다"
+    not_contains: "alice"

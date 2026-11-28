@@ -1,0 +1,46 @@
+{
+  "case_id": "P2062-041",
+  "problem": "P2062",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "response",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: shows the field fallback only; the mode fallback (an unlisted mode runs as messages) is not called",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "응답은 성공이고 field에 from이 그대로 실린다",
+      "regex": "\"success\": true.*\"field\": \"from\"",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "메일함 주인이 eve에게 보낸 메일이 결과에 들어 있다",
+      "regex": "\"from\": \"John Doe <j\\.doe@corp\\.example>\", \"to\": \"Eve Martin <eve@rival\\.example>\"",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "결과는 세 통이다",
+      "contains": "\"match_count\": 3",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "sender로 찾으면 eve가 보낸 한 통만 온다",
+      "contains": "\"match_count\": 1",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "sender로 찾은 결과에는 eve가 보낸 메일이 있다",
+      "regex": "\"from\": \"Eve Martin <eve@rival\\.example>\"",
+      "ok": true
+    }
+  ],
+  "image": "sha256:e732de2483ed8618645a0196edab9fefa6df1a22da3c9877e3bb8745ce364e6a",
+  "ran_at": "2026-11-27T20:16:05+00:00"
+}

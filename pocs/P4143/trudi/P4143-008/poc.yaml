@@ -1,0 +1,66 @@
+# Matrix case P4143-008: hashdeep_compute writes result["stdout"] to
+# output_path, and that stdout is already cut to OUTPUT_CAP (51,200 chars) by
+# core.executor.run. The saved manifest is a prefix of the real one, and
+# neither the file nor the response's manifest_path says so.
+# The evidence is a user's Documents folder of 400 files; hashdeep -c md5,sha256
+# prints one line of about 170 characters per file, about 68,000 in all.
+case_id: P4143-008
+problem: P4143
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "증거 폴더의 해시 매니페스트를 파일로 남겨 나중에 hashdeep_audit로 검사하는 것은 도구 설명이 안내하는 쓰임이고, 파일이 300개만 넘어도 매니페스트가 51,200자를 넘는다."
+coverage: "partial: hashdeep_compute only; md5deep_scan, strings_extract, misc_capa_analyze and tsk_indxparse write the same cut stdout and were not run"
+coverage_ko: "hashdeep_compute만 실행했다. md5deep_scan·strings_extract·misc_capa_analyze·tsk_indxparse도 같은 방식으로 잘린 stdout을 쓰지만 돌리지 않았다."
+summary: hashdeep_compute over a Documents folder of 400 files saves the manifest to analysis/ and returns manifest_path, but the file holds only the first 51,200 characters of hashdeep's output, cut in the middle of a line; hashdeep_audit of the same unchanged folder against that manifest then fails, and its negative mode lists about 90 of the 400 files as not matching.
+summary_ko: "파일 400개가 든 Documents 폴더에 hashdeep_compute로 매니페스트를 analysis/에 저장하면 manifest_path를 돌려주지만(응답의 truncated: true는 화면용 stdout만 가리킨다), 파일에는 hashdeep 출력의 앞 51,200자만 줄 중간에서 잘린 채 들어 있다. 바뀌지 않은 같은 폴더를 그 매니페스트로 hashdeep_audit하면 감사가 실패하고, negative 모드로 보면 400개 중 90개쯤이 맞지 않는다고 나온다."
+defect_ko: "이 서버는 응답용으로 51,200자에서 자른 출력을 매니페스트 파일에 그대로 쓰고, 파일과 응답 어디에도 매니페스트가 잘렸다고 적지 않는다. 정상이라면 hashdeep 출력 전체를 저장하거나 저장본이 잘렸음을 알려야 한다. 모델은 폴더 전체의 매니페스트를 남겼다고 잘못 알고, 나중의 감사 결과를 증거가 바뀐 것으로 잘못 읽는다."
+setup_ko: "사용자 Documents 폴더에 문서 파일 400개(report_0.docx~report_399.docx)를 넣었다."
+fixture:
+  - path: analysis/.keep
+    root: db
+    text: ""
+  - path: Users/alice/Documents/report_{i}.docx
+    repeat: 400
+    text: "PK\x03\x04 quarterly report draft {i}"
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 trace를 연다"
+    args:
+      case_id: P4143-008
+      output_path: ${DB_DIR}/analysis/trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: hash_hashdeep_compute
+    note_ko: "결함 호출: Documents 폴더의 매니페스트를 analysis/에 저장한다"
+    args:
+      target: ${EVIDENCE}/Users/alice/Documents
+      output_path: ${DB_DIR}/analysis/documents.hashdeep
+  - tool: hash_hashdeep_audit
+    note_ko: "비교 호출: 바뀌지 않은 같은 폴더를 그 매니페스트로 감사한다"
+    args:
+      manifest_file: ${DB_DIR}/analysis/documents.hashdeep
+      target_directory: ${EVIDENCE}/Users/alice/Documents
+  - tool: hash_hashdeep_audit
+    note_ko: "비교 호출: 매니페스트와 맞지 않는 파일을 뽑는다(negative)"
+    args:
+      manifest_file: ${DB_DIR}/analysis/documents.hashdeep
+      target_directory: ${EVIDENCE}/Users/alice/Documents
+      mode: negative
+expect:
+  - step: 2
+    note_ko: "hashdeep 출력이 51,200자에서 잘렸다(응답 stdout이 줄 중간에서 끝난다)"
+    regex: "\"stdout\": \"%%%% HASHDEEP-1\\.0[\\s\\S]*[^n]\", \"stderr\""
+  - step: 2
+    note_ko: "그런데 그 출력을 매니페스트로 저장했다며 경로만 돌려준다"
+    regex: "\"manifest_path\": \"[^\"]*/analysis/documents\\.hashdeep\""
+  - step: 3
+    note_ko: "바뀌지 않은 같은 폴더를 그 매니페스트로 감사하면 실패한다"
+    regex: "^\\{\"success\": false, \"stdout\": \"hashdeep: Audit failed"
+  - step: 4
+    note_ko: "매니페스트와 맞지 않는다고 나오는 파일이 있다(400개 중 매니페스트에 빠진 90개쯤)"
+    regex: "## \\$ hashdeep -X [\\s\\S]*\\\\n31,[0-9a-f]{32},[0-9a-f]{64},[^\"]*/Documents/report_\\d+\\.docx"
+

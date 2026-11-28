@@ -1,0 +1,40 @@
+{
+  "case_id": "P4101-031",
+  "problem": "P4101",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "보고서 쓰기는 실패했다",
+      "regex": "\"write_error\":\\s*\"\\[Errno 2\\] No such file or directory",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "그런데 결과는 success true다",
+      "regex": "^\\{\"success\":\\s*true",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "capa 분석 자체는 끝났다(JSON 결과가 stdout에 있다)",
+      "contains": "32acc1bc543116cbe2cff10cb867772df2f254ff2634c870aef0b46c4b696fdb",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "보고서 파일은 없다",
+      "regex": "\"success\":\\s*false[\\s\\S]*file not found",
+      "ok": true
+    }
+  ],
+  "image": "sha256:62c85651fb761ae70ccf2e963aa58292a56a609dd096390e538806129522bb99",
+  "ran_at": "2026-11-27T20:29:45+00:00"
+}

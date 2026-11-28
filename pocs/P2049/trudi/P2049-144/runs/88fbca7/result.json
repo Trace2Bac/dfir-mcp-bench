@@ -1,0 +1,44 @@
+{
+  "case_id": "P2049-144",
+  "problem": "P2049",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "side-effect",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "패킷 읽기는 성공 응답이다",
+      "is_error": false,
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "응답에 HTTP 연결 패킷이 들어 있다",
+      "contains": "203.0.113.7.80",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "HTTP 추출 응답에 요청 내용이 들어 있다",
+      "contains": "GET /stage2/payload.bin HTTP/1.1",
+      "ok": true
+    },
+    {
+      "file_missing": "${OUTSIDE}/case01/analysis/packets.txt",
+      "note_ko": "패킷 읽기의 output_path에 파일이 없다",
+      "ok": true
+    },
+    {
+      "file_missing": "${OUTSIDE}/case01/analysis/http.txt",
+      "note_ko": "HTTP 추출의 output_path에 파일이 없다",
+      "ok": true
+    }
+  ],
+  "image": "sha256:2fa4a0efe666e3415b297008779caade883008304b3a48f41fc65f910e037d4b",
+  "ran_at": "2026-11-27T19:59:13+00:00"
+}

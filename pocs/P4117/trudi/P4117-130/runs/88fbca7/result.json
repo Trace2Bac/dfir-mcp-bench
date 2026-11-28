@@ -1,0 +1,40 @@
+{
+  "case_id": "P4117-130",
+  "problem": "P4117",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: only net_http_session_inventory's request_paths cut is run; misc_parse_scheduled_tasks' 8,192-character cut of task XML is not",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "intranet 세션의 경로 목록은 첫 요청부터 실린다",
+      "regex": "\"host\": \"intranet\\.corp\\.example\\.com\", \"user_agent\": \"[^\"]*\", \"cookies\": \\{[^}]*\\}, \"set_cookies\": \\{\\}, \"url_params\": \\{\\}, \"auth_headers\": \\[\\], \"request_paths\": \\[\"/\", \"/portal/home\\.aspx\"",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "세션의 경로 목록에는 정확히 50개가 있다",
+      "regex": "\"request_paths\": \\[(?:\"[^\"]*\", ){49}\"[^\"]*\"\\]",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "급여 경로는 세션 목록에 없다",
+      "not_contains": "/hr/payroll/",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "같은 세션이 급여 파일 두 개를 내려받았다",
+      "regex": "GET /hr/payroll/_layouts/15/download\\.aspx\\?SourceUrl=/hr/payroll/Reports/2026-10_salaries_all_staff\\.xlsx[\\s\\S]*GET /hr/payroll/_layouts/15/download\\.aspx\\?SourceUrl=/hr/payroll/Reports/2026-10_bank_details\\.xlsx",
+      "ok": true
+    }
+  ],
+  "image": "sha256:8cc48f074f57047af4652ecbc6931254c16f28fa380ec413cce94c630b82b8db",
+  "ran_at": "2026-11-27T20:32:15+00:00"
+}

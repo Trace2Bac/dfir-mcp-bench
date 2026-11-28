@@ -1,0 +1,40 @@
+{
+  "case_id": "P4148-007",
+  "problem": "P4148",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "secret",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: the keys are set as server environment variables instead of /opt/trudi/.env (same result after load_dotenv); only the env route is shown, not reading .env itself with cat",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "상태 도구는 키가 있다는 것만 말한다",
+      "regex": "\"virustotal\":\\s*true",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "모델 API 키가 값 그대로 응답에 실린다",
+      "contains": "ANTHROPIC_API_KEY=sk-ant-api03-BENCHFAKEKEY",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "위협 정보 서비스 키도 값 그대로 실린다",
+      "contains": "VIRUSTOTAL_API_KEY=0bench0fake0virustotal0key0000",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "실행은 성공으로 돌아온다",
+      "regex": "^\\{\"success\":\\s*true",
+      "ok": true
+    }
+  ],
+  "image": "sha256:aaedb5fc39e1e127a5bbc6abf926daf719b26d4c21f759105d77136aded59f58",
+  "ran_at": "2026-11-27T20:49:36+00:00"
+}

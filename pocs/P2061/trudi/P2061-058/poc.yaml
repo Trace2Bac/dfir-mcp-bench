@@ -1,0 +1,39 @@
+# Matrix case P2061-058: correlate_mitre_validate looks the technique id up in
+# the ATT&CK table as given, without trimming or upper-casing it, so
+# 't1059.001' (the spelling of Sigma rule tags such as attack.t1059.001, which
+# chainsaw_hunt reports) comes back exists: false. record_ioc upper-cases the
+# ids before it calls the same lookup.
+# TRUDI_MITRE_TABLE points at the table trudi ships
+# (cases/.common/mitre_techniques.json, copied to ~/cases/.common by install.sh).
+case_id: P2061-058
+problem: P2061
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: response
+level: mcp
+realism: possible
+realism_ko: "Sigma 규칙의 태그는 attack.t1059.001처럼 소문자로 적혀 있어, chainsaw 결과에서 기법 ID를 옮겨 확인하면 소문자 ID가 들어갈 수 있다."
+coverage: full
+summary: correlate_mitre_validate says PowerShell (T1059.001) exists, but the same id in lower case, as Sigma tags write it, comes back exists false with success true.
+summary_ko: "`correlate_mitre_validate`는 T1059.001(PowerShell)이 있다고 답하지만, Sigma 태그처럼 소문자로 쓴 같은 ID에는 성공 응답에 `exists: false`를 준다."
+defect_ko: "이 서버는 기법 ID를 다듬지 않고 그대로 표에서 찾아 소문자로 쓴 ID를 없는 기법으로 답한다. 정상이라면 대소문자와 공백을 맞춘 뒤 찾거나 형식이 다르다고 알려야 한다. 모델은 실제로 있는 기법을 ATT&CK에 없는 ID로 잘못 안다."
+setup_ko: "trudi가 배포하는 ATT&CK 기법 표를 쓰고, 같은 기법 ID를 대문자와 소문자로 각각 확인한다."
+env:
+  TRUDI_MITRE_TABLE: /opt/trudi/cases/.common/mitre_techniques.json
+steps:
+  - tool: correlate_mitre_validate
+    note_ko: "비교 호출: 대문자 ID T1059.001을 확인한다"
+    args:
+      technique_id: T1059.001
+  - tool: correlate_mitre_validate
+    note_ko: "결함 호출: Sigma 태그 표기인 소문자 t1059.001을 확인한다"
+    args:
+      technique_id: t1059.001
+expect:
+  - step: 1
+    note_ko: "대문자 ID는 표에 있는 PowerShell 기법이다"
+    regex: '"exists": true, "technique_id": "T1059.001", "name": "PowerShell"'
+  - step: 2
+    note_ko: "같은 ID를 소문자로 주면 성공 응답에 없는 기법이라고 답한다"
+    regex: '"success": true, "exists": false, "technique_id": "t1059.001"'

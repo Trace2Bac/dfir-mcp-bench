@@ -1,0 +1,40 @@
+{
+  "case_id": "P4117-125",
+  "problem": "P4117",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "200번째 로그온(19:29:20)까지 온다",
+      "contains": "2026-11-03 19:29:20.0000000,CORP\\\\svc_scan",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "201번째 로그온(19:33:53)부터는 오지 않는다",
+      "not_contains": "2026-11-03 19:33:53",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "그런데도 잘리지 않았다고 한다",
+      "regex": "\"truncated\": false",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "같은 조건의 4624에 203.0.113.7의 Administrator RDP(유형 10) 로그온이 있다",
+      "regex": "CORP\\\\\\\\Administrator,- \\(203\\.0\\.113\\.7\\),LogonType 10",
+      "ok": true
+    }
+  ],
+  "image": "sha256:641e523024930abef8351571cc8567132f3c07dffde8e0a7d57a3a2a9f178a76",
+  "ran_at": "2026-11-27T20:28:12+00:00"
+}

@@ -1,0 +1,40 @@
+{
+  "case_id": "P4117-129",
+  "problem": "P4117",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "DownloadString이 3번 이상이어야 맞는 규칙에 일치한다",
+      "contains": "\"rule\": \"SUSP_PS_Multi_Download_Cradle\"",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "그런데 $dl은 위치 하나로만 실리고 일치 횟수가 없다",
+      "regex": "\"strings\": \\[\\{\"offset\": \\d+, \"identifier\": \"\\$dl\"\\}, \\{\"offset\": \\d+, \"identifier\": \"\\$wc\"\\}\\]",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "같은 파일에 DownloadString 줄이 4개 있다",
+      "regex": "\"match_count\": 4\\b",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "네 번째 호출은 첫 호출과 다른 호스트 203.0.113.7에서 받는다",
+      "contains": "http://203.0.113.7/office/upd.ps1",
+      "ok": true
+    }
+  ],
+  "image": "sha256:06ed184f760c76b972fdedc38ec186e7ac7252b5836add13ff80d2c4b8225262",
+  "ran_at": "2026-11-27T20:26:46+00:00"
+}

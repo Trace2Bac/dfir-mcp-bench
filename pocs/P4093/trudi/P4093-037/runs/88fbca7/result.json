@@ -1,0 +1,40 @@
+{
+  "case_id": "P4093-037",
+  "problem": "P4093",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "response",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: ssh, sudo and systemctl on the endpoint are stubs; the command trudi sends and the shell that runs it are real; live_recent_logins and live_persistence_audit are not called",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "sudo가 모두 실패했는데 성공, 종료 코드 0으로 끝난다",
+      "regex": "\"success\":\\s*true[\\s\\S]*\"exit_code\":\\s*0\\b",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "sudo 오류는 응답 어디에도 없다(stderr가 비어 있다)",
+      "regex": "\"stderr\":\\s*\"\"",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "사용자 crontab 칸은 빈 채로 출력이 끝나 '없음'과 구분되지 않는다",
+      "regex": "===USER_CRONTABS===\\\\n\"",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "같은 명령의 다른 칸(timer)은 정상으로 나와 접속 자체는 됐다",
+      "contains": "logrotate.timer",
+      "ok": true
+    }
+  ],
+  "image": "sha256:74f203891fd8540cea6f7054ea724da0956d1a9ef8b672be35296ad371e407a1",
+  "ran_at": "2026-11-27T20:23:52+00:00"
+}

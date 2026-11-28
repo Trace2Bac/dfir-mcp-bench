@@ -1,0 +1,52 @@
+# Matrix case P4193-015: strings_grep reads `strings` line by line and checks
+# its deadline (`timeout`) only when a line arrives, and then only every
+# 16,384 lines. While strings reads a long stretch with no strings, nothing
+# arrives and the deadline is never checked, so the call runs to the end of
+# the file however small `timeout` is.
+# Evidence: an 8 GiB raw image of a USB drive that was zero-wiped (sparse
+# file; only a FAT boot-sector-like head is written). strings needs about
+# 28 s for it in this container.
+case_id: P4193-015
+problem: P4193
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: time-size
+level: mcp
+realism: possible
+realism_ko: "공격자가 0으로 지운 USB나 거의 빈 디스크 이미지는 실제로 나오고, 그런 큰 이미지에 시한을 주고 문자열 검색을 돌리는 일은 있을 수 있다."
+coverage: "partial: strings_grep only, with a zero-filled image (no output for a long time) instead of a stalled read; misc_evtx_filter (evtx_dump.py is not in the image) is not run"
+coverage_ko: "strings_grep만 보였고, 읽기가 멈춘 경로 대신 출력이 오래 없는 0으로 채운 이미지를 썼다. misc_evtx_filter는 이미지에 evtx_dump.py가 없어 실행하지 않았다."
+summary: strings_grep with timeout 10 on an 8 GiB zero-wiped USB image returns only after strings has read the whole file (about 28 s), with complete true and no timeout, because the deadline is checked only when strings prints a line.
+summary_ko: "0으로 지운 8 GiB USB 이미지에 timeout 10으로 strings_grep을 부르면, strings가 파일을 끝까지 읽은 뒤(약 28초)에야 complete true로 답하고 시한은 작동하지 않는다. 시한을 strings가 줄을 낼 때만 보기 때문이다."
+defect_ko: "이 서버는 시한을 자식 프로세스가 줄을 낼 때만 검사해, 출력이 없는 동안에는 시한이 지나도 멈추지 않는다. 정상이라면 출력과 상관없이 시한이 되면 자식을 끝내고 시한 초과로 답해야 한다. 큰 이미지나 멈춘 읽기에서는 응답이 한참 늦거나 오지 않아, 모델과 사용자는 정한 시간 안에 결과를 받지 못한다."
+setup_ko: "0으로 지운 8 GiB USB 이미지(앞부분만 기록된 sparse 파일)를 넣었다."
+fixture:
+  - path: analysis/.keep
+    root: db
+    text: ""
+  - path: usb/wiped_usb.dd
+    size: 8589934592
+    hex: eb3c906d6b66732e666174000202040002000200f8000020004000000000000000000000800029e2193c5a4e4f204e414d4520202020464154313220202020
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 trace를 연다"
+    args:
+      case_id: P4193-015
+      output_path: ${DB_DIR}/analysis/trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: strings_grep
+    note_ko: "결함 호출: 시한 10초로 이미지에서 URL을 찾는다"
+    args:
+      file_path: ${EVIDENCE}/usb/wiped_usb.dd
+      pattern: "https?://"
+      timeout: 10
+    timeout_s: 300
+expect:
+  - step: 2
+    note_ko: "시한 10초를 훨씬 넘겨 20초 넘게 걸렸다"
+    min_seconds: 20
+  - step: 2
+    note_ko: "시한 초과 없이 끝까지 읽었다고 답한다"
+    regex: '"success":\s*true[\s\S]*"complete":\s*true[\s\S]*"elapsed_seconds":\s*(2\d|[3-9]\d|\d{3,})\.'

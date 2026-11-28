@@ -1,0 +1,46 @@
+{
+  "case_id": "P2062-040",
+  "problem": "P2062",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "response",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "응답에는 요청한 조건이 그대로 실린다",
+      "regex": "\"success\": true.*\"where\": \"TargetUserName=svc_backup\"",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "svc_backup이 아닌 alice의 행이 함께 온다",
+      "contains": "CORP\\\\alice",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "administrator의 행도 함께 온다",
+      "contains": "CORP\\\\administrator",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "있는 열로 거르면 svc_backup의 행이 온다",
+      "contains": "CORP\\\\svc_backup,- (185.220.101.33)",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "있는 열로 거르면 다른 계정의 행은 오지 않는다",
+      "not_contains": "alice",
+      "ok": true
+    }
+  ],
+  "image": "sha256:b8093d4099789e9a1bd9f4caf35880be1caf7a21752ffab60c88c693f5fad0fc",
+  "ran_at": "2026-11-27T20:14:44+00:00"
+}

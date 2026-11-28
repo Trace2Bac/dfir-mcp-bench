@@ -1,0 +1,40 @@
+{
+  "case_id": "P2066-027",
+  "problem": "P2066",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: read_output only; read_mail uses the same _guard",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "trace는 CASE-2026-118로 열렸다",
+      "contains": "\"success\": true",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "이번 사건의 evidence/ 경로는 읽기 도구가 거부한다",
+      "regex": "\"success\": false.*protected evidence/mounted location",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "다른 사건 폴더의 CSV를 성공으로 읽고 인용할 call_id를 준다",
+      "regex": "\"success\": true, \"_trudi_call_id\": [1-9]\\d*, \"path\": \"[^\"]*/cases/CASE-2026-097/analysis/evtxecmd/20260512_EvtxECmd_Output\\.csv\"",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "응답 본문은 지난 사건 원본(CASE-2026-097)에서 나온 svc_backup 원격 로그인 행이다",
+      "regex": "CORP\\\\\\\\svc_backup,10\\.20\\.4\\.31.*CASE-2026-097",
+      "ok": true
+    }
+  ],
+  "image": "sha256:d57d41bbe211a9b43fc5e60b227ba6c23bdabeac89f5de478350a83c7a07203d",
+  "ran_at": "2026-11-27T20:19:59+00:00"
+}

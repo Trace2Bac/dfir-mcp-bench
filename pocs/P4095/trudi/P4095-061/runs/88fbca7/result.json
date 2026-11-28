@@ -1,0 +1,34 @@
+{
+  "case_id": "P4095-061",
+  "problem": "P4095",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: a directory path only; an unreadable file (permissions) takes the same except branch but is not shown",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "폴더를 읽지 못했는데 성공으로 끝난다",
+      "regex": "\"success\":\\s*true",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "body가 빈 문자열이고 잘림도 없어 일치 없음과 같다",
+      "regex": "\"body\":\\s*\"\",\\s*\"truncated\":\\s*false",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "그 폴더의 CSV에는 mimikatz.exe 행이 있다",
+      "regex": "\"body\":\\s*\"[^\"]*mimikatz\\.exe",
+      "ok": true
+    }
+  ],
+  "image": "sha256:396de08d51a19dd2d202358d81c2fd44278ddf8612b876382a4ff6292b69f513",
+  "ran_at": "2026-11-27T20:26:18+00:00"
+}

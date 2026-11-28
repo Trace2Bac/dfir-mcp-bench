@@ -1,0 +1,40 @@
+{
+  "case_id": "P4117-126",
+  "problem": "P4117",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "메일함 전체 검색은 5,000통만 읽는다",
+      "regex": "\"messages_scanned\": 5000\\b",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "일치 0건을 성공으로 돌려준다",
+      "regex": "\"messages\": \\[\\], \"match_count\": 0",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "읽지 않은 메일이 있다는 경고가 없다",
+      "not_contains": "\"warning\"",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "Sent Items에는 고객 자료 zip을 외부 주소로 보낸 메일이 있다",
+      "regex": "\"to\": \"jdoe\\.home@mail\\.example\\.net\", \"cc\": \"\", \"subject\": \"docs\"",
+      "ok": true
+    }
+  ],
+  "image": "sha256:ac6116de53eb17c5abef90a691eb07cba33838c5020ef9494840ca6de610aa12",
+  "ran_at": "2026-11-27T20:29:14+00:00"
+}

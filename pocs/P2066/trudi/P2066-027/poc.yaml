@@ -1,0 +1,70 @@
+# Matrix case P2066-027: read_output and read_mail check a path with
+# assert_readable_output (core/paths.py:80-102), which only asks whether any
+# segment of the resolved path is analysis, exports or reports (case-
+# insensitive). It never compares the path with the case the trace is open
+# for, so another case's produced output on the same workstation is read and
+# self-logged as a citable tool_call of the current case.
+# Both cases use trudi's case-template layout (analysis/ evidence/ exports/
+# reports/). The CSV is EvtxECmd's column layout.
+case_id: P2066-027
+problem: P2066
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "한 SIFT 호스트에는 사건 폴더가 여러 개 쌓이고(trudi 저장소도 cases/에 사건 8개를 둔다), 같은 PC를 다시 조사하면 파일 이름까지 같아 다른 사건 경로를 옮겨 쓰는 일이 있을 수 있다."
+coverage: "partial: read_output only; read_mail uses the same _guard"
+coverage_ko: "read_output만 확인한다. read_mail도 같은 _guard를 쓴다."
+summary: With the trace open for CASE-2026-118, read_output reads CASE-2026-097's EvtxECmd CSV of the same host and returns success with a _trudi_call_id to cite, while a file under the current case's evidence/ is refused.
+summary_ko: "CASE-2026-118로 trace를 연 상태에서 `read_output`은 같은 PC를 다룬 CASE-2026-097의 EvtxECmd CSV를 읽어 성공과 인용할 `_trudi_call_id`를 돌려준다. 현재 사건의 evidence/ 파일은 거부한다."
+defect_ko: "이 서버는 경로에 analysis·exports·reports 조각이 있는지만 보고 지금 사건 폴더 안인지는 보지 않는다. 정상이라면 열린 사건 폴더 밖 경로는 거부하거나 다른 사건이라고 알려야 한다. 모델은 다른 사건의 로그인 기록을 이번 사건의 증거로 읽고 인용한다."
+setup_ko: "같은 PC WKSTN-07을 다룬 두 사건 폴더를 두었다. 지난 사건 CASE-2026-097의 analysis/에 EvtxECmd CSV가 있고, 이번 사건 CASE-2026-118에는 evidence/에 Security.evtx만 있다."
+fixture:
+  - path: cases/CASE-2026-118/analysis/.keep
+    root: outside
+    text: ""
+  - path: cases/CASE-2026-118/reports/.keep
+    root: outside
+    text: ""
+  - path: cases/CASE-2026-118/evidence/WKSTN-07/Security.evtx
+    root: outside
+    hex: 456c6646696c650000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+  - path: cases/CASE-2026-097/analysis/evtxecmd/20260512_EvtxECmd_Output.csv
+    root: outside
+    text: |
+      RecordNumber,EventRecordId,TimeCreated,EventId,Level,Provider,Channel,ProcessId,ThreadId,Computer,ChunkNumber,UserId,MapDescription,UserName,RemoteHost,PayloadData1,PayloadData2,PayloadData3,PayloadData4,PayloadData5,PayloadData6,ExecutableInfo,HiddenRecord,SourceFile,Keywords,ExtraDataOffset,Payload
+      18211,18211,2026-05-11 07:58:12.4410231,4624,LogAlways,Microsoft-Windows-Security-Auditing,Security,684,1520,WKSTN-07.corp.local,9,,Successful logon,CORP\jlee,-,Target: CORP\jlee,LogonType 2,LogonId: 0x2A8F31,,,,C:\Windows\System32\svchost.exe,False,D:\cases\CASE-2026-097\evidence\WKSTN-07\Security.evtx,Audit success,0,
+      18240,18240,2026-05-11 09:41:03.1187720,4624,LogAlways,Microsoft-Windows-Security-Auditing,Security,684,4012,WKSTN-07.corp.local,9,,Successful logon,CORP\svc_backup,10.20.4.31,Target: CORP\svc_backup,LogonType 10,LogonId: 0x2C01D7,,,,C:\Windows\System32\svchost.exe,False,D:\cases\CASE-2026-097\evidence\WKSTN-07\Security.evtx,Audit success,0,
+      18244,18244,2026-05-11 09:44:57.0042219,4672,LogAlways,Microsoft-Windows-Security-Auditing,Security,684,4012,WKSTN-07.corp.local,9,,Admin logon,CORP\svc_backup,-,SeBackupPrivilege SeRestorePrivilege SeDebugPrivilege,,,,,,,False,D:\cases\CASE-2026-097\evidence\WKSTN-07\Security.evtx,Audit success,0,
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 이번 사건 CASE-2026-118의 trace를 연다"
+    args:
+      case_id: CASE-2026-118
+      output_path: ${OUTSIDE}/cases/CASE-2026-118/analysis/CASE-2026-118_trace.json
+      case_dir: ${OUTSIDE}/cases/CASE-2026-118
+      launch_dashboard: false
+  - tool: read_output
+    note_ko: "비교 호출: 이번 사건 evidence/의 원본 로그를 읽으려 하면 거부된다"
+    args:
+      path: ${OUTSIDE}/cases/CASE-2026-118/evidence/WKSTN-07/Security.evtx
+  - tool: read_output
+    note_ko: "결함 호출: 지난 사건 CASE-2026-097의 EvtxECmd CSV를 읽는다"
+    args:
+      path: ${OUTSIDE}/cases/CASE-2026-097/analysis/evtxecmd/20260512_EvtxECmd_Output.csv
+      query: "4624 svc_backup"
+expect:
+  - step: 1
+    note_ko: "trace는 CASE-2026-118로 열렸다"
+    contains: '"success": true'
+  - step: 2
+    note_ko: "이번 사건의 evidence/ 경로는 읽기 도구가 거부한다"
+    regex: '"success": false.*protected evidence/mounted location'
+  - step: 3
+    note_ko: "다른 사건 폴더의 CSV를 성공으로 읽고 인용할 call_id를 준다"
+    regex: '"success": true, "_trudi_call_id": [1-9]\d*, "path": "[^"]*/cases/CASE-2026-097/analysis/evtxecmd/20260512_EvtxECmd_Output\.csv"'
+  - step: 3
+    note_ko: "응답 본문은 지난 사건 원본(CASE-2026-097)에서 나온 svc_backup 원격 로그인 행이다"
+    regex: 'CORP\\\\svc_backup,10\.20\.4\.31.*CASE-2026-097'

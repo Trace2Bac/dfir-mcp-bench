@@ -1,0 +1,72 @@
+# Matrix case P2049-142: strings_file_identify_directory says it identifies
+# the file type of every file in a directory, but it runs `file -r <dir>`.
+# In file(1) -r is --raw (do not translate unprintable characters), not
+# recursion, and file has no recursive option, so the only answer is the
+# directory itself: "<dir>: directory".
+case_id: P2049-142
+problem: P2049
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "메일 첨부나 내려받기 폴더처럼 확장자를 믿을 수 없는 파일 모음의 형식을 한꺼번에 확인하는 일은 흔하고, 이 도구는 바로 그 용도다."
+coverage: full
+summary: 'On a Downloads folder of three files, one of them a PE executable named invoice.pdf, strings_file_identify_directory answers success with the single line "<dir>: directory" and identifies none of the files.'
+summary_ko: "파일 세 개(그중 invoice.pdf라는 이름의 PE 실행 파일)가 든 Downloads 폴더에 strings_file_identify_directory는 \"<폴더>: directory\" 한 줄만 성공으로 돌려주고 파일은 하나도 식별하지 않는다."
+defect_ko: "이 서버는 `file -r <폴더>`를 실행하는데 file의 -r은 재귀가 아니라 --raw라서 폴더 자체만 'directory'로 식별한다. 정상이라면 폴더 안 파일마다 형식을 돌려줘야 한다. 모델은 폴더의 파일 형식을 확인했다고 여기고 invoice.pdf가 실행 파일인 것을 놓친다."
+setup_ko: "사용자 Downloads 폴더에 PDF 이름을 단 PE 실행 파일(invoice.pdf), 진짜 PDF(statement.pdf), PNG 이미지(logo.png)를 넣었다."
+fixture:
+  - path: analysis/.keep
+    root: db
+    text: ""
+  # invoice.pdf: an MZ/PE header (DOS stub + PE\0\0, i386, 3 sections) under
+  # a .pdf name, as a disguised dropper would be.
+  - path: Users/alice/Downloads/invoice.pdf
+    hex: 4d5a90000300000004000000ffff0000b800000000000000400000000000000000000000000000000000000000000000000000000000000000000000800000000e1fba0e00b409cd21b8014ccd21546869732070726f6772616d2063616e6e6f742062652072756e20696e20444f53206d6f64652e0d0d0a2400000000000000504500004c010300a1b2c3650000000000000000e0000201 0b010e00001000000010000000000000001000000010000000200000000040000010000000020000060000000000000006000000000000000040000000100000000000000300408500001000001000000000100000100000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+  - path: Users/alice/Downloads/statement.pdf
+    text: |
+      %PDF-1.4
+      1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj
+      2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj
+      3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >> endobj
+      xref
+      0 4
+      0000000000 65535 f 
+      0000000009 00000 n 
+      0000000058 00000 n 
+      0000000115 00000 n 
+      trailer << /Size 4 /Root 1 0 R >>
+      startxref
+      186
+      %%EOF
+  # logo.png: a 1x1 PNG
+  - path: Users/alice/Downloads/logo.png
+    hex: 89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d49444154789c6360000002000154a24f5d0000000049454e44ae426082
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 trace를 연다"
+    args:
+      case_id: P2049-142
+      output_path: ${DB_DIR}/analysis/trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: strings_file_identify_directory
+    note_ko: "결함 호출: 폴더 안 파일 형식 식별"
+    args:
+      directory: ${EVIDENCE}/Users/alice/Downloads
+  - tool: strings_file_identify
+    note_ko: "비교 호출: invoice.pdf 하나를 식별한다"
+    args:
+      file_path: ${EVIDENCE}/Users/alice/Downloads/invoice.pdf
+expect:
+  - step: 2
+    note_ko: "폴더 식별은 성공으로 끝난다"
+    regex: "\"success\":\\s*true"
+  - step: 2
+    note_ko: "출력은 폴더 자체가 directory라는 한 줄뿐이다"
+    regex: "\"stdout\":\\s*\"[^\"]*/Users/alice/Downloads: directory\\\\n\""
+  - step: 3
+    note_ko: "같은 file로 하나씩 보면 invoice.pdf는 PE 실행 파일이다"
+    regex: "invoice\\.pdf: PE32 executable"

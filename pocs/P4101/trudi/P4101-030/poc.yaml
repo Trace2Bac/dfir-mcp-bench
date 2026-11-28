@@ -1,0 +1,60 @@
+# Matrix case P4101-030: when the program a tool runs fails (non-zero exit,
+# timeout, missing binary), the executor returns a plain result dict with
+# success false, and the middleware hands it to the client as a normal tool
+# result: the MCP isError flag is false. Only an exception in the handler
+# (input validation included) becomes a ToolError with isError true.
+# Here EvtxECmd exits 1 on a Windows XP SecEvent.Evt (ez_evtxecmd passes a
+# path not ending in .evtx as a directory), and a call with a missing
+# argument is the comparison.
+case_id: P4101-030
+problem: P4101
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "도구가 부르는 외부 프로그램이 0이 아닌 종료 코드로 끝나는 일은 조사 중 흔하고, 그때마다 이 응답 형태가 나온다."
+coverage: "partial: a non-zero exit only; a timeout and a missing binary take the same path but are not shown"
+coverage_ko: "0이 아닌 종료 코드만 보였다. 시간 초과와 프로그램 없음도 같은 경로지만 보이지 않았다."
+summary: EvtxECmd exits 1 on an XP SecEvent.Evt and ez_evtxecmd's body says success false, but the MCP result has isError false; the same tool called without its required output_dir gets isError true.
+summary_ko: "XP의 SecEvent.Evt에 EvtxECmd가 종료 코드 1로 끝나 ez_evtxecmd 본문은 success false인데 MCP 결과의 isError는 false다. 같은 도구를 필수 인자 output_dir 없이 부르면 isError true가 나온다."
+defect_ko: "이 서버는 외부 프로그램이 실패한 결과를 보통 결과로 돌려 MCP의 isError를 거짓으로 둔다(처리기 예외만 isError 참). 정상이라면 실행이 실패하면 isError를 참으로 둬야 한다. isError로 성공을 가리는 클라이언트와 모델은 이 실행을 성공으로 읽는다."
+setup_ko: "Windows XP 이미지의 보안 로그 SecEvent.Evt(옛 EVT 형식: 머리와 EOF 레코드)를 넣었다."
+fixture:
+  - path: analysis/.keep
+    root: db
+    text: ""
+  # Legacy EVT log: the 48-byte ELF_LOGFILE_HEADER ("LfLe", version 1.1,
+  # MaxSize 512 KiB) and the 40-byte ELF_EOF_RECORD (0x11111111..0x44444444).
+  - path: WINDOWS/system32/config/SecEvent.Evt
+    hex: 300000004c664c650100000001000000300000003000000001000000010000000000080000000000803a09003000000028000000111111112222222233333333444444443000000030000000010000000100000028000000
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 trace를 연다"
+    args:
+      case_id: P4101-030
+      output_path: ${DB_DIR}/analysis/trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: ez_evtxecmd
+    note_ko: "결함 호출: EvtxECmd가 종료 코드 1로 실패하는 실행"
+    args:
+      evtx_path: ${EVIDENCE}/WINDOWS/system32/config/SecEvent.Evt
+      output_dir: ${DB_DIR}/analysis/evtx
+      output_file: Security.csv
+    timeout_s: 300
+  - tool: ez_evtxecmd
+    note_ko: "비교 호출: 필수 인자 output_dir 없이 부른다(처리기 예외)"
+    args:
+      evtx_path: ${EVIDENCE}/WINDOWS/system32/config/SecEvent.Evt
+expect:
+  - step: 2
+    note_ko: "본문은 실행이 종료 코드 1로 실패했다고 한다"
+    regex: "\"success\":\\s*false[\\s\\S]*\"exit_code\":\\s*1\\b"
+  - step: 2
+    note_ko: "그런데 MCP 결과의 isError는 거짓이다"
+    is_error: false
+  - step: 3
+    note_ko: "처리기 예외(인자 누락)는 isError 참으로 나와, 실패 표시가 실패 종류에 따라 갈린다"
+    is_error: true

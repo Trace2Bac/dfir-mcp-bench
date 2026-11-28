@@ -1,0 +1,179 @@
+# Matrix case P4153-003: vt_lookup_domain / vt_lookup_ip / abuseipdb_check
+# (and machinae_lookup) put the indicator in the request to the outside
+# reputation service as given: no check of its form, no check for RFC 1918
+# addresses or internal (.local / corporate) names. An internal file
+# server's name and address go to VirusTotal and AbuseIPDB.
+# No request leaves the container: HTTPS_PROXY points httpx at a stand-in
+# proxy on 127.0.0.1:18443 (outside/recorder.py, started by the first
+# batch_run), which ends TLS with its own certificate (SSL_CERT_FILE) and
+# logs what it is sent. The API keys are fake.
+case_id: P4153-003
+problem: P4153
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: network
+level: mcp
+realism: common
+realism_ko: "로그에서 나온 호스트 이름과 IP를 차례로 평판 조회하는 것은 흔한 분석 절차이고, 그 목록에는 내부 서버 이름과 사설 IP가 섞여 있다."
+coverage: "partial: the VirusTotal and AbuseIPDB tools only; machinae_lookup (machinae is not in the image) is not run; the services are a local stand-in"
+coverage_ko: "VirusTotal·AbuseIPDB 도구만 보였다. machinae_lookup은 이미지에 machinae가 없어 실행하지 않았다. 외부 서비스는 로컬 대역이다."
+summary: vt_lookup_domain with the internal name fs01.corp.example.local and vt_lookup_ip and abuseipdb_check with the private address 10.20.30.40 all send the value to www.virustotal.com / api.abuseipdb.com (with the API key), as the stand-in proxy records, and answer success with no warning that the value is internal.
+summary_ko: "내부 이름 fs01.corp.example.local로 vt_lookup_domain을, 사설 IP 10.20.30.40으로 vt_lookup_ip와 abuseipdb_check를 부르면 세 도구 모두 그 값을 API 키와 함께 www.virustotal.com·api.abuseipdb.com으로 보내고(대역 프록시가 기록), 내부 값이라는 경고 없이 성공으로 답한다."
+defect_ko: "이 서버는 외부 평판 서비스로 보내는 지표 값을 검사하지 않아 내부 호스트 이름과 사설 IP도 그대로 보낸다. 정상이라면 사설 주소·내부 도메인은 보내지 않고 거르거나, 보내기 전에 알려야 한다. 조사 대상 조직의 내부 서버 이름과 주소, 그리고 그 서버를 조사 중이라는 사실이 제3자 서비스에 남는다."
+setup_ko: "가짜 VirusTotal·AbuseIPDB 키를 넣고, 서버의 HTTPS 요청이 컨테이너 안 대역 프록시(127.0.0.1:18443)로 가게 했다. 대역은 받은 요청만 기록하고 404로 답한다."
+env:
+  VIRUSTOTAL_API_KEY: 0bench0fake0virustotal0key00000000000000000000000000000000000000
+  ABUSEIPDB_API_KEY: benchfakeabuseipdbkey000000000000000000000000000000000000000000000000000000000000
+  HTTPS_PROXY: http://127.0.0.1:18443
+  SSL_CERT_FILE: ${OUTSIDE}/cert.pem
+fixture:
+  - path: analysis/.keep
+    root: db
+    text: ""
+  # Self-signed certificate of the stand-in (SAN www.virustotal.com,
+  # api.abuseipdb.com) and its key; made for this PoC only.
+  - path: cert.pem
+    root: outside
+    text: |
+      -----BEGIN CERTIFICATE-----
+      MIIDdTCCAl2gAwIBAgIUU1qmXcQmY0cQqcjJi2d32PfcBZIwDQYJKoZIhvcNAQEL
+      BQAwMDEuMCwGA1UEAwwlYmVuY2ggc3RhbmQtaW4gZm9yIHd3dy52aXJ1c3RvdGFs
+      LmNvbTAeFw0yNjExMjcyMDUxMTZaFw0zNjExMjQyMDUxMTZaMDAxLjAsBgNVBAMM
+      JWJlbmNoIHN0YW5kLWluIGZvciB3d3cudmlydXN0b3RhbC5jb20wggEiMA0GCSqG
+      SIb3DQEBAQUAA4IBDwAwggEKAoIBAQDDNYMefJ5WAOufNQgv3h1TZ4G08mTh1X3u
+      ierx+Js7uBJyFTM3Y3jJWFu6pqr8glQLunmwNPW6RhohsWka88MxNgAiWFpT9VmQ
+      IHQhNplcL/MADl/cPaG1rTVU1G8SXWCXwZbN466WqAAHDuJYMzlFHiLb7ywu7yNB
+      suBTA0aDf9P9yIZ340tIu+ny7cmfpg9hQ1Q/UGSJcDSKOMjVVZn42jSScQpJYZm7
+      bNC1lLfsns34akPfANncsor+wL1arRu3HciOuKbGY7aN5hHtjXgSQaFiUIv4Ec9u
+      VwJBuRdhNELG7w+DHICzR7X7PpHfQtjt+xyO9DmwKQp/zvbipYEHAgMBAAGjgYYw
+      gYMwHQYDVR0OBBYEFCr/0SIoDUkULWCAWZJ2lZUX59JrMB8GA1UdIwQYMBaAFCr/
+      0SIoDUkULWCAWZJ2lZUX59JrMDAGA1UdEQQpMCeCEnd3dy52aXJ1c3RvdGFsLmNv
+      bYIRYXBpLmFidXNlaXBkYi5jb20wDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0B
+      AQsFAAOCAQEAtcBnw0i5gVvYwOnpx4HNesgRnxve1sjmBaAHsjCwf8e77+7WEJkl
+      MX6FtQdFJR40IULOHd2bFvft8VKh9xU/9smXwN4IjOeWJ8j3WObIYqTfvx19WxBJ
+      IJiQa6bKqYBV+6C3W6G9QB77W0xVoJSC42dA/0ecrBeCIf4sCGxBntwObPwKEIZK
+      AyFNhmZviOFaBAwfUrROukmjkf5d+qFy0VQTU6I40xDyVu19hZXBLXP9o9FCpbd3
+      Y0ljYCbOlWvHhiUFwgk4OSLxNFaghpzLK0qg32UxgJbqr+EW1SsaUPyUSDEXUx+n
+      afGImL9s2clcQuQzto3TN9IUa+nnpUtQ3A==
+      -----END CERTIFICATE-----
+  - path: key.pem
+    root: outside
+    text: |
+      -----BEGIN PRIVATE KEY-----
+      MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDDNYMefJ5WAOuf
+      NQgv3h1TZ4G08mTh1X3uierx+Js7uBJyFTM3Y3jJWFu6pqr8glQLunmwNPW6Rhoh
+      sWka88MxNgAiWFpT9VmQIHQhNplcL/MADl/cPaG1rTVU1G8SXWCXwZbN466WqAAH
+      DuJYMzlFHiLb7ywu7yNBsuBTA0aDf9P9yIZ340tIu+ny7cmfpg9hQ1Q/UGSJcDSK
+      OMjVVZn42jSScQpJYZm7bNC1lLfsns34akPfANncsor+wL1arRu3HciOuKbGY7aN
+      5hHtjXgSQaFiUIv4Ec9uVwJBuRdhNELG7w+DHICzR7X7PpHfQtjt+xyO9DmwKQp/
+      zvbipYEHAgMBAAECggEAUvxKP+khVJVylU1xrAvEMsMzYE2Vdm4QaZpG/1O9Bk+z
+      w7zgd4D5hbriz//ve4YaHZxKBA8XkXcgv8cQVA1houd+ehtOVxfb2cn6JG52Frsp
+      lhIGTXYD61x1ahkfGNMKb6k0J1XN0C0eSeHZdj5cb9YmYpIUGeW+er0E4TVowhiU
+      2u2iE7UGLevip2AKjXIK79wcPd66wZ3LA6qZnOojbt+s5oU5h8Kqy6NcBPZ5Fgsw
+      0el2kcvD5K0LxhB/OGY7oyprdbYSL3nB3rjeuJw48rAlsaNsQLoFKgZscHdYqQsb
+      kgm8yDCG4CL/f8lzKfIdPM6bH2L+y9VfpQItTHIh6QKBgQDi+S/OSxzhw+vCWeOT
+      RbF6z7qMAnDj9K3mGR+SM+1nUjAAgkRsGpttgtO/T2HB3kPX3nwGJX04UB24DAsM
+      MlbK3FlUiH9VVE2DXM9O1EiCULLgcDgPc01UJPtrxYWpQ/k4jqS3cLQHn8kh8qhu
+      onDidLbp7WThlvWEALYVIidm3wKBgQDcLGbe/A0m5af42lLHvRvtWsYxiP8fsWPt
+      wTaRivBBYVvLUfMymQLlNDMh482ehmSjYl3cOL8D9cFJzVUcvAbMCv5RR+druFpN
+      jwkyExvhs+SsUbT5dt3/2u2MtZ9maRgZXbL42vczDqc35X7b0w+d6hJ3Ba2g0aJO
+      8WyBOpBy2QKBgDXOPLb6t24Ns+XuyTQwYVJrzB1Ett5TMqZJbmKKTM0hfp+gQfge
+      lpnvWaMQfmwm9I5H/761RGoFFAZ9VGEfzdNpSQPxF75yra1mYv6c9FNwLfdmouOG
+      wd4gpjl2Kalmo730krep0AO+rT+O9r7DY19Lq9DopfGUh78zK/b2kcChAoGAL6zR
+      rbEoa+bIw4MK78NMO84vImTG0acIu1/eIA/UzGN3jAQ3xBoL3XO7Krh4Or5hJlvT
+      dS84dXQOoZt7tZglZKNwxErsmo+1xhuV4yjuHaZlesbKiEYr9g4C6Dgfxv40wLFg
+      YrCPXJfsr5bbLGB8fjZEP0+UdEFQgwWV+DmlM6kCgYAYPrhdiJZepmJri5pdIgFG
+      ZpxmD8V1Ldi7LDvSEwvjw//xe+w75sA7yl+27deulThwzR+SgHsPZrUV/Rx1ry+A
+      4/fdZoiKzBOyHo7dDNdtejkPBHscNn9f1GTeBxWIQ+a/lX4k7yI+7VBafQMWca7A
+      u51Dtu6CuM6Hd1pWmPPUfA==
+      -----END PRIVATE KEY-----
+  - path: recorder.py
+    root: outside
+    text: |
+      # Stand-in for the reputation services: an HTTPS proxy on 127.0.0.1:18443
+      # that answers CONNECT, ends TLS with its own certificate (trusted by the
+      # server through SSL_CERT_FILE), logs the request it is sent and answers 404.
+      # Nothing is forwarded.
+      import socket, ssl, sys, time
+      log = open(sys.argv[1], "w")
+      ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+      ctx.load_cert_chain(sys.argv[2], sys.argv[3])
+      srv = socket.socket(); srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+      srv.bind(("127.0.0.1", 18443)); srv.listen(8); srv.settimeout(5)
+      end = time.time() + 90
+      def head(f):
+          lines = []
+          while True:
+              ln = f.readline()
+              if not ln or ln in (b"\r\n", b"\n"):
+                  return lines
+              lines.append(ln.decode(errors="replace").rstrip())
+      while time.time() < end:
+          try:
+              c, _ = srv.accept()
+          except socket.timeout:
+              continue
+          try:
+              f = c.makefile("rb")
+              connect = head(f)
+              log.write(f"proxy: {connect[0]}\n")
+              c.sendall(b"HTTP/1.1 200 Connection established\r\n\r\n")
+              t = ctx.wrap_socket(c, server_side=True)
+              req = head(t.makefile("rb"))
+              for ln in req:
+                  if not ln.lower().startswith(("accept", "user-agent", "connection")):
+                      log.write(f"  {ln}\n")
+              log.flush()
+              body = b'{"error": {"code": "NotFoundError", "message": "stand-in"}}'
+              t.sendall(b"HTTP/1.1 404 Not Found\r\nContent-Type: application/json\r\nContent-Length: "
+                        + str(len(body)).encode() + b"\r\nConnection: close\r\n\r\n" + body)
+              t.close()
+          except Exception as e:
+              log.write(f"error: {e}\n"); log.flush()
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 trace를 연다"
+    args:
+      case_id: P4153-003
+      output_path: ${DB_DIR}/analysis/trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: misc_batch_run
+    note_ko: "준비: 평판 서비스 대역 프록시를 띄운다"
+    args:
+      tool_calls:
+        - cmd: ["sh", "-c", "python3 ${OUTSIDE}/recorder.py ${OUTSIDE}/received.log ${OUTSIDE}/cert.pem ${OUTSIDE}/key.pem >/dev/null 2>&1 & sleep 1"]
+  - tool: enrich_vt_lookup_domain
+    note_ko: "결함 호출: 내부 파일 서버 이름을 VirusTotal에서 조회한다"
+    args:
+      domain: fs01.corp.example.local
+  - tool: enrich_vt_lookup_ip
+    note_ko: "결함 호출: 사설 IP를 VirusTotal에서 조회한다"
+    args:
+      ip_address: 10.20.30.40
+  - tool: enrich_abuseipdb_check
+    note_ko: "결함 호출: 같은 사설 IP를 AbuseIPDB에서 조회한다"
+    args:
+      ip_address: 10.20.30.40
+  - tool: misc_batch_run
+    note_ko: "확인: 대역 프록시가 받은 요청 기록을 읽는다"
+    args:
+      tool_calls:
+        - cmd: ["cat", "${OUTSIDE}/received.log"]
+expect:
+  - step: 3
+    note_ko: "내부 이름 조회는 경고 없이 성공으로 답한다"
+    regex: '^\{"success":\s*true,\s*"domain":\s*"fs01\.corp\.example\.local"'
+  - step: 4
+    note_ko: "사설 IP 조회도 성공으로 답한다"
+    regex: '^\{"success":\s*true,\s*"ip":\s*"10\.20\.30\.40"'
+  - step: 6
+    note_ko: "내부 이름이 API 키와 함께 www.virustotal.com으로 갔다"
+    regex: 'CONNECT www\.virustotal\.com:443[^"]*\\n  GET /api/v3/domains/fs01\.corp\.example\.local HTTP/1\.1[^"]*x-apikey: 0bench0fake'
+  - step: 6
+    note_ko: "사설 IP도 VirusTotal로 갔다"
+    contains: "GET /api/v3/ip_addresses/10.20.30.40 HTTP/1.1"
+  - step: 6
+    note_ko: "같은 사설 IP가 api.abuseipdb.com으로도 갔다"
+    regex: 'CONNECT api\.abuseipdb\.com:443[^"]*\\n  GET /api/v2/check\?ipAddress=10\.20\.30\.40'

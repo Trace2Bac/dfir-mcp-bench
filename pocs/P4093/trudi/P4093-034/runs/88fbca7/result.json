@@ -1,0 +1,46 @@
+{
+  "case_id": "P4093-034",
+  "problem": "P4093",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "partial: shown with 401 (rejected key) from the live services; 429 (quota) goes through the same code but is not triggered here; vt_lookup_domain is not called",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "키가 거부됐는데 해시 조회는 성공으로 끝난다",
+      "regex": "\"success\":\\s*true",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "해시가 VirusTotal에 있다고 답한다",
+      "regex": "\"found\":\\s*true",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "악성 판정 0, 검사 엔진 0으로 채운다",
+      "regex": "\"malicious\":\\s*0\\b[\\s\\S]*\"total_engines\":\\s*0\\b",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "IP 조회도 성공으로 끝나고 평판 칸이 비어 있다",
+      "regex": "\"success\":\\s*true[\\s\\S]*\"malicious\":\\s*0\\b[\\s\\S]*\"country\":\\s*null",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "AbuseIPDB도 성공으로 끝나고 점수가 비어 있다",
+      "regex": "\"success\":\\s*true[\\s\\S]*\"abuse_confidence_score\":\\s*null",
+      "ok": true
+    }
+  ],
+  "image": "sha256:a3f27a966e729d008f5bf214c9204dd04218322a499a1328161d56e2da68b2ba",
+  "ran_at": "2026-11-27T20:22:22+00:00"
+}

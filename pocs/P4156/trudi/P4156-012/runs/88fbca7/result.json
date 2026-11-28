@@ -1,0 +1,34 @@
+{
+  "case_id": "P4156-012",
+  "problem": "P4156",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "network",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: vol_info only (every vol_* call goes through the same command line); the memory dump is a minimal one holding only what vol needs to find the kernel; the symbol server is a local stand-in",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 3,
+      "note_ko": "서버는 캐시가 비었으니 vol_info로 심볼을 받으라고(인터넷 필요) 안내한다",
+      "regex": "\"symbols_ready\":\\s*false[\\s\\S]*call vol_info once to download symbols \\(requires internet\\)",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "vol은 --offline 없이 실행된다",
+      "regex": "\"cmd\":\\s*\"/usr/local/bin/vol -s [^\"]*/symbols -f [^\"]*MEMORY\\.DMP -r json windows\\.info\"",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "vol이 커널 PDB GUID를 담아 Microsoft 심볼 서버에 요청했다",
+      "regex": "proxy: GET http://msdl\\.microsoft\\.com/download/symbols/ntkrnlmp\\.pdb/B9DB443817206749BE7AA4A2C20430FA1/ntkrnlmp\\.pdb HTTP/1\\.1",
+      "ok": true
+    }
+  ],
+  "image": "sha256:57a015726b64fae303289614e23d9d0d9f40dd608a2569fd549d567d2388943d",
+  "ran_at": "2026-11-27T20:56:38+00:00"
+}

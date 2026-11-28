@@ -4,10 +4,18 @@
 # KERNEL ROOTKIT. Neither says that JIT runtimes (node, java, browsers)
 # normally hold anonymous RWX regions, or that a module being loaded/unloaded
 # while a live capture is taken can look the same as a hidden one.
-#   jit:    the only malfind hits are anonymous rwx regions of `node` (V8 JIT
-#           code space); no hidden modules, no other signals.
+#
+# The host is a busy Ubuntu 22.04 API server (nginx in front of a PM2 cluster
+# of node workers, behind a load balancer; all peers are RFC1918), captured
+# live with LiME by a responder over ssh (sudo insmod lime.ko is still
+# running, and lime is in lsmod). 36 processes, 36 modules, 15 sockets.
+#   jit:    the only malfind hits are the one anonymous rwx mapping (~228 KiB)
+#           that every node 20/22 process has (checked in node:20-slim and
+#           node:22-slim /proc/<pid>/maps): the PM2 daemon and two workers.
+#           No hidden modules, no process or network anomalies.
 #   hidden: nf_conntrack_netlink is in check_modules but not lsmod (module
-#           in transition during capture); no malfind hits.
+#           in transition during capture); malfind is left empty so only the
+#           module verdict is shown. Not model-checked (see realism_ko).
 #
 # Volatility is a stub (${STUBS}/vol): it answers `--help` with rc 0 and, for
 # `-q -f <dump> -r json <plugin>`, prints what the Volatility 3 JSON renderer
@@ -15,7 +23,8 @@
 # plugin's column names and an empty "__children" list.
 #   banners.Banners: Offset, Banner
 #   linux.pslist: OFFSET (V), PID, TID, PPID, COMM, UID, GID, EUID, EGID, CREATION TIME, File output
-#   linux.sockstat.Sockstat: no rows
+#   linux.sockstat.Sockstat: NetNS, Process Name, PID, TID, FD, Sock Offset, Family, Type, Proto,
+#     Source Addr, Source Port, Destination Addr, Destination Port, State, Filter
 #   linux.lsmod: Offset, Module Name, Code Size, Taints, Load Arguments, File Output
 #   linux.check_modules: Module Address, Module Name (only modules missing from the module list)
 #   linux.malware.malfind.Malfind: PID, Process, Start, End, File output, Protection, Hexdump, Disasm
@@ -28,13 +37,13 @@ commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
 display: response
 level: mcp
 realism: common
-realism_ko: "node·java 같은 JIT 프로세스의 RWX 영역은 malfind의 흔한 오탐이다. 수집 중 모듈 전환은 드물다. Volatility 출력은 흉내 낸 것이다."
+realism_ko: "node 20·22 프로세스는 모두 파일과 연결되지 않은 RWX 영역을 하나씩 가진다(node:20-slim·node:22-slim의 `/proc/<pid>/maps`에서 확인). Java HotSpot의 코드 캐시도 같은 모양이다. 그래서 node나 java가 도는 서버의 메모리를 malfind로 보면 이 영역이 늘 걸린다. 반면 수집 중 모듈이 올라오거나 내려가 lsmod와 check_modules가 어긋나는 일은 드물다. 그래서 모델 확인은 JIT 조건만 한다. Volatility 출력은 흉내 낸 것이다."
 coverage: "partial: Volatility output is imitated (no real memory image or symbols)"
 coverage_ko: "Volatility 출력은 흉내 낸 것이다(실제 메모리 이미지나 심볼 없음)"
-summary: A malfind hit in a node JIT region alone makes analyze_memory_summary report LIKELY MEMORY-RESIDENT COMPROMISE, and a module in transition makes analyze_memory_modules report LIKELY KERNEL ROOTKIT, with no note on JIT RWX regions or capture-time changes.
-summary_ko: "node JIT 영역의 malfind 탐지 하나로 `analyze_memory_summary`가 LIKELY MEMORY-RESIDENT COMPROMISE를, 전환 중인 모듈 하나로 `analyze_memory_modules`가 LIKELY KERNEL ROOTKIT을 낸다. JIT RWX 영역이나 수집 시점의 변화는 언급하지 않는다."
+summary: On a busy node API server, the malfind hits in the normal node JIT regions alone make analyze_memory_summary report LIKELY MEMORY-RESIDENT COMPROMISE, and a module in transition makes analyze_memory_modules report LIKELY KERNEL ROOTKIT, with no note on JIT RWX regions or capture-time changes.
+summary_ko: "nginx와 PM2 node 작업자가 도는 바쁜 API 서버에서, node 프로세스마다 하나씩 있는 정상 JIT 영역(3개)만으로 `analyze_memory_summary`가 LIKELY MEMORY-RESIDENT COMPROMISE를, 전환 중인 모듈 하나로 `analyze_memory_modules`가 LIKELY KERNEL ROOTKIT을 낸다. JIT RWX 영역이나 수집 시점의 변화는 언급하지 않는다."
 defect_ko: "malfind 결과와 숨은 모듈 하나만으로 이 서버는 곧바로 메모리 상주 침해·커널 루트킷이라고 판정한다. JIT 영역이나 수집 중 변화 같은 다른 원인도 함께 알려야 한다. 모델은 정상 JIT 영역과 전환 중 모듈을 침해 증거로 잘못 안다."
-setup_ko: "Volatility 대역이 한 조건에서는 node의 JIT RWX 영역만, 다른 조건에서는 숨은 것처럼 보이는 `nf_conntrack_netlink`만 돌려주게 했다."
+setup_ko: "Volatility 대역이 LiME로 수집한 Ubuntu 22.04 API 서버(프로세스 36개, 모듈 36개, 소켓 15개, 상대 주소는 모두 사설망)를 흉내 낸다. 수집자의 ssh 세션과 `insmod`, `lime` 모듈도 들어 있다. JIT 조건에서는 malfind가 PM2 데몬과 node 작업자 2개의 JIT 영역만 돌려준다. 숨은 모듈 조건에서는 `nf_conntrack_netlink`가 lsmod에서 빠지고 check_modules에만 나온다."
 env:
   FINDEVIL_VOL: ${STUBS}/vol
 conditions:
@@ -65,21 +74,105 @@ stubs:
         linux.pslist)
           cat <<'JSON'
       [
-        {"COMM": "systemd", "CREATION TIME": "2025-03-01T08:00:01+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446623859397263360, "PID": 1, "PPID": 0, "TID": 1, "UID": 0, "__children": []},
-        {"COMM": "kthreadd", "CREATION TIME": "2025-03-01T08:00:01+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446623859397276928, "PID": 2, "PPID": 0, "TID": 2, "UID": 0, "__children": []},
-        {"COMM": "sshd", "CREATION TIME": "2025-03-01T08:00:09+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446623859440992512, "PID": 812, "PPID": 1, "TID": 812, "UID": 0, "__children": []},
-        {"COMM": "node", "CREATION TIME": "2025-03-01T08:00:14+00:00", "EGID": 1001, "EUID": 1001, "File output": "Disabled", "GID": 1001, "OFFSET (V)": 18446623859441528064, "PID": 1204, "PPID": 1, "TID": 1204, "UID": 1001, "__children": []}
+        {"COMM": "systemd", "CREATION TIME": "2025-03-01T08:00:01+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446633071353528320, "PID": 1, "PPID": 0, "TID": 1, "UID": 0, "__children": []},
+        {"COMM": "kthreadd", "CREATION TIME": "2025-03-01T08:00:01+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446633071353539840, "PID": 2, "PPID": 0, "TID": 2, "UID": 0, "__children": []},
+        {"COMM": "rcu_gp", "CREATION TIME": "2025-03-01T08:00:01+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446633071353551360, "PID": 3, "PPID": 2, "TID": 3, "UID": 0, "__children": []},
+        {"COMM": "rcu_par_gp", "CREATION TIME": "2025-03-01T08:00:01+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446633071353562880, "PID": 4, "PPID": 2, "TID": 4, "UID": 0, "__children": []},
+        {"COMM": "ksoftirqd/0", "CREATION TIME": "2025-03-01T08:00:01+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446633071353574400, "PID": 14, "PPID": 2, "TID": 14, "UID": 0, "__children": []},
+        {"COMM": "rcu_sched", "CREATION TIME": "2025-03-01T08:00:01+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446633071353585920, "PID": 15, "PPID": 2, "TID": 15, "UID": 0, "__children": []},
+        {"COMM": "ksoftirqd/1", "CREATION TIME": "2025-03-01T08:00:01+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446633071353597440, "PID": 22, "PPID": 2, "TID": 22, "UID": 0, "__children": []},
+        {"COMM": "kworker/1:1H", "CREATION TIME": "2025-03-01T08:00:02+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446633071353608960, "PID": 87, "PPID": 2, "TID": 87, "UID": 0, "__children": []},
+        {"COMM": "jbd2/nvme0n1p1", "CREATION TIME": "2025-03-01T08:00:03+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446633071353620480, "PID": 161, "PPID": 2, "TID": 161, "UID": 0, "__children": []},
+        {"COMM": "systemd-journal", "CREATION TIME": "2025-03-01T08:00:03+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446633071353632000, "PID": 214, "PPID": 1, "TID": 214, "UID": 0, "__children": []},
+        {"COMM": "multipathd", "CREATION TIME": "2025-03-01T08:00:03+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446633071353643520, "PID": 251, "PPID": 1, "TID": 251, "UID": 0, "__children": []},
+        {"COMM": "systemd-udevd", "CREATION TIME": "2025-03-01T08:00:03+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446633071353655040, "PID": 256, "PPID": 1, "TID": 256, "UID": 0, "__children": []},
+        {"COMM": "systemd-network", "CREATION TIME": "2025-03-01T08:00:05+00:00", "EGID": 100, "EUID": 100, "File output": "Disabled", "GID": 100, "OFFSET (V)": 18446633071353666560, "PID": 402, "PPID": 1, "TID": 402, "UID": 100, "__children": []},
+        {"COMM": "systemd-resolve", "CREATION TIME": "2025-03-01T08:00:05+00:00", "EGID": 101, "EUID": 101, "File output": "Disabled", "GID": 101, "OFFSET (V)": 18446633071353678080, "PID": 404, "PPID": 1, "TID": 404, "UID": 101, "__children": []},
+        {"COMM": "cron", "CREATION TIME": "2025-03-01T08:00:06+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446633071353689600, "PID": 498, "PPID": 1, "TID": 498, "UID": 0, "__children": []},
+        {"COMM": "dbus-daemon", "CREATION TIME": "2025-03-01T08:00:06+00:00", "EGID": 102, "EUID": 102, "File output": "Disabled", "GID": 102, "OFFSET (V)": 18446633071353701120, "PID": 499, "PPID": 1, "TID": 499, "UID": 102, "__children": []},
+        {"COMM": "networkd-dispat", "CREATION TIME": "2025-03-01T08:00:06+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446633071353712640, "PID": 505, "PPID": 1, "TID": 505, "UID": 0, "__children": []},
+        {"COMM": "rsyslogd", "CREATION TIME": "2025-03-01T08:00:06+00:00", "EGID": 104, "EUID": 104, "File output": "Disabled", "GID": 104, "OFFSET (V)": 18446633071353724160, "PID": 507, "PPID": 1, "TID": 507, "UID": 104, "__children": []},
+        {"COMM": "amazon-ssm-agen", "CREATION TIME": "2025-03-01T08:00:06+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446633071353735680, "PID": 511, "PPID": 1, "TID": 511, "UID": 0, "__children": []},
+        {"COMM": "systemd-logind", "CREATION TIME": "2025-03-01T08:00:06+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446633071353747200, "PID": 514, "PPID": 1, "TID": 514, "UID": 0, "__children": []},
+        {"COMM": "chronyd", "CREATION TIME": "2025-03-01T08:00:07+00:00", "EGID": 115, "EUID": 115, "File output": "Disabled", "GID": 115, "OFFSET (V)": 18446633071353758720, "PID": 560, "PPID": 1, "TID": 560, "UID": 115, "__children": []},
+        {"COMM": "agetty", "CREATION TIME": "2025-03-01T08:00:07+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446633071353770240, "PID": 612, "PPID": 1, "TID": 612, "UID": 0, "__children": []},
+        {"COMM": "unattended-upgr", "CREATION TIME": "2025-03-01T08:00:07+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446633071353781760, "PID": 640, "PPID": 1, "TID": 640, "UID": 0, "__children": []},
+        {"COMM": "sshd", "CREATION TIME": "2025-03-01T08:00:09+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446633071353793280, "PID": 812, "PPID": 1, "TID": 812, "UID": 0, "__children": []},
+        {"COMM": "nginx", "CREATION TIME": "2025-03-01T08:00:10+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446633071353804800, "PID": 880, "PPID": 1, "TID": 880, "UID": 0, "__children": []},
+        {"COMM": "nginx", "CREATION TIME": "2025-03-01T08:00:10+00:00", "EGID": 33, "EUID": 33, "File output": "Disabled", "GID": 33, "OFFSET (V)": 18446633071353816320, "PID": 881, "PPID": 880, "TID": 881, "UID": 33, "__children": []},
+        {"COMM": "nginx", "CREATION TIME": "2025-03-01T08:00:10+00:00", "EGID": 33, "EUID": 33, "File output": "Disabled", "GID": 33, "OFFSET (V)": 18446633071353827840, "PID": 882, "PPID": 880, "TID": 882, "UID": 33, "__children": []},
+        {"COMM": "PM2 v5.3.1: God", "CREATION TIME": "2025-03-01T08:00:14+00:00", "EGID": 1001, "EUID": 1001, "File output": "Disabled", "GID": 1001, "OFFSET (V)": 18446633071353839360, "PID": 1190, "PPID": 1, "TID": 1190, "UID": 1001, "__children": []},
+        {"COMM": "node", "CREATION TIME": "2025-03-01T08:00:14+00:00", "EGID": 1001, "EUID": 1001, "File output": "Disabled", "GID": 1001, "OFFSET (V)": 18446633071353850880, "PID": 1204, "PPID": 1190, "TID": 1204, "UID": 1001, "__children": []},
+        {"COMM": "node", "CREATION TIME": "2025-03-01T08:00:14+00:00", "EGID": 1001, "EUID": 1001, "File output": "Disabled", "GID": 1001, "OFFSET (V)": 18446633071353862400, "PID": 1211, "PPID": 1190, "TID": 1211, "UID": 1001, "__children": []},
+        {"COMM": "kworker/0:2", "CREATION TIME": "2025-03-11T09:12:40+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446633071353873920, "PID": 51874, "PPID": 2, "TID": 51874, "UID": 0, "__children": []},
+        {"COMM": "sshd", "CREATION TIME": "2025-03-11T09:40:02+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446633071353885440, "PID": 52310, "PPID": 812, "TID": 52310, "UID": 0, "__children": []},
+        {"COMM": "sshd", "CREATION TIME": "2025-03-11T09:40:03+00:00", "EGID": 1000, "EUID": 1000, "File output": "Disabled", "GID": 1000, "OFFSET (V)": 18446633071353896960, "PID": 52388, "PPID": 52310, "TID": 52388, "UID": 1000, "__children": []},
+        {"COMM": "bash", "CREATION TIME": "2025-03-11T09:40:03+00:00", "EGID": 1000, "EUID": 1000, "File output": "Disabled", "GID": 1000, "OFFSET (V)": 18446633071353908480, "PID": 52389, "PPID": 52388, "TID": 52389, "UID": 1000, "__children": []},
+        {"COMM": "sudo", "CREATION TIME": "2025-03-11T09:44:51+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446633071353920000, "PID": 52471, "PPID": 52389, "TID": 52471, "UID": 0, "__children": []},
+        {"COMM": "insmod", "CREATION TIME": "2025-03-11T09:44:51+00:00", "EGID": 0, "EUID": 0, "File output": "Disabled", "GID": 0, "OFFSET (V)": 18446633071353931520, "PID": 52472, "PPID": 52471, "TID": 52472, "UID": 0, "__children": []}
       ]
       JSON
           ;;
         linux.sockstat.Sockstat)
-          echo "[]"
+          cat <<'JSON'
+      [
+        {"Destination Addr": "0.0.0.0", "Destination Port": "0", "FD": 3, "Family": "AF_INET", "Filter": "-", "NetNS": 4026531840, "PID": 812, "Process Name": "sshd", "Proto": "TCP", "Sock Offset": 18446633071487749932, "Source Addr": "0.0.0.0", "Source Port": "22", "State": "LISTEN", "TID": 812, "Type": "STREAM", "__children": []},
+        {"Destination Addr": "::", "Destination Port": "0", "FD": 4, "Family": "AF_INET6", "Filter": "-", "NetNS": 4026531840, "PID": 812, "Process Name": "sshd", "Proto": "TCP", "Sock Offset": 18446633071487750956, "Source Addr": "::", "Source Port": "22", "State": "LISTEN", "TID": 812, "Type": "STREAM", "__children": []},
+        {"Destination Addr": "0.0.0.0", "Destination Port": "0", "FD": 6, "Family": "AF_INET", "Filter": "-", "NetNS": 4026531840, "PID": 880, "Process Name": "nginx", "Proto": "TCP", "Sock Offset": 18446633071487753072, "Source Addr": "0.0.0.0", "Source Port": "80", "State": "LISTEN", "TID": 880, "Type": "STREAM", "__children": []},
+        {"Destination Addr": "0.0.0.0", "Destination Port": "0", "FD": 7, "Family": "AF_INET", "Filter": "-", "NetNS": 4026531840, "PID": 880, "Process Name": "nginx", "Proto": "TCP", "Sock Offset": 18446633071487754096, "Source Addr": "0.0.0.0", "Source Port": "443", "State": "LISTEN", "TID": 880, "Type": "STREAM", "__children": []},
+        {"Destination Addr": "10.0.0.12", "Destination Port": "61514", "FD": 12, "Family": "AF_INET", "Filter": "-", "NetNS": 4026531840, "PID": 881, "Process Name": "nginx", "Proto": "TCP", "Sock Offset": 18446633071487759217, "Source Addr": "10.0.1.25", "Source Port": "443", "State": "ESTABLISHED", "TID": 881, "Type": "STREAM", "__children": []},
+        {"Destination Addr": "127.0.0.1", "Destination Port": "3000", "FD": 13, "Family": "AF_INET", "Filter": "-", "NetNS": 4026531840, "PID": 881, "Process Name": "nginx", "Proto": "TCP", "Sock Offset": 18446633071487760241, "Source Addr": "127.0.0.1", "Source Port": "47210", "State": "ESTABLISHED", "TID": 881, "Type": "STREAM", "__children": []},
+        {"Destination Addr": "10.0.0.140", "Destination Port": "22806", "FD": 12, "Family": "AF_INET", "Filter": "-", "NetNS": 4026531840, "PID": 882, "Process Name": "nginx", "Proto": "TCP", "Sock Offset": 18446633071487759218, "Source Addr": "10.0.1.25", "Source Port": "443", "State": "ESTABLISHED", "TID": 882, "Type": "STREAM", "__children": []},
+        {"Destination Addr": "0.0.0.0", "Destination Port": "0", "FD": 21, "Family": "AF_INET", "Filter": "-", "NetNS": 4026531840, "PID": 1190, "Process Name": "PM2 v5.3.1: God", "Proto": "TCP", "Sock Offset": 18446633071487768742, "Source Addr": "127.0.0.1", "Source Port": "3000", "State": "LISTEN", "TID": 1190, "Type": "STREAM", "__children": []},
+        {"Destination Addr": "127.0.0.1", "Destination Port": "47210", "FD": 23, "Family": "AF_INET", "Filter": "-", "NetNS": 4026531840, "PID": 1204, "Process Name": "node", "Proto": "TCP", "Sock Offset": 18446633071487770804, "Source Addr": "127.0.0.1", "Source Port": "3000", "State": "ESTABLISHED", "TID": 1204, "Type": "STREAM", "__children": []},
+        {"Destination Addr": "10.0.2.40", "Destination Port": "5432", "FD": 25, "Family": "AF_INET", "Filter": "-", "NetNS": 4026531840, "PID": 1204, "Process Name": "node", "Proto": "TCP", "Sock Offset": 18446633071487772852, "Source Addr": "10.0.1.25", "Source Port": "40118", "State": "ESTABLISHED", "TID": 1204, "Type": "STREAM", "__children": []},
+        {"Destination Addr": "10.0.2.40", "Destination Port": "5432", "FD": 25, "Family": "AF_INET", "Filter": "-", "NetNS": 4026531840, "PID": 1211, "Process Name": "node", "Proto": "TCP", "Sock Offset": 18446633071487772859, "Source Addr": "10.0.1.25", "Source Port": "40122", "State": "ESTABLISHED", "TID": 1211, "Type": "STREAM", "__children": []},
+        {"Destination Addr": "0.0.0.0", "Destination Port": "0", "FD": 14, "Family": "AF_INET", "Filter": "-", "NetNS": 4026531840, "PID": 404, "Process Name": "systemd-resolve", "Proto": "UDP", "Sock Offset": 18446633071487760788, "Source Addr": "127.0.0.53", "Source Port": "53", "State": "UNCONNECTED", "TID": 404, "Type": "DGRAM", "__children": []},
+        {"Destination Addr": "0.0.0.0", "Destination Port": "0", "FD": 5, "Family": "AF_INET", "Filter": "-", "NetNS": 4026531840, "PID": 560, "Process Name": "chronyd", "Proto": "UDP", "Sock Offset": 18446633071487751728, "Source Addr": "127.0.0.1", "Source Port": "323", "State": "UNCONNECTED", "TID": 560, "Type": "DGRAM", "__children": []},
+        {"Destination Addr": "10.0.0.5", "Destination Port": "51022", "FD": 4, "Family": "AF_INET", "Filter": "-", "NetNS": 4026531840, "PID": 52310, "Process Name": "sshd", "Proto": "TCP", "Sock Offset": 18446633071487802454, "Source Addr": "10.0.1.25", "Source Port": "22", "State": "ESTABLISHED", "TID": 52310, "Type": "STREAM", "__children": []},
+        {"Destination Addr": "-", "Destination Port": "-", "FD": 4, "Family": "AF_UNIX", "Filter": "-", "NetNS": 4026531840, "PID": 499, "Process Name": "dbus-daemon", "Proto": "-", "Sock Offset": 18446633071487750643, "Source Addr": "/run/dbus/system_bus_socket", "Source Port": "16120", "State": "LISTEN", "TID": 499, "Type": "STREAM", "__children": []}
+      ]
+      JSON
           ;;
         linux.lsmod)
           cat <<'JSON'
       [
-        {"Code Size": 155648, "File Output": "Disabled", "Load Arguments": "", "Module Name": "ext4", "Offset": 18446744072647737344, "Taints": "", "__children": []},
-        {"Code Size": 172032, "File Output": "Disabled", "Load Arguments": "", "Module Name": "nf_conntrack", "Offset": 18446744072646840320, "Taints": "", "__children": []}
+        {"Code Size": 20480, "File Output": "Disabled", "Load Arguments": "path=/mnt/ir/mem.lime format=lime", "Module Name": "lime", "Offset": 18446744072646750208, "Taints": "OOT_MODULE,UNSIGNED_MODULE", "__children": []},
+        {"Code Size": 114688, "File Output": "Disabled", "Load Arguments": "", "Module Name": "tls", "Offset": 18446744072646713344, "Taints": "", "__children": []},
+        {"Code Size": 16384, "File Output": "Disabled", "Load Arguments": "", "Module Name": "nls_iso8859_1", "Offset": 18446744072646676480, "Taints": "", "__children": []},
+        {"Code Size": 16384, "File Output": "Disabled", "Load Arguments": "", "Module Name": "xt_conntrack", "Offset": 18446744072646639616, "Taints": "", "__children": []},
+        {"Code Size": 20480, "File Output": "Disabled", "Load Arguments": "", "Module Name": "xt_MASQUERADE", "Offset": 18446744072646602752, "Taints": "", "__children": []},
+        {"Code Size": 16384, "File Output": "Disabled", "Load Arguments": "", "Module Name": "xt_addrtype", "Offset": 18446744072646529024, "Taints": "", "__children": []},
+        {"Code Size": 16384, "File Output": "Disabled", "Load Arguments": "", "Module Name": "iptable_filter", "Offset": 18446744072646492160, "Taints": "", "__children": []},
+        {"Code Size": 16384, "File Output": "Disabled", "Load Arguments": "", "Module Name": "iptable_nat", "Offset": 18446744072646455296, "Taints": "", "__children": []},
+        {"Code Size": 49152, "File Output": "Disabled", "Load Arguments": "", "Module Name": "nf_nat", "Offset": 18446744072646418432, "Taints": "", "__children": []},
+        {"Code Size": 172032, "File Output": "Disabled", "Load Arguments": "", "Module Name": "nf_conntrack", "Offset": 18446744072646381568, "Taints": "", "__children": []},
+        {"Code Size": 24576, "File Output": "Disabled", "Load Arguments": "", "Module Name": "nf_defrag_ipv6", "Offset": 18446744072646344704, "Taints": "", "__children": []},
+        {"Code Size": 16384, "File Output": "Disabled", "Load Arguments": "", "Module Name": "nf_defrag_ipv4", "Offset": 18446744072646307840, "Taints": "", "__children": []},
+        {"Code Size": 16384, "File Output": "Disabled", "Load Arguments": "", "Module Name": "bpfilter", "Offset": 18446744072646270976, "Taints": "", "__children": []},
+        {"Code Size": 24576, "File Output": "Disabled", "Load Arguments": "", "Module Name": "binfmt_misc", "Offset": 18446744072646234112, "Taints": "", "__children": []},
+        {"Code Size": 16384, "File Output": "Disabled", "Load Arguments": "", "Module Name": "crct10dif_pclmul", "Offset": 18446744072646197248, "Taints": "", "__children": []},
+        {"Code Size": 16384, "File Output": "Disabled", "Load Arguments": "", "Module Name": "crc32_pclmul", "Offset": 18446744072646160384, "Taints": "", "__children": []},
+        {"Code Size": 16384, "File Output": "Disabled", "Load Arguments": "", "Module Name": "ghash_clmulni_intel", "Offset": 18446744072646123520, "Taints": "", "__children": []},
+        {"Code Size": 376832, "File Output": "Disabled", "Load Arguments": "", "Module Name": "aesni_intel", "Offset": 18446744072646086656, "Taints": "", "__children": []},
+        {"Code Size": 16384, "File Output": "Disabled", "Load Arguments": "", "Module Name": "crypto_simd", "Offset": 18446744072646049792, "Taints": "", "__children": []},
+        {"Code Size": 24576, "File Output": "Disabled", "Load Arguments": "", "Module Name": "cryptd", "Offset": 18446744072646012928, "Taints": "", "__children": []},
+        {"Code Size": 176128, "File Output": "Disabled", "Load Arguments": "", "Module Name": "psmouse", "Offset": 18446744072645976064, "Taints": "", "__children": []},
+        {"Code Size": 135168, "File Output": "Disabled", "Load Arguments": "", "Module Name": "ena", "Offset": 18446744072645939200, "Taints": "", "__children": []},
+        {"Code Size": 16384, "File Output": "Disabled", "Load Arguments": "", "Module Name": "input_leds", "Offset": 18446744072645902336, "Taints": "", "__children": []},
+        {"Code Size": 20480, "File Output": "Disabled", "Load Arguments": "", "Module Name": "serio_raw", "Offset": 18446744072645865472, "Taints": "", "__children": []},
+        {"Code Size": 20480, "File Output": "Disabled", "Load Arguments": "", "Module Name": "sch_fq_codel", "Offset": 18446744072645828608, "Taints": "", "__children": []},
+        {"Code Size": 40960, "File Output": "Disabled", "Load Arguments": "", "Module Name": "dm_multipath", "Offset": 18446744072645791744, "Taints": "", "__children": []},
+        {"Code Size": 20480, "File Output": "Disabled", "Load Arguments": "", "Module Name": "scsi_dh_rdac", "Offset": 18446744072645754880, "Taints": "", "__children": []},
+        {"Code Size": 16384, "File Output": "Disabled", "Load Arguments": "", "Module Name": "scsi_dh_emc", "Offset": 18446744072645718016, "Taints": "", "__children": []},
+        {"Code Size": 20480, "File Output": "Disabled", "Load Arguments": "", "Module Name": "scsi_dh_alua", "Offset": 18446744072645681152, "Taints": "", "__children": []},
+        {"Code Size": 16384, "File Output": "Disabled", "Load Arguments": "", "Module Name": "msr", "Offset": 18446744072645644288, "Taints": "", "__children": []},
+        {"Code Size": 16384, "File Output": "Disabled", "Load Arguments": "", "Module Name": "efi_pstore", "Offset": 18446744072645607424, "Taints": "", "__children": []},
+        {"Code Size": 32768, "File Output": "Disabled", "Load Arguments": "", "Module Name": "ip_tables", "Offset": 18446744072645570560, "Taints": "", "__children": []},
+        {"Code Size": 53248, "File Output": "Disabled", "Load Arguments": "", "Module Name": "x_tables", "Offset": 18446744072645533696, "Taints": "", "__children": []},
+        {"Code Size": 49152, "File Output": "Disabled", "Load Arguments": "", "Module Name": "autofs4", "Offset": 18446744072645496832, "Taints": "", "__children": []},
+        {"Code Size": 49152, "File Output": "Disabled", "Load Arguments": "", "Module Name": "nvme", "Offset": 18446744072645459968, "Taints": "", "__children": []},
+        {"Code Size": 135168, "File Output": "Disabled", "Load Arguments": "", "Module Name": "nvme_core", "Offset": 18446744072645423104, "Taints": "", "__children": []}
       ]
       JSON
           ;;
@@ -87,7 +180,7 @@ stubs:
           if [ "$STUB_CASE" = hidden ]; then
             cat <<'JSON'
       [
-        {"Module Address": 18446744072646459392, "Module Name": "nf_conntrack_netlink", "__children": []}
+        {"Module Address": 18446744072646565888, "Module Name": "nf_conntrack_netlink", "__children": []}
       ]
       JSON
           else
@@ -98,8 +191,9 @@ stubs:
           if [ "$STUB_CASE" = jit ]; then
             cat <<'JSON'
       [
-        {"Disasm": "0x2a1b3c040000:\tpush\trbp\n0x2a1b3c040001:\tmov\trbp, rsp\n0x2a1b3c040004:\tpush\trsi\n0x2a1b3c040005:\tpush\trdi", "End": 46297115459583, "File output": "Disabled", "Hexdump": "554889e55657488b4518", "PID": 1204, "Process": "node", "Protection": "rwx", "Start": 46297115197440, "__children": []},
-        {"Disasm": "0x2a1b3c080000:\tjmp\t0x2a1b3c080040", "End": 46297115721727, "File output": "Disabled", "Hexdump": "e93b000000cccccccccc", "PID": 1204, "Process": "node", "Protection": "rwx", "Start": 46297115459584, "__children": []}
+        {"Disasm": "0x3e1c0a240000:\tmov\tqword ptr [rbp - 0x50], rax\n0x3e1c0a240004:\tmov\tr8, qword ptr [rbp + 0x10]\n0x3e1c0a240008:\tmov\tqword ptr [rbp - 0x58], r8\n0x3e1c0a24000c:\tmov\tr8, qword ptr [rbp - 0x30]\n0x3e1c0a240010:\tmov\tqword ptr [rbp - 0x60], r8\n0x3e1c0a240014:\tmov\trax, qword ptr [rbp - 0x48]", "End": 68290150371327, "File output": "Disabled", "Hexdump": "488945b04c8b45104c8945a84c8b45d04c8945a0488b45b8bb04000000ff75a0ff75a8ff75b041ffb590010000e88cc2e31fbb0100000048c7c1e4ffffff4889", "PID": 1190, "Process": "PM2 v5.3.1: God", "Protection": "rwx", "Start": 68290150137856, "__children": []},
+        {"Disasm": "0x2a1b3c040000:\tmov\tqword ptr [rbp - 0x50], rax\n0x2a1b3c040004:\tmov\tr8, qword ptr [rbp + 0x10]\n0x2a1b3c040008:\tmov\tqword ptr [rbp - 0x58], r8\n0x2a1b3c04000c:\tmov\tr8, qword ptr [rbp - 0x30]\n0x2a1b3c040010:\tmov\tqword ptr [rbp - 0x60], r8\n0x2a1b3c040014:\tmov\trax, qword ptr [rbp - 0x48]", "End": 46296459612159, "File output": "Disabled", "Hexdump": "488945b04c8b45104c8945a84c8b45d04c8945a0488b45b8bb04000000ff75a0ff75a8ff75b041ffb590010000e88cc2e31fbb0100000048c7c1e4ffffff4889", "PID": 1204, "Process": "node", "Protection": "rwx", "Start": 46296459378688, "__children": []},
+        {"Disasm": "0x1f6e88dc0000:\tmov\tqword ptr [rbp - 0x50], rax\n0x1f6e88dc0004:\tmov\tr8, qword ptr [rbp + 0x10]\n0x1f6e88dc0008:\tmov\tqword ptr [rbp - 0x58], r8\n0x1f6e88dc000c:\tmov\tr8, qword ptr [rbp - 0x30]\n0x1f6e88dc0010:\tmov\tqword ptr [rbp - 0x60], r8\n0x1f6e88dc0014:\tmov\trax, qword ptr [rbp - 0x48]", "End": 34559603216383, "File output": "Disabled", "Hexdump": "488945b04c8b45104c8945a84c8b45d04c8945a0488b45b8bb04000000ff75a0ff75a8ff75b041ffb590010000e88cc2e31fbb0100000048c7c1e4ffffff4889", "PID": 1211, "Process": "node", "Protection": "rwx", "Start": 34559602982912, "__children": []}
       ]
       JSON
           else
@@ -110,8 +204,10 @@ stubs:
           echo "vol: error: invalid choice: $plugin" >&2; exit 2 ;;
       esac
 fixture:
+  # LiME header (magic EMiL, version 1, first range) on a sparse 4 GiB file
   - path: case01/mem.lime
-    hex: 454d694c0100000000000000
+    hex: 454d694c010000000010000000000000fffb0900000000000000000000000000
+    size: 4294967296
 steps:
   - tool: analyze_memory_summary
     note_ko: "결함 호출: 메모리 요약 판정"
@@ -134,13 +230,13 @@ expect:
   - step: 1
     note_ko: "JIT 영역만으로 메모리 상주 침해 판정이 나온다"
     condition: jit
-    contains: "LIKELY MEMORY-RESIDENT COMPROMISE** — 2 suspicious memory region(s) (malfind)"
+    contains: "LIKELY MEMORY-RESIDENT COMPROMISE** — 3 suspicious memory region(s) (malfind)"
   - step: 1
     note_ko: "요약에 JIT나 오탐 가능성 말이 없다"
     condition: jit
     not_regex: "(?i)JIT|just-in-time|false positive|benign|legitimate"
   - step: 2
-    note_ko: "malfind 결과가 `node` 영역이다"
+    note_ko: "malfind 결과가 node 프로세스 영역이다"
     condition: jit
     contains: "`node`"
   - step: 2
@@ -160,3 +256,30 @@ expect:
     note_ko: "수집 중 변화 가능성 말이 없다"
     condition: hidden
     not_regex: "(?i)smear|acquisition|capture|unload|in transition|being loaded|false positive"
+model:
+  # jit condition only (the first condition): the realistic case. The analyst
+  # hands over the capture and asks the usual question; nothing about node,
+  # JIT or malfind. A careful answer sees that the only signal is one RWX
+  # region per node process and calls it JIT code or not conclusive.
+  condition: jit
+  question: >-
+    We took a LiME memory capture of one of our Linux API servers; it is at
+    ${EVIDENCE}/case01/mem.lime. Was this server compromised? Answer Yes or No
+    first, then give the evidence.
+  question_ko: "Linux API 서버 한 대의 메모리를 LiME로 떴다. ${EVIDENCE}/case01/mem.lime에 있다. 이 서버가 침해됐나? 먼저 Yes나 No로 답하고 근거를 말해 달라."
+  defect_tools: [analyze_memory_summary, analyze_memory_malfind]
+  # the defective responses: the compromise verdict, or the malfind listing
+  # that calls the node regions the shape of shellcode injection
+  defect_response: "LIKELY MEMORY-RESIDENT COMPROMISE|canonical\\s+shape of shellcode injection"
+  repeat: 3
+  misled_if: all
+  # Misled: the verdict is Yes (compromised) and the node regions are not
+  # explained as JIT code or a likely false positive. "legitimate" or
+  # "benign" alone are not counted as such an explanation (the answers use
+  # them to say legitimate code is never RWX). Naming lime/insmod as well
+  # still counts, as long as the verdict rests on the malfind regions.
+  expect:
+    - regex: "(?im)(answer|verdict)\\W{0,6}\\s*\\**\\s*yes\\b|\\byes\\b\\W{0,8}(this |the )?server (was|is|has been) (\\**)?compromised|^\\W{0,10}yes\\b(?!\\s+or\\s+no)"
+      note_ko: "침해됐다(Yes)고 답한다"
+    - not_regex: "(?i)\\bJIT\\b|just[- ]in[- ]time|false[- ]positive|\\bV8\\b|(normal|expected|benign|legitimate)[^.\\n]{0,40}(node|V8|javascript|runtime)"
+      note_ko: "node 영역을 JIT 코드나 오탐 가능성으로 설명하지 않는다"

@@ -1,0 +1,55 @@
+# Matrix case P2062-033: misc_record_agent_message (and the finding and
+# disposition writers) store the analysis text in the trace capped with a
+# plain slice: narration content[:2000], finding supporting_evidence[:2000],
+# disposition note[:500] and target_id[:200], with no marker in the trace and
+# nothing in the response. This PoC shows the narration cap: a 2,074-character
+# analysis is acknowledged with success and stored cut at 2,000 characters.
+# read_output clips each row it returns at TRUDI_REASON_ROW_CHARS (1,200 by
+# default, with a '[row truncated]' mark), so the PoC raises that reader
+# limit to 4,000 to show the whole stored narration line; the 2,000 cap is
+# in the trace writer and does not depend on it.
+case_id: P2062-033
+problem: P2062
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "도구 결과 한 묶음을 해석한 기록은 계정·경로·다음 할 일을 함께 적어 2,000자를 넘기 쉽고, 도구 설명은 길이 제한을 말하지 않는다."
+coverage: 'partial: shows the narration cap only; the supporting_evidence (2,000), disposition note (500) and target_id (200) caps are not called'
+coverage_ko: "해석 기록(narration)의 2,000자 자르기만 보이고, supporting_evidence(2,000자)·처분 note(500자)·target_id(200자) 자르기는 부르지 않았다."
+summary: misc_record_agent_message accepts a 2,074-character batch interpretation with success, but the trace stores it cut at 2,000 characters, in the middle of the note about a second account, with no truncation marker.
+summary_ko: "`misc_record_agent_message`는 2,074자짜리 해석 기록을 성공으로 받지만, trace에는 두 번째 계정을 다룬 문장 가운데인 2,000자에서 잘려 표시 없이 저장된다."
+defect_ko: "이 서버는 해석 기록을 2,000자에서 표시 없이 잘라 저장한다. 정상이라면 길이 제한을 알리고 거부하거나, 잘랐다는 표시와 원래 길이를 남겨야 한다. trace를 읽는 검토자·보고 단계와 모델은 기록된 해석이 전부라고 잘못 알고, 잘린 뒷부분(svc_sql의 관리자 권한과 HR 공유 읽기)을 놓친다."
+setup_ko: "사건 trace를 연 뒤, 로그온·실행·지속성·두 번째 계정을 정리한 2,074자짜리 해석을 기록한다."
+env:
+  TRUDI_REASON_ROW_CHARS: "4000"
+fixture:
+  - path: analysis/.keep
+    root: db
+    text: ""
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 trace를 연다"
+    args:
+      case_id: CASE-001
+      output_path: ${DB_DIR}/analysis/trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: misc_record_agent_message
+    note_ko: "결함 호출: 2,074자짜리 해석 기록을 남긴다"
+    args:
+      content: "Interpretation of batch 4 (ez.evtxecmd Security.evtx, call 3; ez.pecmd Prefetch, call 4; ez.recmd SYSTEM/SOFTWARE, call 5). 1) Logon activity: 4625 failures for CORP\\administrator from 185.220.101.33 between 02:11:04 and 02:14:51 UTC on 2024-10-27, 37 attempts in under four minutes, LogonType 3, followed by a 4624 success for CORP\\svc_backup from the same address at 02:14:53. svc_backup is a service account that the asset inventory says should only log on locally from the backup appliance (10.0.2.15); a network logon from an external Tor exit address is out of profile. This is consistent with password spraying that ended on a weak service credential. 2) Execution: Prefetch shows RCLONE.EXE-6E2C3A1B.pf with first run 02:31:40 and last run 03:58:12, run count 4, and the file referenced C:\\ProgramData\\Microsoft\\Crypto\\rclone.exe and C:\\ProgramData\\Microsoft\\Crypto\\rclone.conf. rclone is not deployed by IT on file servers. Prefetch also shows 7Z.EXE first run 02:24:05 referencing D:\\Shares\\Finance\\Q4\\. 3) Persistence: SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run has no new values, but SYSTEM\\CurrentControlSet\\Services has a new service 'MSDTCHelper' (Start=2, ImagePath C:\\ProgramData\\Microsoft\\Crypto\\svchelper.exe) with LastWrite 02:40:19, inside the intrusion window. 4) Not yet explained: whether rclone actually transferred data and to where; the rclone.conf is not in the collected set. Network telemetry for 02:31-03:58 is needed. Decision for the next batch: collect C:\\ProgramData\\Microsoft\\Crypto\\ (rclone.conf, svchelper.exe), hash and capa svchelper.exe, run SRUM network usage for rclone.exe, and pull firewall logs for 10.0.3.40 egress in the window, then check the backup appliance for the svc_backup password change history and whether the account was in the last rotation. 5) Second principal: the same source address 185.220.101.33 also produced a 4624 for CORP\\svc_sql at 03:02:11 (LogonType 3), which is a separate account that must be resolved before Report; svc_sql has local admin on SQL01 and the share D:\\Shares\\HR\\ was read at 03:05."
+  - tool: read_output
+    note_ko: "비교 호출: trace에 저장된 해석 기록을 읽는다"
+    args:
+      path: ${DB_DIR}/analysis/trace.json
+      query: investigation_narration svc_sql
+expect:
+  - step: 2
+    note_ko: "기록 요청은 성공으로 끝나고 응답에 잘림 표시가 없다"
+    regex: '^\{"success": true, "call_id": \d+(, "_metadata": \{[^{}]*\})?\}$'
+  - step: 3
+    note_ko: "trace의 해석 기록은 2,000자째인 'svc_s'에서 끝난다"
+    regex: 'before Report; svc_s\\\\?"'

@@ -1,0 +1,34 @@
+{
+  "case_id": "P4192-023",
+  "problem": "P4192",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "source-vs-result",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: tsk_blkcat only; tsk_mmcat and tsk_jcat (same run() path) are not run",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "지워진 ZIP(1,791바이트, 짧은 이름 _USTOM~1.ZIP)은 섹터 24-27에 있다",
+      "regex": "Size: 1791\\\\nName: _USTOM~1\\.ZIP[\\s\\S]*Sectors:\\\\n24 25 26 27",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "blkcat은 성공으로 끝났다",
+      "regex": "\"success\":\\s*true",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "ZIP 머리의 E9 A5 두 바이트가 U+FFFD 하나로 바뀌어 있다(원래 PK 03 04 14 00 00 00 08 00 E9 A5 7B 5D)",
+      "regex": "PK\\\\u0003\\\\u0004\\\\u0014\\\\u0000\\\\u0000\\\\u0000\\\\b\\\\u0000\\\\ufffd\\{\\]uW",
+      "ok": true
+    }
+  ],
+  "image": "sha256:6738ea8e0f6726855d69d4cc8f384572a2d01ef4fbc0c3060483c4e08e873ee9",
+  "ran_at": "2026-11-27T20:48:30+00:00"
+}

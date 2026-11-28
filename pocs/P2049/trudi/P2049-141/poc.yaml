@@ -1,0 +1,126 @@
+# Matrix case P2049-141: velo_update_client_event_table takes `parameters`
+# for the monitoring artifacts, but the function never uses them: the VQL it
+# sends adds only the artifact names to the client monitoring table, and it
+# answers success.
+# The image has no Velociraptor server, so ${STUBS}/velociraptor stands in for
+# `velociraptor --api_config <cfg> query --format jsonl <VQL>`: it keeps the
+# monitoring table in a JSON file, applies the JSON-Patch ops of
+# set_client_monitoring(value=patch(...)), and prints rows as JSONL, as the
+# real CLI does. What trudi sends (the VQL) is real.
+case_id: P2049-141
+problem: P2049
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "Windows.Detection.Usn처럼 감시할 경로 정규식을 파라미터로 받는 모니터링 아티팩트를 범위를 좁혀 켜는 일은 실시간 대응에서 있을 수 있고, 도구 스키마가 parameters를 받는다."
+coverage: "partial: the Velociraptor server is a stub; the VQL trudi sends is real"
+coverage_ko: "Velociraptor 서버는 흉내 스크립트다. trudi가 보내는 VQL은 실제 그대로다."
+summary: velo_update_client_event_table is called with Windows.Detection.Usn and a PathRegex parameter (executables under Users\Public); it answers success with the artifact added, but the VQL it sent carries only the artifact name and no parameter.
+summary_ko: "velo_update_client_event_table을 Windows.Detection.Usn과 PathRegex 파라미터(Users\\Public 아래 실행 파일)로 부르면 아티팩트를 넣었다고 성공으로 답하지만, 보낸 VQL에는 아티팩트 이름만 있고 파라미터는 없다."
+defect_ko: "이 서버는 parameters를 받아 놓고 VQL에 넣지 않아 아티팩트가 기본 파라미터로 감시를 시작한다. 정상이라면 파라미터를 모니터링 표에 함께 넣거나 지원하지 않는다고 거부해야 한다. 모델은 지정한 경로만 감시하도록 설정됐다고 잘못 안다."
+setup_ko: "Velociraptor API 설정 파일을 두고, 모니터링 표(Generic.Client.Stats만 있음)를 파일로 들고 VQL의 patch를 적용하는 velociraptor 흉내 스크립트를 썼다."
+env:
+  TRUDI_VELO_BIN: ${STUBS}/velociraptor
+  TRUDI_VELO_API_CONFIG: ${DB_DIR}/velo/api.config.yaml
+stubs:
+  - name: velociraptor
+    text: |
+      #!/usr/bin/env python3
+      # Stub of the Velociraptor CLI (`velociraptor --api_config <cfg> query
+      # --format jsonl <VQL>`), for the client monitoring table only. The table
+      # (GetClientMonitoringState as JSON) is kept next to the API config;
+      # every VQL received is appended to vql.log there. Output is one JSON
+      # object per row, as `query --format jsonl` prints.
+      import json, os, re, sys
+      argv = sys.argv[1:]
+      cfg = argv[argv.index("--api_config") + 1]
+      vql = argv[-1]
+      d = os.path.dirname(cfg)
+      state_path = os.path.join(d, "monitoring.json")
+      with open(os.path.join(d, "vql.log"), "a") as f:
+          f.write(vql + "\n")
+      try:
+          state = json.load(open(state_path))
+      except OSError:
+          state = {"artifacts": {"artifacts": ["Generic.Client.Stats"], "specs": [
+              {"artifact": "Generic.Client.Stats", "parameters": {"env": [{"key": "Frequency", "value": "10"}]}}]}}
+      def out(row):
+          print(json.dumps(row))
+      if "set_client_monitoring(value=patch(" in vql:
+          for m in re.finditer(r'dict\(op="(\w+)", path="([^"]+)"(?:, value=("[^"]*"|\{.*?\}))?\)', vql):
+              op, path, value = m.group(1), m.group(2), m.group(3)
+              arts = state["artifacts"]["artifacts"]
+              if op == "add" and path == "/artifacts/artifacts/-":
+                  arts.append(json.loads(value))
+              elif op == "remove":
+                  del arts[int(path.rsplit("/", 1)[1])]
+              elif op == "add" and path == "/artifacts/specs/-":
+                  state["artifacts"].setdefault("specs", []).append(json.loads(value))
+          json.dump(state, open(state_path, "w"))
+          out({"r": state})
+      elif "get_client_monitoring().artifacts.artifacts AS a" in vql:
+          out({"a": state["artifacts"]["artifacts"]})
+      elif "get_client_monitoring() AS state" in vql:
+          out({"state": state})
+      else:
+          print("[ERROR] stub: unsupported VQL", file=sys.stderr)
+          sys.exit(1)
+fixture:
+  - path: analysis/.keep
+    root: db
+    text: ""
+  # An API client config as `velociraptor config api_client` writes it; the
+  # stub only needs the file to exist (trudi checks it).
+  - path: velo/api.config.yaml
+    root: db
+    text: |
+      ca_certificate: |
+        -----BEGIN CERTIFICATE-----
+        MIIDTDCCAjSgAwIBAgIRAJH2OrT3x7TpJ0Ol0f7E2wwwDQYJKoZIhvcNAQELBQAw
+        -----END CERTIFICATE-----
+      client_cert: |
+        -----BEGIN CERTIFICATE-----
+        MIIDTjCCAjagAwIBAgIQX1o8u4S2p5DkXyVb0b3GQzANBgkqhkiG9w0BAQsFADAa
+        -----END CERTIFICATE-----
+      client_private_key: |
+        -----BEGIN RSA PRIVATE KEY-----
+        MIIEpAIBAAKCAQEAwz3y0K4Yk1o2q0bq8F2W3x8c5ZpA6m7kJ1Yt2eS9iP0nH4dL
+        -----END RSA PRIVATE KEY-----
+      api_connection_string: velo-server:8001
+      name: trudi
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 trace를 연다"
+    args:
+      case_id: P2049-141
+      output_path: ${DB_DIR}/analysis/trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: velo_update_client_event_table
+    note_ko: "결함 호출: Windows.Detection.Usn을 PathRegex 파라미터와 함께 모니터링 표에 넣는다"
+    args:
+      client_id: C.4f2a9d1e7b3c5a80
+      artifacts: [Windows.Detection.Usn]
+      parameters:
+        Windows.Detection.Usn:
+          PathRegex: '(?i)\\Users\\Public\\.+\.(exe|dll|ps1)$'
+  - tool: velo_get_client_event_table
+    note_ko: "비교 호출: 모니터링 표를 다시 읽는다"
+    args:
+      client_id: C.4f2a9d1e7b3c5a80
+expect:
+  - step: 2
+    note_ko: "성공으로 답한다"
+    regex: "\"success\":\\s*true"
+  - step: 2
+    note_ko: "아티팩트 이름을 넣는 patch만 보냈다"
+    regex: "\"applied_ops\":\\s*\\[\\{\"op\":\\s*\"add\",\\s*\"path\":\\s*\"/artifacts/artifacts/-\",\\s*\"value\":\\s*\"Windows\\.Detection\\.Usn\"\\}\\]"
+  - step: 2
+    note_ko: "보낸 VQL(cmd)을 포함한 응답 어디에도 PathRegex 파라미터가 없다"
+    not_contains: "PathRegex"
+  - step: 3
+    note_ko: "다시 읽은 모니터링 표에 Windows.Detection.Usn이 들어 있다(파라미터 spec은 Generic.Client.Stats 것뿐)"
+    regex: "\"artifacts\":\\s*\\[\"Generic\\.Client\\.Stats\",\\s*\"Windows\\.Detection\\.Usn\"\\]"

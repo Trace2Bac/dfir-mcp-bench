@@ -1,0 +1,39 @@
+{
+  "case_id": "P2061-060",
+  "problem": "P2061",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "side-effect",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "실제 사건에는 처리되지 않은 경보가 1건 있다",
+      "regex": "\"severity\": \"high\".*\"count\": 1",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "소문자 ID로 부르면 없는 사건인데도 경보 0건을 성공으로 준다",
+      "contains": "{\"success\": true, \"alerts\": [], \"count\": 0",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "감시자도 0건을 성공으로 준다",
+      "contains": "{\"success\": true, \"watchers\": [], \"alerts_emitted\": 0",
+      "ok": true
+    },
+    {
+      "file_exists": "${OUTSIDE}/cases/live-web01/monitoring/alerts",
+      "note_ko": "없는 사건의 감시 폴더가 새로 만들어졌다",
+      "ok": true
+    }
+  ],
+  "image": "sha256:025818d31924e9b84fdd389b0124eea03f9583e8b2e34d613cdc16cc5354c0bc",
+  "ran_at": "2026-11-27T20:11:16+00:00"
+}

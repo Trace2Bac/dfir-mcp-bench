@@ -1,0 +1,46 @@
+{
+  "case_id": "P2049-149",
+  "problem": "P2049",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "response",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 3,
+      "note_ko": "두 변종은 직접 비교하면 유사도 96이다",
+      "regex": "svc_helper\\.ps1 matches \\S*WinUpdHealth\\.ps1 \\(96\\)",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "폴더 검사는 성공 응답이다",
+      "contains": "\"success\": true",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "응답은 비교 결과가 아니라 ssdeep 해시 목록 머리글로 시작한다",
+      "contains": "ssdeep,1.1--blocksize:hash:hash,filename",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "비슷한 파일이 없는 백업 스크립트도 해시 줄로 나온다",
+      "regex": "96:[^,]+,\\\\\"\\S*backup\\.ps1",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "유사한 쌍을 알리는 matches 줄이 없다",
+      "not_contains": " matches ",
+      "ok": true
+    }
+  ],
+  "image": "sha256:af37ec6bd85152908917381922dc19a7058e320aceaf0bf64ccdf08254a532e2",
+  "ran_at": "2026-11-27T20:03:36+00:00"
+}

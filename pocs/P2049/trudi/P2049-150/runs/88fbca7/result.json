@@ -1,0 +1,52 @@
+{
+  "case_id": "P2049-150",
+  "problem": "P2049",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "response",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "명령에 두 날짜가 따로 들어간다",
+      "contains": "-d 2024-10-26 2024-10-27",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "기간 안의 2024-10-26 파일이 나온다",
+      "contains": "/var/tmp/.cache/kworkerd",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "기간 밖인 2024-10-28 파일도 나온다",
+      "contains": "Mon Oct 28 2024 09:30:00,402,macb,r/rrw-------,0,0,1179661",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "끝 날짜만 주면 그 뒤의 2024-10-28 파일만 나온다",
+      "contains": "/root/.ssh/authorized_keys",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "끝 날짜 이전인 2024-10-26 파일이 빠진다",
+      "not_contains": "kworkerd",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "끝 날짜 이전인 2024-10-25 파일도 빠진다",
+      "not_contains": "notes.txt",
+      "ok": true
+    }
+  ],
+  "image": "sha256:eb91c593c80a25e8707a1a1941668c8a7bc0c6c97d60659252900366836b1c3c",
+  "ran_at": "2026-11-27T20:04:20+00:00"
+}

@@ -1,0 +1,60 @@
+# Matrix case P4116-064: af_timestomp_drift reports any MFTECmd row whose $SI
+# LastModified differs from its $FN LastModified by more than 1 s as a strong
+# timestomp indicator and suggests a LIKELY T1070.006 finding. Windows updates
+# the $SI times on every content write but leaves the $FN times as they were at
+# creation (or the last rename/move), so every file edited after it was created
+# has $SI LastModified later than $FN LastModified. That is normal; the
+# timestomp shape is $SI earlier than $FN (MFTECmd's own SI<FN column).
+# The CSV has MFTECmd's own column layout. Three ordinary files were edited
+# after creation (a Word document, a spreadsheet, the user's NTUSER.DAT); one
+# was never edited. MFTECmd marks none of them SI<FN or uSecZeros.
+case_id: P4116-064
+problem: P4116
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: response
+level: mcp
+realism: common
+realism_ko: "만든 뒤 내용을 고친 파일은 $SI 수정 시각만 바뀌고 $FN 수정 시각은 그대로라, 어느 MFT에나 이런 행이 대부분이다."
+coverage: full
+summary: On an MFTECmd CSV of four ordinary files, three of them simply edited after creation (none marked SI<FN), af_timestomp_drift returns drift_count 3 and a suggested LIKELY finding "Timestomp evidence ... (T1070.006)", because a $SI LastModified later than $FN LastModified is what every edit produces.
+summary_ko: "평범한 파일 넷(그중 셋은 만든 뒤 내용만 고친 파일, SI<FN 표시 없음)이 든 MFTECmd CSV에서 `af_timestomp_drift`가 `drift_count: 3`과 `LIKELY` 등급의 \"Timestomp evidence … (T1070.006)\" 발견 제안을 낸다. $SI 수정 시각이 $FN보다 늦은 것은 파일을 고치기만 해도 생기는 정상 상태다."
+defect_ko: "이 서버는 $SI와 $FN의 수정 시각이 1초 넘게 다르기만 하면 timestomp의 강한 지표로 보고 LIKELY 발견을 제안한다. 정상이라면 내용 수정으로 생기는 차이($SI가 더 늦음)는 빼고, $SI가 $FN보다 앞서는 경우처럼 시각 조작의 모양만 지표로 내야 한다. 모델은 평범하게 고친 문서들을 시각이 조작된 파일로 잘못 안다."
+setup_ko: "MFTECmd CSV 형식으로 파일 넷을 넣었다. `report_q3.docx`·`budget_2024.xlsx`·`NTUSER.DAT`는 만든 뒤 내용을 고친 파일이고, `readme.txt`는 고친 적 없는 파일이다. MFTECmd의 `SI<FN`·`uSecZeros` 열은 모두 False다."
+env:
+  TRUDI_CACHE_DIR: ${DB_DIR}/cache
+fixture:
+  - path: case01/analysis/mft/20241028_MFTECmd_$MFT_Output.csv
+    root: outside
+    text: |
+      EntryNumber,SequenceNumber,InUse,ParentEntryNumber,ParentSequenceNumber,ParentPath,FileName,Extension,FileSize,ReferenceCount,ReparseTarget,IsDirectory,HasAds,IsAds,SI<FN,uSecZeros,Copied,SiFlags,NameType,Created0x10,Created0x30,LastModified0x10,LastModified0x30,LastRecordChange0x10,LastRecordChange0x30,LastAccess0x10,LastAccess0x30,UpdateSequenceNumber,LogfileSequenceNumber,SecurityId,ObjectIdFileDroid,LoggedUtilStream,ZoneIdContents,SourceFile
+      104322,4,True,3471,1,.\Users\alice\Documents,report_q3.docx,.docx,48211,1,,False,False,False,False,False,False,Archive,DosWindows,2024-10-21 08:12:44.1830921,2024-10-21 08:12:44.1830921,2024-10-25 16:40:02.5512340,2024-10-21 08:12:44.1830921,2024-10-25 16:40:02.5512340,2024-10-21 08:12:44.1830921,2024-10-25 16:40:02.5512340,2024-10-21 08:12:44.1830921,93355496,0,1764,,,,C:\cases\case01\$MFT
+      104390,2,True,3471,1,.\Users\alice\Documents,budget_2024.xlsx,.xlsx,22870,1,,False,False,False,False,False,False,Archive,DosWindows,2024-09-02 10:01:17.7340012,2024-09-02 10:01:17.7340012,2024-10-24 11:23:51.0918845,2024-09-02 10:01:17.7340012,2024-10-24 11:23:51.0918845,2024-09-02 10:01:17.7340012,2024-10-24 11:23:51.0918845,2024-09-02 10:01:17.7340012,93370112,0,1764,,,,C:\cases\case01\$MFT
+      98211,1,True,3402,1,.\Users\alice,NTUSER.DAT,.DAT,3407872,1,,False,False,False,False,False,False,Hidden|System|Archive,Windows,2023-06-14 07:55:30.4415506,2023-06-14 07:55:30.4415506,2024-10-27 18:02:45.3301847,2023-06-14 07:55:30.4415506,2024-10-27 18:02:45.3301847,2023-06-14 07:55:30.4415506,2024-10-27 18:02:45.3301847,2023-06-14 07:55:30.4415506,94188760,0,1764,,,,C:\cases\case01\$MFT
+      104401,1,True,3471,1,.\Users\alice\Documents,readme.txt,.txt,512,1,,False,False,False,False,False,False,Archive,DosWindows,2024-10-22 09:30:00.1200000,2024-10-22 09:30:00.1200000,2024-10-22 09:30:00.1200000,2024-10-22 09:30:00.1200000,2024-10-22 09:30:00.1200000,2024-10-22 09:30:00.1200000,2024-10-22 09:30:00.1200000,2024-10-22 09:30:00.1200000,93380224,0,1764,,,,C:\cases\case01\$MFT
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 기록을 연다"
+    args:
+      case_id: CASE-001
+      output_path: ${OUTSIDE}/case01/analysis/trace.json
+      case_dir: ${OUTSIDE}/case01
+      launch_dashboard: false
+  - tool: af_timestomp_drift
+    note_ko: "결함 호출: MFTECmd CSV에서 timestomp를 찾음"
+    args:
+      mft_csv_path: ${OUTSIDE}/case01/analysis/mft/20241028_MFTECmd_$MFT_Output.csv
+expect:
+  - step: 2
+    note_ko: "네 행을 모두 읽었다"
+    contains: '"total_checked": 4'
+  - step: 2
+    note_ko: "내용만 고친 정상 파일 셋이 모두 어긋난 행으로 나온다"
+    contains: '"drift_count": 3'
+  - step: 2
+    note_ko: "고친 문서가 $SI 수정 시각이 더 늦은 행으로 들어 있다"
+    regex: 'report_q3\.docx",\s*"si_ts": "2024-10-25T16:40:02'
+  - step: 2
+    note_ko: "이 정상 파일들로 timestomp 발견을 LIKELY 등급으로 제안한다"
+    regex: 'Timestomp evidence: 3 MFT records[^"]*T1070\.006\)",\s*"confidence": "LIKELY"'

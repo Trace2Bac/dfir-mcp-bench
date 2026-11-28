@@ -1,0 +1,34 @@
+{
+  "case_id": "P4156-011",
+  "problem": "P4156",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "network",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: machinae is a stub that records its argv; the sites machinae would query are not shown",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "키는 하나도 없는데 machinae는 늘 켜져 있다고 보고한다",
+      "regex": "\"virustotal\":\\s*false,\\s*\"abuseipdb\":\\s*false,\\s*\"machinae\":\\s*true",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "machinae 조회는 확인 없이 실행되어 성공으로 답한다",
+      "regex": "^\\{\"success\":\\s*true[\\s\\S]*Information for 203\\.0\\.113\\.7[\\s\\S]*\"cmd\":\\s*\"machinae 203\\.0\\.113\\.7\"",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "machinae가 그 지표를 인자로 받아 실행됐다",
+      "regex": "\"stdout\":\\s*\"machinae 203\\.0\\.113\\.7\\\\n\"",
+      "ok": true
+    }
+  ],
+  "image": "sha256:05bdc31519449a982b29e34c26c110b826b77f8cebd98ef64b7e476b8fe8eb84",
+  "ran_at": "2026-11-27T20:52:57+00:00"
+}

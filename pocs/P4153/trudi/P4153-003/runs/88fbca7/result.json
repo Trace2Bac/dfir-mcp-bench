@@ -1,0 +1,46 @@
+{
+  "case_id": "P4153-003",
+  "problem": "P4153",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "network",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: the VirusTotal and AbuseIPDB tools only; machinae_lookup (machinae is not in the image) is not run; the services are a local stand-in",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 3,
+      "note_ko": "내부 이름 조회는 경고 없이 성공으로 답한다",
+      "regex": "^\\{\"success\":\\s*true,\\s*\"domain\":\\s*\"fs01\\.corp\\.example\\.local\"",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "사설 IP 조회도 성공으로 답한다",
+      "regex": "^\\{\"success\":\\s*true,\\s*\"ip\":\\s*\"10\\.20\\.30\\.40\"",
+      "ok": true
+    },
+    {
+      "step": 6,
+      "note_ko": "내부 이름이 API 키와 함께 www.virustotal.com으로 갔다",
+      "regex": "CONNECT www\\.virustotal\\.com:443[^\"]*\\\\n  GET /api/v3/domains/fs01\\.corp\\.example\\.local HTTP/1\\.1[^\"]*x-apikey: 0bench0fake",
+      "ok": true
+    },
+    {
+      "step": 6,
+      "note_ko": "사설 IP도 VirusTotal로 갔다",
+      "contains": "GET /api/v3/ip_addresses/10.20.30.40 HTTP/1.1",
+      "ok": true
+    },
+    {
+      "step": 6,
+      "note_ko": "같은 사설 IP가 api.abuseipdb.com으로도 갔다",
+      "regex": "CONNECT api\\.abuseipdb\\.com:443[^\"]*\\\\n  GET /api/v2/check\\?ipAddress=10\\.20\\.30\\.40",
+      "ok": true
+    }
+  ],
+  "image": "sha256:4da3871e8920a07f44276fb552fed81c9ea632da77d8b5bc3086d5e232591fa6",
+  "ran_at": "2026-11-27T20:51:57+00:00"
+}

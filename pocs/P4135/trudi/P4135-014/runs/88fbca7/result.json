@@ -1,0 +1,40 @@
+{
+  "case_id": "P4135-014",
+  "problem": "P4135",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "응답은 150줄에서 잘리고 생략 줄 수를 944로 적는다",
+      "regex": "\\[TRUNCATED \\\\u2014 944 lines omitted",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "응답은 잘렸다고 표시한다",
+      "regex": "\"truncated\":\\s*true",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "사진 한 장도 같은 태그(마지막 Megapixels)를 낸다. 단건 호출의 stdout_lines는 29다",
+      "contains": "Megapixels",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "trace에는 같은 호출의 전체 출력이 8,700줄로 기록돼 있다(300장 × 29줄). 실제로 빠진 줄은 8,550줄이다",
+      "regex": "stdout_lines.{1,3}: 8700,",
+      "ok": true
+    }
+  ],
+  "image": "sha256:e175f8b56e448d981742e1e78fbb7ceb84ab54faa27be38a278147e54868cfeb",
+  "ran_at": "2026-11-27T20:37:10+00:00"
+}

@@ -1,0 +1,127 @@
+# Matrix case P4133-015: velo._velo_run cuts the jsonl stdout of
+# `velociraptor query` at OUTPUT_CAP (51,200 chars) and then at 150 lines,
+# and velo_get_collection_results / velo_query parse what is left line by
+# line; the line cut in the middle and the "[TRUNCATED …]" footer do not parse
+# as JSON and are put into `rows` as {"_raw": …} rows next to the real ones.
+# The image has no Velociraptor server, so ${STUBS}/velociraptor stands in for
+# `velociraptor --api_config <cfg> query --format jsonl <VQL>`: it prints the
+# rows of one finished Windows.System.Pslist flow (183 processes, with the
+# artifact's columns). What trudi sends and how it parses the output is real.
+case_id: P4133-015
+problem: P4133
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: response
+level: mcp
+realism: common
+realism_ko: "Windows.System.Pslist 결과는 Hash·Authenticode 열 때문에 한 행이 수백 자이고 보통 PC의 프로세스는 150~250개라, 프로세스 목록 한 번이면 51,200자를 넘는다."
+coverage: "partial: the Velociraptor server is a stub; velo_query parses the same way and was not run"
+coverage_ko: "Velociraptor 서버는 흉내 스크립트다. 같은 방식으로 파싱하는 velo_query는 돌리지 않았다."
+summary: velo_get_collection_results for a finished Windows.System.Pslist flow of 183 processes returns rows whose last entry is {"_raw" …} holding half a process record cut at 51,200 characters, next to the whole rows, while the processes after the cut (rundll32.exe loading a DLL from C:\Users\Public\Libraries among them) are not in rows.
+summary_ko: "프로세스 183개가 든 Windows.System.Pslist 수집 결과를 velo_get_collection_results로 받으면, rows의 마지막 항목이 51,200자에서 잘린 프로세스 레코드 반쪽을 담은 {\"_raw\": …} 행이고 실제 행들과 섞여 있다. 잘린 뒤의 프로세스(C:\\Users\\Public\\Libraries의 DLL을 올린 rundll32.exe 등)는 rows에 없다."
+defect_ko: "이 서버는 잘린 jsonl을 그대로 파싱해 끊긴 줄을 {_raw} 행으로 rows에 넣는다. 정상이라면 잘린 줄은 버리고 몇 행이 빠졌는지와 나머지를 받는 방법을 알려야 한다. 모델은 rows를 행 목록으로 세거나 _raw 행을 프로세스로 읽고, 반쪽 레코드를 마지막 프로세스로 잘못 안다."
+setup_ko: "Velociraptor API 설정 파일을 두고, WS-0142에서 끝난 Windows.System.Pslist 수집(프로세스 183개, 뒤쪽에 rundll32.exe·cmd.exe)을 jsonl로 내는 velociraptor 흉내 스크립트를 썼다."
+env:
+  TRUDI_VELO_BIN: ${STUBS}/velociraptor
+  TRUDI_VELO_API_CONFIG: ${DB_DIR}/velo/api.config.yaml
+stubs:
+  - name: velociraptor
+    text: |
+      #!/usr/bin/env python3
+      # Stub of the Velociraptor CLI (`velociraptor --api_config <cfg> query
+      # --format jsonl <VQL>`) for one finished flow: the rows of
+      # Windows.System.Pslist collected from WS-0142 (183 processes). The rows
+      # carry the artifact's columns (Pid, Ppid, TokenIsElevated, Name,
+      # CommandLine, Exe, Hash, Authenticode, Username, WorkingSetSize) and are
+      # printed one JSON object per line, as `query --format jsonl` does.
+      import hashlib, json, sys
+      argv = sys.argv[1:]
+      vql = argv[-1]
+      if not vql.startswith("SELECT * FROM source(") or '"Windows.System.Pslist"' not in vql:
+          print("[ERROR] stub: unsupported VQL", file=sys.stderr)
+          sys.exit(1)
+      W = "C:\\Windows\\System32\\"
+      procs = [(4, 0, "System", "", "", "NT AUTHORITY\\SYSTEM"),
+               (112, 4, "Registry", "", "", "NT AUTHORITY\\SYSTEM"),
+               (388, 4, "smss.exe", W + "smss.exe", "\\SystemRoot\\System32\\smss.exe", "NT AUTHORITY\\SYSTEM"),
+               (512, 500, "csrss.exe", W + "csrss.exe", "%SystemRoot%\\system32\\csrss.exe ObjectDirectory=\\Windows SharedSection=1024,20480,768 Windows=On SubSystemType=Windows ServerDll=basesrv,1 ServerDll=winsrv:UserServerDllInitialization,3 ServerDll=sxssrv,4 ProfileControl=Off MaxRequestThreads=16", "NT AUTHORITY\\SYSTEM"),
+               (588, 500, "wininit.exe", W + "wininit.exe", "wininit.exe", "NT AUTHORITY\\SYSTEM"),
+               (664, 588, "services.exe", W + "services.exe", W + "services.exe", "NT AUTHORITY\\SYSTEM"),
+               (684, 588, "lsass.exe", W + "lsass.exe", W + "lsass.exe", "NT AUTHORITY\\SYSTEM")]
+      svc = ["-k DcomLaunch -p", "-k RPCSS -p", "-k LocalServiceNetworkRestricted -p", "-k netsvcs -p",
+             "-k LocalService -p", "-k NetworkService -p", "-k LocalSystemNetworkRestricted -p", "-k UnistackSvcGroup"]
+      pid = 800
+      for i in range(110):
+          procs.append((pid, 664, "svchost.exe", W + "svchost.exe", W + "svchost.exe " + svc[i % len(svc)] + " -s Svc" + str(i), "NT AUTHORITY\\SYSTEM" if i % 3 else "NT AUTHORITY\\LOCAL SERVICE"))
+          pid += 12
+      procs.append((5120, 5088, "explorer.exe", "C:\\Windows\\explorer.exe", "C:\\Windows\\Explorer.EXE", "CORP\\j.doe"))
+      chrome = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+      for i in range(60):
+          procs.append((6200 + i * 8, 6200, "chrome.exe", chrome, '"' + chrome + '" --type=renderer --lang=en-US --renderer-client-id=' + str(i + 7) + " --field-trial-handle=1880,i,3920716462931650542", "CORP\\j.doe"))
+      procs.append((7344, 5120, "rundll32.exe", W + "rundll32.exe", "rundll32.exe C:\\Users\\Public\\Libraries\\msupdate.dll,DllRegisterServer", "CORP\\j.doe"))
+      procs.append((7360, 7344, "cmd.exe", W + "cmd.exe", "cmd.exe /c whoami /all > C:\\Users\\Public\\Libraries\\o.txt", "CORP\\j.doe"))
+      procs.append((7412, 5120, "OneDrive.exe", "C:\\Users\\j.doe\\AppData\\Local\\Microsoft\\OneDrive\\OneDrive.exe", '"C:\\Users\\j.doe\\AppData\\Local\\Microsoft\\OneDrive\\OneDrive.exe" /background', "CORP\\j.doe"))
+      procs.append((7500, 664, "MsMpEng.exe", "C:\\ProgramData\\Microsoft\\Windows Defender\\Platform\\4.18.24090.11-0\\MsMpEng.exe", '"C:\\ProgramData\\Microsoft\\Windows Defender\\Platform\\4.18.24090.11-0\\MsMpEng.exe"', "NT AUTHORITY\\SYSTEM"))
+      for p, pp, name, exe, cmd, user in procs:
+          h = hashlib.sha256(exe.lower().encode()).hexdigest()
+          signed = exe.startswith(("C:\\Windows", "C:\\Program Files", "C:\\ProgramData"))
+          auth = {"Filename": exe, "ProgramName": "Microsoft Windows" if signed else None,
+                  "PublisherLink": None, "MoreInfoLink": "http://www.microsoft.com/windows" if signed else None,
+                  "SerialNumber": "33000003df8ec4b4bc8a4d2c4b0000000003df" if signed else None,
+                  "IssuerName": "C=US, ST=Washington, L=Redmond, O=Microsoft Corporation, CN=Microsoft Windows Production PCA 2011" if signed else None,
+                  "SubjectName": "C=US, ST=Washington, L=Redmond, O=Microsoft Corporation, CN=Microsoft Windows" if signed else None,
+                  "Timestamp": None, "Trusted": "trusted" if signed else "untrusted"} if exe else None
+          row = {"Pid": p, "Ppid": pp, "TokenIsElevated": user.startswith("NT AUTHORITY"), "Name": name,
+                 "CommandLine": cmd, "Exe": exe,
+                 "Hash": {"MD5": h[:32], "SHA1": h[:40], "SHA256": h} if exe else None,
+                 "Authenticode": auth, "Username": user, "WorkingSetSize": 4096 * (p % 977 + 100)}
+          print(json.dumps(row, separators=(",", ":")))
+fixture:
+  - path: analysis/.keep
+    root: db
+    text: ""
+  # An API client config as `velociraptor config api_client` writes it; the
+  # stub only needs the file to exist (trudi checks it).
+  - path: velo/api.config.yaml
+    root: db
+    text: |
+      ca_certificate: |
+        -----BEGIN CERTIFICATE-----
+        MIIDTDCCAjSgAwIBAgIRAJH2OrT3x7TpJ0Ol0f7E2wwwDQYJKoZIhvcNAQELBQAw
+        -----END CERTIFICATE-----
+      client_cert: |
+        -----BEGIN CERTIFICATE-----
+        MIIDTjCCAjagAwIBAgIQX1o8u4S2p5DkXyVb0b3GQzANBgkqhkiG9w0BAQsFADAa
+        -----END CERTIFICATE-----
+      client_private_key: |
+        -----BEGIN RSA PRIVATE KEY-----
+        MIIEpAIBAAKCAQEAwz3y0K4Yk1o2q0bq8F2W3x8c5ZpA6m7kJ1Yt2eS9iP0nH4dL
+        -----END RSA PRIVATE KEY-----
+      api_connection_string: velo-server:8001
+      name: trudi
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 trace를 연다"
+    args:
+      case_id: P4133-015
+      output_path: ${DB_DIR}/analysis/trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: velo_get_collection_results
+    note_ko: "결함 호출: 끝난 프로세스 목록 수집의 행을 받는다"
+    args:
+      client_id: C.4f2a9e1b7c3d5e60
+      flow_id: F.CT3K9Q1M2V8RA
+      artifact: Windows.System.Pslist
+expect:
+  - step: 2
+    note_ko: "rows의 마지막 항목은 51,200자에서 끊긴 프로세스 레코드 반쪽이 든 _raw 행이다"
+    regex: "\\{\"_raw\": \"\\{\\\\\"Pid\\\\\":\\d+,[^\\]]*\"\\}\\], \"_metadata\""
+  - step: 2
+    note_ko: "그 앞은 정상 프로세스 행이다(_raw 행이 실제 행과 섞여 있다)"
+    regex: "\"rows\": \\[\\{\"Pid\": 4, \"Ppid\": 0"
+  - step: 2
+    note_ko: "잘린 뒤의 rundll32.exe(Public\\Libraries의 DLL 로드)는 결과 어디에도 없다"
+    not_contains: "rundll32.exe"
+

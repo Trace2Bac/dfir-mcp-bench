@@ -1,0 +1,101 @@
+# Matrix case P2064-010: misc_export_execution_log and misc_write_final_report
+# refuse unless the latest reason_pre_report_check returned ready_to_report
+# (_pre_report_ready_gate, tools/misc.py:987). monitor_end_investigation
+# exports the same trace as <case>/reports/<case>_<inv>.{json,md} with
+# log.export() and never calls that gate (tools/monitor.py:1178-1275).
+# The live-monitoring case is laid out as the server writes it:
+# baseline_capture's baseline file (TRUDI_CASES_ROOT is the cases folder) and
+# one alert as bin/trudi-velo-watcher.py writes it (_write_alert).
+case_id: P2064-010
+problem: P2064
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "실시간 감시 명령(/trudi-check-alerts)은 경보 묶음마다 조사를 열고 7단계에서 늘 end_investigation으로 닫으며, pre_report_check는 DAIR가 Report를 낼 때만 부른다."
+coverage: full
+summary: In an open live-monitoring investigation with no reason_pre_report_check, misc_export_execution_log refuses with pre_report_check_required, but monitor_end_investigation exports the same trace as a report into reports/ and returns success.
+summary_ko: "pre_report_check 없이 열린 실시간 조사에서 `misc_export_execution_log`는 `pre_report_check_required`로 거부하지만, `monitor_end_investigation`은 같은 trace를 보고서로 reports/에 내보내고 성공을 돌려준다."
+defect_ko: "이 서버는 trace 내보내기와 최종 보고서에는 pre_report_check 통과를 요구하면서, 조사 종료 경로로는 검사 없이 reports/에 보고서를 쓴다. 정상이라면 같은 검사를 거치거나 검사 전 보고서임을 표시해야 한다. 모델과 운영자는 reports/의 조사 보고서가 보고 전 검증을 통과한 것으로 잘못 안다."
+setup_ko: "기준선(baseline)이 잡힌 실시간 감시 사건 LIVE-WEB01에 처리 안 된 새 프로세스 경보 1건을 넣었다."
+env:
+  TRUDI_CASES_ROOT: ${OUTSIDE}/cases
+fixture:
+  - path: cases/LIVE-WEB01/monitoring/baselines/C.4f8a2b91d3e6c057.json
+    root: outside
+    text: |
+      {
+        "client_id": "C.4f8a2b91d3e6c057",
+        "case_id": "LIVE-WEB01",
+        "captured_at_utc": "2026-11-26T22:03:51Z",
+        "flow_ids": {"Linux.Sys.Pslist": "F.CT4E1Q2LJ0QG2", "Linux.Network.Netstat": "F.CT4E1Q4V8R6NA", "Custom.TRUDI.PersistenceSnapshot": "F.CT4E1Q6M3K1H0"},
+        "process_names": ["cron", "nginx", "php-fpm8.1", "sshd", "systemd", "systemd-journald"],
+        "image_paths": ["/usr/lib/systemd/systemd", "/usr/sbin/cron", "/usr/sbin/nginx", "/usr/sbin/php-fpm8.1", "/usr/sbin/sshd"],
+        "persistence_paths": ["/etc/crontab", "/etc/systemd/system/multi-user.target.wants/nginx.service"],
+        "endpoints": [{"remote_ip": "198.51.100.20", "remote_port": 443}],
+        "yara_rules_path": "/rules/trudi-demo.yar"
+      }
+  - path: cases/LIVE-WEB01/monitoring/watchers/C.4f8a2b91d3e6c057.pid
+    root: outside
+    text: "48211\n"
+  - path: cases/LIVE-WEB01/monitoring/alerts/_seq.txt
+    root: outside
+    text: "1"
+  - path: cases/LIVE-WEB01/monitoring/alerts/00000001_NewProcess.json
+    root: outside
+    text: |
+      {
+        "alert_id": "6d1f0c52-8b7e-4a3d-9f21-3c5b7e9a0d44",
+        "seq": 1,
+        "case_id": "LIVE-WEB01",
+        "client_id": "C.4f8a2b91d3e6c057",
+        "hostname": "web01",
+        "timestamp_utc": "2026-11-27T08:14:09Z",
+        "detector": "Custom.TRUDI.NewProcess",
+        "severity": "high",
+        "summary": "New process not in baseline: /tmp/.x/kworkerd (pid=48877)",
+        "evidence": {
+          "pid": 48877,
+          "ppid": 1311,
+          "image_path": "/tmp/.x/kworkerd",
+          "cmdline": "/tmp/.x/kworkerd -o 203.0.113.7:3333",
+          "username": "www-data",
+          "Hostname": "web01",
+          "timestamp_utc": "2026-11-27T08:14:09Z"
+        },
+        "suggested_pivot_tools": ["live_process_details", "live_open_files", "live_network_connections"],
+        "consumed": false
+      }
+steps:
+  - tool: monitor_start_investigation
+    note_ko: "준비: 경보 1건으로 조사 INV-001을 연다"
+    args:
+      case_id: LIVE-WEB01
+      investigation_id: INV-001
+      alert_ids: ["6d1f0c52-8b7e-4a3d-9f21-3c5b7e9a0d44"]
+  - tool: misc_export_execution_log
+    note_ko: "비교 호출: pre_report_check 없이 같은 trace를 내보낸다"
+    args:
+      output_path: ${OUTSIDE}/cases/LIVE-WEB01/reports/LIVE-WEB01_INV-001_export
+  - tool: monitor_end_investigation
+    note_ko: "결함 호출: pre_report_check 없이 조사를 닫는다"
+    args:
+      case_id: LIVE-WEB01
+      investigation_id: INV-001
+      outcome_note: "kworkerd from /tmp/.x is a cryptominer started by www-data; no containment taken."
+expect:
+  - step: 1
+    note_ko: "조사가 열렸다"
+    contains: '"success": true'
+  - step: 2
+    note_ko: "trace 내보내기는 pre_report_check가 없다고 거부한다"
+    regex: '"success": false.*no reason\.pre_report_check call found.*"gate": "pre_report_check_required"'
+  - step: 3
+    note_ko: "조사 종료는 같은 trace를 reports/에 json·md로 쓰고 성공을 돌려준다"
+    regex: '"success": true.*"report_md_path": "[^"]*/reports/LIVE-WEB01_INV-001\.md".*"json_wrote": true, "md_wrote": true.*"closed": true'
+  - file_exists: ${OUTSIDE}/cases/LIVE-WEB01/reports/LIVE-WEB01_INV-001.md
+    note_ko: "검사를 거치지 않은 조사 보고서가 reports/에 생겼다"
+  - file_missing: ${OUTSIDE}/cases/LIVE-WEB01/reports/LIVE-WEB01_INV-001_export.md
+    note_ko: "거부된 내보내기 경로에는 파일이 없다"

@@ -1,0 +1,40 @@
+{
+  "case_id": "P4143-008",
+  "problem": "P4143",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: hashdeep_compute only; md5deep_scan, strings_extract, misc_capa_analyze and tsk_indxparse write the same cut stdout and were not run",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "hashdeep 출력이 51,200자에서 잘렸다(응답 stdout이 줄 중간에서 끝난다)",
+      "regex": "\"stdout\": \"%%%% HASHDEEP-1\\.0[\\s\\S]*[^n]\", \"stderr\"",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "그런데 그 출력을 매니페스트로 저장했다며 경로만 돌려준다",
+      "regex": "\"manifest_path\": \"[^\"]*/analysis/documents\\.hashdeep\"",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "바뀌지 않은 같은 폴더를 그 매니페스트로 감사하면 실패한다",
+      "regex": "^\\{\"success\": false, \"stdout\": \"hashdeep: Audit failed",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "매니페스트와 맞지 않는다고 나오는 파일이 있다(400개 중 매니페스트에 빠진 90개쯤)",
+      "regex": "## \\$ hashdeep -X [\\s\\S]*\\\\n31,[0-9a-f]{32},[0-9a-f]{64},[^\"]*/Documents/report_\\d+\\.docx",
+      "ok": true
+    }
+  ],
+  "image": "sha256:329b775f532571aa402db72fb41655d78f307f0ab8704f8fe854cda8c7e83766",
+  "ran_at": "2026-11-27T20:39:59+00:00"
+}

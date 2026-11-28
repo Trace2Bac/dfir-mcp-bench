@@ -1,0 +1,34 @@
+{
+  "case_id": "P4101-030",
+  "problem": "P4101",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: a non-zero exit only; a timeout and a missing binary take the same path but are not shown",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "본문은 실행이 종료 코드 1로 실패했다고 한다",
+      "regex": "\"success\":\\s*false[\\s\\S]*\"exit_code\":\\s*1\\b",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "그런데 MCP 결과의 isError는 거짓이다",
+      "is_error": false,
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "처리기 예외(인자 누락)는 isError 참으로 나와, 실패 표시가 실패 종류에 따라 갈린다",
+      "is_error": true,
+      "ok": true
+    }
+  ],
+  "image": "sha256:653ffb0d5df2f6a28699bc4fbfa7d5becb4fe141eec2615684f9f2ef702b890e",
+  "ran_at": "2026-11-27T20:28:19+00:00"
+}

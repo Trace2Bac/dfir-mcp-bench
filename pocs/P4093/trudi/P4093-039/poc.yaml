@@ -1,0 +1,59 @@
+# Matrix case P4093-039: af_event_log_clear takes every ez_evtxecmd entry in
+# the trace as a parsed event log, without looking at whether that run
+# succeeded. When the only EvtxECmd run failed, it still answers success,
+# counts the failed run's console lines as events_examined and reports no
+# clear events.
+# Here the evidence is a Windows XP SecEvent.Evt (legacy EVT). ez_evtxecmd
+# passes a path not ending in .evtx as a directory (-d), EvtxECmd answers
+# "does not exist! Exiting" with exit code 1, and trudi records the run as
+# failed.
+case_id: P4093-039
+problem: P4093
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: possible
+realism_ko: "XP·2003 이미지는 아직 조사 대상으로 나오고(trudi도 EVT를 따로 다룬다), 그 보안 로그를 EvtxECmd로 먼저 돌려 보는 일은 있을 수 있으며 이 실행은 실패한다."
+coverage: "partial: af_event_log_clear only; af_prefetch_deletion after a failed ez_pecmd run is not shown"
+coverage_ko: "af_event_log_clear만 보였다. ez_pecmd가 실패한 뒤의 af_prefetch_deletion은 보이지 않았다."
+summary: After the only ez_evtxecmd run in the trace failed (EvtxECmd exit 1 on an XP SecEvent.Evt, success false), af_event_log_clear answers success with events_examined 14 and clear_events_found 0, as if a parsed log held no clearing.
+summary_ko: "trace에 있는 유일한 ez_evtxecmd 실행이 실패했는데도(XP의 SecEvent.Evt에 EvtxECmd 종료 코드 1, success false), af_event_log_clear는 events_examined 14, clear_events_found 0을 성공으로 돌려줘 해석한 로그에 지우기 흔적이 없는 것처럼 답한다."
+defect_ko: "이 서버는 trace의 EvtxECmd 실행 기록을 성공 여부와 상관없이 근거로 쓰고, 실패한 실행의 콘솔 출력 줄 수를 검사한 이벤트 수로 센다. 정상이라면 성공한 실행이 없으니 실패로 답하고 먼저 로그를 해석하라고 해야 한다. 모델은 보안 로그를 검사해 지우기 흔적이 없다고 잘못 안다."
+setup_ko: "Windows XP 이미지의 보안 로그 SecEvent.Evt(옛 EVT 형식: 머리와 EOF 레코드)를 넣었다."
+fixture:
+  - path: analysis/.keep
+    root: db
+    text: ""
+  # Legacy EVT log: the 48-byte ELF_LOGFILE_HEADER ("LfLe", version 1.1,
+  # MaxSize 512 KiB) and the 40-byte ELF_EOF_RECORD (0x11111111..0x44444444).
+  - path: WINDOWS/system32/config/SecEvent.Evt
+    hex: 300000004c664c650100000001000000300000003000000001000000010000000000080000000000803a09003000000028000000111111112222222233333333444444443000000030000000010000000100000028000000
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 trace를 연다"
+    args:
+      case_id: P4093-039
+      output_path: ${DB_DIR}/analysis/trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: ez_evtxecmd
+    note_ko: "비교 호출: EvtxECmd로 보안 로그를 해석하려 한다(실패한다)"
+    args:
+      evtx_path: ${EVIDENCE}/WINDOWS/system32/config/SecEvent.Evt
+      output_dir: ${DB_DIR}/analysis/evtx
+      output_file: Security.csv
+    timeout_s: 300
+  - tool: af_event_log_clear
+    note_ko: "결함 호출: 이벤트 로그 지우기 탐지"
+expect:
+  - step: 2
+    note_ko: "EvtxECmd 실행은 종료 코드 1로 실패했다"
+    regex: "\"success\":\\s*false[\\s\\S]*does not exist! Exiting[\\s\\S]*\"exit_code\":\\s*1\\b"
+  - step: 3
+    note_ko: "탐지 도구는 실패한 실행만 있는데도 성공으로 답한다"
+    regex: "\"success\":\\s*true"
+  - step: 3
+    note_ko: "실패한 실행의 콘솔 줄을 검사한 이벤트 수로 세고 지우기는 0건으로 낸다"
+    regex: "\"events_examined\":\\s*[1-9]\\d*[\\s\\S]*\"clear_events_found\":\\s*0\\b"

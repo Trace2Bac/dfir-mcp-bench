@@ -102,7 +102,7 @@ each run's class, `reached_defect`, final answer, tool calls (name and arguments
 | Field | Meaning |
 |---|---|
 | `question` | the task an analyst would give, in English, with no hint about the defect; `${EVIDENCE}` is filled in; `question_ko` is the Korean shown on the site |
-| `models` | the models asked, Claude model IDs or `local`; the four above by default |
+| `models` | the models asked, Claude model IDs or `local`; Haiku (`claude-haiku-4-5`) by default, which is enough to see whether the case holds; Opus and the local model are added for a closer look |
 | `repeat` | runs per model, 3 by default |
 | `max_turns` | turns per run; 20 by default in Claude Code, 40 for a local model |
 | `defect_tools` | optional: the tools whose successful response carries the defect; runs that never got one are `not_reached` |

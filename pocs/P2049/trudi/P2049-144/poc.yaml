@@ -1,0 +1,70 @@
+# Matrix case P2049-144: net_tcpdump_read and net_tcpdump_extract_http take
+# output_path (a place to save the output, checked against the evidence
+# read-only policy), but the functions never use it: tcpdump runs, the packets
+# come back inline, and nothing is written to output_path.
+# The capture is a real pcap (libpcap, Ethernet): one HTTP GET of
+# /stage2/payload.bin from 203.0.113.7 and its 200 response.
+# trudi runs tcpdump as `sudo tcpdump ...` (SIFT has passwordless sudo); the
+# image has no sudo, so ${STUBS}/sudo only runs the command it is given.
+# tcpdump itself is the real one.
+case_id: P2049-144
+problem: P2049
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: side-effect
+level: mcp
+realism: common
+realism_ko: "pcap에서 뽑은 HTTP 내용을 analysis/에 저장해 두고 나중에 다시 보려는 일은 분석에서 흔하다."
+coverage: full
+summary: net_tcpdump_read and net_tcpdump_extract_http are called with output_path under analysis/; both return success with the packets inline, but neither file is written, so a later step that reads the saved output finds nothing.
+summary_ko: "`net_tcpdump_read`와 `net_tcpdump_extract_http`에 analysis/ 아래 `output_path`를 주어 호출한다. 둘 다 패킷을 담은 성공 응답을 주지만 파일은 어느 쪽도 만들어지지 않는다."
+defect_ko: "이 서버는 `output_path`를 받아 경로 검사만 하고 저장에는 쓰지 않는다. 정상이라면 그 경로에 출력을 저장하거나 저장하지 않는다고 알려야 한다. 모델은 출력이 analysis/에 저장됐다고 잘못 안다."
+setup_ko: "203.0.113.7에서 `/stage2/payload.bin`을 받는 HTTP 요청과 응답이 든 실제 pcap 파일을 넣었다."
+env:
+  TRUDI_CACHE_DIR: ${DB_DIR}/cache
+  PATH: ${STUBS}:${PATH}
+stubs:
+  - name: sudo
+    text: |
+      #!/bin/sh
+      # Stand-in for passwordless sudo on SIFT: run the command as is.
+      exec "$@"
+fixture:
+  - path: net/capture.pcap
+    hex: d4c3b2a1020004000000000000000000ffff00000100000080b41d67000000003600000036000000525400123456525400abcdef0800450000281c4640004006d87a0a000008cb007107c0000050000003e8000000005002faf0aaa9000080b41d67e80300003600000036000000525400123456525400abcdef0800450000281c4640004006d87acb0071070a0000080050c00000001388000003e95012faf09710000080b41d67d00700003600000036000000525400123456525400abcdef0800450000281c4640004006d87a0a000008cb007107c0000050000003e9000013895010faf09711000080b41d67b80b00009300000093000000525400123456525400abcdef0800450000851c4640004006d81d0a000008cb007107c0000050000003e9000013895018faf092aa0000474554202f7374616765322f7061796c6f61642e62696e20485454502f312e310d0a486f73743a203230332e302e3131332e370d0a557365722d4167656e743a206375726c2f372e38312e300d0a4163636570743a202a2f2a0d0a0d0a80b41d67a00f00009700000097000000525400123456525400abcdef0800450000891c4640004006d819cb0071070a0000080050c00000001389000004465018faf041e00000485454502f312e3120323030204f4b0d0a5365727665723a206e67696e780d0a436f6e74656e742d547970653a206170706c69636174696f6e2f6f637465742d73747265616d0d0a436f6e74656e742d4c656e6774683a20340d0a0d0a4d5a9000
+  - path: case01/analysis/.keep
+    root: outside
+    text: ""
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 기록을 연다"
+    args:
+      case_id: CASE-001
+      output_path: ${OUTSIDE}/case01/analysis/trace.json
+      case_dir: ${OUTSIDE}/case01
+      launch_dashboard: false
+  - tool: net_tcpdump_read
+    note_ko: "결함 호출: 패킷을 읽고 analysis/에 저장하도록 output_path를 줌"
+    args:
+      pcap_file: ${EVIDENCE}/net/capture.pcap
+      output_path: ${OUTSIDE}/case01/analysis/packets.txt
+  - tool: net_tcpdump_extract_http
+    note_ko: "결함 호출: HTTP 내용을 뽑고 analysis/에 저장하도록 output_path를 줌"
+    args:
+      pcap_file: ${EVIDENCE}/net/capture.pcap
+      output_path: ${OUTSIDE}/case01/analysis/http.txt
+expect:
+  - step: 2
+    note_ko: "패킷 읽기는 성공 응답이다"
+    is_error: false
+  - step: 2
+    note_ko: "응답에 HTTP 연결 패킷이 들어 있다"
+    contains: "203.0.113.7.80"
+  - step: 3
+    note_ko: "HTTP 추출 응답에 요청 내용이 들어 있다"
+    contains: "GET /stage2/payload.bin HTTP/1.1"
+  - file_missing: ${OUTSIDE}/case01/analysis/packets.txt
+    note_ko: "패킷 읽기의 output_path에 파일이 없다"
+  - file_missing: ${OUTSIDE}/case01/analysis/http.txt
+    note_ko: "HTTP 추출의 output_path에 파일이 없다"

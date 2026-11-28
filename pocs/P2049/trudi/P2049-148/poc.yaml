@@ -1,0 +1,55 @@
+# Matrix case P2049-148: af_timestomp_drift says it detects timestomping by
+# comparing the $SI and $FN timestamps of an MFTECmd CSV, but it compares one
+# pair only: LastModified0x10 against LastModified0x30. A file whose $SI
+# Created time was backdated while its modified time was left alone is not
+# reported.
+# The CSV has MFTECmd's own column layout (EntryNumber ... SourceFile, times
+# as "yyyy-MM-dd HH:mm:ss.fffffff"). svchost32.exe was dropped on 2024-10-27
+# and its creation time set back to 2019-03-19 (the kernel32.dll date, with
+# zeroed sub-seconds); MFTECmd marks the row SI<FN and uSecZeros.
+case_id: P2049-148
+problem: P2049
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: response
+level: mcp
+realism: possible
+realism_ko: "공격자가 떨군 파일의 만든 시각만 시스템 파일 날짜로 되돌리는 timestomp(예: PowerShell의 CreationTime 설정)는 실제로 쓰인다."
+coverage: full
+summary: An MFTECmd CSV row whose $SI Created time (2019-03-19) is five years before its $FN Created time (2024-10-27) is not reported; af_timestomp_drift returns success with drift_count 0 and no suggested finding, because it compares only the LastModified pair.
+summary_ko: "$SI 만든 시각(2019-03-19)이 $FN 만든 시각(2024-10-27)보다 5년 앞선 MFTECmd CSV 행이 있다. 그런데 `af_timestomp_drift`는 수정 시각 한 쌍만 비교해 `drift_count: 0`, 제안 발견 없음의 성공 응답을 준다."
+defect_ko: "이 서버는 $SI와 $FN의 수정 시각(LastModified)만 비교한다. 설명대로라면 만든 시각·접근 시각·레코드 변경 시각도 비교해 어긋난 행을 보고해야 한다. 모델은 이 MFT에 timestomp 흔적이 없다고 잘못 안다."
+setup_ko: "MFTECmd CSV 형식으로 세 파일을 넣었다. 그중 `svchost32.exe`는 만든 시각만 2019-03-19로 되돌린 파일이다."
+env:
+  TRUDI_CACHE_DIR: ${DB_DIR}/cache
+fixture:
+  - path: case01/analysis/mft/20241028_MFTECmd_$MFT_Output.csv
+    root: outside
+    text: |
+      EntryNumber,SequenceNumber,InUse,ParentEntryNumber,ParentSequenceNumber,ParentPath,FileName,Extension,FileSize,ReferenceCount,ReparseTarget,IsDirectory,HasAds,IsAds,SI<FN,uSecZeros,Copied,SiFlags,NameType,Created0x10,Created0x30,LastModified0x10,LastModified0x30,LastRecordChange0x10,LastRecordChange0x30,LastAccess0x10,LastAccess0x30,UpdateSequenceNumber,LogfileSequenceNumber,SecurityId,ObjectIdFileDroid,LoggedUtilStream,ZoneIdContents,SourceFile
+      104322,4,True,3471,1,.\Users\alice\Documents,report_q3.docx,.docx,48211,1,,False,False,False,False,False,False,Archive,DosWindows,2024-10-21 08:12:44.1830921,2024-10-21 08:12:44.1830921,2024-10-21 08:12:44.1830921,2024-10-21 08:12:44.1830921,2024-10-21 08:12:44.1830921,2024-10-21 08:12:44.1830921,2024-10-21 08:12:44.1830921,2024-10-21 08:12:44.1830921,93355496,0,1764,,,,C:\cases\case01\$MFT
+      118847,2,True,4120,1,.\ProgramData\Microsoft,svchost32.exe,.exe,73728,1,,False,False,False,True,True,False,Archive,DosWindows,2019-03-19 04:43:05.0000000,2024-10-27 03:41:07.4523311,2024-10-27 03:41:07.4523311,2024-10-27 03:41:07.4523311,2024-10-27 03:41:12.0915529,2024-10-27 03:41:07.4523311,2024-10-27 03:41:07.4523311,2024-10-27 03:41:07.4523311,94120880,0,1764,,,,C:\cases\case01\$MFT
+      118850,1,True,4120,1,.\ProgramData\Microsoft,update.log,.log,912,1,,False,False,False,False,False,False,Archive,DosWindows,2024-10-27 03:41:09.7702114,2024-10-27 03:41:09.7702114,2024-10-27 03:41:09.7702114,2024-10-27 03:41:09.7702114,2024-10-27 03:41:09.7702114,2024-10-27 03:41:09.7702114,2024-10-27 03:41:09.7702114,2024-10-27 03:41:09.7702114,94121336,0,1764,,,,C:\cases\case01\$MFT
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 기록을 연다"
+    args:
+      case_id: CASE-001
+      output_path: ${OUTSIDE}/case01/analysis/trace.json
+      case_dir: ${OUTSIDE}/case01
+      launch_dashboard: false
+  - tool: af_timestomp_drift
+    note_ko: "결함 호출: MFTECmd CSV에서 timestomp를 찾음"
+    args:
+      mft_csv_path: ${OUTSIDE}/case01/analysis/mft/20241028_MFTECmd_$MFT_Output.csv
+expect:
+  - step: 2
+    note_ko: "세 행을 모두 읽었다"
+    contains: '"total_checked": 3'
+  - step: 2
+    note_ko: "만든 시각이 5년 어긋난 행이 있는데도 어긋난 행이 0건이다"
+    contains: '"drift_count": 0'
+  - step: 2
+    note_ko: "timestomp 발견 제안도 없다"
+    contains: '"suggested_finding": null'

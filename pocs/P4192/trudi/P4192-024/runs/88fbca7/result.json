@@ -1,0 +1,40 @@
+{
+  "case_id": "P4192-024",
+  "problem": "P4192",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "source-vs-result",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: the comma case only; NUL removal from binary values is not shown",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "원래 줄에서는 값이 따옴표로 묶여 한 칸이다",
+      "regex": ",RegSz,\\\\\"rundll32\\.exe C:\\\\\\\\Users\\\\\\\\Public\\\\\\\\wct4F2A\\.dll,DllRegisterServer\\\\\",",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "열을 고르면 머리는 두 열이다",
+      "regex": "\"body\":\\s*\"ValueName,ValueData\\\\n",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "같은 행은 따옴표 없이 쉼표 두 개로 이어져 세 칸처럼 보인다",
+      "regex": "\\\\nWctUpdate,rundll32\\.exe C:\\\\\\\\Users\\\\\\\\Public\\\\\\\\wct4F2A\\.dll,DllRegisterServer\"",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "응답은 잘리지 않았다고 하고, 칸을 다시 이었다는 말은 없다",
+      "regex": "\"truncated\":\\s*false",
+      "ok": true
+    }
+  ],
+  "image": "sha256:078a66b9aa6ba44b50a1106f47538e69156aa88faeb47725a6ddb45fdef4ae63",
+  "ran_at": "2026-11-27T20:44:27+00:00"
+}

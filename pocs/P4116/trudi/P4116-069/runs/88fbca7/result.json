@@ -1,0 +1,40 @@
+{
+  "case_id": "P4116-069",
+  "problem": "P4116",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "response",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "세 작업을 모두 읽었다",
+      "contains": "\"task_count\": 3",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "-NoProfile만 있는 백업 작업이 주입 payload 작업으로 나온다",
+      "regex": "\"injector_payload_tasks\": \\[[^\\]]*Nightly-UserData-Backup",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "Register-ScheduledJob이 만든 작업도 주입 payload 작업으로 나온다",
+      "regex": "\"injector_payload_tasks\": \\[[^\\]]*ScheduledJobs[^\\]]*UpdateHelp",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "두 관리 작업이 주입 payload 작업 목록의 전부이고, OneDrive 작업은 빠진다",
+      "contains": "\"injector_payload_tasks\": [\"/CorpIT/Nightly-UserData-Backup\", \"/Microsoft/Windows/PowerShell/ScheduledJobs/UpdateHelp\"]",
+      "ok": true
+    }
+  ],
+  "image": "sha256:1fad5895bdef1d2b91d9dfe240070894db20399065a497729d1fbba38461b69e",
+  "ran_at": "2026-11-27T20:23:50+00:00"
+}

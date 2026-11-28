@@ -1,0 +1,44 @@
+{
+  "case_id": "P2064-010",
+  "problem": "P2064",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 1,
+      "note_ko": "조사가 열렸다",
+      "contains": "\"success\": true",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "trace 내보내기는 pre_report_check가 없다고 거부한다",
+      "regex": "\"success\": false.*no reason\\.pre_report_check call found.*\"gate\": \"pre_report_check_required\"",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "조사 종료는 같은 trace를 reports/에 json·md로 쓰고 성공을 돌려준다",
+      "regex": "\"success\": true.*\"report_md_path\": \"[^\"]*/reports/LIVE-WEB01_INV-001\\.md\".*\"json_wrote\": true, \"md_wrote\": true.*\"closed\": true",
+      "ok": true
+    },
+    {
+      "file_exists": "${OUTSIDE}/cases/LIVE-WEB01/reports/LIVE-WEB01_INV-001.md",
+      "note_ko": "검사를 거치지 않은 조사 보고서가 reports/에 생겼다",
+      "ok": true
+    },
+    {
+      "file_missing": "${OUTSIDE}/cases/LIVE-WEB01/reports/LIVE-WEB01_INV-001_export.md",
+      "note_ko": "거부된 내보내기 경로에는 파일이 없다",
+      "ok": true
+    }
+  ],
+  "image": "sha256:bae5896bb6cefefc91d2378df459cd8299c6407103acd9c375394520ddc59dde",
+  "ran_at": "2026-11-27T20:18:58+00:00"
+}

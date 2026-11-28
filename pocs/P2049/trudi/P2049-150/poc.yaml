@@ -1,0 +1,69 @@
+# Matrix case P2049-150: tsk_mactime says start_date / end_date filter to a
+# date range, but it appends them as two separate arguments. mactime takes the
+# range as one argument, "start..end", and reads only $ARGV[0], so the end
+# date is dropped (the timeline runs from start_date to the end of the data),
+# and end_date alone becomes the start date.
+# mactime is the real one (The Sleuth Kit). The bodyfile is in `fls -m`
+# format (MD5|name|inode|mode|UID|GID|size|atime|mtime|ctime|crtime), one file
+# per day: 2024-10-25, 2024-10-26 and 2024-10-28 (UTC).
+case_id: P2049-150
+problem: P2049
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: response
+level: mcp
+realism: common
+realism_ko: "사건 기간만 보려고 타임라인을 날짜로 거르는 일은 흔하다."
+coverage: full
+summary: tsk_mactime with start_date 2024-10-26 and end_date 2024-10-27 returns success with the 2024-10-28 file in the timeline, and with end_date 2024-10-27 alone returns only that file and leaves out the 2024-10-25 and 2024-10-26 files, because mactime reads the dates as one start date.
+summary_ko: "`tsk_mactime`에 2024-10-26~2024-10-27을 주면 2024-10-28 파일까지 담긴 성공 응답이 오고, `end_date`(2024-10-27)만 주면 그 이후인 2024-10-28 파일만 오고 2024-10-25·26 파일은 빠진다."
+defect_ko: "이 서버는 두 날짜를 따로 넘겨 mactime이 첫 값만 시작일로 쓴다. 설명대로라면 `시작..끝` 한 인자로 넘겨 그 기간만 돌려줘야 한다. 모델은 기간 밖의 사건을 기간 안의 사건으로 잘못 알고, 끝 날짜만 준 경우에는 그 전의 사건이 없다고 잘못 안다."
+setup_ko: "`fls -m` 형식 bodyfile에 2024-10-25, 2024-10-26, 2024-10-28에 생긴 파일을 하나씩 넣었다."
+env:
+  TRUDI_CACHE_DIR: ${DB_DIR}/cache
+fixture:
+  - path: case01/analysis/root.body
+    root: outside
+    text: |
+      0|/home/alice/notes.txt|393231|r/rrw-r--r--|1000|1000|212|1729857600|1729857600|1729857600|1729857600
+      0|/var/tmp/.cache/kworkerd|1311522|r/rrwxr-xr-x|0|0|73728|1729944000|1729944000|1729944000|1729944000
+      0|/root/.ssh/authorized_keys|1179661|r/rrw-------|0|0|402|1730107800|1730107800|1730107800|1730107800
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 기록을 연다"
+    args:
+      case_id: CASE-001
+      output_path: ${OUTSIDE}/case01/analysis/trace.json
+      case_dir: ${OUTSIDE}/case01
+      launch_dashboard: false
+  - tool: tsk_mactime
+    note_ko: "결함 호출: 2024-10-26~2024-10-27로 거름"
+    args:
+      bodyfile: ${OUTSIDE}/case01/analysis/root.body
+      start_date: "2024-10-26"
+      end_date: "2024-10-27"
+  - tool: tsk_mactime
+    note_ko: "결함 호출: 끝 날짜 2024-10-27만 줌"
+    args:
+      bodyfile: ${OUTSIDE}/case01/analysis/root.body
+      end_date: "2024-10-27"
+expect:
+  - step: 2
+    note_ko: "명령에 두 날짜가 따로 들어간다"
+    contains: "-d 2024-10-26 2024-10-27"
+  - step: 2
+    note_ko: "기간 안의 2024-10-26 파일이 나온다"
+    contains: "/var/tmp/.cache/kworkerd"
+  - step: 2
+    note_ko: "기간 밖인 2024-10-28 파일도 나온다"
+    contains: "Mon Oct 28 2024 09:30:00,402,macb,r/rrw-------,0,0,1179661"
+  - step: 3
+    note_ko: "끝 날짜만 주면 그 뒤의 2024-10-28 파일만 나온다"
+    contains: "/root/.ssh/authorized_keys"
+  - step: 3
+    note_ko: "끝 날짜 이전인 2024-10-26 파일이 빠진다"
+    not_contains: "kworkerd"
+  - step: 3
+    note_ko: "끝 날짜 이전인 2024-10-25 파일도 빠진다"
+    not_contains: "notes.txt"

@@ -1,0 +1,46 @@
+{
+  "case_id": "P4143-006",
+  "problem": "P4143",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "multi-call",
+  "level": "mcp",
+  "realism": "common",
+  "coverage": "partial: the Velociraptor server is a stub; live.* tools record the same way and were not run, nor the reviewer step that reads the sidecar (it needs the Anthropic API)",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "응답은 호출 3으로 기록됐다",
+      "contains": "\"_trudi_call_id\": 3",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "trace는 그 호출의 출력 길이를 잘린 길이 51,200자로, 사이드카를 .tool_output/3.txt로 기록한다",
+      "regex": "stdout_chars.{1,3}: 51200,[\\s\\S]*stdout_path.{1,3}: .{1,3}[^\"]*/analysis/\\.tool_output/3\\.txt",
+      "ok": true
+    },
+    {
+      "step": 3,
+      "note_ko": "사이드카가 잘렸다는 stdout_partial은 없다",
+      "not_regex": "stdout_partial.{1,3}: true",
+      "ok": true
+    },
+    {
+      "step": 4,
+      "note_ko": "전체 출력이라는 사이드카에서 rundll32를 찾으면 아무것도 없다",
+      "regex": "\"query\": \"rundll32\"[\\s\\S]*\"body\": \"\"",
+      "ok": true
+    },
+    {
+      "step": 5,
+      "note_ko": "같은 수집에는 rundll32.exe가 있다(사이드카가 잘려 빠졌다)",
+      "contains": "msupdate.dll,DllRegisterServer",
+      "ok": true
+    }
+  ],
+  "image": "sha256:79b65c16ac4b7d0bd16f40a0865927cd807f1f66ce701d997d56c10d1df3eeea",
+  "ran_at": "2026-11-27T20:43:46+00:00"
+}

@@ -1,0 +1,714 @@
+# Matrix case P4124-016: when stdout passes the line cap (150 lines), the
+# executor appends its own note "[TRUNCATED — N lines omitted. Use a targeted
+# follow-up query with focus_paths or focus_pids ...]" inside the same
+# stdout string as the tool's output (core/executor.py _apply_line_cap).
+# strings_extract returns that string as ascii_stdout and has no truncated
+# field of its own, so the server's note is only visible as one more line of
+# the file's strings.
+# The evidence is a Debian/Ubuntu /var/log/auth.log in syslog format, 643
+# continuous lines (cron sessions, deploy's ssh logins, sudo restarts) from
+# 00:00:03 to 07:31:30 with nothing removed. strings is the real one.
+case_id: P4124-016
+problem: P4124
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: response
+level: model
+realism: common
+realism_ko: "150줄을 넘는 로그나 바이너리의 문자열을 뽑는 일은 흔하고, 그때마다 서버 안내가 증거 문자열과 같은 값 안에 붙는다."
+coverage: full
+summary: strings_extract on a 643-line auth.log returns ascii_stdout with 150 log lines followed, in the same string, by the server's own "[TRUNCATED — N lines omitted. Use a targeted follow-up query with focus_paths or focus_pids ...]" line, and the response has no separate truncated field, so the response alone does not show where the file's text ends.
+summary_ko: "643줄짜리 auth.log에 strings_extract를 부르면, ascii_stdout 값 안에 로그 150줄 뒤로 서버가 쓴 \"[TRUNCATED — N lines omitted. Use a targeted follow-up query with focus_paths or focus_pids ...]\" 줄이 같은 문자열로 이어 붙고, 응답에는 따로 된 truncated 칸이 없다. 응답만으로는 파일 원문이 어디서 끝나는지 알 수 없다."
+defect_ko: "이 서버는 줄 상한을 넘은 출력 끝에 자기 안내 문장을 증거 문자열과 같은 값 안에 붙인다. 정상이라면 원문과 서버 안내를 다른 칸(예: truncated, omitted_lines)으로 나눠야 한다. 모델은 그 안내 줄을 로그 자체의 내용(지워진 줄이 있다는 흔적)으로 읽거나, 서버가 쓴 문장을 증거로 인용할 수 있다."
+setup_ko: "cron·ssh 로그인·sudo 기록이 빠짐없이 이어지는 643줄짜리 /var/log/auth.log를 넣었다."
+env:
+  TRUDI_CACHE_DIR: ${DB_DIR}/cache
+fixture:
+  - path: case01/analysis/.keep
+    root: outside
+    text: ""
+  - path: var/log/auth.log
+    text: |
+      Nov  8 00:00:03 web01 sshd[21036]: Accepted publickey for deploy from 10.0.3.12 port 54805 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 00:00:03 web01 sshd[21036]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 00:00:03 web01 systemd-logind[612]: New session 436 of user deploy.
+      Nov  8 00:00:40 web01 sshd[21036]: Received disconnect from 10.0.3.12 port 54805:11: disconnected by user
+      Nov  8 00:00:40 web01 sshd[21036]: Disconnected from user deploy 10.0.3.12 port 54805
+      Nov  8 00:00:40 web01 sshd[21036]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 00:00:40 web01 systemd-logind[612]: Session 436 logged out. Waiting for processes to exit.
+      Nov  8 00:04:10 web01 CRON[21069]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 00:04:11 web01 CRON[21069]: pam_unix(cron:session): session closed for user root
+      Nov  8 00:07:12 web01 sshd[21081]: Accepted publickey for deploy from 10.0.3.11 port 54633 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 00:07:12 web01 sshd[21081]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 00:07:12 web01 systemd-logind[612]: New session 481 of user deploy.
+      Nov  8 00:07:36 web01 sshd[21081]: Received disconnect from 10.0.3.11 port 54633:11: disconnected by user
+      Nov  8 00:07:36 web01 sshd[21081]: Disconnected from user deploy 10.0.3.11 port 54633
+      Nov  8 00:07:36 web01 sshd[21081]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 00:07:36 web01 systemd-logind[612]: Session 481 logged out. Waiting for processes to exit.
+      Nov  8 00:09:12 web01 CRON[21084]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 00:09:13 web01 CRON[21084]: pam_unix(cron:session): session closed for user root
+      Nov  8 00:12:45 web01 sudo[21113]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 00:12:45 web01 sudo[21113]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 00:12:45 web01 sudo[21113]: pam_unix(sudo:session): session closed for user root
+      Nov  8 00:16:32 web01 sshd[21124]: Accepted publickey for deploy from 10.0.3.15 port 40491 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 00:16:32 web01 sshd[21124]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 00:16:32 web01 systemd-logind[612]: New session 524 of user deploy.
+      Nov  8 00:17:10 web01 sshd[21124]: Received disconnect from 10.0.3.15 port 40491:11: disconnected by user
+      Nov  8 00:17:10 web01 sshd[21124]: Disconnected from user deploy 10.0.3.15 port 40491
+      Nov  8 00:17:10 web01 sshd[21124]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 00:17:10 web01 systemd-logind[612]: Session 524 logged out. Waiting for processes to exit.
+      Nov  8 00:18:26 web01 CRON[21137]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 00:18:27 web01 CRON[21137]: pam_unix(cron:session): session closed for user root
+      Nov  8 00:20:28 web01 sshd[21167]: Accepted publickey for deploy from 10.0.3.12 port 54435 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 00:20:28 web01 sshd[21167]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 00:20:28 web01 systemd-logind[612]: New session 567 of user deploy.
+      Nov  8 00:20:45 web01 sshd[21167]: Received disconnect from 10.0.3.12 port 54435:11: disconnected by user
+      Nov  8 00:20:45 web01 sshd[21167]: Disconnected from user deploy 10.0.3.12 port 54435
+      Nov  8 00:20:45 web01 sshd[21167]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 00:20:45 web01 systemd-logind[612]: Session 567 logged out. Waiting for processes to exit.
+      Nov  8 00:23:57 web01 CRON[21186]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 00:23:58 web01 CRON[21186]: pam_unix(cron:session): session closed for user root
+      Nov  8 00:27:05 web01 CRON[21192]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 00:27:06 web01 CRON[21192]: pam_unix(cron:session): session closed for user root
+      Nov  8 00:30:03 web01 sshd[21219]: Accepted publickey for deploy from 10.0.3.15 port 42726 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 00:30:03 web01 sshd[21219]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 00:30:03 web01 systemd-logind[612]: New session 619 of user deploy.
+      Nov  8 00:30:24 web01 sshd[21219]: Received disconnect from 10.0.3.15 port 42726:11: disconnected by user
+      Nov  8 00:30:24 web01 sshd[21219]: Disconnected from user deploy 10.0.3.15 port 42726
+      Nov  8 00:30:24 web01 sshd[21219]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 00:30:24 web01 systemd-logind[612]: Session 619 logged out. Waiting for processes to exit.
+      Nov  8 00:32:44 web01 sudo[21252]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 00:32:44 web01 sudo[21252]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 00:32:44 web01 sudo[21252]: pam_unix(sudo:session): session closed for user root
+      Nov  8 00:34:57 web01 CRON[21289]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 00:34:58 web01 CRON[21289]: pam_unix(cron:session): session closed for user root
+      Nov  8 00:36:25 web01 CRON[21308]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 00:36:26 web01 CRON[21308]: pam_unix(cron:session): session closed for user root
+      Nov  8 00:39:04 web01 CRON[21310]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 00:39:05 web01 CRON[21310]: pam_unix(cron:session): session closed for user root
+      Nov  8 00:43:00 web01 CRON[21324]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 00:43:01 web01 CRON[21324]: pam_unix(cron:session): session closed for user root
+      Nov  8 00:44:14 web01 sshd[21350]: Accepted publickey for deploy from 10.0.3.12 port 42393 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 00:44:14 web01 sshd[21350]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 00:44:14 web01 systemd-logind[612]: New session 750 of user deploy.
+      Nov  8 00:44:31 web01 sshd[21350]: Received disconnect from 10.0.3.12 port 42393:11: disconnected by user
+      Nov  8 00:44:31 web01 sshd[21350]: Disconnected from user deploy 10.0.3.12 port 42393
+      Nov  8 00:44:31 web01 sshd[21350]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 00:44:31 web01 systemd-logind[612]: Session 750 logged out. Waiting for processes to exit.
+      Nov  8 00:48:23 web01 CRON[21356]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 00:48:24 web01 CRON[21356]: pam_unix(cron:session): session closed for user root
+      Nov  8 00:50:43 web01 CRON[21383]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 00:50:44 web01 CRON[21383]: pam_unix(cron:session): session closed for user root
+      Nov  8 00:52:14 web01 CRON[21390]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 00:52:15 web01 CRON[21390]: pam_unix(cron:session): session closed for user root
+      Nov  8 00:53:17 web01 CRON[21422]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 00:53:18 web01 CRON[21422]: pam_unix(cron:session): session closed for user root
+      Nov  8 00:55:03 web01 sshd[21435]: Accepted publickey for deploy from 10.0.3.12 port 56674 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 00:55:03 web01 sshd[21435]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 00:55:03 web01 systemd-logind[612]: New session 835 of user deploy.
+      Nov  8 00:55:20 web01 sshd[21435]: Received disconnect from 10.0.3.12 port 56674:11: disconnected by user
+      Nov  8 00:55:20 web01 sshd[21435]: Disconnected from user deploy 10.0.3.12 port 56674
+      Nov  8 00:55:20 web01 sshd[21435]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 00:55:20 web01 systemd-logind[612]: Session 835 logged out. Waiting for processes to exit.
+      Nov  8 00:56:53 web01 CRON[21460]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 00:56:54 web01 CRON[21460]: pam_unix(cron:session): session closed for user root
+      Nov  8 00:58:23 web01 CRON[21474]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 00:58:24 web01 CRON[21474]: pam_unix(cron:session): session closed for user root
+      Nov  8 00:59:24 web01 CRON[21512]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 00:59:25 web01 CRON[21512]: pam_unix(cron:session): session closed for user root
+      Nov  8 01:01:42 web01 sudo[21514]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 01:01:42 web01 sudo[21514]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 01:01:42 web01 sudo[21514]: pam_unix(sudo:session): session closed for user root
+      Nov  8 01:03:35 web01 CRON[21553]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 01:03:36 web01 CRON[21553]: pam_unix(cron:session): session closed for user root
+      Nov  8 01:07:20 web01 sshd[21556]: Accepted publickey for deploy from 10.0.3.11 port 46987 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 01:07:20 web01 sshd[21556]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 01:07:20 web01 systemd-logind[612]: New session 956 of user deploy.
+      Nov  8 01:07:53 web01 sshd[21556]: Received disconnect from 10.0.3.11 port 46987:11: disconnected by user
+      Nov  8 01:07:53 web01 sshd[21556]: Disconnected from user deploy 10.0.3.11 port 46987
+      Nov  8 01:07:53 web01 sshd[21556]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 01:07:53 web01 systemd-logind[612]: Session 956 logged out. Waiting for processes to exit.
+      Nov  8 01:09:59 web01 CRON[21596]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 01:10:00 web01 CRON[21596]: pam_unix(cron:session): session closed for user root
+      Nov  8 01:12:24 web01 sudo[21621]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 01:12:24 web01 sudo[21621]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 01:12:24 web01 sudo[21621]: pam_unix(sudo:session): session closed for user root
+      Nov  8 01:13:42 web01 CRON[21635]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 01:13:43 web01 CRON[21635]: pam_unix(cron:session): session closed for user root
+      Nov  8 01:17:12 web01 sshd[21636]: Accepted publickey for deploy from 10.0.3.15 port 52080 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 01:17:12 web01 sshd[21636]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 01:17:12 web01 systemd-logind[612]: New session 136 of user deploy.
+      Nov  8 01:17:40 web01 sshd[21636]: Received disconnect from 10.0.3.15 port 52080:11: disconnected by user
+      Nov  8 01:17:40 web01 sshd[21636]: Disconnected from user deploy 10.0.3.15 port 52080
+      Nov  8 01:17:40 web01 sshd[21636]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 01:17:40 web01 systemd-logind[612]: Session 136 logged out. Waiting for processes to exit.
+      Nov  8 01:21:19 web01 sshd[21674]: Accepted publickey for deploy from 10.0.3.12 port 58827 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 01:21:19 web01 sshd[21674]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 01:21:19 web01 systemd-logind[612]: New session 174 of user deploy.
+      Nov  8 01:21:32 web01 sshd[21674]: Received disconnect from 10.0.3.12 port 58827:11: disconnected by user
+      Nov  8 01:21:32 web01 sshd[21674]: Disconnected from user deploy 10.0.3.12 port 58827
+      Nov  8 01:21:32 web01 sshd[21674]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 01:21:32 web01 systemd-logind[612]: Session 174 logged out. Waiting for processes to exit.
+      Nov  8 01:24:10 web01 CRON[21684]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 01:24:11 web01 CRON[21684]: pam_unix(cron:session): session closed for user root
+      Nov  8 01:26:30 web01 sudo[21724]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 01:26:30 web01 sudo[21724]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 01:26:30 web01 sudo[21724]: pam_unix(sudo:session): session closed for user root
+      Nov  8 01:28:33 web01 sshd[21735]: Accepted publickey for deploy from 10.0.3.15 port 58151 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 01:28:33 web01 sshd[21735]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 01:28:33 web01 systemd-logind[612]: New session 235 of user deploy.
+      Nov  8 01:28:50 web01 sshd[21735]: Received disconnect from 10.0.3.15 port 58151:11: disconnected by user
+      Nov  8 01:28:50 web01 sshd[21735]: Disconnected from user deploy 10.0.3.15 port 58151
+      Nov  8 01:28:50 web01 sshd[21735]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 01:28:50 web01 systemd-logind[612]: Session 235 logged out. Waiting for processes to exit.
+      Nov  8 01:32:45 web01 sudo[21766]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 01:32:45 web01 sudo[21766]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 01:32:45 web01 sudo[21766]: pam_unix(sudo:session): session closed for user root
+      Nov  8 01:36:19 web01 CRON[21770]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 01:36:20 web01 CRON[21770]: pam_unix(cron:session): session closed for user root
+      Nov  8 01:37:46 web01 CRON[21803]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 01:37:47 web01 CRON[21803]: pam_unix(cron:session): session closed for user root
+      Nov  8 01:39:52 web01 CRON[21829]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 01:39:53 web01 CRON[21829]: pam_unix(cron:session): session closed for user root
+      Nov  8 01:41:58 web01 CRON[21868]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 01:41:59 web01 CRON[21868]: pam_unix(cron:session): session closed for user root
+      Nov  8 01:45:04 web01 CRON[21880]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 01:45:05 web01 CRON[21880]: pam_unix(cron:session): session closed for user root
+      Nov  8 01:46:22 web01 CRON[21911]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 01:46:23 web01 CRON[21911]: pam_unix(cron:session): session closed for user root
+      Nov  8 01:49:46 web01 sshd[21951]: Accepted publickey for deploy from 10.0.3.15 port 42429 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 01:49:46 web01 sshd[21951]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 01:49:46 web01 systemd-logind[612]: New session 451 of user deploy.
+      Nov  8 01:50:08 web01 sshd[21951]: Received disconnect from 10.0.3.15 port 42429:11: disconnected by user
+      Nov  8 01:50:08 web01 sshd[21951]: Disconnected from user deploy 10.0.3.15 port 42429
+      Nov  8 01:50:08 web01 sshd[21951]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 01:50:08 web01 systemd-logind[612]: Session 451 logged out. Waiting for processes to exit.
+      Nov  8 01:52:02 web01 sudo[21965]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 01:52:02 web01 sudo[21965]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 01:52:02 web01 sudo[21965]: pam_unix(sudo:session): session closed for user root
+      Nov  8 01:53:06 web01 CRON[21992]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 01:53:07 web01 CRON[21992]: pam_unix(cron:session): session closed for user root
+      Nov  8 01:56:01 web01 CRON[21995]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 01:56:02 web01 CRON[21995]: pam_unix(cron:session): session closed for user root
+      Nov  8 01:57:47 web01 CRON[22029]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 01:57:48 web01 CRON[22029]: pam_unix(cron:session): session closed for user root
+      Nov  8 02:01:14 web01 sudo[22035]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 02:01:14 web01 sudo[22035]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 02:01:14 web01 sudo[22035]: pam_unix(sudo:session): session closed for user root
+      Nov  8 02:03:46 web01 CRON[22064]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 02:03:47 web01 CRON[22064]: pam_unix(cron:session): session closed for user root
+      Nov  8 02:06:11 web01 sshd[22098]: Accepted publickey for deploy from 10.0.3.15 port 44598 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 02:06:11 web01 sshd[22098]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 02:06:11 web01 systemd-logind[612]: New session 598 of user deploy.
+      Nov  8 02:06:18 web01 sshd[22098]: Received disconnect from 10.0.3.15 port 44598:11: disconnected by user
+      Nov  8 02:06:18 web01 sshd[22098]: Disconnected from user deploy 10.0.3.15 port 44598
+      Nov  8 02:06:18 web01 sshd[22098]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 02:06:18 web01 systemd-logind[612]: Session 598 logged out. Waiting for processes to exit.
+      Nov  8 02:07:22 web01 sshd[22121]: Accepted publickey for deploy from 10.0.3.15 port 50217 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 02:07:22 web01 sshd[22121]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 02:07:22 web01 systemd-logind[612]: New session 621 of user deploy.
+      Nov  8 02:07:29 web01 sshd[22121]: Received disconnect from 10.0.3.15 port 50217:11: disconnected by user
+      Nov  8 02:07:29 web01 sshd[22121]: Disconnected from user deploy 10.0.3.15 port 50217
+      Nov  8 02:07:29 web01 sshd[22121]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 02:07:29 web01 systemd-logind[612]: Session 621 logged out. Waiting for processes to exit.
+      Nov  8 02:08:34 web01 sshd[22126]: Accepted publickey for deploy from 10.0.3.12 port 42204 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 02:08:34 web01 sshd[22126]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 02:08:34 web01 systemd-logind[612]: New session 626 of user deploy.
+      Nov  8 02:08:58 web01 sshd[22126]: Received disconnect from 10.0.3.12 port 42204:11: disconnected by user
+      Nov  8 02:08:58 web01 sshd[22126]: Disconnected from user deploy 10.0.3.12 port 42204
+      Nov  8 02:08:58 web01 sshd[22126]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 02:08:58 web01 systemd-logind[612]: Session 626 logged out. Waiting for processes to exit.
+      Nov  8 02:11:19 web01 CRON[22131]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 02:11:20 web01 CRON[22131]: pam_unix(cron:session): session closed for user root
+      Nov  8 02:12:39 web01 sshd[22155]: Accepted publickey for deploy from 10.0.3.15 port 41457 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 02:12:39 web01 sshd[22155]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 02:12:39 web01 systemd-logind[612]: New session 655 of user deploy.
+      Nov  8 02:12:52 web01 sshd[22155]: Received disconnect from 10.0.3.15 port 41457:11: disconnected by user
+      Nov  8 02:12:52 web01 sshd[22155]: Disconnected from user deploy 10.0.3.15 port 41457
+      Nov  8 02:12:52 web01 sshd[22155]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 02:12:52 web01 systemd-logind[612]: Session 655 logged out. Waiting for processes to exit.
+      Nov  8 02:15:19 web01 CRON[22186]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 02:15:20 web01 CRON[22186]: pam_unix(cron:session): session closed for user root
+      Nov  8 02:16:39 web01 sudo[22213]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 02:16:39 web01 sudo[22213]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 02:16:39 web01 sudo[22213]: pam_unix(sudo:session): session closed for user root
+      Nov  8 02:17:46 web01 sudo[22250]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 02:17:46 web01 sudo[22250]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 02:17:46 web01 sudo[22250]: pam_unix(sudo:session): session closed for user root
+      Nov  8 02:18:49 web01 sshd[22275]: Accepted publickey for deploy from 10.0.3.12 port 59093 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 02:18:49 web01 sshd[22275]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 02:18:49 web01 systemd-logind[612]: New session 775 of user deploy.
+      Nov  8 02:18:54 web01 sshd[22275]: Received disconnect from 10.0.3.12 port 59093:11: disconnected by user
+      Nov  8 02:18:54 web01 sshd[22275]: Disconnected from user deploy 10.0.3.12 port 59093
+      Nov  8 02:18:54 web01 sshd[22275]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 02:18:54 web01 systemd-logind[612]: Session 775 logged out. Waiting for processes to exit.
+      Nov  8 02:22:29 web01 CRON[22281]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 02:22:30 web01 CRON[22281]: pam_unix(cron:session): session closed for user root
+      Nov  8 02:26:13 web01 CRON[22298]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 02:26:14 web01 CRON[22298]: pam_unix(cron:session): session closed for user root
+      Nov  8 02:29:00 web01 sshd[22323]: Accepted publickey for deploy from 10.0.3.15 port 59036 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 02:29:00 web01 sshd[22323]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 02:29:00 web01 systemd-logind[612]: New session 823 of user deploy.
+      Nov  8 02:29:34 web01 sshd[22323]: Received disconnect from 10.0.3.15 port 59036:11: disconnected by user
+      Nov  8 02:29:34 web01 sshd[22323]: Disconnected from user deploy 10.0.3.15 port 59036
+      Nov  8 02:29:34 web01 sshd[22323]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 02:29:34 web01 systemd-logind[612]: Session 823 logged out. Waiting for processes to exit.
+      Nov  8 02:32:26 web01 sshd[22358]: Accepted publickey for deploy from 10.0.3.11 port 56996 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 02:32:26 web01 sshd[22358]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 02:32:26 web01 systemd-logind[612]: New session 858 of user deploy.
+      Nov  8 02:33:03 web01 sshd[22358]: Received disconnect from 10.0.3.11 port 56996:11: disconnected by user
+      Nov  8 02:33:03 web01 sshd[22358]: Disconnected from user deploy 10.0.3.11 port 56996
+      Nov  8 02:33:03 web01 sshd[22358]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 02:33:03 web01 systemd-logind[612]: Session 858 logged out. Waiting for processes to exit.
+      Nov  8 02:34:10 web01 CRON[22364]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 02:34:11 web01 CRON[22364]: pam_unix(cron:session): session closed for user root
+      Nov  8 02:37:14 web01 CRON[22372]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 02:37:15 web01 CRON[22372]: pam_unix(cron:session): session closed for user root
+      Nov  8 02:40:22 web01 sudo[22404]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 02:40:22 web01 sudo[22404]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 02:40:22 web01 sudo[22404]: pam_unix(sudo:session): session closed for user root
+      Nov  8 02:42:27 web01 sudo[22428]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 02:42:27 web01 sudo[22428]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 02:42:27 web01 sudo[22428]: pam_unix(sudo:session): session closed for user root
+      Nov  8 02:44:44 web01 CRON[22468]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 02:44:45 web01 CRON[22468]: pam_unix(cron:session): session closed for user root
+      Nov  8 02:46:36 web01 sshd[22490]: Accepted publickey for deploy from 10.0.3.15 port 54481 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 02:46:36 web01 sshd[22490]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 02:46:36 web01 systemd-logind[612]: New session 990 of user deploy.
+      Nov  8 02:47:12 web01 sshd[22490]: Received disconnect from 10.0.3.15 port 54481:11: disconnected by user
+      Nov  8 02:47:12 web01 sshd[22490]: Disconnected from user deploy 10.0.3.15 port 54481
+      Nov  8 02:47:12 web01 sshd[22490]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 02:47:12 web01 systemd-logind[612]: Session 990 logged out. Waiting for processes to exit.
+      Nov  8 02:49:13 web01 CRON[22507]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 02:49:14 web01 CRON[22507]: pam_unix(cron:session): session closed for user root
+      Nov  8 02:51:04 web01 sshd[22520]: Accepted publickey for deploy from 10.0.3.11 port 52596 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 02:51:04 web01 sshd[22520]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 02:51:04 web01 systemd-logind[612]: New session 120 of user deploy.
+      Nov  8 02:51:23 web01 sshd[22520]: Received disconnect from 10.0.3.11 port 52596:11: disconnected by user
+      Nov  8 02:51:23 web01 sshd[22520]: Disconnected from user deploy 10.0.3.11 port 52596
+      Nov  8 02:51:23 web01 sshd[22520]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 02:51:23 web01 systemd-logind[612]: Session 120 logged out. Waiting for processes to exit.
+      Nov  8 02:54:52 web01 sudo[22534]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 02:54:52 web01 sudo[22534]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 02:54:52 web01 sudo[22534]: pam_unix(sudo:session): session closed for user root
+      Nov  8 02:56:26 web01 CRON[22557]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 02:56:27 web01 CRON[22557]: pam_unix(cron:session): session closed for user root
+      Nov  8 02:57:37 web01 sshd[22575]: Accepted publickey for deploy from 10.0.3.11 port 43697 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 02:57:37 web01 sshd[22575]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 02:57:37 web01 systemd-logind[612]: New session 175 of user deploy.
+      Nov  8 02:58:10 web01 sshd[22575]: Received disconnect from 10.0.3.11 port 43697:11: disconnected by user
+      Nov  8 02:58:10 web01 sshd[22575]: Disconnected from user deploy 10.0.3.11 port 43697
+      Nov  8 02:58:10 web01 sshd[22575]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 02:58:10 web01 systemd-logind[612]: Session 175 logged out. Waiting for processes to exit.
+      Nov  8 03:01:10 web01 CRON[22589]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 03:01:11 web01 CRON[22589]: pam_unix(cron:session): session closed for user root
+      Nov  8 03:03:56 web01 CRON[22623]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 03:03:57 web01 CRON[22623]: pam_unix(cron:session): session closed for user root
+      Nov  8 03:07:03 web01 sshd[22663]: Accepted publickey for deploy from 10.0.3.12 port 50497 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 03:07:03 web01 sshd[22663]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 03:07:03 web01 systemd-logind[612]: New session 263 of user deploy.
+      Nov  8 03:07:12 web01 sshd[22663]: Received disconnect from 10.0.3.12 port 50497:11: disconnected by user
+      Nov  8 03:07:12 web01 sshd[22663]: Disconnected from user deploy 10.0.3.12 port 50497
+      Nov  8 03:07:12 web01 sshd[22663]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 03:07:12 web01 systemd-logind[612]: Session 263 logged out. Waiting for processes to exit.
+      Nov  8 03:08:20 web01 CRON[22702]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 03:08:21 web01 CRON[22702]: pam_unix(cron:session): session closed for user root
+      Nov  8 03:09:31 web01 sshd[22720]: Accepted publickey for deploy from 10.0.3.15 port 51606 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 03:09:31 web01 sshd[22720]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 03:09:31 web01 systemd-logind[612]: New session 320 of user deploy.
+      Nov  8 03:09:55 web01 sshd[22720]: Received disconnect from 10.0.3.15 port 51606:11: disconnected by user
+      Nov  8 03:09:55 web01 sshd[22720]: Disconnected from user deploy 10.0.3.15 port 51606
+      Nov  8 03:09:55 web01 sshd[22720]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 03:09:55 web01 systemd-logind[612]: Session 320 logged out. Waiting for processes to exit.
+      Nov  8 03:13:41 web01 sudo[22722]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 03:13:41 web01 sudo[22722]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 03:13:41 web01 sudo[22722]: pam_unix(sudo:session): session closed for user root
+      Nov  8 03:17:25 web01 CRON[22752]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 03:17:26 web01 CRON[22752]: pam_unix(cron:session): session closed for user root
+      Nov  8 03:19:14 web01 CRON[22770]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 03:19:15 web01 CRON[22770]: pam_unix(cron:session): session closed for user root
+      Nov  8 03:21:15 web01 sudo[22774]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 03:21:15 web01 sudo[22774]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 03:21:15 web01 sudo[22774]: pam_unix(sudo:session): session closed for user root
+      Nov  8 03:24:56 web01 CRON[22781]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 03:24:57 web01 CRON[22781]: pam_unix(cron:session): session closed for user root
+      Nov  8 03:28:38 web01 sshd[22805]: Accepted publickey for deploy from 10.0.3.11 port 46489 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 03:28:38 web01 sshd[22805]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 03:28:38 web01 systemd-logind[612]: New session 405 of user deploy.
+      Nov  8 03:28:55 web01 sshd[22805]: Received disconnect from 10.0.3.11 port 46489:11: disconnected by user
+      Nov  8 03:28:55 web01 sshd[22805]: Disconnected from user deploy 10.0.3.11 port 46489
+      Nov  8 03:28:55 web01 sshd[22805]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 03:28:55 web01 systemd-logind[612]: Session 405 logged out. Waiting for processes to exit.
+      Nov  8 03:31:56 web01 CRON[22806]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 03:31:57 web01 CRON[22806]: pam_unix(cron:session): session closed for user root
+      Nov  8 03:34:57 web01 sshd[22809]: Accepted publickey for deploy from 10.0.3.11 port 47420 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 03:34:57 web01 sshd[22809]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 03:34:57 web01 systemd-logind[612]: New session 409 of user deploy.
+      Nov  8 03:35:19 web01 sshd[22809]: Received disconnect from 10.0.3.11 port 47420:11: disconnected by user
+      Nov  8 03:35:19 web01 sshd[22809]: Disconnected from user deploy 10.0.3.11 port 47420
+      Nov  8 03:35:19 web01 sshd[22809]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 03:35:19 web01 systemd-logind[612]: Session 409 logged out. Waiting for processes to exit.
+      Nov  8 03:37:47 web01 sshd[22843]: Accepted publickey for deploy from 10.0.3.15 port 45216 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 03:37:47 web01 sshd[22843]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 03:37:47 web01 systemd-logind[612]: New session 443 of user deploy.
+      Nov  8 03:38:17 web01 sshd[22843]: Received disconnect from 10.0.3.15 port 45216:11: disconnected by user
+      Nov  8 03:38:17 web01 sshd[22843]: Disconnected from user deploy 10.0.3.15 port 45216
+      Nov  8 03:38:17 web01 sshd[22843]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 03:38:17 web01 systemd-logind[612]: Session 443 logged out. Waiting for processes to exit.
+      Nov  8 03:42:16 web01 sudo[22849]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 03:42:16 web01 sudo[22849]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 03:42:16 web01 sudo[22849]: pam_unix(sudo:session): session closed for user root
+      Nov  8 03:45:01 web01 sudo[22874]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 03:45:01 web01 sudo[22874]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 03:45:01 web01 sudo[22874]: pam_unix(sudo:session): session closed for user root
+      Nov  8 03:46:34 web01 sshd[22887]: Accepted publickey for deploy from 10.0.3.15 port 40220 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 03:46:34 web01 sshd[22887]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 03:46:34 web01 systemd-logind[612]: New session 487 of user deploy.
+      Nov  8 03:47:03 web01 sshd[22887]: Received disconnect from 10.0.3.15 port 40220:11: disconnected by user
+      Nov  8 03:47:03 web01 sshd[22887]: Disconnected from user deploy 10.0.3.15 port 40220
+      Nov  8 03:47:03 web01 sshd[22887]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 03:47:03 web01 systemd-logind[612]: Session 487 logged out. Waiting for processes to exit.
+      Nov  8 03:50:23 web01 sshd[22920]: Accepted publickey for deploy from 10.0.3.12 port 55194 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 03:50:23 web01 sshd[22920]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 03:50:23 web01 systemd-logind[612]: New session 520 of user deploy.
+      Nov  8 03:50:48 web01 sshd[22920]: Received disconnect from 10.0.3.12 port 55194:11: disconnected by user
+      Nov  8 03:50:48 web01 sshd[22920]: Disconnected from user deploy 10.0.3.12 port 55194
+      Nov  8 03:50:48 web01 sshd[22920]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 03:50:48 web01 systemd-logind[612]: Session 520 logged out. Waiting for processes to exit.
+      Nov  8 03:54:34 web01 sudo[22927]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 03:54:34 web01 sudo[22927]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 03:54:34 web01 sudo[22927]: pam_unix(sudo:session): session closed for user root
+      Nov  8 03:58:18 web01 sudo[22935]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 03:58:18 web01 sudo[22935]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 03:58:18 web01 sudo[22935]: pam_unix(sudo:session): session closed for user root
+      Nov  8 04:00:12 web01 CRON[22960]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 04:00:13 web01 CRON[22960]: pam_unix(cron:session): session closed for user root
+      Nov  8 04:01:35 web01 sudo[22995]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 04:01:35 web01 sudo[22995]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 04:01:35 web01 sudo[22995]: pam_unix(sudo:session): session closed for user root
+      Nov  8 04:03:57 web01 CRON[22997]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 04:03:58 web01 CRON[22997]: pam_unix(cron:session): session closed for user root
+      Nov  8 04:06:27 web01 sshd[23000]: Accepted publickey for deploy from 10.0.3.12 port 51208 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 04:06:27 web01 sshd[23000]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 04:06:27 web01 systemd-logind[612]: New session 600 of user deploy.
+      Nov  8 04:07:07 web01 sshd[23000]: Received disconnect from 10.0.3.12 port 51208:11: disconnected by user
+      Nov  8 04:07:07 web01 sshd[23000]: Disconnected from user deploy 10.0.3.12 port 51208
+      Nov  8 04:07:07 web01 sshd[23000]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 04:07:07 web01 systemd-logind[612]: Session 600 logged out. Waiting for processes to exit.
+      Nov  8 04:09:54 web01 sudo[23032]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 04:09:54 web01 sudo[23032]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 04:09:54 web01 sudo[23032]: pam_unix(sudo:session): session closed for user root
+      Nov  8 04:11:01 web01 CRON[23037]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 04:11:02 web01 CRON[23037]: pam_unix(cron:session): session closed for user root
+      Nov  8 04:13:51 web01 sudo[23049]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 04:13:51 web01 sudo[23049]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 04:13:51 web01 sudo[23049]: pam_unix(sudo:session): session closed for user root
+      Nov  8 04:17:07 web01 CRON[23058]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 04:17:08 web01 CRON[23058]: pam_unix(cron:session): session closed for user root
+      Nov  8 04:20:08 web01 CRON[23092]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 04:20:09 web01 CRON[23092]: pam_unix(cron:session): session closed for user root
+      Nov  8 04:23:21 web01 sudo[23121]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 04:23:21 web01 sudo[23121]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 04:23:21 web01 sudo[23121]: pam_unix(sudo:session): session closed for user root
+      Nov  8 04:26:27 web01 sshd[23127]: Accepted publickey for deploy from 10.0.3.11 port 54398 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 04:26:27 web01 sshd[23127]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 04:26:27 web01 systemd-logind[612]: New session 727 of user deploy.
+      Nov  8 04:27:05 web01 sshd[23127]: Received disconnect from 10.0.3.11 port 54398:11: disconnected by user
+      Nov  8 04:27:05 web01 sshd[23127]: Disconnected from user deploy 10.0.3.11 port 54398
+      Nov  8 04:27:05 web01 sshd[23127]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 04:27:05 web01 systemd-logind[612]: Session 727 logged out. Waiting for processes to exit.
+      Nov  8 04:30:28 web01 CRON[23163]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 04:30:29 web01 CRON[23163]: pam_unix(cron:session): session closed for user root
+      Nov  8 04:34:12 web01 CRON[23196]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 04:34:13 web01 CRON[23196]: pam_unix(cron:session): session closed for user root
+      Nov  8 04:37:36 web01 CRON[23221]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 04:37:37 web01 CRON[23221]: pam_unix(cron:session): session closed for user root
+      Nov  8 04:41:13 web01 CRON[23231]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 04:41:14 web01 CRON[23231]: pam_unix(cron:session): session closed for user root
+      Nov  8 04:44:33 web01 sshd[23268]: Accepted publickey for deploy from 10.0.3.12 port 46585 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 04:44:33 web01 sshd[23268]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 04:44:33 web01 systemd-logind[612]: New session 868 of user deploy.
+      Nov  8 04:45:04 web01 sshd[23268]: Received disconnect from 10.0.3.12 port 46585:11: disconnected by user
+      Nov  8 04:45:04 web01 sshd[23268]: Disconnected from user deploy 10.0.3.12 port 46585
+      Nov  8 04:45:04 web01 sshd[23268]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 04:45:04 web01 systemd-logind[612]: Session 868 logged out. Waiting for processes to exit.
+      Nov  8 04:48:21 web01 CRON[23269]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 04:48:22 web01 CRON[23269]: pam_unix(cron:session): session closed for user root
+      Nov  8 04:51:56 web01 CRON[23304]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 04:51:57 web01 CRON[23304]: pam_unix(cron:session): session closed for user root
+      Nov  8 04:53:08 web01 sshd[23330]: Accepted publickey for deploy from 10.0.3.15 port 58444 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 04:53:08 web01 sshd[23330]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 04:53:08 web01 systemd-logind[612]: New session 930 of user deploy.
+      Nov  8 04:53:20 web01 sshd[23330]: Received disconnect from 10.0.3.15 port 58444:11: disconnected by user
+      Nov  8 04:53:20 web01 sshd[23330]: Disconnected from user deploy 10.0.3.15 port 58444
+      Nov  8 04:53:20 web01 sshd[23330]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 04:53:20 web01 systemd-logind[612]: Session 930 logged out. Waiting for processes to exit.
+      Nov  8 04:56:25 web01 CRON[23341]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 04:56:26 web01 CRON[23341]: pam_unix(cron:session): session closed for user root
+      Nov  8 04:57:42 web01 sudo[23371]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 04:57:42 web01 sudo[23371]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 04:57:42 web01 sudo[23371]: pam_unix(sudo:session): session closed for user root
+      Nov  8 05:00:27 web01 sudo[23397]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 05:00:27 web01 sudo[23397]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 05:00:27 web01 sudo[23397]: pam_unix(sudo:session): session closed for user root
+      Nov  8 05:02:35 web01 CRON[23429]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 05:02:36 web01 CRON[23429]: pam_unix(cron:session): session closed for user root
+      Nov  8 05:04:08 web01 CRON[23460]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 05:04:09 web01 CRON[23460]: pam_unix(cron:session): session closed for user root
+      Nov  8 05:07:23 web01 CRON[23473]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 05:07:24 web01 CRON[23473]: pam_unix(cron:session): session closed for user root
+      Nov  8 05:10:11 web01 sshd[23490]: Accepted publickey for deploy from 10.0.3.11 port 40746 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 05:10:11 web01 sshd[23490]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 05:10:11 web01 systemd-logind[612]: New session 190 of user deploy.
+      Nov  8 05:10:18 web01 sshd[23490]: Received disconnect from 10.0.3.11 port 40746:11: disconnected by user
+      Nov  8 05:10:18 web01 sshd[23490]: Disconnected from user deploy 10.0.3.11 port 40746
+      Nov  8 05:10:18 web01 sshd[23490]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 05:10:18 web01 systemd-logind[612]: Session 190 logged out. Waiting for processes to exit.
+      Nov  8 05:12:07 web01 CRON[23491]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 05:12:08 web01 CRON[23491]: pam_unix(cron:session): session closed for user root
+      Nov  8 05:16:03 web01 CRON[23514]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 05:16:04 web01 CRON[23514]: pam_unix(cron:session): session closed for user root
+      Nov  8 05:18:06 web01 sshd[23521]: Accepted publickey for deploy from 10.0.3.12 port 59078 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 05:18:06 web01 sshd[23521]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 05:18:06 web01 systemd-logind[612]: New session 221 of user deploy.
+      Nov  8 05:18:18 web01 sshd[23521]: Received disconnect from 10.0.3.12 port 59078:11: disconnected by user
+      Nov  8 05:18:18 web01 sshd[23521]: Disconnected from user deploy 10.0.3.12 port 59078
+      Nov  8 05:18:18 web01 sshd[23521]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 05:18:18 web01 systemd-logind[612]: Session 221 logged out. Waiting for processes to exit.
+      Nov  8 05:21:28 web01 sshd[23534]: Accepted publickey for deploy from 10.0.3.15 port 57378 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 05:21:28 web01 sshd[23534]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 05:21:28 web01 systemd-logind[612]: New session 234 of user deploy.
+      Nov  8 05:22:00 web01 sshd[23534]: Received disconnect from 10.0.3.15 port 57378:11: disconnected by user
+      Nov  8 05:22:00 web01 sshd[23534]: Disconnected from user deploy 10.0.3.15 port 57378
+      Nov  8 05:22:00 web01 sshd[23534]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 05:22:00 web01 systemd-logind[612]: Session 234 logged out. Waiting for processes to exit.
+      Nov  8 05:23:05 web01 CRON[23561]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 05:23:06 web01 CRON[23561]: pam_unix(cron:session): session closed for user root
+      Nov  8 05:26:21 web01 sshd[23596]: Accepted publickey for deploy from 10.0.3.11 port 57498 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 05:26:21 web01 sshd[23596]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 05:26:21 web01 systemd-logind[612]: New session 296 of user deploy.
+      Nov  8 05:26:39 web01 sshd[23596]: Received disconnect from 10.0.3.11 port 57498:11: disconnected by user
+      Nov  8 05:26:39 web01 sshd[23596]: Disconnected from user deploy 10.0.3.11 port 57498
+      Nov  8 05:26:39 web01 sshd[23596]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 05:26:39 web01 systemd-logind[612]: Session 296 logged out. Waiting for processes to exit.
+      Nov  8 05:29:54 web01 CRON[23631]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 05:29:55 web01 CRON[23631]: pam_unix(cron:session): session closed for user root
+      Nov  8 05:33:31 web01 sshd[23640]: Accepted publickey for deploy from 10.0.3.11 port 51390 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 05:33:31 web01 sshd[23640]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 05:33:31 web01 systemd-logind[612]: New session 340 of user deploy.
+      Nov  8 05:33:47 web01 sshd[23640]: Received disconnect from 10.0.3.11 port 51390:11: disconnected by user
+      Nov  8 05:33:47 web01 sshd[23640]: Disconnected from user deploy 10.0.3.11 port 51390
+      Nov  8 05:33:47 web01 sshd[23640]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 05:33:47 web01 systemd-logind[612]: Session 340 logged out. Waiting for processes to exit.
+      Nov  8 05:36:07 web01 sshd[23653]: Accepted publickey for deploy from 10.0.3.11 port 46374 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 05:36:07 web01 sshd[23653]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 05:36:07 web01 systemd-logind[612]: New session 353 of user deploy.
+      Nov  8 05:36:18 web01 sshd[23653]: Received disconnect from 10.0.3.11 port 46374:11: disconnected by user
+      Nov  8 05:36:18 web01 sshd[23653]: Disconnected from user deploy 10.0.3.11 port 46374
+      Nov  8 05:36:18 web01 sshd[23653]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 05:36:18 web01 systemd-logind[612]: Session 353 logged out. Waiting for processes to exit.
+      Nov  8 05:37:52 web01 sudo[23662]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 05:37:52 web01 sudo[23662]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 05:37:52 web01 sudo[23662]: pam_unix(sudo:session): session closed for user root
+      Nov  8 05:39:14 web01 CRON[23669]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 05:39:15 web01 CRON[23669]: pam_unix(cron:session): session closed for user root
+      Nov  8 05:42:06 web01 sudo[23696]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 05:42:06 web01 sudo[23696]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 05:42:06 web01 sudo[23696]: pam_unix(sudo:session): session closed for user root
+      Nov  8 05:45:25 web01 sudo[23705]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 05:45:25 web01 sudo[23705]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 05:45:25 web01 sudo[23705]: pam_unix(sudo:session): session closed for user root
+      Nov  8 05:47:16 web01 CRON[23707]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 05:47:17 web01 CRON[23707]: pam_unix(cron:session): session closed for user root
+      Nov  8 05:48:41 web01 CRON[23730]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 05:48:42 web01 CRON[23730]: pam_unix(cron:session): session closed for user root
+      Nov  8 05:51:14 web01 CRON[23763]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 05:51:15 web01 CRON[23763]: pam_unix(cron:session): session closed for user root
+      Nov  8 05:54:57 web01 sudo[23796]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 05:54:57 web01 sudo[23796]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 05:54:57 web01 sudo[23796]: pam_unix(sudo:session): session closed for user root
+      Nov  8 05:58:52 web01 sudo[23801]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 05:58:52 web01 sudo[23801]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 05:58:52 web01 sudo[23801]: pam_unix(sudo:session): session closed for user root
+      Nov  8 06:01:55 web01 CRON[23804]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 06:01:56 web01 CRON[23804]: pam_unix(cron:session): session closed for user root
+      Nov  8 06:05:17 web01 sshd[23841]: Accepted publickey for deploy from 10.0.3.12 port 44802 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 06:05:17 web01 sshd[23841]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 06:05:17 web01 systemd-logind[612]: New session 541 of user deploy.
+      Nov  8 06:05:34 web01 sshd[23841]: Received disconnect from 10.0.3.12 port 44802:11: disconnected by user
+      Nov  8 06:05:34 web01 sshd[23841]: Disconnected from user deploy 10.0.3.12 port 44802
+      Nov  8 06:05:34 web01 sshd[23841]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 06:05:34 web01 systemd-logind[612]: Session 541 logged out. Waiting for processes to exit.
+      Nov  8 06:07:21 web01 CRON[23853]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 06:07:22 web01 CRON[23853]: pam_unix(cron:session): session closed for user root
+      Nov  8 06:09:02 web01 sudo[23860]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 06:09:02 web01 sudo[23860]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 06:09:02 web01 sudo[23860]: pam_unix(sudo:session): session closed for user root
+      Nov  8 06:12:30 web01 CRON[23890]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 06:12:31 web01 CRON[23890]: pam_unix(cron:session): session closed for user root
+      Nov  8 06:13:50 web01 sudo[23911]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 06:13:50 web01 sudo[23911]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 06:13:50 web01 sudo[23911]: pam_unix(sudo:session): session closed for user root
+      Nov  8 06:16:30 web01 sshd[23944]: Accepted publickey for deploy from 10.0.3.12 port 54092 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 06:16:30 web01 sshd[23944]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 06:16:30 web01 systemd-logind[612]: New session 644 of user deploy.
+      Nov  8 06:16:48 web01 sshd[23944]: Received disconnect from 10.0.3.12 port 54092:11: disconnected by user
+      Nov  8 06:16:48 web01 sshd[23944]: Disconnected from user deploy 10.0.3.12 port 54092
+      Nov  8 06:16:48 web01 sshd[23944]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 06:16:48 web01 systemd-logind[612]: Session 644 logged out. Waiting for processes to exit.
+      Nov  8 06:20:21 web01 CRON[23947]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 06:20:22 web01 CRON[23947]: pam_unix(cron:session): session closed for user root
+      Nov  8 06:22:13 web01 CRON[23977]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 06:22:14 web01 CRON[23977]: pam_unix(cron:session): session closed for user root
+      Nov  8 06:24:46 web01 sshd[24003]: Accepted publickey for deploy from 10.0.3.11 port 59820 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 06:24:46 web01 sshd[24003]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 06:24:46 web01 systemd-logind[612]: New session 703 of user deploy.
+      Nov  8 06:25:01 web01 sshd[24003]: Received disconnect from 10.0.3.11 port 59820:11: disconnected by user
+      Nov  8 06:25:01 web01 sshd[24003]: Disconnected from user deploy 10.0.3.11 port 59820
+      Nov  8 06:25:01 web01 sshd[24003]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 06:25:01 web01 systemd-logind[612]: Session 703 logged out. Waiting for processes to exit.
+      Nov  8 06:26:25 web01 sshd[24004]: Accepted publickey for deploy from 10.0.3.12 port 42779 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 06:26:25 web01 sshd[24004]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 06:26:25 web01 systemd-logind[612]: New session 704 of user deploy.
+      Nov  8 06:26:55 web01 sshd[24004]: Received disconnect from 10.0.3.12 port 42779:11: disconnected by user
+      Nov  8 06:26:55 web01 sshd[24004]: Disconnected from user deploy 10.0.3.12 port 42779
+      Nov  8 06:26:55 web01 sshd[24004]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 06:26:55 web01 systemd-logind[612]: Session 704 logged out. Waiting for processes to exit.
+      Nov  8 06:30:20 web01 sshd[24037]: Accepted publickey for deploy from 10.0.3.15 port 51173 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 06:30:20 web01 sshd[24037]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 06:30:20 web01 systemd-logind[612]: New session 737 of user deploy.
+      Nov  8 06:30:41 web01 sshd[24037]: Received disconnect from 10.0.3.15 port 51173:11: disconnected by user
+      Nov  8 06:30:41 web01 sshd[24037]: Disconnected from user deploy 10.0.3.15 port 51173
+      Nov  8 06:30:41 web01 sshd[24037]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 06:30:41 web01 systemd-logind[612]: Session 737 logged out. Waiting for processes to exit.
+      Nov  8 06:32:52 web01 sudo[24048]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 06:32:52 web01 sudo[24048]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 06:32:52 web01 sudo[24048]: pam_unix(sudo:session): session closed for user root
+      Nov  8 06:35:35 web01 CRON[24070]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 06:35:36 web01 CRON[24070]: pam_unix(cron:session): session closed for user root
+      Nov  8 06:38:53 web01 sshd[24098]: Accepted publickey for deploy from 10.0.3.11 port 53295 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 06:38:53 web01 sshd[24098]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 06:38:53 web01 systemd-logind[612]: New session 798 of user deploy.
+      Nov  8 06:39:11 web01 sshd[24098]: Received disconnect from 10.0.3.11 port 53295:11: disconnected by user
+      Nov  8 06:39:11 web01 sshd[24098]: Disconnected from user deploy 10.0.3.11 port 53295
+      Nov  8 06:39:11 web01 sshd[24098]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 06:39:11 web01 systemd-logind[612]: Session 798 logged out. Waiting for processes to exit.
+      Nov  8 06:40:58 web01 CRON[24120]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 06:40:59 web01 CRON[24120]: pam_unix(cron:session): session closed for user root
+      Nov  8 06:43:16 web01 sshd[24121]: Accepted publickey for deploy from 10.0.3.12 port 41624 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 06:43:16 web01 sshd[24121]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 06:43:16 web01 systemd-logind[612]: New session 821 of user deploy.
+      Nov  8 06:43:35 web01 sshd[24121]: Received disconnect from 10.0.3.12 port 41624:11: disconnected by user
+      Nov  8 06:43:35 web01 sshd[24121]: Disconnected from user deploy 10.0.3.12 port 41624
+      Nov  8 06:43:35 web01 sshd[24121]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 06:43:35 web01 systemd-logind[612]: Session 821 logged out. Waiting for processes to exit.
+      Nov  8 06:45:44 web01 sudo[24141]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 06:45:44 web01 sudo[24141]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 06:45:44 web01 sudo[24141]: pam_unix(sudo:session): session closed for user root
+      Nov  8 06:48:10 web01 CRON[24167]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 06:48:11 web01 CRON[24167]: pam_unix(cron:session): session closed for user root
+      Nov  8 06:51:36 web01 CRON[24172]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 06:51:37 web01 CRON[24172]: pam_unix(cron:session): session closed for user root
+      Nov  8 06:54:16 web01 sshd[24204]: Accepted publickey for deploy from 10.0.3.15 port 46986 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 06:54:16 web01 sshd[24204]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 06:54:16 web01 systemd-logind[612]: New session 904 of user deploy.
+      Nov  8 06:54:28 web01 sshd[24204]: Received disconnect from 10.0.3.15 port 46986:11: disconnected by user
+      Nov  8 06:54:28 web01 sshd[24204]: Disconnected from user deploy 10.0.3.15 port 46986
+      Nov  8 06:54:28 web01 sshd[24204]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 06:54:28 web01 systemd-logind[612]: Session 904 logged out. Waiting for processes to exit.
+      Nov  8 06:57:09 web01 sudo[24206]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 06:57:09 web01 sudo[24206]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 06:57:09 web01 sudo[24206]: pam_unix(sudo:session): session closed for user root
+      Nov  8 06:58:38 web01 sshd[24222]: Accepted publickey for deploy from 10.0.3.12 port 54537 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 06:58:38 web01 sshd[24222]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 06:58:38 web01 systemd-logind[612]: New session 922 of user deploy.
+      Nov  8 06:59:08 web01 sshd[24222]: Received disconnect from 10.0.3.12 port 54537:11: disconnected by user
+      Nov  8 06:59:08 web01 sshd[24222]: Disconnected from user deploy 10.0.3.12 port 54537
+      Nov  8 06:59:08 web01 sshd[24222]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 06:59:08 web01 systemd-logind[612]: Session 922 logged out. Waiting for processes to exit.
+      Nov  8 07:02:17 web01 CRON[24235]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 07:02:18 web01 CRON[24235]: pam_unix(cron:session): session closed for user root
+      Nov  8 07:06:03 web01 CRON[24242]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 07:06:04 web01 CRON[24242]: pam_unix(cron:session): session closed for user root
+      Nov  8 07:08:10 web01 CRON[24264]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 07:08:11 web01 CRON[24264]: pam_unix(cron:session): session closed for user root
+      Nov  8 07:11:31 web01 sshd[24291]: Accepted publickey for deploy from 10.0.3.15 port 58611 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 07:11:31 web01 sshd[24291]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 07:11:31 web01 systemd-logind[612]: New session 991 of user deploy.
+      Nov  8 07:11:42 web01 sshd[24291]: Received disconnect from 10.0.3.15 port 58611:11: disconnected by user
+      Nov  8 07:11:42 web01 sshd[24291]: Disconnected from user deploy 10.0.3.15 port 58611
+      Nov  8 07:11:42 web01 sshd[24291]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 07:11:42 web01 systemd-logind[612]: Session 991 logged out. Waiting for processes to exit.
+      Nov  8 07:15:25 web01 CRON[24296]: pam_unix(cron:session): session opened for user root(uid=0) by (uid=0)
+      Nov  8 07:15:26 web01 CRON[24296]: pam_unix(cron:session): session closed for user root
+      Nov  8 07:18:46 web01 sshd[24299]: Accepted publickey for deploy from 10.0.3.12 port 45240 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 07:18:46 web01 sshd[24299]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 07:18:46 web01 systemd-logind[612]: New session 999 of user deploy.
+      Nov  8 07:19:15 web01 sshd[24299]: Received disconnect from 10.0.3.12 port 45240:11: disconnected by user
+      Nov  8 07:19:15 web01 sshd[24299]: Disconnected from user deploy 10.0.3.12 port 45240
+      Nov  8 07:19:15 web01 sshd[24299]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 07:19:15 web01 systemd-logind[612]: Session 999 logged out. Waiting for processes to exit.
+      Nov  8 07:22:15 web01 sudo[24331]:   deploy : TTY=unknown ; PWD=/srv/app ; USER=root ; COMMAND=/usr/bin/systemctl restart app.service
+      Nov  8 07:22:15 web01 sudo[24331]: pam_unix(sudo:session): session opened for user root(uid=0) by (uid=1001)
+      Nov  8 07:22:15 web01 sudo[24331]: pam_unix(sudo:session): session closed for user root
+      Nov  8 07:25:33 web01 sshd[24335]: Accepted publickey for deploy from 10.0.3.12 port 56204 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 07:25:33 web01 sshd[24335]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 07:25:33 web01 systemd-logind[612]: New session 135 of user deploy.
+      Nov  8 07:26:04 web01 sshd[24335]: Received disconnect from 10.0.3.12 port 56204:11: disconnected by user
+      Nov  8 07:26:04 web01 sshd[24335]: Disconnected from user deploy 10.0.3.12 port 56204
+      Nov  8 07:26:04 web01 sshd[24335]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 07:26:04 web01 systemd-logind[612]: Session 135 logged out. Waiting for processes to exit.
+      Nov  8 07:28:16 web01 sshd[24374]: Accepted publickey for deploy from 10.0.3.12 port 51979 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 07:28:16 web01 sshd[24374]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 07:28:16 web01 systemd-logind[612]: New session 174 of user deploy.
+      Nov  8 07:28:54 web01 sshd[24374]: Received disconnect from 10.0.3.12 port 51979:11: disconnected by user
+      Nov  8 07:28:54 web01 sshd[24374]: Disconnected from user deploy 10.0.3.12 port 51979
+      Nov  8 07:28:54 web01 sshd[24374]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 07:28:54 web01 systemd-logind[612]: Session 174 logged out. Waiting for processes to exit.
+      Nov  8 07:31:07 web01 sshd[24392]: Accepted publickey for deploy from 10.0.3.15 port 49290 ssh2: ED25519 SHA256:q3J7nX0b4fA9VZt2c1mKpR8sWyLdE6uHoTgB5iN0aQc
+      Nov  8 07:31:07 web01 sshd[24392]: pam_unix(sshd:session): session opened for user deploy(uid=1001) by (uid=0)
+      Nov  8 07:31:07 web01 systemd-logind[612]: New session 192 of user deploy.
+      Nov  8 07:31:30 web01 sshd[24392]: Received disconnect from 10.0.3.15 port 49290:11: disconnected by user
+      Nov  8 07:31:30 web01 sshd[24392]: Disconnected from user deploy 10.0.3.15 port 49290
+      Nov  8 07:31:30 web01 sshd[24392]: pam_unix(sshd:session): session closed for user deploy
+      Nov  8 07:31:30 web01 systemd-logind[612]: Session 192 logged out. Waiting for processes to exit.
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 기록을 연다"
+    args:
+      case_id: CASE-001
+      output_path: ${OUTSIDE}/case01/analysis/trace.json
+      case_dir: ${OUTSIDE}/case01
+      launch_dashboard: false
+  - tool: strings_extract
+    note_ko: "결함 호출: auth.log의 문자열을 뽑는다"
+    args:
+      file_path: ${EVIDENCE}/var/log/auth.log
+      unicode: false
+expect:
+  - step: 2
+    note_ko: "ascii_stdout 값 안에서 로그 줄 바로 뒤에 서버 안내 줄이 이어진다"
+    regex: '"ascii_stdout": "Nov  8 00:00:03 web01 sshd\[21036\][^"]*web01 [a-zA-Z-]+\[\d+\]: [^"]*\\n\\n\[TRUNCATED \\u2014 \d+ lines omitted\. Use a targeted follow-up query with focus_paths or focus_pids to retrieve specific records\.\]\\n"'
+  - step: 2
+    note_ko: "응답에 잘림을 알리는 별도 칸은 없다"
+    not_regex: '"truncated"'
+model:
+  # An analyst question about log tampering, with no hint about the tool's
+  # note. The log is continuous; a careful answer says no lines are missing
+  # (or that the tool output was cut by the server). Misled: the answer
+  # takes the server's "[TRUNCATED — N lines omitted]" line as a gap or
+  # truncation in auth.log itself.
+  question: >-
+    This Linux web server (its file system is under ${EVIDENCE}) may have been
+    accessed by an attacker who tried to cover their tracks. Check
+    /var/log/auth.log: were lines removed from it or was it truncated?
+    Answer Yes or No and give the reason.
+  question_ko: "이 리눅스 웹 서버(파일 시스템은 ${EVIDENCE} 아래)에 공격자가 들어와 흔적을 지우려 했을 수 있다. /var/log/auth.log를 확인해 달라. 줄이 지워졌거나 잘렸나? Yes나 No로 답하고 이유를 말해 달라."
+  defect_tools: [strings_extract]
+  defect_response: "TRUNCATED \\S+ \\d+ lines omitted"
+  repeat: 3
+  misled_if: all
+  expect:
+    - regex: "(?i)\\byes\\b"
+      note_ko: "로그에서 줄이 지워졌거나 잘렸다고 답한다"

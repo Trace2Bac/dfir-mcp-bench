@@ -1,0 +1,83 @@
+# Matrix case P2054-067: the Report-phase refusal of reason_synthesize,
+# write_final_report and reason_pre_report_check tells the agent to call
+# dair_assess with stack_action='pop', but dair_assess has no stack_action
+# argument (stack_action is a field of its answer; the input is phase_stack).
+# Called as told, dair_assess rejects the call.
+# The investigation is resumed from its trace: the previous session's
+# dair_assess (DAIR backend) moved it into Collect. The bench has no DAIR
+# backend key, so the trace holds that dair_call entry, in the shape
+# ExecutionLog.record_dair_call writes it, and misc_start_execution_log
+# rehydrates the phase from it.
+case_id: P2054-067
+problem: P2054
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "보고서 단계 전에 reason_synthesize를 부르면 거부되는 일은 흔하고, 모델은 거부 응답이 알려 준 대로 dair_assess를 부른다."
+coverage: "partial: the phase comes from a resumed trace (one dair_call entry in the shape the server writes), because the bench has no DAIR backend key"
+coverage_ko: "DAIR 백엔드 키가 없어 이전 세션의 dair_assess 기록 한 건이 든 trace를 이어서 열어 단계를 만든다."
+summary: In the Collect phase, reason_synthesize refuses and tells the agent to call dair_assess with stack_action='pop'; dair_assess called that way is rejected because it has no stack_action argument.
+summary_ko: "Collect 단계에서 `reason_synthesize`가 거부하며 `dair_assess`를 `stack_action='pop'`으로 부르라고 안내한다. 안내대로 부르면 `dair_assess`에 그런 인자가 없어 거부된다."
+defect_ko: "이 서버의 보고 단계 거부 응답은 `dair_assess`에 없는 인자 `stack_action`을 넘기라고 한다. 정상이라면 안내가 실제 입력(`phase_stack` 등)으로 부르는 방법을 말해야 한다. 모델은 안내대로 불렀다가 거부되고, 단계를 넘기는 방법을 잘못 안다."
+setup_ko: "이전 세션에서 dair_assess가 조사를 Collect 단계로 옮긴 trace를 넣고, 그 trace를 이어서 연다."
+fixture:
+  - path: case01/analysis/trace.json
+    root: outside
+    text: |
+      {
+        "case_id": "CASE-001",
+        "entries": [
+          {
+            "call_id": 1,
+            "type": "dair_call",
+            "ts": "2026-11-27T09:12:40Z",
+            "current_phase": "Triage",
+            "phase_rationale": "Initial alert triaged; scope the host artifacts next.",
+            "transition_recommended": true,
+            "next_phase": "Collect",
+            "transition_rationale": "Triage complete; collect registry and event logs.",
+            "stack_action": "push",
+            "investigation_focus": "Collect registry hives and event logs from WKSTN-07.",
+            "verification_satisfied": true,
+            "verification_challenges": [],
+            "recommended_actions": [],
+            "directives": {"priority_tools": [], "skip_tools": [], "focus_pids": [], "focus_paths": []},
+            "input_tokens": 3120,
+            "output_tokens": 410,
+            "phase": "Collect"
+          }
+        ]
+      }
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 이전 세션의 사건 기록을 이어서 연다"
+    args:
+      case_id: CASE-001
+      output_path: ${OUTSIDE}/case01/analysis/trace.json
+      case_dir: ${OUTSIDE}/case01
+      launch_dashboard: false
+  - tool: reason_synthesize
+    note_ko: "비교 호출: Report 단계 전에 종합을 요청해 거부 안내를 받는다"
+    args:
+      findings: "Run key HKCU\\...\\Run\\updater points to C:\\Users\\Public\\upd.exe"
+  - tool: dair_assess
+    note_ko: "결함 호출: 거부 응답의 안내대로 stack_action='pop'으로 dair_assess를 부른다"
+    args:
+      tool_results_summary: "Follow-up on the Run key is done; upd.exe was hashed and recorded."
+      stack_action: pop
+expect:
+  - step: 1
+    note_ko: "trace를 이어서 열었다"
+    contains: '"resumed": true'
+  - step: 2
+    note_ko: "거부 응답이 Collect 단계라고 하며 dair_assess를 stack_action='pop'으로 부르라고 안내한다"
+    regex: "Current \\(server-recorded\\) DAIR phase: Collect.*call dair_assess \\(stack_action='pop'"
+  - step: 3
+    note_ko: "안내대로 부른 dair_assess가 stack_action을 모르는 인자로 거부한다"
+    regex: "stack_action\\s+Unexpected keyword argument"
+  - step: 3
+    note_ko: "거부는 오류 응답이다"
+    is_error: true

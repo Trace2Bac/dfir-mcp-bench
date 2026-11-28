@@ -1,0 +1,59 @@
+# Matrix case P4192-024: read_output with `columns` parses the CSV with
+# csv.reader and then joins the projected cells back with a bare ",", with
+# no quoting. A RECmd value whose data holds a comma (rundll32 <dll>,<entry>,
+# the usual form of a Run-key launcher) comes back as one more column than
+# the header has, and nothing in the response says the row was re-joined.
+# The CSV follows RECmd's batch output (Kroll batch columns, RFC 4180 quoting).
+case_id: P4192-024
+problem: P4192
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: source-vs-result
+level: mcp
+realism: common
+realism_ko: "Run 키 값은 `rundll32.exe <dll>,<진입점>`처럼 쉼표가 든 경우가 흔하고, 넓은 RECmd CSV를 읽을 때 columns로 필요한 열만 고르는 것은 도구 설명이 권하는 사용법이다."
+coverage: "partial: the comma case only; NUL removal from binary values is not shown"
+coverage_ko: "쉼표가 든 칸만 보였다. 이진 값의 NUL 문자 삭제는 보이지 않았다."
+summary: read_output with columns ValueName,ValueData returns the Run value "rundll32.exe C:\Users\Public\wct4F2A.dll,DllRegisterServer" unquoted, so the row has three comma-separated fields under a two-column header, and the response does not say the cells were re-joined.
+summary_ko: "read_output에 columns로 ValueName,ValueData를 주면 Run 값 \"rundll32.exe C:\\Users\\Public\\wct4F2A.dll,DllRegisterServer\"가 따옴표 없이 실려, 두 열 머리 아래 쉼표로 나뉜 칸이 셋인 행이 되고 응답은 칸을 다시 이어 붙였다고 말하지 않는다."
+defect_ko: "이 서버는 CSV를 칸으로 나눈 뒤 따옴표 없이 쉼표로 다시 이어 싣는다. 쉼표가 든 값은 칸 경계가 무너진다. 정상이라면 CSV 규칙대로 따옴표를 붙이거나 칸을 구조로 돌려줘야 한다. 모델은 ValueData를 `rundll32.exe C:\\Users\\Public\\wct4F2A.dll`로, DllRegisterServer를 다른 열 값으로 잘못 읽을 수 있다."
+setup_ko: "RECmd 배치 출력 형식의 NTUSER.DAT CSV에 Run 키 값 3개를 넣었다. 그중 하나는 `rundll32.exe <dll>,DllRegisterServer`처럼 값에 쉼표가 있다."
+fixture:
+  - path: analysis/.keep
+    root: db
+    text: ""
+  # RECmd --bn Kroll_Batch.reb output (column set of RECmd 2.x batch mode),
+  # quoted per RFC 4180 where a field holds a comma.
+  - path: analysis/registry/20241028101500_RECmd_Batch_Kroll_Batch_Output.csv
+    root: db
+    text: |
+      HivePath,HiveType,Description,Category,KeyPath,ValueName,ValueType,ValueData,ValueData2,ValueData3,Comment,Recursive,Deleted,LastWriteTimestamp,PluginDetailFile
+      C:\Users\alice\NTUSER.DAT,NtUser,Run key,Autoruns,ROOT\Software\Microsoft\Windows\CurrentVersion\Run,OneDrive,RegSz,"""C:\Users\alice\AppData\Local\Microsoft\OneDrive\OneDrive.exe"" /background",,,,False,False,2024-10-21 08:14:02,
+      C:\Users\alice\NTUSER.DAT,NtUser,Run key,Autoruns,ROOT\Software\Microsoft\Windows\CurrentVersion\Run,WctUpdate,RegSz,"rundll32.exe C:\Users\Public\wct4F2A.dll,DllRegisterServer",,,,False,False,2024-10-27 23:41:57,
+      C:\Users\alice\NTUSER.DAT,NtUser,Run key,Autoruns,ROOT\Software\Microsoft\Windows\CurrentVersion\Run,Teams,RegSz,"C:\Users\alice\AppData\Local\Microsoft\Teams\Update.exe --processStart ""Teams.exe"" --process-start-args ""--system-initiated""",,,,False,False,2024-10-21 08:14:05,
+steps:
+  - tool: read_output
+    note_ko: "비교 호출: 열을 고르지 않고 읽는다(원래 줄)"
+    args:
+      path: ${DB_DIR}/analysis/registry/20241028101500_RECmd_Batch_Kroll_Batch_Output.csv
+      query: rundll32
+  - tool: read_output
+    note_ko: "결함 호출: ValueName, ValueData 열만 골라 읽는다"
+    args:
+      path: ${DB_DIR}/analysis/registry/20241028101500_RECmd_Batch_Kroll_Batch_Output.csv
+      query: rundll32
+      columns: ValueName,ValueData
+expect:
+  - step: 1
+    note_ko: "원래 줄에서는 값이 따옴표로 묶여 한 칸이다"
+    regex: ',RegSz,\\"rundll32\.exe C:\\\\Users\\\\Public\\\\wct4F2A\.dll,DllRegisterServer\\",'
+  - step: 2
+    note_ko: "열을 고르면 머리는 두 열이다"
+    regex: '"body":\s*"ValueName,ValueData\\n'
+  - step: 2
+    note_ko: "같은 행은 따옴표 없이 쉼표 두 개로 이어져 세 칸처럼 보인다"
+    regex: '\\nWctUpdate,rundll32\.exe C:\\\\Users\\\\Public\\\\wct4F2A\.dll,DllRegisterServer"'
+  - step: 2
+    note_ko: "응답은 잘리지 않았다고 하고, 칸을 다시 이었다는 말은 없다"
+    regex: '"truncated":\s*false'

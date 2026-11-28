@@ -1,0 +1,40 @@
+{
+  "case_id": "P4116-065",
+  "problem": "P4116",
+  "server": "trudi",
+  "commit": "88fbca78186b6a0ca40423cf5e37a9dc46ae051e",
+  "display": "response",
+  "level": "mcp",
+  "realism": "possible",
+  "coverage": "full",
+  "result": "reproduced",
+  "reproduced_runs": "1/1",
+  "checks": [
+    {
+      "step": 2,
+      "note_ko": "레코드 15개를 모두 읽었다",
+      "contains": "\"total_entries\": 15",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "긴 이름 문서 레코드 하나 길이(144바이트)만큼의 차이가 간격으로 나온다",
+      "contains": "{\"prior_usn\": 93355496, \"next_usn\": 93355640, \"delta\": 144}",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "빠진 레코드가 없는데도 간격이 9개다",
+      "contains": "\"gap_count\": 9",
+      "ok": true
+    },
+    {
+      "step": 2,
+      "note_ko": "정상 저널로 USN 저널 정리(T1070) 발견을 제안한다",
+      "regex": "USN journal pruning detected \\(9 gaps > 100 USNs; T1070\\)",
+      "ok": true
+    }
+  ],
+  "image": "sha256:b1b4c52e2ea2d1587d12f1d912812b5ebf98d4c350eacdd98843ff963bea95d6",
+  "ran_at": "2026-11-27T20:25:57+00:00"
+}

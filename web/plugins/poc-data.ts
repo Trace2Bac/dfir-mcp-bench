@@ -22,7 +22,7 @@ const MAX_INSTRUCTIONS_CHARS = 6000;
 // A model's final answer is shown shorter than a server response.
 const MAX_ANSWER_CHARS = 3000;
 const ANSWER_HEAD = 1500;
-const MAX_MODEL_CALLS = 30; // tool calls listed per model run
+const MAX_MODEL_CALLS = 60; // tool calls listed per model run
 
 export type PocRule =
   | 'contains'
@@ -102,7 +102,7 @@ export type PocModelRun = {
   length: number;
   cut: boolean;
   held: number[]; // the rules that held
-  calls: {tool: string; args: string}[];
+  calls: string[]; // tool names, in the order called
   moreCalls: number; // calls left out of the list
   seconds: number;
 };
@@ -127,8 +127,8 @@ export type PocModel = {
   question: string;
   misledIf: 'all' | 'any';
   rules: PocModelRule[];
-  models: PocModelEntry[];
-  worst: {model: string; misled: number; runs: number};
+  defectTools: string[]; // the tools whose response carries the defect
+  models: PocModelEntry[]; // Claude models first (Opus, Sonnet, Haiku), then local ones
 };
 export type PocData = {
   caseId: string;
@@ -141,12 +141,10 @@ export type PocData = {
   summary: string;
   defect: string; // what is wrong (defect_ko); may be empty
   setup: string; // the condition prepared (setup_ko); may be empty
-  realism: string; // common, possible, forced
+  realism: string; // common, possible
   realismNote: string; // realism_ko; may be empty
   coverage: 'full' | 'partial';
   coverageNote: string; // what a partial PoC leaves out
-  result: string; // reproduced, not reproduced
-  reproducedRuns: string; // k/N
   attempts: number;
   image: string;
   ranAt: string;
@@ -165,8 +163,9 @@ export type PocData = {
     tools: {name: string; json: string}[]; // the tools the steps call
   };
 };
-export type PocSummary = Pick<PocData, 'caseId' | 'problem' | 'server' | 'summary' | 'result' | 'realism'> & {
-  model?: {model: string; misled: number; runs: number}; // the worst model
+export type PocSummary = Pick<PocData, 'caseId' | 'problem' | 'server' | 'summary' | 'realism'> & {
+  // models misled at least once / models with a judged run
+  model?: {misled: number; judged: number};
 };
 
 const RULES: PocRule[] = [
@@ -393,10 +392,16 @@ function readModelRun(r: any, asChecks: PocCheck[]): PocModelRun {
     length: text.length,
     cut: cut.cut,
     held: (r.checks ?? []).flatMap((c: any, i: number) => (c.ok ? [i + 1] : [])),
-    calls: calls.slice(0, MAX_MODEL_CALLS).map(c => ({tool: String(c.tool), args: unTemp(JSON.stringify(c.args ?? {}))})),
+    calls: calls.slice(0, MAX_MODEL_CALLS).map(c => String(c.tool)),
     moreCalls: Math.max(0, calls.length - MAX_MODEL_CALLS),
     seconds: Number(r.seconds ?? 0),
   };
+}
+
+// Claude models by size, then the rest (local models).
+function modelRank(m: PocModelEntry): number {
+  const i = ['opus', 'sonnet', 'haiku'].findIndex(f => m.key.includes(f));
+  return m.local || i < 0 ? 3 : i;
 }
 
 function readModel(spec: any, result: any, runDir: string, locale: string): PocModel | undefined {
@@ -434,18 +439,13 @@ function readModel(spec: any, result: any, runDir: string, locale: string): PocM
       items,
     };
   });
-  const share = (m: PocModelEntry) => (m.runs ? m.misled / m.runs : 0);
-  const judged = models.filter(m => m.runs > 0);
-  const worstEntry = (judged.length ? judged : models).reduce<PocModelEntry | undefined>(
-    (w, m) => (!w || share(m) > share(w) || (share(m) === share(w) && m.misled > w.misled) ? m : w),
-    undefined,
-  );
+  models.sort((a, b) => modelRank(a) - modelRank(b) || a.key.localeCompare(b.key));
   return {
     question: localized(spec, 'question', locale),
     misledIf: spec.misled_if === 'any' ? 'any' : 'all',
     rules,
+    defectTools: (spec.defect_tools ?? []).map(String),
     models,
-    worst: {model: worstEntry?.key ?? '', misled: worstEntry?.misled ?? 0, runs: worstEntry?.runs ?? 0},
   };
 }
 
@@ -528,8 +528,6 @@ function readPoc(root: string, dir: string, locale: string, repos: (server: stri
     coverageNote: partial
       ? (localized(poc, 'coverage', locale) || coverage).replace(/^partial\s*:?\s*/i, '')
       : '',
-    result: String(result.result ?? ''),
-    reproducedRuns: String(result.reproduced_runs ?? ''),
     attempts: attempts.length,
     image: String(result.image ?? ''),
     ranAt: String(result.ran_at ?? ''),
@@ -578,8 +576,11 @@ export function readPocs(root: string, locale: string, repos: (server: string, v
 }
 
 export function summarizePoc(p: PocData): PocSummary {
-  const {caseId, problem, server, summary, result, realism} = p;
-  const out: PocSummary = {caseId, problem, server, summary, result, realism};
-  if (p.model) out.model = p.model.worst;
+  const {caseId, problem, server, summary, realism} = p;
+  const out: PocSummary = {caseId, problem, server, summary, realism};
+  if (p.model) {
+    const judged = p.model.models.filter(m => m.runs > 0);
+    out.model = {misled: judged.filter(m => m.misled > 0).length, judged: judged.length};
+  }
   return out;
 }

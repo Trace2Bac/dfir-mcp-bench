@@ -1,0 +1,153 @@
+# Matrix case P4143-006: velo.* (and live.*) write their trace entry with
+# only the agent-facing stdout (already cut to 51,200 chars / 150 lines) and
+# no _stdout_full, so execution_log stores that cut text as the call's
+# full-stdout sidecar (.tool_output/<cid>.txt) with stdout_chars equal to the
+# cut length and no stdout_partial. For executor tools the same sidecar holds
+# the whole output.
+# The image has no Velociraptor server, so ${STUBS}/velociraptor stands in for
+# `velociraptor --api_config <cfg> query --format jsonl <VQL>`, as in
+# P4133-015 (183 processes of a Windows.System.Pslist flow). What trudi
+# records in the trace is real.
+case_id: P4143-006
+problem: P4143
+server: trudi
+variant: trudi-88fbca7
+commit: 88fbca78186b6a0ca40423cf5e37a9dc46ae051e
+display: multi-call
+level: mcp
+realism: common
+realism_ko: "Windows.System.Pslist처럼 한 행이 수백 자인 수집 결과는 프로세스 목록 한 번으로 51,200자를 넘고, 그때마다 사이드카에 잘린 출력이 남는다."
+coverage: "partial: the Velociraptor server is a stub; live.* tools record the same way and were not run, nor the reviewer step that reads the sidecar (it needs the Anthropic API)"
+coverage_ko: "Velociraptor 서버는 흉내 스크립트다. 같은 방식으로 기록하는 live.* 도구와, 사이드카를 읽는 검토 단계(Anthropic API 필요)는 돌리지 않았다."
+summary: After velo_get_collection_results for a Windows.System.Pslist flow of 183 processes, the trace keeps as the call's full-stdout sidecar only the first 51,200 characters, recorded with stdout_chars 51200 and no stdout_partial; the sidecar has no rundll32.exe, which a filtered query of the same flow returns.
+summary_ko: "프로세스 183개가 든 Windows.System.Pslist 수집을 velo_get_collection_results로 받으면, trace는 그 호출의 전체 stdout 사이드카에 앞 51,200자만 남기고 stdout_chars 51200, stdout_partial 없음으로 기록한다. 사이드카에는 같은 수집을 이름으로 걸러 조회하면 나오는 rundll32.exe가 없다."
+defect_ko: "이 서버는 velo 호출의 기록에 잘린 응답만 넘겨, 전체 출력을 보관한다는 사이드카에도 잘린 출력이 남고 잘림(stdout_partial)과 실제 길이가 기록되지 않는다. 정상이라면 다른 도구처럼 velociraptor 출력 전체를 사이드카에 두거나 잘렸다고 기록해야 한다. 검토 단계와 모델은 사이드카를 수집 결과 전체로 믿고, 거기에 없는 rundll32.exe를 그 호스트에 없던 프로세스로 잘못 안다."
+setup_ko: "Velociraptor API 설정 파일을 두고, WS-0142에서 끝난 Windows.System.Pslist 수집(프로세스 183개, 뒤쪽에 rundll32.exe·cmd.exe)을 jsonl로 내는 velociraptor 흉내 스크립트를 썼다. 이름 조건(WHERE Name =~)도 받는다."
+env:
+  TRUDI_VELO_BIN: ${STUBS}/velociraptor
+  TRUDI_VELO_API_CONFIG: ${DB_DIR}/velo/api.config.yaml
+stubs:
+  - name: velociraptor
+    text: |
+      #!/usr/bin/env python3
+      # Stub of the Velociraptor CLI (`velociraptor --api_config <cfg> query
+      # --format jsonl <VQL>`) for one finished flow: the rows of
+      # Windows.System.Pslist collected from WS-0142 (183 processes). The rows
+      # carry the artifact's columns (Pid, Ppid, TokenIsElevated, Name,
+      # CommandLine, Exe, Hash, Authenticode, Username, WorkingSetSize) and are
+      # printed one JSON object per line, as `query --format jsonl` does. A
+      # `WHERE Name =~ '<regex>'` clause filters by process name, as in VQL.
+      import hashlib, json, sys
+      argv = sys.argv[1:]
+      vql = argv[-1]
+      import re
+      if not vql.startswith("SELECT * FROM source(") or '"Windows.System.Pslist"' not in vql:
+          print("[ERROR] stub: unsupported VQL", file=sys.stderr)
+          sys.exit(1)
+      W = "C:\\Windows\\System32\\"
+      procs = [(4, 0, "System", "", "", "NT AUTHORITY\\SYSTEM"),
+               (112, 4, "Registry", "", "", "NT AUTHORITY\\SYSTEM"),
+               (388, 4, "smss.exe", W + "smss.exe", "\\SystemRoot\\System32\\smss.exe", "NT AUTHORITY\\SYSTEM"),
+               (512, 500, "csrss.exe", W + "csrss.exe", "%SystemRoot%\\system32\\csrss.exe ObjectDirectory=\\Windows SharedSection=1024,20480,768 Windows=On SubSystemType=Windows ServerDll=basesrv,1 ServerDll=winsrv:UserServerDllInitialization,3 ServerDll=sxssrv,4 ProfileControl=Off MaxRequestThreads=16", "NT AUTHORITY\\SYSTEM"),
+               (588, 500, "wininit.exe", W + "wininit.exe", "wininit.exe", "NT AUTHORITY\\SYSTEM"),
+               (664, 588, "services.exe", W + "services.exe", W + "services.exe", "NT AUTHORITY\\SYSTEM"),
+               (684, 588, "lsass.exe", W + "lsass.exe", W + "lsass.exe", "NT AUTHORITY\\SYSTEM")]
+      svc = ["-k DcomLaunch -p", "-k RPCSS -p", "-k LocalServiceNetworkRestricted -p", "-k netsvcs -p",
+             "-k LocalService -p", "-k NetworkService -p", "-k LocalSystemNetworkRestricted -p", "-k UnistackSvcGroup"]
+      pid = 800
+      for i in range(110):
+          procs.append((pid, 664, "svchost.exe", W + "svchost.exe", W + "svchost.exe " + svc[i % len(svc)] + " -s Svc" + str(i), "NT AUTHORITY\\SYSTEM" if i % 3 else "NT AUTHORITY\\LOCAL SERVICE"))
+          pid += 12
+      procs.append((5120, 5088, "explorer.exe", "C:\\Windows\\explorer.exe", "C:\\Windows\\Explorer.EXE", "CORP\\j.doe"))
+      chrome = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+      for i in range(60):
+          procs.append((6200 + i * 8, 6200, "chrome.exe", chrome, '"' + chrome + '" --type=renderer --lang=en-US --renderer-client-id=' + str(i + 7) + " --field-trial-handle=1880,i,3920716462931650542", "CORP\\j.doe"))
+      procs.append((7344, 5120, "rundll32.exe", W + "rundll32.exe", "rundll32.exe C:\\Users\\Public\\Libraries\\msupdate.dll,DllRegisterServer", "CORP\\j.doe"))
+      procs.append((7360, 7344, "cmd.exe", W + "cmd.exe", "cmd.exe /c whoami /all > C:\\Users\\Public\\Libraries\\o.txt", "CORP\\j.doe"))
+      procs.append((7412, 5120, "OneDrive.exe", "C:\\Users\\j.doe\\AppData\\Local\\Microsoft\\OneDrive\\OneDrive.exe", '"C:\\Users\\j.doe\\AppData\\Local\\Microsoft\\OneDrive\\OneDrive.exe" /background', "CORP\\j.doe"))
+      procs.append((7500, 664, "MsMpEng.exe", "C:\\ProgramData\\Microsoft\\Windows Defender\\Platform\\4.18.24090.11-0\\MsMpEng.exe", '"C:\\ProgramData\\Microsoft\\Windows Defender\\Platform\\4.18.24090.11-0\\MsMpEng.exe"', "NT AUTHORITY\\SYSTEM"))
+      m = re.search(r"WHERE Name =~ '([^']+)'", vql)
+      if m:  # VQL's =~ is a case-insensitive regex match
+          procs = [x for x in procs if re.search(m.group(1), x[2], re.I)]
+      for p, pp, name, exe, cmd, user in procs:
+          h = hashlib.sha256(exe.lower().encode()).hexdigest()
+          signed = exe.startswith(("C:\\Windows", "C:\\Program Files", "C:\\ProgramData"))
+          auth = {"Filename": exe, "ProgramName": "Microsoft Windows" if signed else None,
+                  "PublisherLink": None, "MoreInfoLink": "http://www.microsoft.com/windows" if signed else None,
+                  "SerialNumber": "33000003df8ec4b4bc8a4d2c4b0000000003df" if signed else None,
+                  "IssuerName": "C=US, ST=Washington, L=Redmond, O=Microsoft Corporation, CN=Microsoft Windows Production PCA 2011" if signed else None,
+                  "SubjectName": "C=US, ST=Washington, L=Redmond, O=Microsoft Corporation, CN=Microsoft Windows" if signed else None,
+                  "Timestamp": None, "Trusted": "trusted" if signed else "untrusted"} if exe else None
+          row = {"Pid": p, "Ppid": pp, "TokenIsElevated": user.startswith("NT AUTHORITY"), "Name": name,
+                 "CommandLine": cmd, "Exe": exe,
+                 "Hash": {"MD5": h[:32], "SHA1": h[:40], "SHA256": h} if exe else None,
+                 "Authenticode": auth, "Username": user, "WorkingSetSize": 4096 * (p % 977 + 100)}
+          print(json.dumps(row, separators=(",", ":")))
+fixture:
+  - path: analysis/.keep
+    root: db
+    text: ""
+  # An API client config as `velociraptor config api_client` writes it; the
+  # stub only needs the file to exist (trudi checks it).
+  - path: velo/api.config.yaml
+    root: db
+    text: |
+      ca_certificate: |
+        -----BEGIN CERTIFICATE-----
+        MIIDTDCCAjSgAwIBAgIRAJH2OrT3x7TpJ0Ol0f7E2wwwDQYJKoZIhvcNAQELBQAw
+        -----END CERTIFICATE-----
+      client_cert: |
+        -----BEGIN CERTIFICATE-----
+        MIIDTjCCAjagAwIBAgIQX1o8u4S2p5DkXyVb0b3GQzANBgkqhkiG9w0BAQsFADAa
+        -----END CERTIFICATE-----
+      client_private_key: |
+        -----BEGIN RSA PRIVATE KEY-----
+        MIIEpAIBAAKCAQEAwz3y0K4Yk1o2q0bq8F2W3x8c5ZpA6m7kJ1Yt2eS9iP0nH4dL
+        -----END RSA PRIVATE KEY-----
+      api_connection_string: velo-server:8001
+      name: trudi
+steps:
+  - tool: misc_start_execution_log
+    note_ko: "준비: 사건 trace를 연다"
+    args:
+      case_id: P4143-006
+      output_path: ${DB_DIR}/analysis/trace.json
+      case_dir: ${DB_DIR}
+      launch_dashboard: false
+  - tool: velo_get_collection_results
+    note_ko: "결함 호출: 끝난 프로세스 목록 수집의 행을 받는다(_trudi_call_id 3)"
+    args:
+      client_id: C.4f2a9e1b7c3d5e60
+      flow_id: F.CT3K9Q1M2V8RA
+      artifact: Windows.System.Pslist
+  - tool: read_output
+    note_ko: "비교 호출: trace에 기록된 그 호출의 출력 길이와 사이드카 경로를 본다"
+    args:
+      path: ${DB_DIR}/analysis/trace.json
+      query: stdout_chars stdout_path stdout_partial
+  - tool: read_output
+    note_ko: "비교 호출: 전체 출력이라는 사이드카에서 rundll32를 찾는다"
+    args:
+      path: ${DB_DIR}/analysis/.tool_output/3.txt
+      query: rundll32
+  - tool: velo_query
+    note_ko: "비교 호출: 같은 수집을 이름으로 걸러 조회한다"
+    args:
+      vql: "SELECT * FROM source(client_id=\"C.4f2a9e1b7c3d5e60\", flow_id=\"F.CT3K9Q1M2V8RA\", artifact=\"Windows.System.Pslist\") WHERE Name =~ 'rundll32'"
+expect:
+  - step: 2
+    note_ko: "응답은 호출 3으로 기록됐다"
+    contains: "\"_trudi_call_id\": 3"
+  - step: 3
+    note_ko: "trace는 그 호출의 출력 길이를 잘린 길이 51,200자로, 사이드카를 .tool_output/3.txt로 기록한다"
+    regex: "stdout_chars.{1,3}: 51200,[\\s\\S]*stdout_path.{1,3}: .{1,3}[^\"]*/analysis/\\.tool_output/3\\.txt"
+  - step: 3
+    note_ko: "사이드카가 잘렸다는 stdout_partial은 없다"
+    not_regex: "stdout_partial.{1,3}: true"
+  - step: 4
+    note_ko: "전체 출력이라는 사이드카에서 rundll32를 찾으면 아무것도 없다"
+    regex: "\"query\": \"rundll32\"[\\s\\S]*\"body\": \"\""
+  - step: 5
+    note_ko: "같은 수집에는 rundll32.exe가 있다(사이드카가 잘려 빠졌다)"
+    contains: "msupdate.dll,DllRegisterServer"
+
